@@ -1,0 +1,59 @@
+name: qa
+
+on:
+  push:
+    branches:
+      - main
+      - "impl/**"
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: erp_meli2_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: test
+      REAL_MELI_HTTP: 0
+      APP_URL: http://localhost
+      APP_KEY: test-only-key
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: erp_meli2_test
+      DB_USER: root
+      DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          extensions: curl, json, mbstring, openssl, pdo_mysql, session, sodium
+          coverage: none
+          tools: composer:v2
+
+      - name: Assert PHP target
+        run: php -r '$c=json_decode(file_get_contents("composer.json"), true, 512, JSON_THROW_ON_ERROR); if (($c["require"]["php"] ?? "") !== "^8.5") { fwrite(STDERR, "composer php constraint must be ^8.5\n"); exit(1); }'
+
+      - name: Validate Composer
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: QA
+        run: composer qa

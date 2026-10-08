@@ -1,0 +1,14 @@
+/vendor/
+.env
+.phpunit.cache/
+.phpstan-cache/
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/debug/*
+!/storage/debug/.gitkeep
+/storage/cache/*
+!/storage/cache/.gitkeep
+/storage/exports/*
+!/storage/exports/.gitkeep
+/storage/tmp/*
+!/storage/tmp/.gitkeep
