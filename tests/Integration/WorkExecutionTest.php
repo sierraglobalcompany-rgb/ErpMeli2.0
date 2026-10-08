@@ -11,6 +11,7 @@ use App\Work\WorkRepository;
 use App\Work\WorkRunner;
 use PDO;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class WorkExecutionTest extends TestCase
@@ -97,6 +98,49 @@ final class WorkExecutionTest extends TestCase
         $blockingRunner->releaseLock();
         self::assertSame(1, $execution->runManualOne($this->processor($repository)));
         self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE status = 'done'")->fetchColumn());
+    }
+
+    public function testProcessorCrashReleasesLockAndNextRunRecoversWork(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedSettingsActor($pdo);
+        $config = TestDatabase::config();
+        $settings = new SystemSettingsRepository($pdo);
+        $repository = new WorkRepository($pdo);
+        $lockName = $config->dbName . '.erp_meli2.runner.crash-test';
+        $this->insertWork($pdo, 'crash');
+
+        $firstExecution = new WorkExecution(
+            $settings,
+            new WorkRunner(Connection::fromConfig($config), $lockName),
+            $repository,
+        );
+
+        try {
+            $firstExecution->runManualOne(
+                static function (array $claim): void {
+                    throw new RuntimeException('simulated processor crash');
+                }
+            );
+            self::fail('The simulated processor crash must escape the runner.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('simulated processor crash', $exception->getMessage());
+        }
+
+        self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE status = 'running'")->fetchColumn());
+
+        $secondExecution = new WorkExecution(
+            $settings,
+            new WorkRunner(Connection::fromConfig($config), $lockName),
+            $repository,
+        );
+        self::assertSame(1, $secondExecution->runManualOne($this->processor($repository)));
+
+        $row = $pdo->query("SELECT status, attempts, claim_token FROM work_items WHERE resource_key = 'crash'")->fetch();
+        self::assertIsArray($row);
+        self::assertSame('done', $row['status']);
+        self::assertSame(2, (int) $row['attempts']);
+        self::assertNull($row['claim_token']);
     }
 
     /**
