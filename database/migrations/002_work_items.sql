@@ -7,12 +7,12 @@ CREATE TABLE IF NOT EXISTS work_items (
 
     type VARCHAR(80) NOT NULL,
     resource_key VARCHAR(191) NULL,
-    dedupe_key CHAR(64) NOT NULL,
+    dedupe_key VARCHAR(64) NOT NULL,
 
     payload_json JSON NULL,
 
     status ENUM('pending', 'running', 'done', 'failed') NOT NULL DEFAULT 'pending',
-    active_dedupe_key CHAR(64)
+    active_dedupe_key VARCHAR(64)
         AS (CASE WHEN status IN ('pending', 'running') THEN dedupe_key ELSE NULL END) PERSISTENT,
 
     available_at DATETIME(6) NOT NULL,
