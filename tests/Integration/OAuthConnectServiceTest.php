@@ -197,7 +197,7 @@ final class OAuthConnectServiceTest extends TestCase
 
     private function seedCompany(PDO $pdo): int
     {
-        $pdo->exec("INSERT INTO companies(name,status) VALUES ('OAuth Company','active')");
+        $pdo->exec("INSERT INTO companies(name,slug) VALUES ('OAuth Company','oauth-company')");
         return (int) $pdo->lastInsertId();
     }
 }
