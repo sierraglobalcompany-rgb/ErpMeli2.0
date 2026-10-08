@@ -4,6 +4,22 @@
 
 This document separates public Hostinger capabilities from account-specific facts that still require hPanel/runtime evidence.
 
+## ERP2 deployment target confirmed by project owner
+
+```text
+PUBLIC_URL=https://erpmeli.bodegadigitalmedellin.com/
+DOCUMENT_ROOT=/home/u390570745/domains/bodegadigitalmedellin.com/public_html/erpmeli2
+```
+
+Project rule:
+
+- the public URL is the subdomain above;
+- the physical folder name `erpmeli2` must not be exposed as a URL path requirement;
+- the web server must expose only the application's `public/` entry point or an equivalent safe document-root arrangement;
+- `storage/`, `.env`, Composer metadata and application source must not be directly web-accessible.
+
+The final hPanel configuration still needs to be verified on the real account before deployment is certified.
+
 ## Confirmed from current official Hostinger documentation
 
 ### PHP 8.5
@@ -63,7 +79,10 @@ HOST_MIN_CRON_INTERVAL
 WEB_PHP_VERSION
 CLI_PHP_VERSION
 HTTPS_STATUS
+SUBDOMAIN_DOCUMENT_ROOT
 ```
+
+`SUBDOMAIN_DOCUMENT_ROOT` must be verified against the intended ERP2 deployment target above.
 
 ## Gate rule
 
@@ -86,6 +105,7 @@ The architecture continues to assume only:
 1 MariaDB database
 PHP 8.5
 bounded filesystem storage
+1 dedicated HTTPS subdomain
 ```
 
 If the actual account cannot meet those minimal requirements, change the environment or deployment configuration before adding application complexity. Do not create application-side workarounds for hosting-plan constraints.
