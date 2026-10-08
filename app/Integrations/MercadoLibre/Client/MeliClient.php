@@ -6,6 +6,8 @@ namespace App\Integrations\MercadoLibre\Client;
 
 use App\Integrations\MercadoLibre\Transport\MeliTransport;
 use App\Modules\Settings\SystemSettingsRepository;
+use DateTimeImmutable;
+use DateTimeZone;
 use InvalidArgumentException;
 use JsonException;
 use RuntimeException;
@@ -28,6 +30,7 @@ final class MeliClient
         private readonly array $operations,
         private readonly string $baseUrl,
         private readonly ?ApiUsageRecorder $usageRecorder = null,
+        private readonly ?MeliCooldownRepository $cooldowns = null,
     ) {
     }
 
@@ -49,6 +52,16 @@ final class MeliClient
             throw new RuntimeException('Remote Mercado Libre writes are disabled.');
         }
 
+        $cooldownKey = 'app:' . $operation['family'];
+        $activeCooldown = $this->cooldowns?->activeUntil($cooldownKey);
+        if ($activeCooldown instanceof DateTimeImmutable) {
+            throw new MeliRateLimitException(
+                $activeCooldown,
+                null,
+                'Mercado Libre operation is cooling down.',
+            );
+        }
+
         if ($accessToken !== null) {
             $headers['Authorization'] = 'Bearer ' . $accessToken;
         }
@@ -63,12 +76,19 @@ final class MeliClient
         $durationMs = max(0, (int) round((hrtime(true) - $startedAt) / 1_000_000));
         $requestId = $this->header($response->headers, 'x-request-id');
 
+        if ($response->status === 429) {
+            $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'rate_limited', $durationMs);
+            $retryAfter = $this->retryAfterSeconds($this->header($response->headers, 'retry-after'));
+            $retryAt = $this->cooldowns?->register429($cooldownKey, $retryAfter)
+                ?? $this->fallbackRetryAt($retryAfter);
+
+            throw new MeliRateLimitException($retryAt, $requestId);
+        }
+
+        $this->cooldowns?->clear($cooldownKey);
+
         if ($response->status < 200 || $response->status >= 300) {
-            $outcome = match (true) {
-                $response->status === 429 => 'rate_limited',
-                $response->status >= 500 => 'server_error',
-                default => 'client_error',
-            };
+            $outcome = $response->status >= 500 ? 'server_error' : 'client_error';
             $this->recordUsage($scopeKey, $operationKey, $resourceCount, $outcome, $durationMs);
 
             throw new MeliApiException($response->status, $requestId);
@@ -105,6 +125,29 @@ final class MeliClient
         }
 
         return null;
+    }
+
+    private function retryAfterSeconds(?string $header): ?int
+    {
+        if ($header === null) {
+            return null;
+        }
+
+        $trimmed = trim($header);
+        if ($trimmed === '' || !ctype_digit($trimmed)) {
+            return null;
+        }
+
+        return (int) $trimmed;
+    }
+
+    private function fallbackRetryAt(?int $retryAfterSeconds): DateTimeImmutable
+    {
+        $base = $retryAfterSeconds ?? 15;
+        return new DateTimeImmutable(
+            '+' . ($base + random_int(0, 2)) . ' seconds',
+            new DateTimeZone('UTC'),
+        );
     }
 
     private function recordUsage(
