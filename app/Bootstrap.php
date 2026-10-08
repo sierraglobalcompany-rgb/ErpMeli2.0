@@ -7,11 +7,13 @@ namespace App;
 use App\Core\Config\AppConfig;
 use App\Core\Config\Environment;
 use App\Core\Http\Routes;
+use Psr\Container\ContainerInterface;
 use Slim\App;
 use Slim\Factory\AppFactory;
 
 final class Bootstrap
 {
+    /** @return App<ContainerInterface|null> */
     public static function create(): App
     {
         $config = AppConfig::fromEnvironment(Environment::all());

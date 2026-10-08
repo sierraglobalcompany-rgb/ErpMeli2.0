@@ -41,8 +41,7 @@ final readonly class AppConfig
     /** @param array<string, scalar|null> $env */
     private static function string(array $env, string $key, string $default): string
     {
-        $value = $env[$key] ?? $default;
-        return is_scalar($value) ? trim((string) $value) : $default;
+        return trim((string) ($env[$key] ?? $default));
     }
 
     /** @param array<string, scalar|null> $env */

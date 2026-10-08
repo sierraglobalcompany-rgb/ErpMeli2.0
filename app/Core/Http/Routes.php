@@ -11,12 +11,14 @@ use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
 use App\Modules\Settings\SystemSettingsController;
 use App\Modules\Settings\SystemSettingsRepository;
+use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\App;
 
 final class Routes
 {
+    /** @param App<ContainerInterface|null> $app */
     public static function register(App $app, AppConfig $config): void
     {
         $app->get('/health', static function (
