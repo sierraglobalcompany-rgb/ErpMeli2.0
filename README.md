@@ -21,6 +21,18 @@ Modular Monolith
 
 F1 intentionally does **not** contain Work Engine, OAuth integration, Sales, Billing, Catalog, Inventory, Debug DVR, external API or remote writes.
 
+## Canonical deployment target
+
+```text
+Public URL:
+https://erpmeli.bodegadigitalmedellin.com/
+
+Hostinger physical path:
+/home/u390570745/domains/bodegadigitalmedellin.com/public_html/erpmeli2
+```
+
+ERP2 uses a dedicated Mercado Libre application separate from ERP1. Reserved integration URLs and creation requirements are documented in `docs/mercadolibre-app-erp2.md`.
+
 ## Development
 
 ```bash
@@ -50,6 +62,8 @@ The foundation contains a hard policy that rejects real `api.mercadolibre.com` t
 See:
 
 - `docs/runtime-preflight.md`
+- `docs/hostinger-runtime-evidence.md`
 - `docs/meli-contracts-2026.md`
+- `docs/mercadolibre-app-erp2.md`
 
 Hostinger-specific database/disk/inode/runtime values must be measured before deployment. Development does not convert UNKNOWN production facts into assumptions.
