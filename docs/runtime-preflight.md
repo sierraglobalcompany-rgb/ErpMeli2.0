@@ -1,52 +1,63 @@
-# ERP Meli 2.0 — Runtime Preflight
+# Runtime preflight — Hostinger
 
-Fecha: 2026-10-08
+Este preflight existe para evitar declarar `F0=PASS` con suposiciones sobre el hosting.
 
-## Estado
+## Ejecutar
 
-`F0_RUNTIME=PARTIAL`
+Desde el root del proyecto, con las variables reales de producción cargadas:
 
-El repositorio y los requisitos de software están verificados. Los valores específicos del plan Hostinger deben medirse en el hosting real antes de cualquier deploy productivo; no se infieren desde documentación comercial.
-
-| Check | Estado | Valor / nota |
-|---|---|---|
-| Repository | PASS | https://github.com/sierraglobalcompany-rgb/ErpMeli2.0 |
-| Default branch | PASS | `main` |
-| Hosting plan | UNKNOWN | medir en panel/cuenta real |
-| Disk quota | UNKNOWN | medir en panel/cuenta real |
-| Inode quota | UNKNOWN | medir en panel/cuenta real |
-| Database quota | UNKNOWN | medir en panel/cuenta real |
-| PHP web version | TARGET | 8.5 |
-| PHP CLI version | UNKNOWN | verificar `php -v` en hosting |
-| MariaDB VERSION() | UNKNOWN | ejecutar `SELECT VERSION()` |
-| sql_mode | UNKNOWN | ejecutar `SELECT @@sql_mode` |
-| DB timezone | UNKNOWN | ejecutar `SELECT @@time_zone, @@system_time_zone` |
-| cron capability | DOCS PASS / ACCOUNT UNKNOWN | diseño usa máximo 2 crons |
-| HTTPS | REQUIRED | confirmar dominio final |
-| ext-curl | REQUIRED | verificar `php -m` |
-| ext-json | REQUIRED | PHP 8.5 core |
-| ext-mbstring | REQUIRED | verificar `php -m` |
-| ext-openssl | REQUIRED | verificar `php -m` |
-| ext-pdo_mysql | REQUIRED | verificar `php -m` |
-| ext-sodium | REQUIRED | verificar `php -m` |
-| zip/gzip support | REQUIRED | verificar runtime real |
-
-## Gate antes de deploy
-
-Debe convertirse a PASS:
-
-```text
-PHP_WEB>=8.5
-PHP_CLI>=8.5
-PDO_MYSQL=YES
-SODIUM=YES
-CURL=YES
-HTTPS=YES
-CRON>=2
-MARIADB_VERSION=KNOWN
-DISK_QUOTA=KNOWN
-INODE_QUOTA=KNOWN
-DB_QUOTA=KNOWN
+```bash
+php bin/runtime-preflight.php
 ```
 
-El desarrollo greenfield puede continuar contra CI reproducible; **deploy y cutover permanecen bloqueados** hasta completar los UNKNOWN.
+El comando es **read-only**. No crea tablas, no modifica configuración y no llama Mercado Libre.
+
+## Qué verifica automáticamente
+
+- PHP >= 8.5;
+- SAPI visible;
+- extensiones requeridas (`curl`, `json`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `session`, `sodium`);
+- conexión MariaDB y `SELECT VERSION()`;
+- `sql_mode` y timezone de la sesión;
+- escritura en `storage/logs`, `debug`, `cache`, `exports` y `tmp`;
+- espacio total/libre visible desde PHP;
+- HTTPS en `APP_URL` cuando `APP_ENV=production`.
+
+## Qué NO puede certificar por sí solo
+
+El script devuelve `UNKNOWN` para:
+
+- cuota de disco del plan;
+- cuota de base de datos;
+- cuota de inodes;
+- cantidad de cron jobs disponibles;
+- intervalo mínimo permitido por cron.
+
+Esos valores deben comprobarse en hPanel/plan real. `UNKNOWN` nunca se convierte silenciosamente en `PASS`.
+
+## Gate F0
+
+F0 queda completamente cerrado únicamente cuando:
+
+```text
+RUNTIME_PREFLIGHT_HARD_CHECKS=PASS
+HOST_DISK_QUOTA=KNOWN
+HOST_DB_QUOTA=KNOWN
+HOST_INODE_QUOTA=KNOWN
+HOST_CRON_CAPACITY=KNOWN
+HOST_MIN_CRON_INTERVAL=KNOWN
+```
+
+Un resultado `PARTIAL` es esperado mientras falten los datos exclusivos del panel.
+
+## Seguridad
+
+No adjuntar al diagnóstico:
+
+- `APP_KEY`;
+- passwords DB;
+- tokens Mercado Libre;
+- client secret;
+- archivos `.env`.
+
+El JSON producido por el preflight no incluye esas credenciales.
