@@ -91,7 +91,11 @@ final class MeliClient
             $outcome = $response->status >= 500 ? 'server_error' : 'client_error';
             $this->recordUsage($scopeKey, $operationKey, $resourceCount, $outcome, $durationMs);
 
-            throw new MeliApiException($response->status, $requestId);
+            throw new MeliApiException(
+                $response->status,
+                $requestId,
+                $this->safeRemoteErrorCode($response->body),
+            );
         }
 
         try {
@@ -148,6 +152,30 @@ final class MeliClient
             '+' . ($base + random_int(0, 2)) . ' seconds',
             new DateTimeZone('UTC'),
         );
+    }
+
+    private function safeRemoteErrorCode(string $body): ?string
+    {
+        if ($body === '') {
+            return null;
+        }
+
+        try {
+            $decoded = json_decode($body, true, 32, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        $error = $decoded['error'] ?? null;
+        if (!is_string($error) || preg_match('/^[A-Za-z0-9._-]{1,80}$/D', $error) !== 1) {
+            return null;
+        }
+
+        return $error;
     }
 
     private function recordUsage(
