@@ -35,7 +35,15 @@ final class WorkQueueMigrationTest extends TestCase
 
         try {
             $insert->execute($base + ['status' => 'pending']);
-            self::fail('A duplicate active work item must be rejected by the database uniqueness invariant.');
+            self::fail('A duplicate pending work item must be rejected by the database uniqueness invariant.');
+        } catch (PDOException $exception) {
+            self::assertSame('23000', $exception->getCode());
+        }
+
+        $pdo->exec("UPDATE work_items SET status = 'running' WHERE id = 1");
+        try {
+            $insert->execute($base + ['status' => 'pending']);
+            self::fail('A duplicate must remain blocked while the original work item is running.');
         } catch (PDOException $exception) {
             self::assertSame('23000', $exception->getCode());
         }
