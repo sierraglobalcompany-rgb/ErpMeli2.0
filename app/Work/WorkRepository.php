@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Work;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -131,5 +133,66 @@ final class WorkRepository
 
             throw $exception;
         }
+    }
+
+    public function retryCurrentClaim(
+        int $workId,
+        string $claimToken,
+        DateTimeImmutable $availableAt,
+        string $errorCode,
+        string $safeMessage,
+    ): bool {
+        $statement = $this->pdo->prepare(
+            "UPDATE work_items SET "
+            . "status = 'pending', available_at = :available_at, claim_token = NULL, claimed_at = NULL, "
+            . "finished_at = NULL, last_error_code = :error_code, last_error_safe = :safe_message, "
+            . "updated_at = UTC_TIMESTAMP(6) "
+            . "WHERE id = :id AND status = 'running' AND claim_token = :claim_token"
+        );
+        $statement->execute([
+            'available_at' => $availableAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u'),
+            'error_code' => $errorCode,
+            'safe_message' => $safeMessage,
+            'id' => $workId,
+            'claim_token' => $claimToken,
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
+    public function failCurrentClaim(
+        int $workId,
+        string $claimToken,
+        string $errorCode,
+        string $safeMessage,
+    ): bool {
+        $statement = $this->pdo->prepare(
+            "UPDATE work_items SET "
+            . "status = 'failed', claim_token = NULL, claimed_at = NULL, "
+            . "finished_at = UTC_TIMESTAMP(6), last_error_code = :error_code, last_error_safe = :safe_message, "
+            . "updated_at = UTC_TIMESTAMP(6) "
+            . "WHERE id = :id AND status = 'running' AND claim_token = :claim_token"
+        );
+        $statement->execute([
+            'error_code' => $errorCode,
+            'safe_message' => $safeMessage,
+            'id' => $workId,
+            'claim_token' => $claimToken,
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
+    public function recoverRunning(): int
+    {
+        $statement = $this->pdo->prepare(
+            "UPDATE work_items SET "
+            . "status = 'pending', available_at = UTC_TIMESTAMP(6), claim_token = NULL, claimed_at = NULL, "
+            . "finished_at = NULL, updated_at = UTC_TIMESTAMP(6) "
+            . "WHERE status = 'running'"
+        );
+        $statement->execute();
+
+        return $statement->rowCount();
     }
 }
