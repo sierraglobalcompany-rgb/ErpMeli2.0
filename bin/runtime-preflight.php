@@ -27,4 +27,4 @@ try {
 $json = json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 fwrite(STDOUT, $json . PHP_EOL);
 
-exit(($report['overall_status'] ?? 'FAIL') === 'FAIL' ? 1 : 0);
+exit($report['overall_status'] === 'FAIL' ? 1 : 0);
