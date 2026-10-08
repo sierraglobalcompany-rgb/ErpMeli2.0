@@ -31,9 +31,12 @@ final class MigrationsTest extends TestCase
     public function testMigratorIsIdempotent(): void
     {
         $pdo = TestDatabase::reset();
-        $migrator = new Migrator();
-        $migrator->migrate($pdo, dirname(__DIR__, 2) . '/database/migrations');
+        $before = (int) $pdo->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
 
-        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn());
+        (new Migrator())->migrate($pdo, dirname(__DIR__, 2) . '/database/migrations');
+
+        $after = (int) $pdo->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
+        self::assertGreaterThan(0, $before);
+        self::assertSame($before, $after);
     }
 }
