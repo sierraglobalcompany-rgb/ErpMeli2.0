@@ -5,7 +5,9 @@
   "type": "project",
   "require": {
     "php": "^8.5",
+    "ext-curl": "*",
     "ext-json": "*",
+    "ext-mbstring": "*",
     "ext-openssl": "*",
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
