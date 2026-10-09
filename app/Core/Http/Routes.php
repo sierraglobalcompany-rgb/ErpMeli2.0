@@ -7,6 +7,7 @@ namespace App\Core\Http;
 use App\Core\Auth\AuthService;
 use App\Core\Config\AppConfig;
 use App\Core\Database\Connection;
+use App\Core\Logging\DebugExportService;
 use App\Core\Logging\DebugMaintenance;
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
@@ -291,11 +292,14 @@ final class Routes
         ) use ($config): ResponseInterface {
             $pdo = Connection::fromConfig($config);
             $root = dirname(__DIR__, 3);
+            $debugDirectory = $root . '/storage/debug';
+            $exportDirectory = $root . '/storage/exports';
             $controller = new SystemSettingsController(
                 $pdo,
                 new SystemSettingsRepository($pdo),
                 new Csrf(),
-                new DebugMaintenance($root . '/storage/debug', $root . '/storage/exports'),
+                new DebugMaintenance($debugDirectory, $exportDirectory),
+                new DebugExportService($debugDirectory, $exportDirectory),
             );
 
             return $request->getMethod() === 'POST'
@@ -309,14 +313,36 @@ final class Routes
         ) use ($config): ResponseInterface {
             $pdo = Connection::fromConfig($config);
             $root = dirname(__DIR__, 3);
+            $debugDirectory = $root . '/storage/debug';
+            $exportDirectory = $root . '/storage/exports';
             $controller = new SystemSettingsController(
                 $pdo,
                 new SystemSettingsRepository($pdo),
                 new Csrf(),
-                new DebugMaintenance($root . '/storage/debug', $root . '/storage/exports'),
+                new DebugMaintenance($debugDirectory, $exportDirectory),
+                new DebugExportService($debugDirectory, $exportDirectory),
             );
 
             return $controller->clearDebug($request, $response);
+        });
+
+        $app->post('/settings/system/debug/export', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            $pdo = Connection::fromConfig($config);
+            $root = dirname(__DIR__, 3);
+            $debugDirectory = $root . '/storage/debug';
+            $exportDirectory = $root . '/storage/exports';
+            $controller = new SystemSettingsController(
+                $pdo,
+                new SystemSettingsRepository($pdo),
+                new Csrf(),
+                new DebugMaintenance($debugDirectory, $exportDirectory),
+                new DebugExportService($debugDirectory, $exportDirectory),
+            );
+
+            return $controller->exportDebug($request, $response);
         });
     }
 }
