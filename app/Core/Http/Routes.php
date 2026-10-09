@@ -9,8 +9,10 @@ use App\Core\Config\AppConfig;
 use App\Core\Database\Connection;
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
+use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Settings\SystemSettingsController;
 use App\Modules\Settings\SystemSettingsRepository;
+use App\Work\WorkRepository;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -27,6 +29,26 @@ final class Routes
         ): ResponseInterface {
             $response->getBody()->write('{"ok":true}');
             return $response->withHeader('Content-Type', 'application/json');
+        });
+
+        $app->post('/webhooks/mercadolibre', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            $payload = $request->getParsedBody();
+            if (!is_array($payload)) {
+                return $response->withStatus(200);
+            }
+
+            $pdo = Connection::fromConfig($config);
+            $receiver = new OrderWebhookReceiver(
+                $pdo,
+                new WorkRepository($pdo),
+                $config->meliClientId,
+            );
+            $receiver->receive($payload);
+
+            return $response->withStatus(200);
         });
 
         $app->get('/login', static function (
