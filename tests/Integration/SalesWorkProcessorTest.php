@@ -65,6 +65,7 @@ final class SalesWorkProcessorTest extends TestCase
         $processor = new SalesWorkProcessor(
             new OrderSyncWorkProcessor(new SyncOrderHandler($work, $client, $tokens)),
             new ReconcileOrdersHandler($pdo, $work, $client, $tokens),
+            $work,
         );
 
         $from = '2026-10-08T00:00:00.000-05:00';
