@@ -6,274 +6,195 @@ Branch: `impl/f5-debug-dvr-20261009`
 Base: `fix/f4-1-stabilization-20261009`
 Draft PR: #14 — `F5 — Debug DVR Completo`
 Implementation plan: `docs/superpowers/plans/2026-10-09-f5-debug-dvr-implementation.md`
-Current branch HEAD before this checkpoint commit: `9f96a4bfa5c95d8394ab5632e9a36e7fe4decdfb`
-Last fully GREEN functional HEAD: `825d189f169c0c6c0e5a256694b214922b684ad8`
-Latest full GREEN QA: run #343 — SUCCESS.
-Current intentional RED QA: run #347 — FAILURE only in new F5.5 correlation tests.
+Master authority checked against:
+- `ERP_MELI_2_0_PLAN_MAESTRO_PROYECTO_2026-10-08.md`
+- `ERP_MELI_2_0_ESPECIFICACION_MAESTRA_FINAL_2026-10-08.md`
+
+Latest fully GREEN functional HEAD before this checkpoint commit:
+`eee11b2b0892c548136c3b8fba4b46ccebfb8c96`
+
+Latest full QA:
+`#361 — SUCCESS`
 
 ## F5.1 — Safe bounded JSONL recorder — DONE / GREEN
 
-RED:
-- `tests/Unit/DebugRecorderTest.php`
-- commit `1464469b13d38d5a39e662bbdcb3ac9c6280b2d6`
-- QA #300 failed only because `DebugRecorder` did not exist.
-
-GREEN:
-- `app/Core/Logging/DebugRecorder.php`
-- commit `4a4492248b35ea4adfc2a8e638b44dd40bf23c90`
-- QA #303 SUCCESS.
+Evidence:
+- RED `1464469b13d38d5a39e662bbdcb3ac9c6280b2d6`
+- GREEN `4a4492248b35ea4adfc2a8e638b44dd40bf23c90`
+- QA #303 SUCCESS
 
 Proven:
 - Debug OFF writes nothing.
 - Debug ON writes UTC-day JSONL.
-- central safe-field allowlist; unknown/nested payload fields dropped.
-- identifier fields are bounded and format-checked.
-- verbose recorder stops at cap.
-- normal `AppLogger` warnings remain independent.
-
-Gate:
-```text
-DEBUG_RECORDER_SAFE=PASS
-DEBUG_OFF_NO_FILE=PASS
-DEBUG_CAP_NO_VERBOSE_WRITE=PASS
-```
+- strict allowlist; raw/nested/PII-like unknown fields dropped.
+- cap stops verbose writes.
+- normal AppLogger remains independent.
 
 ## F5.2 — Rotation / gzip / retention / cleanup — DONE / GREEN
 
-RED:
-- `tests/Unit/DebugMaintenanceTest.php`
-- commit `8004aef6ef5b77f10f58f5460abb3f556bb155fb`
-- QA #307 failed only because `DebugMaintenance` did not exist.
-
-GREEN:
-- `app/Core/Logging/DebugMaintenance.php`
-- `bin/cleanup.php`
-- functional head `db8b97a3ecb8a766a7d98c138015327c1b2a088c`
-- QA #311 SUCCESS.
+Evidence:
+- RED `8004aef6ef5b77f10f58f5460abb3f556bb155fb`
+- GREEN functional head `db8b97a3ecb8a766a7d98c138015327c1b2a088c`
+- QA #311 SUCCESS
 
 Proven:
-- closed UTC-day `.jsonl` files gzip safely to `.jsonl.gz`;
-- current UTC-day JSONL stays uncompressed/writable;
-- configured retention removes only ERP2 debug files older than cutoff;
-- unrelated files are left alone;
-- cleanup skips symlinks and does not follow them outside managed roots;
-- only ERP2-owned `debug-export-*.zip` files older than 24h are deleted;
-- unrelated ZIP/files are untouched;
-- repeated cleanup is idempotent;
-- cleanup CLI reads existing `SystemSettings.debugRetentionDays` and adds no scheduler framework.
-
-Gate:
-```text
-DEBUG_ROTATION=PASS
-DEBUG_RETENTION=PASS
-DEBUG_EXPORT_TTL=PASS
-DEBUG_CLEANUP_ROOT_BOUND=PASS
-```
+- closed UTC days gzip.
+- current day remains writable.
+- retention root-bound.
+- export TTL 24h cleanup.
+- symlinks/traversal not followed.
+- cleanup idempotent.
 
 ## F5.3 — Status UI + safe clear — DONE / GREEN
 
-RED:
-- `tests/Integration/DebugSettingsControllerTest.php`
-- commit `f4c5ec2aaee359c870944b340803a59a87ccec8e`
-- QA #315 failed only because usage/history UI and `clearDebug()` did not yet exist.
-
-GREEN:
-- `app/Core/Logging/DebugMaintenance.php`
-- `app/Modules/Settings/SystemSettingsController.php`
-- `app/Modules/Settings/views/system.php`
-- `app/Core/Http/Routes.php`
-- functional head `7c329071cabda513cee535f06bc51f86c5ec36fb`
-- QA #325 SUCCESS.
+Evidence:
+- RED `f4c5ec2aaee359c870944b340803a59a87ccec8e`
+- GREEN functional head `7c329071cabda513cee535f06bc51f86c5ec36fb`
+- QA #325 SUCCESS
 
 Proven:
-- `/settings/system` remains admin-only;
-- admin sees Debug ON/OFF, retention, max storage, total DVR bytes and UTC-day history;
-- history only inspects recognized ERP2 DVR filenames and skips symlinks;
-- clear mutation is fixed route `/settings/system/debug/clear`;
-- clear requires CSRF;
-- non-admin cannot view or clear;
-- clear deletes only recognized `debug-YYYY-MM-DD.jsonl[.gz]` files;
-- unrelated files, normal logs and exports are preserved;
-- no user-provided filesystem path is accepted.
+- admin-only status.
+- current usage + history by UTC day.
+- clear requires CSRF.
+- clear only recognized DVR files.
+- no user filesystem paths.
 
-Gate:
-```text
-DEBUG_STATUS_ADMIN_ONLY=PASS
-DEBUG_CLEAR_CSRF=PASS
-DEBUG_CLEAR_ROOT_BOUND=PASS
-```
+## F5.4a — Basic authenticated ZIP export — GREEN, BUT MASTER SCOPE INCOMPLETE
 
-## F5.4 — Authenticated ZIP export — DONE / GREEN
+Evidence:
+- RED `30d0a3f62fd38dbff6fbe348e575d306b91078a4`
+- GREEN functional head `825d189f169c0c6c0e5a256694b214922b684ad8`
+- QA #343 SUCCESS
+
+Already proven:
+- admin-only + CSRF.
+- fixed route.
+- output only under `storage/exports`.
+- recognized DVR files only; unrelated/symlink targets excluded.
+- bounded server-generated ZIP name.
+- TTL-compatible.
+- streamed response.
+
+### IMPORTANT audit correction
+
+Master Plan / Master Specification were re-checked after F5.5 and contain requirements not yet implemented by F5.4a:
+
+UI:
+- download one day;
+- download date range;
+- week/month represented as date ranges.
+
+Export:
+- ZIP contains `manifest.json` + selected daily debug files;
+- manifest includes checksums;
+- specification also calls for app version, schema version, UTC range and redaction schema version.
+
+Therefore F5.4 must NOT be considered fully closed yet.
+
+Exact next block is F5.4b below.
+
+## F5.5 — Webhook → work → physical HTTP correlation — DONE / GREEN
 
 RED:
-- `tests/Integration/DebugExportTest.php`
-- initial RED commit `30d0a3f62fd38dbff6fbe348e575d306b91078a4`
-- QA #329 failed only because `DebugExportService` did not exist.
-
-GREEN:
-- `app/Core/Logging/DebugExportService.php`
-- `app/Modules/Settings/SystemSettingsController.php`
-- `app/Modules/Settings/views/system.php`
-- `app/Core/Http/Routes.php`
-- native PHP `PharData` ZIP; no new Composer/runtime dependency;
-- functional head after deterministic rate-limit fixture fix: `825d189f169c0c6c0e5a256694b214922b684ad8`
-- QA #343 SUCCESS.
-
-Proven:
-- only company admin can export;
-- POST export requires CSRF;
-- fixed route `/settings/system/debug/export` accepts no filesystem path;
-- only recognized ERP2 DVR files enter archive;
-- unrelated files and symlink targets are excluded;
-- output lives only under `storage/exports`;
-- generated filename is bounded `debug-export-<safe-id>.zip` and therefore owned by F5.2 TTL cleanup;
-- empty DVR history creates no export and returns a bounded empty outcome;
-- response is `application/zip` attachment and streams the generated archive in chunks;
-- no `.env`, normal application logs, tokens or arbitrary files are selected by the exporter.
-
-Incidental test hardening:
-- `MeliRateLimitTest` had a wall-clock race around the existing 0–2 second cooldown jitter;
-- test now verifies the real contract: `Retry-After 20s + jitter 0..2s` using before/after bounds;
-- no product rate-limit behavior changed.
-
-Gate:
-```text
-DEBUG_EXPORT_ADMIN_ONLY=PASS
-DEBUG_EXPORT_CSRF=PASS
-DEBUG_EXPORT_ALLOWLIST=PASS
-DEBUG_EXPORT_ROOT_BOUND=PASS
-DEBUG_EXPORT_TTL_COMPATIBLE=PASS
-```
-
-## F5.5 — Webhook → work → Mercado Libre HTTP correlation — RED / PAUSED HERE
-
-### Design decision already audited
-
-KISS decision: **do not add a new DB column, UUID, migration, tracing subsystem or EventBus.**
-
-Existing identifiers are sufficient:
-- `OrderWebhookReceiver::receive()` already receives Mercado Libre `event_id`;
-- `WorkRepository::enqueue()` already returns the durable `work_id`;
-- `work_id` survives retries and is already present in every claimed work item;
-- `DebugRecorder` already allowlists `correlation_id`, `event_id`, `work_id`, `work_type`, `operation`, `request_id`, `resource_id`, `http_status`, `duration_ms` and `outcome`.
-
-Chosen stable correlation identifier:
-```text
-correlation_id = work:<work_id>
-```
-
-This is deterministic, bounded, secret-free and retry-stable.
-
-### RED created
-
-Test:
 - `tests/Integration/DebugCorrelationTest.php`
-- RED commit: `9f96a4bfa5c95d8394ab5632e9a36e7fe4decdfb`
-- QA #347: FAILURE as expected.
+- commit `9f96a4bfa5c95d8394ab5632e9a36e7fe4decdfb`
+- QA #347 failed only because optional DebugRecorder dependencies did not yet exist.
 
-The new test proves two scenarios:
-1. Debug ON must relate `webhook.accepted` → `work.started` → `meli.http` with the same `correlation_id = work:<id>` and must not expose access token, refresh token or client secret.
-2. Debug OFF must preserve the same business result (`work=done`, one physical order HTTP request, persisted order) and create no DVR file.
+GREEN implementation commits:
+- `07de2dd5f0c52a87a1a1e87b4a8fcf664c4f0a33` — bounded work correlation context in DebugRecorder.
+- `087de2eb0811ee32b69866289454854b4f723ed5` — webhook.accepted correlation.
+- `7fcf08475e4bd0b3011b6865f8f94a3b52919f6e` — work.started scoped correlation.
+- `2db2fee56f8a9f64e6ea05134e96daedf6d32726` — physical MeliClient HTTP events.
+- `dd969d529283206c975b652cd4aed3371a969045` — worker runtime wiring.
+- `eee11b2b0892c548136c3b8fba4b46ccebfb8c96` — PHPStan-only annotation repair.
 
-### Exact RED failure from QA #347
+QA history:
+- #359 failed only on PHPStan shape annotation for empty work context.
+- #361 SUCCESS after annotation-only repair.
 
-Only the two new correlation tests error.
+Design actually implemented:
+- stable correlation: `correlation_id = work:<work_id>`.
+- no DB column, UUID, migration, EventBus or tracing framework.
+- DebugRecorder has a tiny process-local current-work context containing only work_id/resource_id-derived safe correlation.
+- OrderSyncWorkProcessor sets the context and always clears it in `finally`.
+- MeliClient records at the actual physical HTTP boundary.
+- OrderWebhookReceiver records only after transaction commit.
+- debug recording failures are best-effort and cannot alter webhook/HTTP business outcomes.
 
-Error:
+Proven by `DebugCorrelationTest`:
+- Debug ON links `webhook.accepted` → `work.started` → `meli.http` with the same work correlation.
+- Debug OFF gives same final work/order/HTTP result and creates no DVR file.
+- access token, refresh token and client secret do not appear.
+
+Gate:
 ```text
-Error: Unknown named parameter $debugRecorder
+DEBUG_CORRELATION=PASS
+DEBUG_ON_OFF_FLOW_PARITY=PASS
+DEBUG_CORRELATION_SECRET_SAFE=PASS
 ```
 
-First failure point:
+## EXACT NEXT BLOCK — F5.4b export completeness
+
+Do not start F5.6 yet.
+
+RED requirements, limited strictly to Master requirements:
+1. server accepts one UTC day or bounded UTC start/end range;
+2. start > end / invalid date / excessive or malformed input is rejected safely;
+3. only DVR files whose UTC day is in selected range enter archive;
+4. `.jsonl` and `.jsonl.gz` are both supported;
+5. ZIP includes `manifest.json`;
+6. manifest contains:
+   - UTC start/end range;
+   - selected file names;
+   - SHA-256 for every selected DVR file;
+   - app version;
+   - schema version;
+   - redaction schema version;
+7. no path is supplied by user;
+8. existing admin + CSRF + root/symlink defenses remain intact;
+9. UI provides start/end date inputs; day = start=end; week/month are simply ranges, no stored weekly/monthly copies.
+
+KISS constraints:
+- extend existing DebugExportService/controller/view only;
+- no export table;
+- no scheduler/export engine;
+- no permanent weekly/monthly archives;
+- keep native ZIP approach already proven on current runtime unless an actual requirement forces change.
+
+After F5.4b GREEN:
+- one full QA;
+- checkpoint refresh;
+- then and only then F5.6 final adversarial gates.
+
+## F5.6 — NOT STARTED
+
+Master final checks:
+- secrets never written;
+- PII never written;
+- ON/OFF business parity;
+- cap;
+- retention;
+- safe clear;
+- traversal attempts;
+- ZIP auth;
+- ZIP TTL;
+- gzip;
+- webhook→work→HTTP correlation.
+
+Required final evidence:
 ```text
-tests/Integration/DebugCorrelationTest.php:103
-```
-
-This is expected because production constructors have not yet been extended with optional `DebugRecorder` dependencies.
-
-No existing test regression was reported before these two new errors. PHP syntax and PHPStan were green before PHPUnit reached the intentional RED.
-
-### Exact GREEN implementation to do next — DO NOT REDESIGN
-
-Implement only these explicit changes:
-
-1. `OrderWebhookReceiver`
-   - add optional `?DebugRecorder $debugRecorder = null` constructor dependency;
-   - capture `$workId = $this->work->enqueue(...)`;
-   - after successful transaction commit, best-effort record `webhook.accepted` with:
-     - `correlation_id = 'work:' . $workId`
-     - `event_id`
-     - `work_id`
-     - `company_id`
-     - `account_id`
-     - `topic`
-     - `resource_id = orderId`
-   - DVR failure must never alter webhook/business outcome; debug recording must therefore be best-effort.
-
-2. `OrderSyncWorkProcessor`
-   - add optional `?DebugRecorder $debugRecorder = null` constructor dependency;
-   - for valid `order.sync` claim, best-effort record `work.started` before calling handler:
-     - same `correlation_id = 'work:' . $claim['id']`
-     - `work_id`
-     - `company_id`
-     - `account_id`
-     - `work_type`
-     - `resource_id = orderId`
-   - do not log `claim_token`.
-
-3. `SyncOrderHandler`
-   - pass a safe debug context to the existing `MeliClient::request()` for `orders.get` only:
-     - `correlation_id = 'work:' . $workId`
-     - `work_id`
-     - `resource_id = orderId`
-   - preserve the same context on the 401-refresh retry.
-   - no generic context propagation framework.
-
-4. `MeliClient`
-   - add optional `?DebugRecorder $debugRecorder = null` constructor dependency at the end to preserve all existing positional callers;
-   - add one optional bounded debug-context argument to `request()` at the end;
-   - after a physical transport response is received, best-effort record `meli.http` containing only allowlisted safe fields:
-     - `correlation_id`, `work_id`, `resource_id`
-     - `operation`
-     - `http_status`
-     - `duration_ms`
-     - `request_id` when present
-     - `outcome` = `success|rate_limited|client_error|server_error|invalid_json`
-   - never record Authorization header, body, access token, refresh token, client secret, raw response or arbitrary debug context keys.
-   - debug recorder exceptions must be swallowed so Debug ON cannot change business outcome.
-
-5. Composition
-   - `bin/work.php`: instantiate one `DebugRecorder` from existing `SystemSettings` values and pass the same recorder to `MeliClient` and `OrderSyncWorkProcessor`.
-   - HTTP webhook composition in `Routes.php`: instantiate the recorder from existing settings and pass it to `OrderWebhookReceiver`.
-   - do not add new configuration keys, tables, migrations or dependencies.
-
-### GREEN verification required
-
-After implementation, run one full QA only.
-Expected:
-```text
-PHPStan = 0 errors
-DebugCorrelationTest = GREEN
-All existing tests = GREEN
+DEBUG_BOUNDED=PASS
+SECRET_LEAK=0
+BUSINESS_BEHAVIOR_DIFF_ON_OFF=0
+PHPSTAN=0
+PHPUNIT=PASS
 REAL_MELI_HTTP=0
 ```
-
-Then update this checkpoint with exact functional HEAD + QA run number.
-
-Do **not** start F5.6 until F5.5 is GREEN.
-
-## Remaining F5 order
-
-1. Finish F5.5 GREEN + QA + checkpoint refresh.
-2. F5.6 final adversarial gates.
-3. Only after all F5 exit gates are GREEN: close F5 implementation work / evaluate PR #14 readiness.
-4. Do not start F6 Billing yet.
 
 ## Global constraints
 
 - Do not merge/deploy automatically.
-- Do not start F6 Billing.
 - Keep PR #14 Draft until F5 exit gates are green.
-- External Hostinger/main-protection/real-ML-app gates remain separate.
-- Keep KISS/YAGNI/TDD.
-- Do not add EventBus, OpenTelemetry/tracing framework, new queue state, new migration or generic debug-context subsystem for F5.5.
+- Do not start F6 Billing.
+- External Hostinger/main-protection/real Mercado Libre app gates remain separate.
+- KISS/YAGNI/TDD.
