@@ -9,11 +9,14 @@ use App\Core\Config\AppConfig;
 use App\Core\Database\Connection;
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
+use App\Integrations\MercadoLibre\Auth\OAuthAuthorizationFlow;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Sales\ViewSales\SalesListController;
 use App\Modules\Settings\SystemSettingsController;
 use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
+use DateTimeImmutable;
+use DateTimeZone;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -50,6 +53,46 @@ final class Routes
             $receiver->receive($payload);
 
             return $response->withStatus(200);
+        });
+
+        $app->get('/oauth/mercadolibre/connect', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            $userId = $_SESSION['user_id'] ?? null;
+            $companyId = $_SESSION['company_id'] ?? null;
+            if (!is_int($userId) || $userId < 1 || !is_int($companyId) || $companyId < 1) {
+                return $response->withStatus(403);
+            }
+
+            $pdo = Connection::fromConfig($config);
+            $membership = $pdo->prepare(
+                'SELECT 1 FROM company_users WHERE user_id = :user_id AND company_id = :company_id LIMIT 1'
+            );
+            $membership->execute([
+                'user_id' => $userId,
+                'company_id' => $companyId,
+            ]);
+            if ($membership->fetchColumn() === false) {
+                return $response->withStatus(403);
+            }
+
+            $redirectUri = rtrim($config->appUrl, '/') . '/oauth/mercadolibre/callback';
+            $flow = new OAuthAuthorizationFlow(
+                $config->meliClientId,
+                $redirectUri,
+                'https://auth.mercadolibre.com.co/authorization',
+            );
+            $session =& $_SESSION;
+            $authorization = $flow->begin(
+                $session,
+                new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            );
+            $_SESSION['meli_oauth_company_id'] = $companyId;
+
+            return $response
+                ->withHeader('Location', $authorization['url'])
+                ->withStatus(302);
         });
 
         $app->get('/sales', static function (
