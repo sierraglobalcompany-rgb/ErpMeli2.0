@@ -47,4 +47,18 @@ final class WorkCliEntrypointTest extends TestCase
         self::assertSame(0, $exitCode, implode("\n", $output));
         self::assertSame('processed=0', trim(implode("\n", $output)));
     }
+
+    public function testWorkEntrypointComposesUnifiedSalesProcessor(): void
+    {
+        $path = dirname(__DIR__, 2) . '/bin/work.php';
+        $source = file_get_contents($path);
+
+        self::assertIsString($source);
+        self::assertStringContainsString('use App\\Modules\\Sales\\SalesWorkProcessor;', $source);
+        self::assertStringContainsString('use App\\Modules\\Sales\\ReconcileOrders\\ReconcileOrdersHandler;', $source);
+        self::assertStringContainsString('$processor = new SalesWorkProcessor(', $source);
+        self::assertStringContainsString('new OrderSyncWorkProcessor(', $source);
+        self::assertStringContainsString('new ReconcileOrdersHandler($pdo, $work, $client, $tokens)', $source);
+        self::assertStringNotContainsString('$processor = new OrderSyncWorkProcessor(', $source);
+    }
 }
