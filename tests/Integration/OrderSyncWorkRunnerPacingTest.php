@@ -48,7 +48,7 @@ final class OrderSyncWorkRunnerPacingTest extends TestCase
             'erp_meli2.oauth.account',
         );
         $work = new WorkRepository($pdo);
-        $processor = new OrderSyncWorkProcessor(new SyncOrderHandler($work, $client, $tokens));
+        $processor = new OrderSyncWorkProcessor(new SyncOrderHandler($work, $client, $tokens), $work);
 
         foreach (['200000000010', '200000000011'] as $orderId) {
             $work->enqueue(
