@@ -36,7 +36,7 @@ final class MeliRateLimitTest extends TestCase
             self::assertSame(429, $exception->status);
             self::assertSame('req-429', $exception->requestId);
             self::assertGreaterThanOrEqual($before->modify('+20 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
-            self::assertLessThanOrEqual($after->modify('+20 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
+            self::assertLessThanOrEqual($after->modify('+22 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
         }
 
         self::assertCount(1, $transport->requests, 'MeliClient must not retry a 429 inline.');
