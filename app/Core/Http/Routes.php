@@ -10,6 +10,7 @@ use App\Core\Database\Connection;
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
+use App\Modules\Sales\ViewSales\SalesListController;
 use App\Modules\Settings\SystemSettingsController;
 use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
@@ -49,6 +50,13 @@ final class Routes
             $receiver->receive($payload);
 
             return $response->withStatus(200);
+        });
+
+        $app->get('/sales', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return (new SalesListController(Connection::fromConfig($config)))->show($request, $response);
         });
 
         $app->get('/login', static function (
