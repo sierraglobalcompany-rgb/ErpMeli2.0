@@ -7,6 +7,7 @@ namespace App\Modules\Settings;
 use App\Core\Logging\DebugExportService;
 use App\Core\Logging\DebugMaintenance;
 use App\Core\Security\Csrf;
+use InvalidArgumentException;
 use PDO;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -122,7 +123,14 @@ final class SystemSettingsController
             return $response->withStatus(503);
         }
 
-        $export = $this->debugExport->create();
+        try {
+            $startDay = $this->optionalStringField($body, 'debug_start_date');
+            $endDay = $this->optionalStringField($body, 'debug_end_date');
+            $export = $this->debugExport->create($startDay, $endDay, $this->schemaVersion());
+        } catch (InvalidArgumentException) {
+            return $response->withStatus(422);
+        }
+
         if ($export === null) {
             return $response->withStatus(204);
         }
@@ -154,6 +162,31 @@ final class SystemSettingsController
             ->withHeader('Content-Type', 'application/zip')
             ->withHeader('Content-Disposition', 'attachment; filename="' . $export['filename'] . '"')
             ->withHeader('Content-Length', (string) $size);
+    }
+
+    /** @param array<string,mixed> $body */
+    private function optionalStringField(array $body, string $key): ?string
+    {
+        if (!array_key_exists($key, $body)) {
+            return null;
+        }
+
+        $value = $body[$key];
+        if (!is_string($value)) {
+            throw new InvalidArgumentException('Invalid debug export field.');
+        }
+
+        $value = trim($value);
+        return $value === '' ? null : $value;
+    }
+
+    private function schemaVersion(): string
+    {
+        $version = $this->pdo->query(
+            'SELECT version FROM schema_migrations ORDER BY applied_at DESC, version DESC LIMIT 1'
+        )->fetchColumn();
+
+        return is_string($version) && $version !== '' ? $version : 'unknown';
     }
 
     private function isAdmin(): bool
