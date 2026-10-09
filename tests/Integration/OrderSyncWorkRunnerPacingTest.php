@@ -100,7 +100,7 @@ final class OrderSyncWorkRunnerPacingTest extends TestCase
             $accountId,
             $cipher->encrypt('valid-access'),
             $cipher->encrypt('unused-refresh'),
-            '2026-10-09 08:00:00.000000',
+            '2030-01-01 00:00:00.000000',
         ]);
 
         return [$companyId, $accountId];
