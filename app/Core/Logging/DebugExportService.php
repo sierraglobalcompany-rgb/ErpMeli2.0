@@ -122,7 +122,7 @@ final class DebugExportService
             $end = $start;
         }
 
-        if ($start === null || $end === null || $start > $end) {
+        if ($start > $end) {
             throw new InvalidArgumentException('Invalid debug export range.');
         }
 
