@@ -7,6 +7,7 @@ namespace App\Core\Http;
 use App\Core\Auth\AuthService;
 use App\Core\Config\AppConfig;
 use App\Core\Database\Connection;
+use App\Core\Logging\DebugMaintenance;
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
 use App\Integrations\MercadoLibre\Auth\OAuthAuthorizationFlow;
@@ -289,15 +290,33 @@ final class Routes
             ResponseInterface $response
         ) use ($config): ResponseInterface {
             $pdo = Connection::fromConfig($config);
+            $root = dirname(__DIR__, 3);
             $controller = new SystemSettingsController(
                 $pdo,
                 new SystemSettingsRepository($pdo),
                 new Csrf(),
+                new DebugMaintenance($root . '/storage/debug', $root . '/storage/exports'),
             );
 
             return $request->getMethod() === 'POST'
                 ? $controller->update($request, $response)
                 : $controller->show($request, $response);
+        });
+
+        $app->post('/settings/system/debug/clear', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            $pdo = Connection::fromConfig($config);
+            $root = dirname(__DIR__, 3);
+            $controller = new SystemSettingsController(
+                $pdo,
+                new SystemSettingsRepository($pdo),
+                new Csrf(),
+                new DebugMaintenance($root . '/storage/debug', $root . '/storage/exports'),
+            );
+
+            return $controller->clearDebug($request, $response);
         });
     }
 }
