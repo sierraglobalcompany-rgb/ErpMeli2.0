@@ -63,7 +63,7 @@ $processor = new SalesWorkProcessor(
 );
 $execution = new WorkExecution(
     $settings,
-    new WorkRunner($runnerLockConnection, 'erp_meli2.runner'),
+    new WorkRunner($runnerLockConnection, 'erp_meli2.runner.' . $config->dbName),
     $work,
 );
 
