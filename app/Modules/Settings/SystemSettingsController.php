@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings;
 
+use App\Core\Logging\DebugMaintenance;
 use App\Core\Security\Csrf;
 use PDO;
 use Psr\Http\Message\ResponseInterface;
@@ -15,6 +16,7 @@ final class SystemSettingsController
         private readonly PDO $pdo,
         private readonly SystemSettingsRepository $settings,
         private readonly Csrf $csrf,
+        private readonly ?DebugMaintenance $debugMaintenance = null,
     ) {
     }
 
@@ -26,6 +28,10 @@ final class SystemSettingsController
 
         $settings = $this->settings->get();
         $csrfToken = $this->csrf->token();
+        $debugUsage = $this->debugMaintenance?->usage() ?? [
+            'total_bytes' => 0,
+            'days' => [],
+        ];
 
         ob_start();
         require __DIR__ . '/views/system.php';
@@ -63,6 +69,32 @@ final class SystemSettingsController
             filter_var($body['debug_max_mb'] ?? 100, FILTER_VALIDATE_INT) ?: 100,
             $userId,
         );
+
+        return $response
+            ->withHeader('Location', '/settings/system')
+            ->withStatus(303);
+    }
+
+    public function clearDebug(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $response->withStatus(403);
+        }
+
+        $body = $request->getParsedBody();
+        $body = is_array($body) ? $body : [];
+
+        try {
+            $this->csrf->assertValid((string) ($body['csrf_token'] ?? ''));
+        } catch (\RuntimeException) {
+            return $response->withStatus(419);
+        }
+
+        if ($this->debugMaintenance === null) {
+            return $response->withStatus(503);
+        }
+
+        $this->debugMaintenance->clearDebug();
 
         return $response
             ->withHeader('Location', '/settings/system')
