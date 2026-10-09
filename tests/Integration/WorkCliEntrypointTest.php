@@ -68,7 +68,7 @@ final class WorkCliEntrypointTest extends TestCase
         $source = file_get_contents($path);
 
         self::assertIsString($source);
-        self::assertStringContainsString("'erp_meli2.runner.' . $config->dbName", $source);
-        self::assertStringNotContainsString("new WorkRunner($runnerLockConnection, 'erp_meli2.runner')", $source);
+        self::assertStringContainsString("'erp_meli2.runner.' . \$config->dbName", $source);
+        self::assertStringNotContainsString("new WorkRunner(\$runnerLockConnection, 'erp_meli2.runner')", $source);
     }
 }
