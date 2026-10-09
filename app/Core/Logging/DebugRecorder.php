@@ -34,6 +34,9 @@ final class DebugRecorder
         'error_code',
     ];
 
+    /** @var array{correlation_id:string,work_id:int,resource_id:string} */
+    private array $workContext = [];
+
     public function __construct(
         private readonly string $directory,
         private readonly bool $enabled,
@@ -42,6 +45,24 @@ final class DebugRecorder
         if ($this->maxBytes < 1) {
             throw new RuntimeException('Debug storage cap must be positive.');
         }
+    }
+
+    public function beginWork(int $workId, string $resourceId): void
+    {
+        if ($workId < 1 || preg_match('/^[A-Za-z0-9._:-]{1,160}$/D', $resourceId) !== 1) {
+            throw new RuntimeException('Invalid debug work context.');
+        }
+
+        $this->workContext = [
+            'correlation_id' => 'work:' . $workId,
+            'work_id' => $workId,
+            'resource_id' => $resourceId,
+        ];
+    }
+
+    public function endWork(): void
+    {
+        $this->workContext = [];
     }
 
     /** @param array<string,mixed> $fields */
@@ -64,6 +85,7 @@ final class DebugRecorder
 
         $at ??= new DateTimeImmutable('now', new DateTimeZone('UTC'));
         $at = $at->setTimezone(new DateTimeZone('UTC'));
+        $fields = $this->workContext + $fields;
 
         $payload = [
             'ts' => $at->format(DATE_ATOM),
