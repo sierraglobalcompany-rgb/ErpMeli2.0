@@ -19,4 +19,12 @@ return [
         'official_doc_url' => 'https://developers.mercadolibre.com.co/es_co/gestion-de-identidades-y-accesos-oauth-y-tokens',
         'verified_at' => '2026-10-08',
     ],
+    'orders.get' => [
+        'method' => 'GET',
+        'path' => '/orders/{order_id}',
+        'family' => 'orders',
+        'classification' => 'READ',
+        'official_doc_url' => 'https://developers.mercadolibre.com.co/gestiona-ventas',
+        'verified_at' => '2026-10-09',
+    ],
 ];
