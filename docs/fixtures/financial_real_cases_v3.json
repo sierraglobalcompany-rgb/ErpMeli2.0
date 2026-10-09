@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "purpose": "Sanitized business-evidence fixtures for ERP MELI 2.0 V3 financial design. These are not raw Mercado Libre API payloads.",
+  "currency": "COP",
+  "money_representation": "integer_minorless_cop_strings",
+  "pii": "none",
+  "cases": [
+    {
+      "id": "financial_pack_two_items_shared_costs",
+      "source_kind": "real_business_evidence_sanitized",
+      "sale_shape": {
+        "pack": true,
+        "item_count": 2
+      },
+      "amounts": {
+        "product_total": "99621",
+        "sale_fee_item_1": "11698",
+        "sale_fee_item_2": "6732",
+        "shared_shipping_seller_effect": "12200",
+        "tax_total": "3567",
+        "withholding_income": "1230",
+        "withholding_vat": "2337",
+        "official_net": "65424"
+      },
+      "invariants": [
+        "sale_fee_is_item_level_evidence",
+        "shared_shipping_is_counted_once_per_visible_sale_pack",
+        "tax_components_sum_to_tax_total",
+        "official_net_is_preserved_as_remote_business_truth",
+        "analytical_recalculation_never_overwrites_official_net"
+      ],
+      "assertions": {
+        "tax_components_sum": "1230 + 2337 = 3567",
+        "analytical_net_reference": "99621 - 11698 - 6732 - 12200 - 3567 = 65424",
+        "matches_official_net": true
+      }
+    },
+    {
+      "id": "financial_single_item_shipping_split",
+      "source_kind": "real_business_evidence_sanitized",
+      "sale_shape": {
+        "pack": "unknown_not_required_for_assertion",
+        "item_count": 1
+      },
+      "amounts": {
+        "product_total": "19990",
+        "sale_fee": "3698",
+        "buyer_shipping_contribution": "12300",
+        "meli_shipping_charge": "14900",
+        "seller_shipping_net_effect": "-2600",
+        "official_net": "13692"
+      },
+      "invariants": [
+        "buyer_shipping_contribution_and_meli_shipping_charge_are_distinct_components",
+        "shipping_must_not_be_collapsed_to_one_ambiguous_cost_when_source_exposes_components",
+        "official_net_is_preserved_as_remote_business_truth",
+        "analytical_recalculation_never_overwrites_official_net"
+      ],
+      "assertions": {
+        "shipping_net_effect": "12300 - 14900 = -2600",
+        "analytical_net_reference": "19990 - 3698 + 12300 - 14900 = 13692",
+        "matches_official_net": true
+      }
+    }
+  ],
+  "future_test_mapping": {
+    "PACK_NO_DOUBLE_CHARGE": [
+      "financial_pack_two_items_shared_costs"
+    ],
+    "OFFICIAL_NET_PRESERVED": [
+      "financial_pack_two_items_shared_costs",
+      "financial_single_item_shipping_split"
+    ],
+    "SHIPPING_COMPONENTS_PRESERVED": [
+      "financial_single_item_shipping_split"
+    ],
+    "EXACT_MONEY_NO_FLOAT": [
+      "financial_pack_two_items_shared_costs",
+      "financial_single_item_shipping_split"
+    ]
+  }
+}
