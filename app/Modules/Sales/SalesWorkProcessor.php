@@ -6,6 +6,7 @@ namespace App\Modules\Sales;
 
 use App\Modules\Sales\ReconcileOrders\ReconcileOrdersHandler;
 use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
+use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use RuntimeException;
@@ -15,6 +16,7 @@ final class SalesWorkProcessor
     public function __construct(
         private readonly OrderSyncWorkProcessor $orderSync,
         private readonly ReconcileOrdersHandler $reconcileOrders,
+        private readonly WorkRepository $work,
     ) {
     }
 
@@ -63,6 +65,11 @@ final class SalesWorkProcessor
             return;
         }
 
-        throw new RuntimeException('Unsupported Sales work type: ' . $claim['type']);
+        $this->work->failCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            'unsupported_work_type',
+            'Work type is not supported by this processor.',
+        );
     }
 }
