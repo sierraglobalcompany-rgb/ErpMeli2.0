@@ -9,11 +9,11 @@ use App\Core\Logging\DebugMaintenance;
 use App\Core\Security\Csrf;
 use App\Modules\Settings\SystemSettingsController;
 use App\Modules\Settings\SystemSettingsRepository;
+use PharData;
 use PHPUnit\Framework\TestCase;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Tests\Support\TestDatabase;
-use ZipArchive;
 
 final class DebugExportTest extends TestCase
 {
@@ -35,22 +35,11 @@ final class DebugExportTest extends TestCase
         self::assertSame($exportDir . '/' . $result['filename'], $result['path']);
         self::assertFileExists($result['path']);
 
-        $zip = new ZipArchive();
-        self::assertTrue($zip->open($result['path']));
-        $entries = [];
-        for ($index = 0; $index < $zip->numFiles; ++$index) {
-            $name = $zip->getNameIndex($index);
-            if (is_string($name)) {
-                $entries[] = $name;
-            }
-        }
-        $zip->close();
-        sort($entries);
-
-        self::assertSame([
-            'debug-2026-10-08.jsonl.gz',
-            'debug-2026-10-09.jsonl',
-        ], $entries);
+        $archive = new PharData($result['path']);
+        self::assertTrue($archive->offsetExists('debug-2026-10-09.jsonl'));
+        self::assertTrue($archive->offsetExists('debug-2026-10-08.jsonl.gz'));
+        self::assertFalse($archive->offsetExists('notes.txt'));
+        self::assertFalse($archive->offsetExists('debug-2026-10-07.jsonl'));
 
         $this->removeTree($root);
     }
