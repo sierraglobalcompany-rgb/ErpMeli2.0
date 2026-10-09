@@ -56,6 +56,7 @@ $work = new WorkRepository($pdo);
 $processor = new SalesWorkProcessor(
     new OrderSyncWorkProcessor(
         new SyncOrderHandler($work, $client, $tokens),
+        $work,
     ),
     new ReconcileOrdersHandler($pdo, $work, $client, $tokens),
     $work,
