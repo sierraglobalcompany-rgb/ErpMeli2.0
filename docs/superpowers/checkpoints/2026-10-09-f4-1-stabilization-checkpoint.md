@@ -1,16 +1,16 @@
-# CHECKPOINT — F4.1 Stabilization
+# CHECKPOINT — F4.1 Stabilization + pre-F5 hardening
 
 Date: 2026-10-09
 Repository: `sierraglobalcompany-rgb/ErpMeli2.0`
 Branch: `fix/f4-1-stabilization-20261009`
 Base: `impl/f4-sales-slice-20261009`
 Draft PR: #13 — `F4.1 — Stabilization hardening before F5`
-Verified functional HEAD before this checkpoint commit: `a936bad156f3bb183543acc6f26a0541613c8870`
-Latest full QA: run #288 — SUCCESS.
+Verified functional HEAD before this checkpoint commit: `6d06b35998a7ad6bc03c9283605b9f95f76fe3ec`
+Latest full QA: run #294 — SUCCESS.
 
 ## Purpose
 
-Close concrete reliability gaps found after the F4 audit before opening F5. Keep KISS/YAGNI, existing Work Engine, existing MeliClient and four work states. No merge or deploy.
+Close concrete reliability/security gaps found after the F4 audit before opening F5. Keep KISS/YAGNI, existing Work Engine, existing MeliClient and four work states. No merge or deploy.
 
 ## Completed and verified
 
@@ -22,80 +22,94 @@ Close concrete reliability gaps found after the F4 audit before opening F5. Keep
 
 ### 2. Best-effort API telemetry — DONE / GREEN
 
-- Recorder failures cannot mask a valid HTTP response or replace typed remote errors.
-- No retry engine or new framework.
+- Recorder failures cannot mask valid HTTP responses or replace typed remote errors.
 - RED #263; GREEN #264.
 
 ### 3. Poison-loop fail-safe — DONE / GREEN
 
-Covered and terminally failed without remote HTTP:
+Terminal local failure without remote HTTP for:
 - unsupported work type → `unsupported_work_type`;
 - malformed `order.sync` → `invalid_work_claim`;
 - malformed `orders.reconcile` identity → `invalid_work_claim`.
 
-Relevant evidence:
-- unsupported type GREEN #269;
-- malformed order.sync GREEN #277;
-- malformed reconcile GREEN #279.
+Evidence: GREEN #269 / #277 / #279.
 
 ### 4. Bounded webhook body — DONE / GREEN
 
-- Oversized `/webhooks/mercadolibre` body is bounded before normal body processing/persistence.
-- Oversized input creates zero `webhook_events` and zero `work_items`.
-- Valid webhook behavior remains unchanged.
-- No claim that the implementation threshold is an official Mercado Libre limit.
-- RED commit: `28dc0f5b88edf11cb12cf5a8eacf4f7f757b04fa`.
-- GREEN commit: `2a979fcb54c5dcb0639977467c1e6d9468809e83`.
-- QA #282 SUCCESS.
+- Oversized `/webhooks/mercadolibre` is bounded before body parsing/persistence.
+- Creates zero `webhook_events` and zero `work_items`.
+- Valid webhook path unchanged.
+- GREEN #282.
 
 ### 5. Database-scoped WorkRunner lock — DONE / GREEN
 
-- Production CLI lock now uses configured DB identity directly:
-  `erp_meli2.runner.<DB_NAME>`.
-- Two ERP2 databases on one MariaDB server no longer share the same runner lock name accidentally.
-- No LockName service/framework added.
-- RED commit: `5708495738dd52e497dcd664aa6fafef8584c55c`.
-- GREEN commit: `a936bad156f3bb183543acc6f26a0541613c8870`.
-- QA #288 SUCCESS.
+- CLI lock uses `erp_meli2.runner.<DB_NAME>`.
+- Separate ERP2 databases on one MariaDB server no longer contend accidentally.
+- GREEN #288.
 
-### Incidental fixture hardening found on 2026-10-09
+### 6. Decimal precision — DONE / GREEN
 
-QA #283 exposed three additional Sales tests whose access-token fixtures expired at `2026-10-09 08:00:00 UTC`. These were test-clock defects, not production regressions.
+RED proved actual precision loss in `DECIMAL(18,4)` handling:
+- input `90071992547409.1234`;
+- old persisted value `90071992547409.1250` because of `(float)` conversion.
 
-Hardened to a stable future date in:
-- `OrderSyncWorkProcessorTest`;
-- `OrderSyncWorkRunnerPacingTest`;
-- `SalesVerticalSliceEndToEndTest`.
+Minimal GREEN:
+- plain decimal strings are normalized/rounded to four decimals without float conversion;
+- existing integer/float behavior remains supported;
+- no BCMath, money library or decimal framework added.
 
-Final QA #288 proves the full branch green after those corrections and Task 5.
+Evidence:
+- RED commit `0709be8855023d882ec8fea2ee351e8936e204da`, QA #290 expected failure;
+- GREEN commit `cfcee48798265f2c36d709632f567b8fd4ee367f`, QA #291 SUCCESS.
 
-## F4.1 conclusion
+### 7. OAuth admin authorization — DONE / GREEN
 
-F4.1 stabilization is technically closed at HEAD `a936bad156f3bb183543acc6f26a0541613c8870` with QA #288 SUCCESS.
+Audit found `/oauth/mercadolibre/connect` and callback accepted any company member although F3 plan requires an authenticated ERP admin.
+
+Minimal GREEN:
+- connect requires `company_users.role='admin'`;
+- callback rechecks admin on the originally bound company before consuming state or exchanging the code;
+- role loss during an in-flight OAuth flow aborts with 403;
+- no new RBAC framework added.
+
+Evidence:
+- RED head `2ab5773ef732a21394c4f496eb513ea10c24dc6f`, QA #293: member got 302 and revoked-admin callback reached 500 instead of 403;
+- GREEN commit `6d06b35998a7ad6bc03c9283605b9f95f76fe3ec`, QA #294 SUCCESS.
+
+## Incidental fixture hardening
+
+Several Sales tests had access-token fixtures expiring on 2026-10-09. They were changed to stable future dates. These were test-clock defects, not production regressions.
+
+## Conclusion
+
+F4.1 plus mandatory pre-F5 hardening is technically closed at functional HEAD `6d06b35998a7ad6bc03c9283605b9f95f76fe3ec` with QA #294 SUCCESS.
 
 Do not merge/deploy automatically. PR #13 remains Draft and stacked over F4.
 
-## Mandatory hardening still pending before Billing
+## Canonical next phase
 
-### Decimal precision adversarial test — NEXT SMALL BLOCK
+F5 = Debug DVR Completo.
 
-Current concern:
-- `SyncOrderHandler::decimal4()` converts through float before formatting.
+Master-plan scope:
+- `storage/debug` + `storage/exports`;
+- structured allowlist logger;
+- Debug OFF minimal logs / Debug ON verbose structured events;
+- one JSONL per UTC day;
+- gzip closed days;
+- default retention 7 days;
+- configurable total storage cap;
+- verbose logging stops at cap while normal warnings continue;
+- UI: ON/OFF, retention, max storage, usage, history, download range, clear debug;
+- export ZIP + manifest + checksums, TTL 24h;
+- extend `bin/cleanup.php`;
+- prove no secrets/PII, behavior parity ON/OFF, cap, retention, safe clear, traversal defense, export auth/TTL, gzip, and webhook→work→HTTP correlation.
 
-Rule:
-1. Add adversarial RED tests using decimal strings / large values.
-2. Change implementation only if the test proves precision loss.
-3. Keep DECIMAL semantics and avoid a new money/decimal framework unless evidence requires it.
-
-This hardening is mandatory before Billing, but it does not reorder the roadmap.
-
-## Roadmap constraint
-
-Canonical Master Plan remains:
-- F5 = Debug DVR
-- F6 = Billing
-
-Do not silently start Billing or renumber phases without an explicit roadmap decision.
+Exit gates:
+```text
+DEBUG_BOUNDED=PASS
+SECRET_LEAK=0
+BUSINESS_BEHAVIOR_DIFF_ON_OFF=0
+```
 
 ## External blockers remain open
 
@@ -107,7 +121,8 @@ Do not merge/deploy based only on CI green:
 
 ## Resume command
 
-1. Audit HEAD `a936bad156f3bb183543acc6f26a0541613c8870` and QA #288.
-2. Do not reopen Tasks 1–5 unless regression evidence appears.
-3. Run the decimal precision adversarial RED/GREEN block.
-4. Then continue the canonical roadmap with F5 Debug DVR.
+1. Verify QA #294 and functional HEAD above.
+2. Do not reopen F4.1/pre-F5 hardening without regression evidence.
+3. Create F5 branch stacked on this branch.
+4. Write/execute F5 in microblocks with checkpoint after each green block.
+5. Keep F6 Billing untouched until F5 exit gates pass.
