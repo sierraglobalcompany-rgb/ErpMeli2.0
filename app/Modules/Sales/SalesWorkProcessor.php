@@ -9,7 +9,6 @@ use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
-use RuntimeException;
 
 final class SalesWorkProcessor
 {
@@ -51,7 +50,13 @@ final class SalesWorkProcessor
                 || $accountId === null
                 || $accountId < 1
             ) {
-                throw new RuntimeException('Invalid orders.reconcile work claim.');
+                $this->work->failCurrentClaim(
+                    $claim['id'],
+                    $claim['claim_token'],
+                    'invalid_work_claim',
+                    'Work claim payload is invalid.',
+                );
+                return;
             }
 
             $this->reconcileOrders->processCurrentClaim(
