@@ -66,6 +66,15 @@
 
         <form method="post" action="/settings/system/debug/export">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <label>
+                Desde UTC
+                <input type="date" name="debug_start_date">
+            </label>
+            <label>
+                Hasta UTC
+                <input type="date" name="debug_end_date">
+            </label>
+            <p>Para un solo día usa la misma fecha. Semana o mes se exportan como rango.</p>
             <button type="submit">Exportar debug ZIP</button>
         </form>
 
