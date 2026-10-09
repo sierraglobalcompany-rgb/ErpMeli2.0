@@ -22,7 +22,10 @@ final class MeliClientBoundaryTest extends TestCase
         /** @var array<string,array<string,string>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
 
-        self::assertSame(['oauth.token', 'users.me', 'orders.get', 'orders.search'], array_keys($operations));
+        self::assertSame(
+            ['oauth.token', 'users.me', 'orders.get', 'orders.search', 'billing.period.details'],
+            array_keys($operations),
+        );
         self::assertSame('POST', $operations['oauth.token']['method']);
         self::assertSame('/oauth/token', $operations['oauth.token']['path']);
         self::assertSame('AUTH', $operations['oauth.token']['classification']);
@@ -35,6 +38,12 @@ final class MeliClientBoundaryTest extends TestCase
         self::assertSame('GET', $operations['orders.search']['method']);
         self::assertSame('/orders/search', $operations['orders.search']['path']);
         self::assertSame('READ', $operations['orders.search']['classification']);
+        self::assertSame('GET', $operations['billing.period.details']['method']);
+        self::assertSame(
+            '/billing/integration/periods/key/{period_key}/group/ML/details',
+            $operations['billing.period.details']['path'],
+        );
+        self::assertSame('READ', $operations['billing.period.details']['classification']);
     }
 
     public function testFakeTransportObservesExactlyOnePhysicalRequest(): void
