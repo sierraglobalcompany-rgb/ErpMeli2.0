@@ -12,14 +12,14 @@ use Tests\Support\TestDatabase;
 
 final class OAuthHttpStartRouteTest extends TestCase
 {
-    public function testAuthenticatedCompanyMemberStartsTenantBoundPkceAuthorization(): void
+    public function testAuthenticatedCompanyAdminStartsTenantBoundPkceAuthorization(): void
     {
         $pdo = TestDatabase::reset();
         $hash = (new PasswordService())->hash('secret');
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'OAuth Route Company','oauth-route-company')");
         $stmt = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'oauth@example.test',?,'active')");
         $stmt->execute([$hash]);
-        $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'member')");
+        $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin')");
 
         $_SESSION['user_id'] = 1;
         $_SESSION['company_id'] = 1;
@@ -57,13 +57,50 @@ final class OAuthHttpStartRouteTest extends TestCase
             self::assertSame(1, $_SESSION['meli_oauth_company_id'] ?? null);
             self::assertSame($query['state'] ?? null, $_SESSION['meli_oauth']['state'] ?? null);
         } finally {
-            if ($previousClientId === false) {
-                putenv('MELI_CLIENT_ID');
-                unset($_ENV['MELI_CLIENT_ID']);
-            } else {
-                putenv('MELI_CLIENT_ID=' . $previousClientId);
-                $_ENV['MELI_CLIENT_ID'] = $previousClientId;
-            }
+            unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+            $this->restoreClientId($previousClientId);
         }
+    }
+
+    public function testAuthenticatedCompanyMemberCannotStartOAuthAuthorization(): void
+    {
+        $pdo = TestDatabase::reset();
+        $hash = (new PasswordService())->hash('secret');
+        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'OAuth Member Company','oauth-member-company')");
+        $stmt = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'oauth-member@example.test',?,'active')");
+        $stmt->execute([$hash]);
+        $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'member')");
+
+        $_SESSION['user_id'] = 1;
+        $_SESSION['company_id'] = 1;
+
+        $previousClientId = getenv('MELI_CLIENT_ID');
+        putenv('MELI_CLIENT_ID=123456789');
+        $_ENV['MELI_CLIENT_ID'] = '123456789';
+
+        try {
+            $response = Bootstrap::create()->handle(
+                (new ServerRequestFactory())->createServerRequest('GET', '/oauth/mercadolibre/connect'),
+            );
+
+            self::assertSame(403, $response->getStatusCode());
+            self::assertArrayNotHasKey('meli_oauth', $_SESSION);
+            self::assertArrayNotHasKey('meli_oauth_company_id', $_SESSION);
+        } finally {
+            unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+            $this->restoreClientId($previousClientId);
+        }
+    }
+
+    private function restoreClientId(string|false $previousClientId): void
+    {
+        if ($previousClientId === false) {
+            putenv('MELI_CLIENT_ID');
+            unset($_ENV['MELI_CLIENT_ID']);
+            return;
+        }
+
+        putenv('MELI_CLIENT_ID=' . $previousClientId);
+        $_ENV['MELI_CLIENT_ID'] = $previousClientId;
     }
 }
