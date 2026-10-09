@@ -159,7 +159,7 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
             'erp_meli2.oauth.account',
         );
 
-        return new SyncOrderHandler($pdo, $work, $client, $tokens);
+        return new SyncOrderHandler($work, $client, $tokens);
     }
 
     /** @return array{id:int,claim_token:string} */
