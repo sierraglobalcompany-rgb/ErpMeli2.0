@@ -12,6 +12,8 @@ use App\Integrations\MercadoLibre\Client\MeliClient;
 use App\Integrations\MercadoLibre\Client\MeliCooldownRepository;
 use App\Integrations\MercadoLibre\Transport\CurlMeliTransport;
 use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
+use App\Modules\Sales\ReconcileOrders\ReconcileOrdersHandler;
+use App\Modules\Sales\SalesWorkProcessor;
 use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
 use App\Modules\Sales\SyncOrder\SyncOrderHandler;
 use App\Modules\Settings\SystemSettingsRepository;
@@ -51,8 +53,11 @@ $tokens = new OAuthRefreshService(
 );
 
 $work = new WorkRepository($pdo);
-$processor = new OrderSyncWorkProcessor(
-    new SyncOrderHandler($work, $client, $tokens),
+$processor = new SalesWorkProcessor(
+    new OrderSyncWorkProcessor(
+        new SyncOrderHandler($work, $client, $tokens),
+    ),
+    new ReconcileOrdersHandler($pdo, $work, $client, $tokens),
 );
 $execution = new WorkExecution(
     $settings,
