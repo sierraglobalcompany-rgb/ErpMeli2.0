@@ -33,130 +33,171 @@ final class OAuthRefreshService
 
     public function getValidAccessToken(int $accountId, DateTimeImmutable $now): string
     {
-        if ($accountId < 1) {
-            throw new RuntimeException('Mercado Libre account is invalid.');
-        }
-
+        $this->assertAccountId($accountId);
         $nowUtc = $now->setTimezone(new DateTimeZone('UTC'));
         $current = $this->loadToken($accountId);
+
         if ($this->isSufficientlyValid($current['expires_at'], $nowUtc)) {
             return $this->cipher->decrypt($current['access_token_cipher']);
         }
 
-        $lockName = $this->lockName($accountId);
-        if (!$this->acquireLock($lockName)) {
-            throw new RuntimeException('Mercado Libre OAuth refresh is already in progress.');
-        }
-
-        try {
+        return $this->withAccountLock($accountId, function () use ($accountId, $nowUtc): string {
             // Refresh tokens are single-use. Always reread after taking the per-account lock.
             $current = $this->loadToken($accountId);
             if ($this->isSufficientlyValid($current['expires_at'], $nowUtc)) {
                 return $this->cipher->decrypt($current['access_token_cipher']);
             }
 
-            $refreshToken = $this->cipher->decrypt($current['refresh_token_cipher']);
-            $body = http_build_query([
-                'grant_type' => 'refresh_token',
-                'client_id' => $this->clientId,
-                'client_secret' => $this->clientSecret,
-                'refresh_token' => $refreshToken,
-            ], '', '&', PHP_QUERY_RFC3986);
+            return $this->performRefresh($accountId, $current, $nowUtc);
+        });
+    }
 
-            try {
-                // A refresh token is one-use. This POST is intentionally dispatched once only.
-                $response = $this->client->request(
-                    'oauth.token',
-                    null,
-                    $body,
-                    ['Content-Type' => 'application/x-www-form-urlencoded'],
-                    scopeKey: 'account:' . $accountId,
-                    resourceCount: 1,
-                );
-            } catch (MeliApiException $exception) {
-                if ($exception->errorCode === 'invalid_grant') {
-                    $this->setAccountStatus($accountId, 'reauth_required');
-                    throw new RuntimeException('Mercado Libre authorization must be renewed.', 0, $exception);
-                }
+    public function refreshAfterUnauthorized(
+        int $accountId,
+        string $rejectedAccessToken,
+        DateTimeImmutable $now,
+    ): string {
+        $this->assertAccountId($accountId);
+        if ($rejectedAccessToken === '') {
+            throw new RuntimeException('Rejected Mercado Libre access token is required.');
+        }
 
-                throw $exception;
-            } catch (MeliRateLimitException $exception) {
-                // A definite 429 response is handled by the caller/cooldown policy; do not consume another POST here.
-                throw $exception;
-            } catch (RuntimeException $exception) {
-                // Network/transport or malformed-response outcomes can be ambiguous after a one-use refresh POST.
-                $this->setAccountStatus($accountId, 'attention');
-                throw new RuntimeException(
-                    'Mercado Libre OAuth refresh outcome is uncertain; reauthorization may be required.',
-                    0,
-                    $exception,
-                );
+        $nowUtc = $now->setTimezone(new DateTimeZone('UTC'));
+
+        return $this->withAccountLock($accountId, function () use ($accountId, $rejectedAccessToken, $nowUtc): string {
+            $current = $this->loadToken($accountId);
+            $currentAccessToken = $this->cipher->decrypt($current['access_token_cipher']);
+
+            // Another request may already have rotated the token while this caller waited for the lock.
+            if (!hash_equals($rejectedAccessToken, $currentAccessToken)) {
+                return $currentAccessToken;
             }
 
-            $accessToken = $response->data['access_token'] ?? null;
-            $newRefreshToken = $response->data['refresh_token'] ?? null;
-            $expiresInRaw = $response->data['expires_in'] ?? null;
+            return $this->performRefresh($accountId, $current, $nowUtc);
+        });
+    }
 
-            if (!is_string($accessToken) || $accessToken === '' ||
-                !is_string($newRefreshToken) || $newRefreshToken === '' ||
-                !(is_int($expiresInRaw) || (is_string($expiresInRaw) && ctype_digit($expiresInRaw)))) {
-                $this->setAccountStatus($accountId, 'attention');
-                throw new RuntimeException('Mercado Libre OAuth refresh response is incomplete.');
-            }
+    /**
+     * @param callable():string $callback
+     */
+    private function withAccountLock(int $accountId, callable $callback): string
+    {
+        $lockName = $this->lockName($accountId);
+        if (!$this->acquireLock($lockName)) {
+            throw new RuntimeException('Mercado Libre OAuth refresh is already in progress.');
+        }
 
-            $expiresIn = (int) $expiresInRaw;
-            if ($expiresIn < 1) {
-                $this->setAccountStatus($accountId, 'attention');
-                throw new RuntimeException('Mercado Libre OAuth refresh response is incomplete.');
-            }
-
-            $accessCipher = $this->cipher->encrypt($accessToken);
-            $refreshCipher = $this->cipher->encrypt($newRefreshToken);
-            $expiresAt = $nowUtc->modify('+' . $expiresIn . ' seconds');
-
-            $this->pdo->beginTransaction();
-            try {
-                $tokens = $this->pdo->prepare(
-                    'UPDATE meli_tokens SET '
-                    . 'access_token_cipher = :access_token_cipher, '
-                    . 'refresh_token_cipher = :refresh_token_cipher, '
-                    . 'expires_at = :expires_at, '
-                    . 'refresh_version = refresh_version + 1, '
-                    . 'updated_at = UTC_TIMESTAMP(6) '
-                    . 'WHERE account_id = :account_id'
-                );
-                $tokens->execute([
-                    'access_token_cipher' => $accessCipher,
-                    'refresh_token_cipher' => $refreshCipher,
-                    'expires_at' => $expiresAt->format('Y-m-d H:i:s.u'),
-                    'account_id' => $accountId,
-                ]);
-
-                if ($tokens->rowCount() !== 1) {
-                    throw new RuntimeException('Mercado Libre OAuth tokens could not be persisted.');
-                }
-
-                $account = $this->pdo->prepare(
-                    "UPDATE meli_accounts SET status = 'connected', updated_at = UTC_TIMESTAMP(6) WHERE id = :id"
-                );
-                $account->execute(['id' => $accountId]);
-
-                if ($account->rowCount() > 1) {
-                    throw new RuntimeException('Unexpected Mercado Libre account update count.');
-                }
-
-                $this->pdo->commit();
-            } catch (Throwable $exception) {
-                if ($this->pdo->inTransaction()) {
-                    $this->pdo->rollBack();
-                }
-                throw $exception;
-            }
-
-            return $accessToken;
+        try {
+            return $callback();
         } finally {
             $this->releaseLock($lockName);
         }
+    }
+
+    /**
+     * @param array{access_token_cipher:string,refresh_token_cipher:string,expires_at:string} $current
+     */
+    private function performRefresh(int $accountId, array $current, DateTimeImmutable $nowUtc): string
+    {
+        $refreshToken = $this->cipher->decrypt($current['refresh_token_cipher']);
+        $body = http_build_query([
+            'grant_type' => 'refresh_token',
+            'client_id' => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'refresh_token' => $refreshToken,
+        ], '', '&', PHP_QUERY_RFC3986);
+
+        try {
+            // A refresh token is one-use. This POST is intentionally dispatched once only.
+            $response = $this->client->request(
+                'oauth.token',
+                null,
+                $body,
+                ['Content-Type' => 'application/x-www-form-urlencoded'],
+                scopeKey: 'account:' . $accountId,
+                resourceCount: 1,
+            );
+        } catch (MeliApiException $exception) {
+            if ($exception->errorCode === 'invalid_grant') {
+                $this->setAccountStatus($accountId, 'reauth_required');
+                throw new RuntimeException('Mercado Libre authorization must be renewed.', 0, $exception);
+            }
+
+            throw $exception;
+        } catch (MeliRateLimitException $exception) {
+            // A definite 429 response is handled by the caller/cooldown policy; do not consume another POST here.
+            throw $exception;
+        } catch (RuntimeException $exception) {
+            // Network/transport or malformed-response outcomes can be ambiguous after a one-use refresh POST.
+            $this->setAccountStatus($accountId, 'attention');
+            throw new RuntimeException(
+                'Mercado Libre OAuth refresh outcome is uncertain; reauthorization may be required.',
+                0,
+                $exception,
+            );
+        }
+
+        $accessToken = $response->data['access_token'] ?? null;
+        $newRefreshToken = $response->data['refresh_token'] ?? null;
+        $expiresInRaw = $response->data['expires_in'] ?? null;
+
+        if (!is_string($accessToken) || $accessToken === '' ||
+            !is_string($newRefreshToken) || $newRefreshToken === '' ||
+            !(is_int($expiresInRaw) || (is_string($expiresInRaw) && ctype_digit($expiresInRaw)))) {
+            $this->setAccountStatus($accountId, 'attention');
+            throw new RuntimeException('Mercado Libre OAuth refresh response is incomplete.');
+        }
+
+        $expiresIn = (int) $expiresInRaw;
+        if ($expiresIn < 1) {
+            $this->setAccountStatus($accountId, 'attention');
+            throw new RuntimeException('Mercado Libre OAuth refresh response is incomplete.');
+        }
+
+        $accessCipher = $this->cipher->encrypt($accessToken);
+        $refreshCipher = $this->cipher->encrypt($newRefreshToken);
+        $expiresAt = $nowUtc->modify('+' . $expiresIn . ' seconds');
+
+        $this->pdo->beginTransaction();
+        try {
+            $tokens = $this->pdo->prepare(
+                'UPDATE meli_tokens SET '
+                . 'access_token_cipher = :access_token_cipher, '
+                . 'refresh_token_cipher = :refresh_token_cipher, '
+                . 'expires_at = :expires_at, '
+                . 'refresh_version = refresh_version + 1, '
+                . 'updated_at = UTC_TIMESTAMP(6) '
+                . 'WHERE account_id = :account_id'
+            );
+            $tokens->execute([
+                'access_token_cipher' => $accessCipher,
+                'refresh_token_cipher' => $refreshCipher,
+                'expires_at' => $expiresAt->format('Y-m-d H:i:s.u'),
+                'account_id' => $accountId,
+            ]);
+
+            if ($tokens->rowCount() !== 1) {
+                throw new RuntimeException('Mercado Libre OAuth tokens could not be persisted.');
+            }
+
+            $account = $this->pdo->prepare(
+                "UPDATE meli_accounts SET status = 'connected', updated_at = UTC_TIMESTAMP(6) WHERE id = :id"
+            );
+            $account->execute(['id' => $accountId]);
+
+            if ($account->rowCount() > 1) {
+                throw new RuntimeException('Unexpected Mercado Libre account update count.');
+            }
+
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
+
+        return $accessToken;
     }
 
     /**
@@ -222,5 +263,12 @@ final class OAuthRefreshService
             'status' => $status,
             'id' => $accountId,
         ]);
+    }
+
+    private function assertAccountId(int $accountId): void
+    {
+        if ($accountId < 1) {
+            throw new RuntimeException('Mercado Libre account is invalid.');
+        }
     }
 }
