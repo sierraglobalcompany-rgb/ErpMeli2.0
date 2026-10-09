@@ -84,6 +84,7 @@ final class F5FinalAdversarialTest extends TestCase
         }
         $debugFile = $debugDir . '/debug-' . gmdate('Y-m-d') . '.jsonl';
         $previousDebug = is_file($debugFile) ? file_get_contents($debugFile) : null;
+        $before = is_string($previousDebug) ? $previousDebug : '';
         $previousClientId = getenv('MELI_CLIENT_ID');
         putenv('MELI_CLIENT_ID=987654321');
         $_ENV['MELI_CLIENT_ID'] = '987654321';
@@ -110,9 +111,11 @@ final class F5FinalAdversarialTest extends TestCase
             self::assertSame(200, $response->getStatusCode());
             self::assertFileExists($debugFile);
             $content = (string) file_get_contents($debugFile);
-            self::assertStringContainsString('webhook.accepted', $content);
-            self::assertStringContainsString('evt-f5-runtime-debug-1', $content);
-            self::assertStringContainsString('work:', $content);
+            self::assertGreaterThan(strlen($before), strlen($content));
+            $appended = substr($content, strlen($before));
+            self::assertStringContainsString('webhook.accepted', $appended);
+            self::assertStringContainsString('evt-f5-runtime-debug-1', $appended);
+            self::assertStringContainsString('work:', $appended);
         } finally {
             $this->restoreClientId($previousClientId);
             if ($previousDebug === null) {
