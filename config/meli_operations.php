@@ -35,4 +35,12 @@ return [
         'official_doc_url' => 'https://developers.mercadolibre.com.co/gestiona-ventas',
         'verified_at' => '2026-10-09',
     ],
+    'billing.period.details' => [
+        'method' => 'GET',
+        'path' => '/billing/integration/periods/key/{period_key}/group/ML/details',
+        'family' => 'billing',
+        'classification' => 'READ',
+        'official_doc_url' => 'https://developers.mercadolibre.com.co/provisiones',
+        'verified_at' => '2026-10-09',
+    ],
 ];
