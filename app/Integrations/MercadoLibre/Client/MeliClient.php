@@ -43,6 +43,7 @@ final class MeliClient
     /**
      * @param array<string,string> $headers
      * @param array<string,string> $pathParams
+     * @param array<string,string|int> $queryParams
      */
     public function request(
         string $operationKey,
@@ -52,6 +53,7 @@ final class MeliClient
         string $scopeKey = 'app',
         int $resourceCount = 1,
         array $pathParams = [],
+        array $queryParams = [],
     ): MeliClientResponse {
         $operation = $this->operations[$operationKey] ?? null;
         if ($operation === null) {
@@ -63,6 +65,7 @@ final class MeliClient
         }
 
         $path = $this->resolvePath($operation['path'], $pathParams);
+        $path = $this->appendQuery($path, $queryParams);
         $cooldownKey = 'app:' . $operation['family'];
         $activeCooldown = $this->cooldowns?->activeUntil($cooldownKey);
         if ($activeCooldown instanceof DateTimeImmutable) {
@@ -154,6 +157,22 @@ final class MeliClient
         }
 
         return $path;
+    }
+
+    /** @param array<string,string|int> $queryParams */
+    private function appendQuery(string $path, array $queryParams): string
+    {
+        if ($queryParams === []) {
+            return $path;
+        }
+
+        foreach ($queryParams as $key => $value) {
+            if ($key === '' || (is_string($value) && $value === '')) {
+                throw new InvalidArgumentException('Invalid Mercado Libre query parameter.');
+            }
+        }
+
+        return $path . '?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
     }
 
     private function pacePhysicalRequest(): void
