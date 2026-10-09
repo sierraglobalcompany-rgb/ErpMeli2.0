@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Core\Config\AppConfig;
 use App\Core\Config\Environment;
 use App\Core\Database\Connection;
+use App\Core\Logging\DebugRecorder;
 use App\Integrations\MercadoLibre\Auth\OAuthRefreshService;
 use App\Integrations\MercadoLibre\Auth\TokenCipher;
 use App\Integrations\MercadoLibre\Client\ApiUsageRecorder;
@@ -29,6 +30,12 @@ $runnerLockConnection = Connection::fromConfig($config);
 $oauthLockConnection = Connection::fromConfig($config);
 
 $settings = new SystemSettingsRepository($pdo);
+$runtimeSettings = $settings->get();
+$debugRecorder = new DebugRecorder(
+    dirname(__DIR__) . '/storage/debug',
+    $runtimeSettings->debugEnabled,
+    $runtimeSettings->debugMaxMb * 1024 * 1024,
+);
 
 /** @var array<string,array{method:string,path:string,family:string,classification:string,official_doc_url:string,verified_at:string}> $operations */
 $operations = require dirname(__DIR__) . '/config/meli_operations.php';
@@ -40,6 +47,7 @@ $client = new MeliClient(
     'https://api.mercadolibre.com',
     new ApiUsageRecorder($pdo),
     new MeliCooldownRepository($pdo),
+    debugRecorder: $debugRecorder,
 );
 
 $tokens = new OAuthRefreshService(
@@ -57,6 +65,7 @@ $processor = new SalesWorkProcessor(
     new OrderSyncWorkProcessor(
         new SyncOrderHandler($work, $client, $tokens),
         $work,
+        $debugRecorder,
     ),
     new ReconcileOrdersHandler($pdo, $work, $client, $tokens),
     $work,
