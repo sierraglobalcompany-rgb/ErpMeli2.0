@@ -16,7 +16,10 @@ final class WorkExecution
     }
 
     /**
-     * @param callable(array{id:int,status:string,attempts:int,claim_token:string,claimed_at:string}): void $processor
+     * @param callable(array{
+     *   id:int,company_id:?int,account_id:?int,type:string,resource_key:?string,payload:array<string,mixed>,
+     *   status:string,attempts:int,claim_token:string,claimed_at:string
+     * }): void $processor
      */
     public function runAutomatic(
         callable $processor,
@@ -36,7 +39,10 @@ final class WorkExecution
     }
 
     /**
-     * @param callable(array{id:int,status:string,attempts:int,claim_token:string,claimed_at:string}): void $processor
+     * @param callable(array{
+     *   id:int,company_id:?int,account_id:?int,type:string,resource_key:?string,payload:array<string,mixed>,
+     *   status:string,attempts:int,claim_token:string,claimed_at:string
+     * }): void $processor
      */
     public function runManualOne(callable $processor): int
     {
