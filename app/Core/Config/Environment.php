@@ -12,7 +12,7 @@ final class Environment
         $keys = [
             'APP_ENV', 'APP_URL', 'APP_KEY',
             'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
-            'MELI_CLIENT_ID',
+            'MELI_CLIENT_ID', 'MELI_CLIENT_SECRET',
         ];
 
         $result = [];
