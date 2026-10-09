@@ -6,8 +6,8 @@ Branch: `impl/f5-debug-dvr-20261009`
 Base: `fix/f4-1-stabilization-20261009`
 Draft PR: #14 — `F5 — Debug DVR Completo`
 Implementation plan: `docs/superpowers/plans/2026-10-09-f5-debug-dvr-implementation.md`
-Verified functional HEAD before this checkpoint commit: `7c329071cabda513cee535f06bc51f86c5ec36fb`
-Latest full QA: run #325 — SUCCESS.
+Verified functional HEAD before this checkpoint commit: `825d189f169c0c6c0e5a256694b214922b684ad8`
+Latest full QA: run #343 — SUCCESS.
 
 ## F5.1 — Safe bounded JSONL recorder — DONE / GREEN
 
@@ -101,33 +101,72 @@ DEBUG_CLEAR_CSRF=PASS
 DEBUG_CLEAR_ROOT_BOUND=PASS
 ```
 
-## Exact next block — F5.4
+## F5.4 — Authenticated ZIP export — DONE / GREEN
 
-Authenticated ZIP export.
+RED:
+- `tests/Integration/DebugExportTest.php`
+- initial RED commit `30d0a3f62fd38dbff6fbe348e575d306b91078a4`
+- QA #329 failed only because `DebugExportService` did not exist.
 
-RED requirements:
-- only authenticated company admin can create/download debug export;
-- export includes only recognized ERP2 DVR files selected by safe server-side rules;
-- no arbitrary path, traversal or symlink target can enter ZIP;
-- export filename follows `debug-export-<safe-id>.zip` so F5.2 TTL cleanup owns it;
-- ZIP is created under `storage/exports`, never public storage;
-- response is attachment download with bounded/generated filename;
-- export does not expose application logs, `.env`, tokens or unrelated files;
-- empty DVR history returns a bounded safe outcome and does not create arbitrary files.
+GREEN:
+- `app/Core/Logging/DebugExportService.php`
+- `app/Modules/Settings/SystemSettingsController.php`
+- `app/Modules/Settings/views/system.php`
+- `app/Core/Http/Routes.php`
+- native PHP `PharData` ZIP; no new Composer/runtime dependency;
+- functional head after deterministic rate-limit fixture fix: `825d189f169c0c6c0e5a256694b214922b684ad8`
+- QA #343 SUCCESS.
 
-Minimal targets:
-- one small export service under `app/Core/Logging`;
-- one admin controller action + fixed route;
-- targeted unit/integration tests;
-- reuse existing CSRF/admin checks and `storage/exports`.
+Proven:
+- only company admin can export;
+- POST export requires CSRF;
+- fixed route `/settings/system/debug/export` accepts no filesystem path;
+- only recognized ERP2 DVR files enter archive;
+- unrelated files and symlink targets are excluded;
+- output lives only under `storage/exports`;
+- generated filename is bounded `debug-export-<safe-id>.zip` and therefore owned by F5.2 TTL cleanup;
+- empty DVR history creates no export and returns a bounded empty outcome;
+- response is `application/zip` attachment and streams the generated archive in chunks;
+- no `.env`, normal application logs, tokens or arbitrary files are selected by the exporter.
 
-Do not open F5.5 before F5.4 GREEN + full QA + checkpoint refresh.
+Incidental test hardening:
+- `MeliRateLimitTest` had a wall-clock race around the existing 0–2 second cooldown jitter;
+- test now verifies the real contract: `Retry-After 20s + jitter 0..2s` using before/after bounds;
+- no product rate-limit behavior changed.
+
+Gate:
+```text
+DEBUG_EXPORT_ADMIN_ONLY=PASS
+DEBUG_EXPORT_CSRF=PASS
+DEBUG_EXPORT_ALLOWLIST=PASS
+DEBUG_EXPORT_ROOT_BOUND=PASS
+DEBUG_EXPORT_TTL_COMPATIBLE=PASS
+```
+
+## Exact next block — F5.5
+
+Webhook → work → Mercado Libre HTTP correlation.
+
+Requirements:
+- create one bounded correlation identifier at the ingress/event boundary;
+- propagate only safe identifiers through existing webhook/work/client path;
+- DVR can relate webhook receipt, work execution and physical ML HTTP attempt without recording raw payloads/tokens;
+- Debug OFF must not change business behavior or HTTP/work outcomes;
+- retries preserve enough identity to relate attempts without introducing a new queue/state machine;
+- no EventBus, tracing framework, OpenTelemetry backend or generic context propagation subsystem.
+
+Minimal approach:
+- reuse existing `webhook_events`, `work_items`, `claim_token`, order/account/company identifiers where sufficient;
+- add only the smallest explicit correlation field/context if existing identifiers cannot prove the chain;
+- instrument existing boundaries with `DebugRecorder` rather than creating a second logger;
+- test OFF/ON behavior equivalence and secret-safe correlation.
+
+Do not open F5.6 before F5.5 GREEN + full QA + checkpoint refresh.
 
 ## Remaining F5 order
 
-1. F5.4 authenticated ZIP export;
-2. F5.5 webhook→work→HTTP correlation;
-3. F5.6 final adversarial gates.
+1. F5.5 webhook→work→HTTP correlation;
+2. F5.6 final adversarial gates.
 
 ## Global constraints
 
