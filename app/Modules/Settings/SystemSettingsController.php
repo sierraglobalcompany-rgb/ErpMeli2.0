@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings;
 
+use App\Core\Logging\DebugExportService;
 use App\Core\Logging\DebugMaintenance;
 use App\Core\Security\Csrf;
 use PDO;
@@ -17,6 +18,7 @@ final class SystemSettingsController
         private readonly SystemSettingsRepository $settings,
         private readonly Csrf $csrf,
         private readonly ?DebugMaintenance $debugMaintenance = null,
+        private readonly ?DebugExportService $debugExport = null,
     ) {
     }
 
@@ -99,6 +101,59 @@ final class SystemSettingsController
         return $response
             ->withHeader('Location', '/settings/system')
             ->withStatus(303);
+    }
+
+    public function exportDebug(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $response->withStatus(403);
+        }
+
+        $body = $request->getParsedBody();
+        $body = is_array($body) ? $body : [];
+
+        try {
+            $this->csrf->assertValid((string) ($body['csrf_token'] ?? ''));
+        } catch (\RuntimeException) {
+            return $response->withStatus(419);
+        }
+
+        if ($this->debugExport === null) {
+            return $response->withStatus(503);
+        }
+
+        $export = $this->debugExport->create();
+        if ($export === null) {
+            return $response->withStatus(204);
+        }
+
+        $size = filesize($export['path']);
+        $handle = fopen($export['path'], 'rb');
+        if ($size === false || $handle === false) {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            return $response->withStatus(500);
+        }
+
+        try {
+            while (!feof($handle)) {
+                $chunk = fread($handle, 8192);
+                if ($chunk === false) {
+                    return $response->withStatus(500);
+                }
+                if ($chunk !== '') {
+                    $response->getBody()->write($chunk);
+                }
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return $response
+            ->withHeader('Content-Type', 'application/zip')
+            ->withHeader('Content-Disposition', 'attachment; filename="' . $export['filename'] . '"')
+            ->withHeader('Content-Length', (string) $size);
     }
 
     private function isAdmin(): bool
