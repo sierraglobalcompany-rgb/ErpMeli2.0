@@ -64,6 +64,11 @@
             <p>Sin historial debug.</p>
         <?php endif; ?>
 
+        <form method="post" action="/settings/system/debug/export">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <button type="submit">Exportar debug ZIP</button>
+        </form>
+
         <form method="post" action="/settings/system/debug/clear">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <button type="submit">Limpiar debug</button>
