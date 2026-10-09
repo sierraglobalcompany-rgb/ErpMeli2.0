@@ -10,13 +10,13 @@ final class RemoteHostPolicy
 {
     public function assertAllowed(string $url, string $appEnv): void
     {
-        if (!in_array($appEnv, ['local', 'test'], true)) {
+        if ($appEnv === 'production') {
             return;
         }
 
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
         if ($host === 'api.mercadolibre.com') {
-            throw new RuntimeException('Real Mercado Libre HTTP is blocked in local/test.');
+            throw new RuntimeException('Real Mercado Libre HTTP is blocked outside production.');
         }
     }
 }
