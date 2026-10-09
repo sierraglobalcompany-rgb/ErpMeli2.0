@@ -2,6 +2,12 @@
 
 Greenfield ERP for Mercado Libre built with a KISS architecture.
 
+## Ley de ingeniería obligatoria
+
+Antes de diseñar, programar o revisar cualquier cambio, leer y cumplir [`AGENTS.md`](AGENTS.md).
+
+Todo cambio debe pasar esta puerta: **¿Es KISS? ¿Es simple? ¿Está optimizado para el problema real? ¿Es eficiente? ¿Se puede mejorar con menos piezas, estado, consultas o abstracciones?** Si alguna respuesta es no o dudosa, se simplifica antes de implementar.
+
 ## F1 stack
 
 - PHP 8.5
