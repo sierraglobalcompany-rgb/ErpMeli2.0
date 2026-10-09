@@ -11,6 +11,7 @@ use DateTimeZone;
 use InvalidArgumentException;
 use JsonException;
 use RuntimeException;
+use Throwable;
 
 final class MeliClient
 {
@@ -262,12 +263,20 @@ final class MeliClient
         string $outcome,
         int $durationMs,
     ): void {
-        $this->usageRecorder?->record(
-            $scopeKey,
-            $operationKey,
-            $resourceCount,
-            $outcome,
-            $durationMs,
-        );
+        if ($this->usageRecorder === null) {
+            return;
+        }
+
+        try {
+            $this->usageRecorder->record(
+                $scopeKey,
+                $operationKey,
+                $resourceCount,
+                $outcome,
+                $durationMs,
+            );
+        } catch (Throwable) {
+            // Aggregate usage metrics are best-effort observability, never business truth.
+        }
     }
 }
