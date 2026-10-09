@@ -75,7 +75,7 @@ final class Routes
 
             $pdo = Connection::fromConfig($config);
             $membership = $pdo->prepare(
-                'SELECT 1 FROM company_users WHERE user_id = :user_id AND company_id = :company_id LIMIT 1'
+                "SELECT 1 FROM company_users WHERE user_id = :user_id AND company_id = :company_id AND role = 'admin' LIMIT 1"
             );
             $membership->execute([
                 'user_id' => $userId,
@@ -124,7 +124,7 @@ final class Routes
 
             $pdo = Connection::fromConfig($config);
             $membership = $pdo->prepare(
-                'SELECT 1 FROM company_users WHERE user_id = :user_id AND company_id = :company_id LIMIT 1'
+                "SELECT 1 FROM company_users WHERE user_id = :user_id AND company_id = :company_id AND role = 'admin' LIMIT 1"
             );
             $membership->execute([
                 'user_id' => $userId,
