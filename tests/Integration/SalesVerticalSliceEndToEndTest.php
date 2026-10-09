@@ -158,7 +158,7 @@ final class SalesVerticalSliceEndToEndTest extends TestCase
             $accountId,
             $cipher->encrypt('valid-sales-e2e-access'),
             $cipher->encrypt('unused-sales-e2e-refresh'),
-            '2026-10-09 08:00:00.000000',
+            '2030-01-01 00:00:00.000000',
         ]);
 
         return [1, $accountId];
