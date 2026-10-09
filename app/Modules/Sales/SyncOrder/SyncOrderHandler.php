@@ -372,7 +372,38 @@ final class SyncOrderHandler
 
     private function decimal4(mixed $value, string $field): string
     {
-        if (!is_int($value) && !is_float($value) && !(is_string($value) && is_numeric($value))) {
+        if (is_string($value)) {
+            $raw = trim($value);
+            if (preg_match('/^([+-]?)(\d+)(?:\.(\d+))?$/D', $raw, $matches) === 1) {
+                $whole = ltrim($matches[2], '0');
+                $whole = $whole === '' ? '0' : $whole;
+                if (strlen($whole) > 14) {
+                    throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
+                }
+
+                $fraction = $matches[3] ?? '';
+                $fiveDigits = substr(str_pad($fraction, 5, '0'), 0, 5);
+                $scaled = ((int) $whole * 10_000) + (int) substr($fiveDigits, 0, 4);
+                if ((int) $fiveDigits[4] >= 5) {
+                    ++$scaled;
+                }
+
+                $sign = $matches[1] === '-' && $scaled !== 0 ? '-' : '';
+
+                return $sign
+                    . intdiv($scaled, 10_000)
+                    . '.'
+                    . str_pad((string) ($scaled % 10_000), 4, '0', STR_PAD_LEFT);
+            }
+
+            if (!is_numeric($raw)) {
+                throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
+            }
+
+            return number_format((float) $raw, 4, '.', '');
+        }
+
+        if (!is_int($value) && !is_float($value)) {
             throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
         }
 
