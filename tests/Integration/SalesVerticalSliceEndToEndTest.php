@@ -51,7 +51,6 @@ final class SalesVerticalSliceEndToEndTest extends TestCase
                 'received' => '2026-10-09T02:00:00.100Z',
             ], JSON_THROW_ON_ERROR);
 
-            // Duplicate delivery is a normal webhook condition; it must not duplicate active work.
             $firstWebhook = Bootstrap::create()->handle($this->jsonPost('/webhooks/mercadolibre', $payload));
             $duplicateWebhook = Bootstrap::create()->handle($this->jsonPost('/webhooks/mercadolibre', $payload));
 
@@ -85,7 +84,7 @@ final class SalesVerticalSliceEndToEndTest extends TestCase
                 'erp_meli2.oauth.account',
             );
             $work = new WorkRepository($pdo);
-            $processor = new OrderSyncWorkProcessor(new SyncOrderHandler($work, $client, $tokens));
+            $processor = new OrderSyncWorkProcessor(new SyncOrderHandler($work, $client, $tokens), $work);
             $runner = new WorkRunner(
                 Connection::fromConfig($config),
                 'erp_meli2.test.sales.vertical.slice',
@@ -112,7 +111,6 @@ final class SalesVerticalSliceEndToEndTest extends TestCase
             self::assertStringContainsString('76543', $html);
             self::assertStringContainsString('paid', $html);
 
-            // Running the queue again after completion must not refetch the finished work.
             self::assertSame(0, $runner->run($work, $processor, maxItems: 1, maxSeconds: 5));
             self::assertCount(1, $transport->requests);
             self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE external_order_id='200000000303'")->fetchColumn());
