@@ -6,15 +6,8 @@ Branch: `impl/f5-debug-dvr-20261009`
 Base: `fix/f4-1-stabilization-20261009`
 Draft PR: #14 — `F5 — Debug DVR Completo`
 Implementation plan: `docs/superpowers/plans/2026-10-09-f5-debug-dvr-implementation.md`
-
-## Stable verified base
-
-Last fully GREEN functional HEAD before current RED work:
-- `db8b97a3ecb8a766a7d98c138015327c1b2a088c`
-- QA #311 — SUCCESS
-
-Checkpoint after F5.2:
-- `71777f7c0f8a6c4710b6d387e81e656e3755244b`
+Verified functional HEAD before this checkpoint commit: `7c329071cabda513cee535f06bc51f86c5ec36fb`
+Latest full QA: run #325 — SUCCESS.
 
 ## F5.1 — Safe bounded JSONL recorder — DONE / GREEN
 
@@ -53,7 +46,7 @@ RED:
 GREEN:
 - `app/Core/Logging/DebugMaintenance.php`
 - `bin/cleanup.php`
-- final functional head `db8b97a3ecb8a766a7d98c138015327c1b2a088c`
+- functional head `db8b97a3ecb8a766a7d98c138015327c1b2a088c`
 - QA #311 SUCCESS.
 
 Proven:
@@ -75,148 +68,70 @@ DEBUG_EXPORT_TTL=PASS
 DEBUG_CLEANUP_ROOT_BOUND=PASS
 ```
 
-# CURRENT LIVE STATE — F5.3 IS RED, DO NOT RECREATE THE RED
+## F5.3 — Status UI + safe clear — DONE / GREEN
 
-Current RED commit:
-- `f4c5ec2aaee359c870944b340803a59a87ccec8e`
-- test file: `tests/Integration/DebugSettingsControllerTest.php`
-- QA #315 — expected FAILURE
+RED:
+- `tests/Integration/DebugSettingsControllerTest.php`
+- commit `f4c5ec2aaee359c870944b340803a59a87ccec8e`
+- QA #315 failed only because usage/history UI and `clearDebug()` did not yet exist.
 
-The RED is valid and isolated. PHPStan is GREEN and all prior tests still pass. Exactly three new failures exist:
+GREEN:
+- `app/Core/Logging/DebugMaintenance.php`
+- `app/Modules/Settings/SystemSettingsController.php`
+- `app/Modules/Settings/views/system.php`
+- `app/Core/Http/Routes.php`
+- functional head `7c329071cabda513cee535f06bc51f86c5ec36fb`
+- QA #325 SUCCESS.
 
-1. `testAdminScreenShowsUsageHistoryAndClearAction`
-   - existing page does not yet render `Uso debug`, usage/history or clear action.
-2. `testAdminClearRequiresCsrfAndDeletesOnlyRecognizedDebugFiles`
-   - `SystemSettingsController::clearDebug()` does not exist yet.
-3. `testNonAdminCannotViewOrClearDebugStorage`
-   - same missing `clearDebug()` method.
+Proven:
+- `/settings/system` remains admin-only;
+- admin sees Debug ON/OFF, retention, max storage, total DVR bytes and UTC-day history;
+- history only inspects recognized ERP2 DVR filenames and skips symlinks;
+- clear mutation is fixed route `/settings/system/debug/clear`;
+- clear requires CSRF;
+- non-admin cannot view or clear;
+- clear deletes only recognized `debug-YYYY-MM-DD.jsonl[.gz]` files;
+- unrelated files, normal logs and exports are preserved;
+- no user-provided filesystem path is accepted.
 
-No unrelated regression was found.
-
-## F5.3 RED contract already encoded
-
-The new test requires:
-
-- admin screen keeps existing admin authorization;
-- page shows current debug usage bytes;
-- page shows recognized DVR history days;
-- page renders POST action `/settings/system/debug/clear`;
-- CSRF is mandatory for clear;
-- clear deletes only recognized files matching:
-  - `debug-YYYY-MM-DD.jsonl`
-  - `debug-YYYY-MM-DD.jsonl.gz`
-- clear must leave intact:
-  - unrelated files inside debug root, e.g. `notes.txt`;
-  - `storage/logs`;
-  - `storage/exports`;
-  - symlink targets/outside paths;
-- non-admin gets 403 for both view and clear;
-- no user-supplied filesystem path is accepted.
-
-## Exact GREEN to implement next — four small edits only
-
-### 1. `app/Core/Logging/DebugMaintenance.php`
-
-Add public read/clear methods without changing F5.2 behavior:
-
-- `status(): array{usage_bytes:int,history:list<array{day:string,bytes:int,compressed:bool}>}`
-  - inspect only recognized regular non-symlink debug files;
-  - sum their sizes;
-  - derive day from filename;
-  - sort history newest first.
-
-- `clear(): int`
-  - delete only recognized regular non-symlink debug files;
-  - no path argument;
-  - return deleted count;
-  - do not touch unrelated files.
-
-Reuse the existing private `entries()` helper and filename pattern. No new filesystem abstraction.
-
-### 2. `app/Modules/Settings/SystemSettingsController.php`
-
-Constructor currently receives:
-- `PDO`
-- `SystemSettingsRepository`
-- `Csrf`
-
-Add optional/required `DebugMaintenance` dependency for F5 branch.
-
-In `show()` after admin check:
-- fetch `$debugStatus = $this->debugMaintenance->status()`;
-- keep existing settings/CSRF behavior.
-
-Add:
+Gate:
 ```text
-clearDebug(request, response)
-```
-Behavior:
-- admin check first → 403;
-- parse body;
-- CSRF failure → 419;
-- call `DebugMaintenance::clear()`;
-- redirect 303 to `/settings/system`.
-
-Do not add flash/session framework.
-
-### 3. `app/Modules/Settings/views/system.php`
-
-Keep existing form unchanged.
-Add a small section below it:
-- heading/label `Uso debug`;
-- print `<usage_bytes> bytes`;
-- list each history day + bytes + compressed/plain marker;
-- separate clear form:
-  - POST `/settings/system/debug/clear`
-  - hidden `csrf_token`
-  - button `Limpiar debug`
-
-Escape all rendered strings with `htmlspecialchars`.
-
-### 4. `app/Core/Http/Routes.php`
-
-Add `use App\Core\Logging\DebugMaintenance;`.
-
-When constructing `SystemSettingsController`, inject:
-```php
-new DebugMaintenance(
-    dirname(__DIR__, 3) . '/storage/debug',
-    dirname(__DIR__, 3) . '/storage/exports',
-)
+DEBUG_STATUS_ADMIN_ONLY=PASS
+DEBUG_CLEAR_CSRF=PASS
+DEBUG_CLEAR_ROOT_BOUND=PASS
 ```
 
-Add explicit:
-```text
-POST /settings/system/debug/clear
-```
-using same controller composition and `clearDebug()`.
+## Exact next block — F5.4
 
-KISS option to avoid duplicate construction: small local closure/factory inside `register()` is acceptable only if it reduces duplication cleanly; otherwise duplicate four constructor lines. Do not create DI framework.
+Authenticated ZIP export.
 
-## After GREEN implementation
+RED requirements:
+- only authenticated company admin can create/download debug export;
+- export includes only recognized ERP2 DVR files selected by safe server-side rules;
+- no arbitrary path, traversal or symlink target can enter ZIP;
+- export filename follows `debug-export-<safe-id>.zip` so F5.2 TTL cleanup owns it;
+- ZIP is created under `storage/exports`, never public storage;
+- response is attachment download with bounded/generated filename;
+- export does not expose application logs, `.env`, tokens or unrelated files;
+- empty DVR history returns a bounded safe outcome and does not create arbitrary files.
 
-1. Run exactly one final QA on the functional GREEN head.
-2. Expected targeted result: all 130 tests pass (or more if route-level test added), PHPStan 0 errors, REAL_MELI_HTTP=0.
-3. If GREEN, update this checkpoint with:
-   - GREEN commit SHA;
-   - QA run number;
-   - F5.3 gates.
-4. Only then start F5.4 authenticated ZIP export.
+Minimal targets:
+- one small export service under `app/Core/Logging`;
+- one admin controller action + fixed route;
+- targeted unit/integration tests;
+- reuse existing CSRF/admin checks and `storage/exports`.
 
-Do not recreate the RED test and do not restart F5.1/F5.2.
+Do not open F5.5 before F5.4 GREEN + full QA + checkpoint refresh.
 
 ## Remaining F5 order
 
-1. Finish F5.3 status UI + safe clear;
-2. F5.4 authenticated ZIP export;
-3. F5.5 webhook→work→HTTP correlation;
-4. F5.6 final adversarial gates.
+1. F5.4 authenticated ZIP export;
+2. F5.5 webhook→work→HTTP correlation;
+3. F5.6 final adversarial gates.
 
 ## Global constraints
 
 - Do not merge/deploy automatically.
 - Do not start F6 Billing.
 - Keep PR #14 Draft until F5 exit gates are green.
-- No new RBAC/admin framework.
-- No new queue/logging/observability framework.
 - External Hostinger/main-protection/real-ML-app gates remain separate.
