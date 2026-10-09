@@ -105,8 +105,11 @@ final class WorkRepositoryEnqueueTest extends TestCase
     /** @return array{0:int,1:int} */
     private function seedAccount(\PDO $pdo): array
     {
-        $pdo->exec("INSERT INTO companies (name) VALUES ('Sales Test Co')");
+        $slug = 'sales-test-' . bin2hex(random_bytes(4));
+        $statement = $pdo->prepare('INSERT INTO companies (name, slug) VALUES (?, ?)');
+        $statement->execute(['Sales Test Co', $slug]);
         $companyId = (int) $pdo->lastInsertId();
+
         $statement = $pdo->prepare(
             "INSERT INTO meli_accounts (company_id, external_user_id, site_id, status) VALUES (?, ?, 'MCO', 'connected')"
         );
