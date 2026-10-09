@@ -195,6 +195,18 @@ final class Routes
             return (new SalesListController(Connection::fromConfig($config)))->show($request, $response);
         });
 
+        $app->get('/sales/{order_id:[0-9]+}', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return (new SalesListController(Connection::fromConfig($config)))->detail(
+                $request,
+                $response,
+                (string) ($args['order_id'] ?? ''),
+            );
+        });
+
         $app->get('/login', static function (
             ServerRequestInterface $request,
             ResponseInterface $response
