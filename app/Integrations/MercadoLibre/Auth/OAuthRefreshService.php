@@ -206,15 +206,26 @@ final class OAuthRefreshService
     private function loadToken(int $accountId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT t.access_token_cipher, t.refresh_token_cipher, t.expires_at '
+            'SELECT t.access_token_cipher, t.refresh_token_cipher, t.expires_at, a.status '
             . 'FROM meli_tokens t '
             . 'INNER JOIN meli_accounts a ON a.id = t.account_id '
-            . 'WHERE t.account_id = :account_id AND a.status <> \'disabled\''
+            . 'WHERE t.account_id = :account_id'
         );
         $statement->execute(['account_id' => $accountId]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         if (!is_array($row)) {
+            throw new RuntimeException('Mercado Libre account token is unavailable.');
+        }
+
+        $status = (string) $row['status'];
+        if ($status === 'attention') {
+            throw new RuntimeException('Mercado Libre account requires attention before token refresh.');
+        }
+        if ($status === 'reauth_required') {
+            throw new RuntimeException('Mercado Libre authorization must be renewed.');
+        }
+        if ($status !== 'connected') {
             throw new RuntimeException('Mercado Libre account token is unavailable.');
         }
 
