@@ -35,6 +35,8 @@ final class SystemSettingsController
             'total_bytes' => 0,
             'days' => [],
         ];
+        $debugCapReached = $settings->debugEnabled
+            && $debugUsage['total_bytes'] >= ($settings->debugMaxMb * 1024 * 1024);
 
         ob_start();
         require __DIR__ . '/views/system.php';
