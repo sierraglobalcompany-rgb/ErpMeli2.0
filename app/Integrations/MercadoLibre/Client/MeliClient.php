@@ -40,7 +40,10 @@ final class MeliClient
         }
     }
 
-    /** @param array<string,string> $headers */
+    /**
+     * @param array<string,string> $headers
+     * @param array<string,string> $pathParams
+     */
     public function request(
         string $operationKey,
         ?string $accessToken = null,
@@ -48,6 +51,7 @@ final class MeliClient
         array $headers = [],
         string $scopeKey = 'app',
         int $resourceCount = 1,
+        array $pathParams = [],
     ): MeliClientResponse {
         $operation = $this->operations[$operationKey] ?? null;
         if ($operation === null) {
@@ -58,6 +62,7 @@ final class MeliClient
             throw new RuntimeException('Remote Mercado Libre writes are disabled.');
         }
 
+        $path = $this->resolvePath($operation['path'], $pathParams);
         $cooldownKey = 'app:' . $operation['family'];
         $activeCooldown = $this->cooldowns?->activeUntil($cooldownKey);
         if ($activeCooldown instanceof DateTimeImmutable) {
@@ -79,7 +84,7 @@ final class MeliClient
         $startedAt = hrtime(true);
         $response = $this->transport->send(
             $operation['method'],
-            rtrim($this->baseUrl, '/') . $operation['path'],
+            rtrim($this->baseUrl, '/') . $path,
             $headers,
             $body,
         );
@@ -127,6 +132,28 @@ final class MeliClient
         $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'success', $durationMs);
 
         return new MeliClientResponse($response->status, $data, $requestId);
+    }
+
+    /** @param array<string,string> $pathParams */
+    private function resolvePath(string $path, array $pathParams): string
+    {
+        if ($path === '/orders/{order_id}') {
+            $orderId = $pathParams['order_id'] ?? null;
+            if (!is_string($orderId) || preg_match('/^[0-9]{1,32}$/D', $orderId) !== 1) {
+                throw new InvalidArgumentException('Invalid Mercado Libre order_id path parameter.');
+            }
+            if (count($pathParams) !== 1) {
+                throw new InvalidArgumentException('Unexpected Mercado Libre path parameters.');
+            }
+
+            return '/orders/' . $orderId;
+        }
+
+        if ($pathParams !== []) {
+            throw new InvalidArgumentException('Unexpected Mercado Libre path parameters.');
+        }
+
+        return $path;
     }
 
     private function pacePhysicalRequest(): void
