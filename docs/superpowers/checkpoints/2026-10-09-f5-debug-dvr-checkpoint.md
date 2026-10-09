@@ -10,11 +10,40 @@ Master authority checked against:
 - `ERP_MELI_2_0_PLAN_MAESTRO_PROYECTO_2026-10-08.md`
 - `ERP_MELI_2_0_ESPECIFICACION_MAESTRA_FINAL_2026-10-08.md`
 
-Latest fully GREEN functional HEAD before this checkpoint commit:
+## EMERGENCY PAUSE — EXACT RESUME POINT
+
+Paused intentionally before creating any F5.4b RED tests.
+
+Current branch HEAD before this checkpoint commit:
+`4f60a15c508fd58690d23575979ce34af673dfa0`
+
+Latest fully GREEN functional HEAD:
 `eee11b2b0892c548136c3b8fba4b46ccebfb8c96`
 
 Latest full QA:
 `#361 — SUCCESS`
+
+Since commit `4f60a15...`, only read-only auditing was performed. No production/test/source files were changed after the F5.5 GREEN checkpoint.
+
+The audit re-confirmed from the Master Plan / Master Specification that F5 export must support:
+- download one UTC day;
+- download UTC date range;
+- week/month represented as ranges, not duplicate stored archives;
+- ZIP containing selected DVR daily files plus `manifest.json`;
+- manifest containing checksums, UTC range, app version, schema version and redaction schema version.
+
+Important: **F5.4b RED has NOT been created yet.**
+
+Exact next action when resuming:
+1. extend `tests/Integration/DebugExportTest.php` only;
+2. create RED proving date range filtering + manifest/checksums + invalid range rejection;
+3. confirm intentional RED once;
+4. minimally extend existing `DebugExportService`, `SystemSettingsController` and `views/system.php`;
+5. one full QA;
+6. checkpoint again;
+7. then F5.6 final adversarial gates.
+
+Do not repeat F5.5. Do not start F5.6. Do not start F6 Billing.
 
 ## F5.1 — Safe bounded JSONL recorder — DONE / GREEN
 
@@ -77,7 +106,7 @@ Already proven:
 
 ### IMPORTANT audit correction
 
-Master Plan / Master Specification were re-checked after F5.5 and contain requirements not yet implemented by F5.4a:
+Master Plan / Master Specification require additional export scope not yet implemented by F5.4a:
 
 UI:
 - download one day;
@@ -90,8 +119,6 @@ Export:
 - specification also calls for app version, schema version, UTC range and redaction schema version.
 
 Therefore F5.4 must NOT be considered fully closed yet.
-
-Exact next block is F5.4b below.
 
 ## F5.5 — Webhook → work → physical HTTP correlation — DONE / GREEN
 
@@ -112,18 +139,18 @@ QA history:
 - #359 failed only on PHPStan shape annotation for empty work context.
 - #361 SUCCESS after annotation-only repair.
 
-Design actually implemented:
+Design implemented:
 - stable correlation: `correlation_id = work:<work_id>`.
 - no DB column, UUID, migration, EventBus or tracing framework.
-- DebugRecorder has a tiny process-local current-work context containing only work_id/resource_id-derived safe correlation.
-- OrderSyncWorkProcessor sets the context and always clears it in `finally`.
-- MeliClient records at the actual physical HTTP boundary.
+- DebugRecorder has tiny process-local current-work context.
+- OrderSyncWorkProcessor sets context and clears it in `finally`.
+- MeliClient records at the physical HTTP boundary.
 - OrderWebhookReceiver records only after transaction commit.
-- debug recording failures are best-effort and cannot alter webhook/HTTP business outcomes.
+- debug recorder failures are best-effort and cannot alter business outcomes.
 
-Proven by `DebugCorrelationTest`:
-- Debug ON links `webhook.accepted` → `work.started` → `meli.http` with the same work correlation.
-- Debug OFF gives same final work/order/HTTP result and creates no DVR file.
+Proven:
+- Debug ON links `webhook.accepted` → `work.started` → `meli.http`.
+- Debug OFF gives same work/order/HTTP result and creates no DVR file.
 - access token, refresh token and client secret do not appear.
 
 Gate:
@@ -135,40 +162,27 @@ DEBUG_CORRELATION_SECRET_SAFE=PASS
 
 ## EXACT NEXT BLOCK — F5.4b export completeness
 
-Do not start F5.6 yet.
-
 RED requirements, limited strictly to Master requirements:
 1. server accepts one UTC day or bounded UTC start/end range;
-2. start > end / invalid date / excessive or malformed input is rejected safely;
+2. start > end / invalid date / malformed input is rejected safely;
 3. only DVR files whose UTC day is in selected range enter archive;
 4. `.jsonl` and `.jsonl.gz` are both supported;
 5. ZIP includes `manifest.json`;
-6. manifest contains:
-   - UTC start/end range;
-   - selected file names;
-   - SHA-256 for every selected DVR file;
-   - app version;
-   - schema version;
-   - redaction schema version;
+6. manifest contains UTC start/end, selected file names, SHA-256 for every selected file, app version, schema version and redaction schema version;
 7. no path is supplied by user;
 8. existing admin + CSRF + root/symlink defenses remain intact;
-9. UI provides start/end date inputs; day = start=end; week/month are simply ranges, no stored weekly/monthly copies.
+9. UI provides start/end date inputs; day = start=end; week/month are ranges only.
 
 KISS constraints:
 - extend existing DebugExportService/controller/view only;
 - no export table;
 - no scheduler/export engine;
 - no permanent weekly/monthly archives;
-- keep native ZIP approach already proven on current runtime unless an actual requirement forces change.
-
-After F5.4b GREEN:
-- one full QA;
-- checkpoint refresh;
-- then and only then F5.6 final adversarial gates.
+- keep native ZIP approach already proven unless evidence forces a change.
 
 ## F5.6 — NOT STARTED
 
-Master final checks:
+Final checks:
 - secrets never written;
 - PII never written;
 - ON/OFF business parity;
