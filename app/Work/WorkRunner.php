@@ -42,7 +42,10 @@ final class WorkRunner
     }
 
     /**
-     * @param callable(array{id:int,status:string,attempts:int,claim_token:string,claimed_at:string}): void $processor
+     * @param callable(array{
+     *   id:int,company_id:?int,account_id:?int,type:string,resource_key:?string,payload:array<string,mixed>,
+     *   status:string,attempts:int,claim_token:string,claimed_at:string
+     * }): void $processor
      */
     public function run(
         WorkRepository $repository,
