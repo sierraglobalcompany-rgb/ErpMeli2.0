@@ -5,7 +5,8 @@ Repository: `sierraglobalcompany-rgb/ErpMeli2.0`
 Branch: `fix/f4-1-stabilization-20261009`
 Base: `impl/f4-sales-slice-20261009`
 Draft PR: #13 — `F4.1 — Stabilization hardening before F5`
-Verified functional HEAD before this checkpoint commit: `09620977771e781238760976f541980c15698f7e`
+Verified functional HEAD before this checkpoint commit: `a936bad156f3bb183543acc6f26a0541613c8870`
+Latest full QA: run #288 — SUCCESS.
 
 ## Purpose
 
@@ -13,145 +14,88 @@ Close concrete reliability gaps found after the F4 audit before opening F5. Keep
 
 ## Completed and verified
 
-### 1. Fail-closed APP_ENV
+### 1. Fail-closed APP_ENV — DONE / GREEN
 
-Status: DONE / GREEN
+- Unknown `APP_ENV` rejected.
+- Real Mercado Libre host only allowed when environment is exactly `production`.
+- QA #262 SUCCESS.
 
-Changes:
-- `AppConfig::fromEnvironment()` rejects unknown `APP_ENV` values. Accepted: `local|test|production`.
-- `RemoteHostPolicy` only permits real Mercado Libre host when environment is exactly `production`.
-- Existing remote-block error text preserved to avoid unnecessary contract drift.
+### 2. Best-effort API telemetry — DONE / GREEN
 
-Evidence:
-- GitHub Actions QA run #262: SUCCESS.
+- Recorder failures cannot mask a valid HTTP response or replace typed remote errors.
+- No retry engine or new framework.
+- RED #263; GREEN #264.
 
-Incidental fixture hardening:
-- `ReconcileOrdersHandlerTest` had a clock-sensitive token expiry and was moved to a stable future date.
+### 3. Poison-loop fail-safe — DONE / GREEN
 
-### 2. Best-effort API telemetry
+Covered and terminally failed without remote HTTP:
+- unsupported work type → `unsupported_work_type`;
+- malformed `order.sync` → `invalid_work_claim`;
+- malformed `orders.reconcile` identity → `invalid_work_claim`.
 
-Status: DONE / GREEN
+Relevant evidence:
+- unsupported type GREEN #269;
+- malformed order.sync GREEN #277;
+- malformed reconcile GREEN #279.
 
-RED proved that failure of `api_usage_daily` could mask a valid HTTP 200 or replace a typed HTTP 503 error.
+### 4. Bounded webhook body — DONE / GREEN
 
-Minimal implementation:
-- `MeliClient::recordUsage()` contains recorder failures locally.
-- Metrics remain best-effort and are not commercial truth.
-- No retry engine, logger framework or new abstraction.
+- Oversized `/webhooks/mercadolibre` body is bounded before normal body processing/persistence.
+- Oversized input creates zero `webhook_events` and zero `work_items`.
+- Valid webhook behavior remains unchanged.
+- No claim that the implementation threshold is an official Mercado Libre limit.
+- RED commit: `28dc0f5b88edf11cb12cf5a8eacf4f7f757b04fa`.
+- GREEN commit: `2a979fcb54c5dcb0639977467c1e6d9468809e83`.
+- QA #282 SUCCESS.
 
-Evidence:
-- RED QA #263: failed for the intended recorder exception.
-- GREEN QA #264: SUCCESS.
+### 5. Database-scoped WorkRunner lock — DONE / GREEN
 
-### 3. Poison-loop fail-safe
+- Production CLI lock now uses configured DB identity directly:
+  `erp_meli2.runner.<DB_NAME>`.
+- Two ERP2 databases on one MariaDB server no longer share the same runner lock name accidentally.
+- No LockName service/framework added.
+- RED commit: `5708495738dd52e497dcd664aa6fafef8584c55c`.
+- GREEN commit: `a936bad156f3bb183543acc6f26a0541613c8870`.
+- QA #288 SUCCESS.
 
-Status: DONE / GREEN
+### Incidental fixture hardening found on 2026-10-09
 
-#### 3a. Unsupported work type
+QA #283 exposed three additional Sales tests whose access-token fixtures expired at `2026-10-09 08:00:00 UTC`. These were test-clock defects, not production regressions.
 
-RED:
-- test: `tests/Integration/SalesWorkPoisonLoopTest.php`
-- commit: `c715791f7fd4ba449ad4e578a5a74adc82d52ae5`
-- QA #266: 114 tests, one intended error: unsupported Sales work type.
+Hardened to a stable future date in:
+- `OrderSyncWorkProcessorTest`;
+- `OrderSyncWorkRunnerPacingTest`;
+- `SalesVerticalSliceEndToEndTest`.
 
-GREEN:
-- `SalesWorkProcessor` now uses existing `WorkRepository::failCurrentClaim()` for unsupported types.
-- terminal result: `failed`, code `unsupported_work_type`, claim cleared, no recovery/reclaim, zero HTTP.
-- QA #269: SUCCESS.
+Final QA #288 proves the full branch green after those corrections and Task 5.
 
-#### 3b. Malformed known `order.sync`
+## F4.1 conclusion
 
-RED:
-- test: `tests/Integration/OrderSyncMalformedWorkTest.php`
-- commit: `bead57a0facf8077e4a83fe4cff49fcacf9e0a05`
-- QA #270: 115 tests, one intended error: invalid `order.sync` claim.
+F4.1 stabilization is technically closed at HEAD `a936bad156f3bb183543acc6f26a0541613c8870` with QA #288 SUCCESS.
 
-GREEN:
-- `OrderSyncWorkProcessor` receives the existing `WorkRepository` and terminally fails local invalid claims with `invalid_work_claim`.
-- invalid local work never reaches Mercado Libre HTTP.
-- constructor wiring updated in CLI and affected tests.
-- QA #276 exposed one stale E2E constructor fixture only; production behavior was not the cause.
-- fixture corrected.
-- QA #277: SUCCESS.
-
-#### 3c. Malformed `orders.reconcile` identity
-
-Read-only audit confirmed `ReconcileOrdersHandler` already terminally handles invalid payload/account conditions. The remaining poison-loop was the processor identity guard throwing before reaching the handler.
-
-RED:
-- test: `tests/Integration/ReconcileMalformedWorkTest.php`
-- commit: `0cc8d6b027ba9c55552cbc7ab0f569701115e023`
-- QA #278: 116 tests, one intended error: `Invalid orders.reconcile work claim.`
-
-GREEN:
-- invalid company/account identity now uses `failCurrentClaim()` with `invalid_work_claim`.
-- no HTTP, no recovery, no fifth state, no retry framework.
-- implementation commit: `09620977771e781238760976f541980c15698f7e`
-- QA #279: SUCCESS.
-
-Task 3 conclusion:
-- unsupported type: terminally failed;
-- malformed `order.sync`: terminally failed;
-- malformed `orders.reconcile` identity: terminally failed;
-- recoverable remote/crash semantics remain unchanged.
-
-## Remaining F4.1 work — exact order
-
-### 4. Bounded webhook body — NEXT
-
-Authority:
-- Especificación Maestra requires webhook flow to validate `tamaño/topic/resource/seller conocidos` before opening the DB transaction.
-- F4 Plan requires invalid-body coverage.
-
-Targets:
-- `app/Core/Http/Routes.php`
-- `tests/Integration/OrderWebhookHttpRouteTest.php`
-
-Required behavior:
-- oversized `/webhooks/mercadolibre` request is handled safely with HTTP 200,
-- creates zero `webhook_events`,
-- creates zero `work_items`,
-- normal valid webhook path remains unchanged,
-- raw oversized body is never persisted/logged,
-- zero Mercado Libre HTTP inside webhook request.
-
-Important:
-- project sources found so far require validating size but do not define a canonical numeric byte threshold.
-- do not claim an official Mercado Libre size limit without evidence.
-- use one explicit bounded implementation constant, documented as an ERP2 implementation limit, only after RED confirms current gap.
-
-### 5. Database-scoped WorkRunner lock
-
-Target:
-- `bin/work.php`
-- `tests/Integration/WorkCliEntrypointTest.php`
-
-Required behavior:
-- production WorkRunner named lock includes DB/install identity using configured DB name directly,
-- two ERP2 databases on one MariaDB server do not contend accidentally,
-- no LockName service/framework.
+Do not merge/deploy automatically. PR #13 remains Draft and stacked over F4.
 
 ## Mandatory hardening still pending before Billing
 
-### Decimal precision adversarial test
+### Decimal precision adversarial test — NEXT SMALL BLOCK
 
 Current concern:
 - `SyncOrderHandler::decimal4()` converts through float before formatting.
 
 Rule:
-- first add adversarial RED tests using decimal strings / large values;
-- change implementation only if the test proves precision loss;
-- mandatory before Billing.
+1. Add adversarial RED tests using decimal strings / large values.
+2. Change implementation only if the test proves precision loss.
+3. Keep DECIMAL semantics and avoid a new money/decimal framework unless evidence requires it.
+
+This hardening is mandatory before Billing, but it does not reorder the roadmap.
 
 ## Roadmap constraint
 
-Do NOT silently start Billing after F4.1.
-
-Canonical Master Plan:
+Canonical Master Plan remains:
 - F5 = Debug DVR
 - F6 = Billing
 
-Unless the user explicitly prioritizes Billing and the roadmap is deliberately updated, preserve that order.
+Do not silently start Billing or renumber phases without an explicit roadmap decision.
 
 ## External blockers remain open
 
@@ -163,8 +107,7 @@ Do not merge/deploy based only on CI green:
 
 ## Resume command
 
-1. Audit current branch HEAD and PR #13.
-2. Confirm latest functional QA #279 is green.
-3. Start only Task 4 bounded-webhook TDD RED.
-4. Do not reopen Tasks 1–3 unless a regression appears.
-5. Keep changes small and refresh this checkpoint after Task 4 before moving to Task 5.
+1. Audit HEAD `a936bad156f3bb183543acc6f26a0541613c8870` and QA #288.
+2. Do not reopen Tasks 1–5 unless regression evidence appears.
+3. Run the decimal precision adversarial RED/GREEN block.
+4. Then continue the canonical roadmap with F5 Debug DVR.
