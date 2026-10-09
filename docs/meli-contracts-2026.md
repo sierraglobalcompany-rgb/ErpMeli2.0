@@ -1,20 +1,18 @@
 # ERP Meli 2.0 — Contratos Mercado Libre iniciales
 
-Fecha de verificación: 2026-10-08
+Fecha de verificación: 2026-10-09
 
 Autoridad: documentación oficial `developers.mercadolibre.com.co`.
 
-## Operaciones F3/F4
+## Operaciones verificadas
 
 | operation | method | path | classification | official_source | verified_at |
 |---|---|---|---|---|---|
 | oauth.token | POST | `/oauth/token` | AUTH | https://developers.mercadolibre.com.co/es_co/autenticacion-y-autorizacion | 2026-10-08 |
 | users.me | GET | `/users/me` | READ | https://developers.mercadolibre.com.co/es_co/autenticacion-y-autorizacion | 2026-10-08 |
-| orders.get | GET | `/orders/{order_id}` | READ | https://developers.mercadolibre.com.co/en_us/api-docs/manage-sales | 2026-10-08 |
-| orders.search | GET | `/orders/search?seller={seller_id}` | READ | https://developers.mercadolibre.com.co/pt_br/usuarios-e-aplicativos/pedidos-e-opinioes | 2026-10-08 |
-| packs.get | GET | `/packs/{pack_id}` | READ | https://developers.mercadolibre.com.co/gestion-packs | 2026-10-08 |
-| shipments.get | GET | `/shipments/{shipment_id}` | READ | https://developers.mercadolibre.com.co/es_ar/metricas/envios | 2026-10-08 |
-| missed_feeds | GET | `/missed_feeds` | READ | https://developers.mercadolibre.com.co/es_co/primeros-pasos-in-house | 2026-10-08 |
+| orders.get | GET | `/orders/{order_id}` | READ | https://developers.mercadolibre.com.co/gestiona-ventas | 2026-10-09 |
+| orders.search | GET | `/orders/search` | READ | https://developers.mercadolibre.com.co/gestiona-ventas | 2026-10-09 |
+| billing.period.details | GET | `/billing/integration/periods/key/{period_key}/group/ML/details` | READ | https://developers.mercadolibre.com.co/provisiones | 2026-10-09 |
 
 ## OAuth
 
@@ -41,14 +39,27 @@ Autoridad: documentación oficial `developers.mercadolibre.com.co`.
 - Notificaciones pueden repetirse o llegar fuera de orden.
 - `missed_feeds` conserva hasta 2 días y es mecanismo de recuperación, no sustituto de reconciliación/discovery.
 
+## Billing period details
+
+- Flujo financiero principal: `GET /billing/integration/periods/key/{period_key}/group/ML/details`.
+- `period_key` mensual se usa como `YYYY-MM-01`.
+- Procesar `document_type=BILL` y `document_type=CREDIT_NOTE` como streams separados.
+- Página máxima aprobada: `limit=1000`.
+- Paginación secuencial: primera página `from_id=0`; continuar usando el `last_id` recibido.
+- Orden estable: `sort_by=ID&order_by=ASC`.
+- HTTP 206 indica información parcial/en proceso: no tratar como éxito final; reintentar en un ciclo posterior.
+- Cachear localmente la información normalizada y evitar consultas repetitivas order-by-order.
+- `/billing/integration/group/ML/order/details` queda reservado para reparación/investigación puntual y no se registra como flujo masivo F6A.
+- Billing es conciliación fiscal/financiera, no fuente operacional de ventas.
+
 ## Deferred contract gates
 
-No se implementan en F1:
+No están habilitados todavía:
 
-- Billing;
+- Billing per-order repair;
 - Catalog `/items/bulk`;
 - Billing Info;
 - User Products;
 - writes remotos.
 
-Cada uno se revalida contra documentación oficial al comenzar su fase.
+Cada contrato diferido se revalida contra documentación oficial al comenzar su fase.
