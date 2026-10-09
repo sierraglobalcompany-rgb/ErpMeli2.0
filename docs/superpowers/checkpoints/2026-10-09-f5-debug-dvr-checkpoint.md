@@ -6,8 +6,10 @@ Branch: `impl/f5-debug-dvr-20261009`
 Base: `fix/f4-1-stabilization-20261009`
 Draft PR: #14 — `F5 — Debug DVR Completo`
 Implementation plan: `docs/superpowers/plans/2026-10-09-f5-debug-dvr-implementation.md`
-Verified functional HEAD before this checkpoint commit: `825d189f169c0c6c0e5a256694b214922b684ad8`
-Latest full QA: run #343 — SUCCESS.
+Current branch HEAD before this checkpoint commit: `9f96a4bfa5c95d8394ab5632e9a36e7fe4decdfb`
+Last fully GREEN functional HEAD: `825d189f169c0c6c0e5a256694b214922b684ad8`
+Latest full GREEN QA: run #343 — SUCCESS.
+Current intentional RED QA: run #347 — FAILURE only in new F5.5 correlation tests.
 
 ## F5.1 — Safe bounded JSONL recorder — DONE / GREEN
 
@@ -143,30 +145,129 @@ DEBUG_EXPORT_ROOT_BOUND=PASS
 DEBUG_EXPORT_TTL_COMPATIBLE=PASS
 ```
 
-## Exact next block — F5.5
+## F5.5 — Webhook → work → Mercado Libre HTTP correlation — RED / PAUSED HERE
 
-Webhook → work → Mercado Libre HTTP correlation.
+### Design decision already audited
 
-Requirements:
-- create one bounded correlation identifier at the ingress/event boundary;
-- propagate only safe identifiers through existing webhook/work/client path;
-- DVR can relate webhook receipt, work execution and physical ML HTTP attempt without recording raw payloads/tokens;
-- Debug OFF must not change business behavior or HTTP/work outcomes;
-- retries preserve enough identity to relate attempts without introducing a new queue/state machine;
-- no EventBus, tracing framework, OpenTelemetry backend or generic context propagation subsystem.
+KISS decision: **do not add a new DB column, UUID, migration, tracing subsystem or EventBus.**
 
-Minimal approach:
-- reuse existing `webhook_events`, `work_items`, `claim_token`, order/account/company identifiers where sufficient;
-- add only the smallest explicit correlation field/context if existing identifiers cannot prove the chain;
-- instrument existing boundaries with `DebugRecorder` rather than creating a second logger;
-- test OFF/ON behavior equivalence and secret-safe correlation.
+Existing identifiers are sufficient:
+- `OrderWebhookReceiver::receive()` already receives Mercado Libre `event_id`;
+- `WorkRepository::enqueue()` already returns the durable `work_id`;
+- `work_id` survives retries and is already present in every claimed work item;
+- `DebugRecorder` already allowlists `correlation_id`, `event_id`, `work_id`, `work_type`, `operation`, `request_id`, `resource_id`, `http_status`, `duration_ms` and `outcome`.
 
-Do not open F5.6 before F5.5 GREEN + full QA + checkpoint refresh.
+Chosen stable correlation identifier:
+```text
+correlation_id = work:<work_id>
+```
+
+This is deterministic, bounded, secret-free and retry-stable.
+
+### RED created
+
+Test:
+- `tests/Integration/DebugCorrelationTest.php`
+- RED commit: `9f96a4bfa5c95d8394ab5632e9a36e7fe4decdfb`
+- QA #347: FAILURE as expected.
+
+The new test proves two scenarios:
+1. Debug ON must relate `webhook.accepted` → `work.started` → `meli.http` with the same `correlation_id = work:<id>` and must not expose access token, refresh token or client secret.
+2. Debug OFF must preserve the same business result (`work=done`, one physical order HTTP request, persisted order) and create no DVR file.
+
+### Exact RED failure from QA #347
+
+Only the two new correlation tests error.
+
+Error:
+```text
+Error: Unknown named parameter $debugRecorder
+```
+
+First failure point:
+```text
+tests/Integration/DebugCorrelationTest.php:103
+```
+
+This is expected because production constructors have not yet been extended with optional `DebugRecorder` dependencies.
+
+No existing test regression was reported before these two new errors. PHP syntax and PHPStan were green before PHPUnit reached the intentional RED.
+
+### Exact GREEN implementation to do next — DO NOT REDESIGN
+
+Implement only these explicit changes:
+
+1. `OrderWebhookReceiver`
+   - add optional `?DebugRecorder $debugRecorder = null` constructor dependency;
+   - capture `$workId = $this->work->enqueue(...)`;
+   - after successful transaction commit, best-effort record `webhook.accepted` with:
+     - `correlation_id = 'work:' . $workId`
+     - `event_id`
+     - `work_id`
+     - `company_id`
+     - `account_id`
+     - `topic`
+     - `resource_id = orderId`
+   - DVR failure must never alter webhook/business outcome; debug recording must therefore be best-effort.
+
+2. `OrderSyncWorkProcessor`
+   - add optional `?DebugRecorder $debugRecorder = null` constructor dependency;
+   - for valid `order.sync` claim, best-effort record `work.started` before calling handler:
+     - same `correlation_id = 'work:' . $claim['id']`
+     - `work_id`
+     - `company_id`
+     - `account_id`
+     - `work_type`
+     - `resource_id = orderId`
+   - do not log `claim_token`.
+
+3. `SyncOrderHandler`
+   - pass a safe debug context to the existing `MeliClient::request()` for `orders.get` only:
+     - `correlation_id = 'work:' . $workId`
+     - `work_id`
+     - `resource_id = orderId`
+   - preserve the same context on the 401-refresh retry.
+   - no generic context propagation framework.
+
+4. `MeliClient`
+   - add optional `?DebugRecorder $debugRecorder = null` constructor dependency at the end to preserve all existing positional callers;
+   - add one optional bounded debug-context argument to `request()` at the end;
+   - after a physical transport response is received, best-effort record `meli.http` containing only allowlisted safe fields:
+     - `correlation_id`, `work_id`, `resource_id`
+     - `operation`
+     - `http_status`
+     - `duration_ms`
+     - `request_id` when present
+     - `outcome` = `success|rate_limited|client_error|server_error|invalid_json`
+   - never record Authorization header, body, access token, refresh token, client secret, raw response or arbitrary debug context keys.
+   - debug recorder exceptions must be swallowed so Debug ON cannot change business outcome.
+
+5. Composition
+   - `bin/work.php`: instantiate one `DebugRecorder` from existing `SystemSettings` values and pass the same recorder to `MeliClient` and `OrderSyncWorkProcessor`.
+   - HTTP webhook composition in `Routes.php`: instantiate the recorder from existing settings and pass it to `OrderWebhookReceiver`.
+   - do not add new configuration keys, tables, migrations or dependencies.
+
+### GREEN verification required
+
+After implementation, run one full QA only.
+Expected:
+```text
+PHPStan = 0 errors
+DebugCorrelationTest = GREEN
+All existing tests = GREEN
+REAL_MELI_HTTP=0
+```
+
+Then update this checkpoint with exact functional HEAD + QA run number.
+
+Do **not** start F5.6 until F5.5 is GREEN.
 
 ## Remaining F5 order
 
-1. F5.5 webhook→work→HTTP correlation;
+1. Finish F5.5 GREEN + QA + checkpoint refresh.
 2. F5.6 final adversarial gates.
+3. Only after all F5 exit gates are GREEN: close F5 implementation work / evaluate PR #14 readiness.
+4. Do not start F6 Billing yet.
 
 ## Global constraints
 
@@ -174,3 +275,5 @@ Do not open F5.6 before F5.5 GREEN + full QA + checkpoint refresh.
 - Do not start F6 Billing.
 - Keep PR #14 Draft until F5 exit gates are green.
 - External Hostinger/main-protection/real-ML-app gates remain separate.
+- Keep KISS/YAGNI/TDD.
+- Do not add EventBus, OpenTelemetry/tracing framework, new queue state, new migration or generic debug-context subsystem for F5.5.
