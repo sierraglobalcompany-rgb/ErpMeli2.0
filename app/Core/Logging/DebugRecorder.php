@@ -34,7 +34,7 @@ final class DebugRecorder
         'error_code',
     ];
 
-    /** @var array{correlation_id:string,work_id:int,resource_id:string} */
+    /** @var array<string,int|string> */
     private array $workContext = [];
 
     public function __construct(
