@@ -15,6 +15,7 @@ final readonly class AppConfig
         public string $dbName,
         public string $dbUser,
         public string $dbPassword,
+        public string $meliClientId,
     ) {
     }
 
@@ -30,6 +31,7 @@ final readonly class AppConfig
             self::string($env, 'DB_NAME', 'erp_meli2'),
             self::string($env, 'DB_USER', 'root'),
             self::string($env, 'DB_PASSWORD', ''),
+            self::string($env, 'MELI_CLIENT_ID', ''),
         );
     }
 
