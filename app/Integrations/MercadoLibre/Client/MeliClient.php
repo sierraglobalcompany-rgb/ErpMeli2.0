@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Integrations\MercadoLibre\Client;
 
+use App\Core\Logging\DebugRecorder;
 use App\Integrations\MercadoLibre\Transport\MeliTransport;
 use App\Modules\Settings\SystemSettingsRepository;
 use DateTimeImmutable;
@@ -35,6 +36,7 @@ final class MeliClient
         private readonly ?ApiUsageRecorder $usageRecorder = null,
         private readonly ?MeliCooldownRepository $cooldowns = null,
         private readonly int $minRequestIntervalMs = 2000,
+        private readonly ?DebugRecorder $debugRecorder = null,
     ) {
         if ($this->minRequestIntervalMs < 0) {
             throw new InvalidArgumentException('Mercado Libre minimum request interval cannot be negative.');
@@ -86,17 +88,25 @@ final class MeliClient
         $this->pacePhysicalRequest();
 
         $startedAt = hrtime(true);
-        $response = $this->transport->send(
-            $operation['method'],
-            rtrim($this->baseUrl, '/') . $path,
-            $headers,
-            $body,
-        );
+        try {
+            $response = $this->transport->send(
+                $operation['method'],
+                rtrim($this->baseUrl, '/') . $path,
+                $headers,
+                $body,
+            );
+        } catch (Throwable $exception) {
+            $durationMs = max(0, (int) round((hrtime(true) - $startedAt) / 1_000_000));
+            $this->recordDebugHttp($operationKey, null, 'transport_error', $durationMs, null);
+            throw $exception;
+        }
+
         $durationMs = max(0, (int) round((hrtime(true) - $startedAt) / 1_000_000));
         $requestId = $this->header($response->headers, 'x-request-id');
 
         if ($response->status === 429) {
             $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'rate_limited', $durationMs);
+            $this->recordDebugHttp($operationKey, 429, 'rate_limited', $durationMs, $requestId);
             $retryAfter = $this->retryAfterSeconds($this->header($response->headers, 'retry-after'));
             $retryAt = $this->cooldowns?->register429($cooldownKey, $retryAfter)
                 ?? $this->fallbackRetryAt($retryAfter);
@@ -109,6 +119,7 @@ final class MeliClient
         if ($response->status < 200 || $response->status >= 300) {
             $outcome = $response->status >= 500 ? 'server_error' : 'client_error';
             $this->recordUsage($scopeKey, $operationKey, $resourceCount, $outcome, $durationMs);
+            $this->recordDebugHttp($operationKey, $response->status, $outcome, $durationMs, $requestId);
 
             throw new MeliApiException(
                 $response->status,
@@ -130,10 +141,12 @@ final class MeliClient
             }
         } catch (JsonException $exception) {
             $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'server_error', $durationMs);
+            $this->recordDebugHttp($operationKey, $response->status, 'server_error', $durationMs, $requestId);
             throw new RuntimeException('Mercado Libre returned invalid JSON.', 0, $exception);
         }
 
         $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'success', $durationMs);
+        $this->recordDebugHttp($operationKey, $response->status, 'success', $durationMs, $requestId);
 
         return new MeliClientResponse($response->status, $data, $requestId);
     }
@@ -254,6 +267,36 @@ final class MeliClient
         }
 
         return $error;
+    }
+
+    private function recordDebugHttp(
+        string $operationKey,
+        ?int $httpStatus,
+        string $outcome,
+        int $durationMs,
+        ?string $requestId,
+    ): void {
+        if ($this->debugRecorder === null) {
+            return;
+        }
+
+        $fields = [
+            'operation' => $operationKey,
+            'outcome' => $outcome,
+            'duration_ms' => $durationMs,
+        ];
+        if ($httpStatus !== null) {
+            $fields['http_status'] = $httpStatus;
+        }
+        if ($requestId !== null && $requestId !== '') {
+            $fields['request_id'] = $requestId;
+        }
+
+        try {
+            $this->debugRecorder->record('meli.http', $fields);
+        } catch (Throwable) {
+            // Debug observability must never change Mercado Libre HTTP semantics.
+        }
     }
 
     private function recordUsage(
