@@ -48,7 +48,7 @@ final class OrderSyncWorkProcessorTest extends TestCase
         );
         $work = new WorkRepository($pdo);
         $handler = new SyncOrderHandler($work, $client, $tokens);
-        $processor = new OrderSyncWorkProcessor($handler);
+        $processor = new OrderSyncWorkProcessor($handler, $work);
 
         $workId = $work->enqueue(
             $companyId,
