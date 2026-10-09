@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Sales\SyncOrder;
 
 use App\Integrations\MercadoLibre\Auth\OAuthRefreshService;
+use App\Integrations\MercadoLibre\Client\MeliApiException;
 use App\Integrations\MercadoLibre\Client\MeliClient;
+use App\Integrations\MercadoLibre\Client\MeliClientResponse;
+use App\Integrations\MercadoLibre\Client\MeliRateLimitException;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -14,6 +17,8 @@ use RuntimeException;
 
 final class SyncOrderHandler
 {
+    private const REMOTE_RETRY_SECONDS = 30;
+
     public function __construct(
         private readonly WorkRepository $work,
         private readonly MeliClient $client,
@@ -33,14 +38,127 @@ final class SyncOrderHandler
             throw new RuntimeException('Invalid order sync identity.');
         }
 
+        $scopeKey = 'company:' . $companyId . ':account:' . $accountId;
         $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
-        $response = $this->client->request(
+
+        try {
+            $response = $this->requestOrder($orderId, $accessToken, $scopeKey);
+        } catch (MeliRateLimitException $exception) {
+            $this->work->retryCurrentClaim(
+                $workId,
+                $claimToken,
+                $exception->retryAt,
+                'meli_rate_limited',
+                'Mercado Libre rate limited the order request.',
+            );
+            return false;
+        } catch (MeliApiException $exception) {
+            if ($exception->status === 401) {
+                return $this->retryAfterUnauthorized(
+                    $workId,
+                    $claimToken,
+                    $companyId,
+                    $accountId,
+                    $orderId,
+                    $scopeKey,
+                    $accessToken,
+                    $now,
+                );
+            }
+
+            if ($exception->status >= 500) {
+                $this->scheduleRemoteRetry($workId, $claimToken, $now);
+                return false;
+            }
+
+            $this->work->failCurrentClaim(
+                $workId,
+                $claimToken,
+                'meli_remote_permanent',
+                'Mercado Libre rejected the order request.',
+            );
+            return false;
+        } catch (RuntimeException) {
+            // Transport failures and invalid HTTP JSON happen before an authoritative order contract exists.
+            $this->scheduleRemoteRetry($workId, $claimToken, $now);
+            return false;
+        }
+
+        return $this->persistResponse($workId, $claimToken, $companyId, $accountId, $orderId, $response);
+    }
+
+    private function retryAfterUnauthorized(
+        int $workId,
+        string $claimToken,
+        int $companyId,
+        int $accountId,
+        string $orderId,
+        string $scopeKey,
+        string $rejectedAccessToken,
+        DateTimeImmutable $now,
+    ): bool {
+        try {
+            $freshAccessToken = $this->tokens->refreshAfterUnauthorized($accountId, $rejectedAccessToken, $now);
+            $response = $this->requestOrder($orderId, $freshAccessToken, $scopeKey);
+        } catch (MeliRateLimitException $exception) {
+            $this->work->retryCurrentClaim(
+                $workId,
+                $claimToken,
+                $exception->retryAt,
+                'meli_rate_limited',
+                'Mercado Libre rate limited OAuth or the retried order request.',
+            );
+            return false;
+        } catch (MeliApiException $exception) {
+            if ($exception->status >= 500) {
+                $this->scheduleRemoteRetry($workId, $claimToken, $now);
+                return false;
+            }
+
+            $this->work->failCurrentClaim(
+                $workId,
+                $claimToken,
+                $exception->status === 401 ? 'meli_unauthorized' : 'meli_remote_permanent',
+                'Mercado Libre rejected the order request after token refresh.',
+            );
+            return false;
+        } catch (RuntimeException) {
+            $this->scheduleRemoteRetry($workId, $claimToken, $now);
+            return false;
+        }
+
+        return $this->persistResponse($workId, $claimToken, $companyId, $accountId, $orderId, $response);
+    }
+
+    private function requestOrder(string $orderId, string $accessToken, string $scopeKey): MeliClientResponse
+    {
+        return $this->client->request(
             'orders.get',
             $accessToken,
             pathParams: ['order_id' => $orderId],
-            scopeKey: 'company:' . $companyId . ':account:' . $accountId,
+            scopeKey: $scopeKey,
         );
-        $order = $this->normalizeOrder($response->data, $orderId);
+    }
+
+    private function persistResponse(
+        int $workId,
+        string $claimToken,
+        int $companyId,
+        int $accountId,
+        string $orderId,
+        MeliClientResponse $response,
+    ): bool {
+        try {
+            $order = $this->normalizeOrder($response->data, $orderId);
+        } catch (RuntimeException) {
+            $this->work->failCurrentClaim(
+                $workId,
+                $claimToken,
+                'meli_order_contract',
+                'Mercado Libre returned an unusable order contract.',
+            );
+            return false;
+        }
 
         return $this->work->completeCurrentClaim(
             $workId,
@@ -101,6 +219,17 @@ final class SyncOrderHandler
                     $insertItem->execute(['order_id' => $localOrderId] + $item);
                 }
             },
+        );
+    }
+
+    private function scheduleRemoteRetry(int $workId, string $claimToken, DateTimeImmutable $now): void
+    {
+        $this->work->retryCurrentClaim(
+            $workId,
+            $claimToken,
+            $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
+            'meli_remote_retry',
+            'Mercado Libre order sync encountered a temporary remote failure.',
         );
     }
 
