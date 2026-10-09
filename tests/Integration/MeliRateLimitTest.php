@@ -32,10 +32,11 @@ final class MeliRateLimitTest extends TestCase
             $client->request('users.me', 'token', scopeKey: 'account:7');
             self::fail('429 must produce a rate-limit exception.');
         } catch (MeliRateLimitException $exception) {
+            $after = new DateTimeImmutable('now UTC');
             self::assertSame(429, $exception->status);
             self::assertSame('req-429', $exception->requestId);
             self::assertGreaterThanOrEqual($before->modify('+20 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
-            self::assertLessThanOrEqual($before->modify('+22 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
+            self::assertLessThanOrEqual($after->modify('+20 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
         }
 
         self::assertCount(1, $transport->requests, 'MeliClient must not retry a 429 inline.');
@@ -62,9 +63,15 @@ final class MeliRateLimitTest extends TestCase
             $client->request('users.me', 'token', scopeKey: 'account:7');
             self::fail('429 must produce a rate-limit exception.');
         } catch (MeliRateLimitException $exception) {
-            $seconds = $exception->retryAt->getTimestamp() - $before->getTimestamp();
-            self::assertGreaterThanOrEqual(15, $seconds);
-            self::assertLessThanOrEqual(17, $seconds);
+            $after = new DateTimeImmutable('now UTC');
+            self::assertGreaterThanOrEqual(
+                $before->modify('+15 seconds')->getTimestamp(),
+                $exception->retryAt->getTimestamp(),
+            );
+            self::assertLessThanOrEqual(
+                $after->modify('+17 seconds')->getTimestamp(),
+                $exception->retryAt->getTimestamp(),
+            );
         }
 
         self::assertCount(1, $transport->requests);
