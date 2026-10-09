@@ -7,8 +7,10 @@ namespace App\Core\Http;
 use App\Core\Auth\AuthService;
 use App\Core\Config\AppConfig;
 use App\Core\Database\Connection;
+use App\Core\Logging\AppLogger;
 use App\Core\Logging\DebugExportService;
 use App\Core\Logging\DebugMaintenance;
+use App\Core\Logging\DebugRecorder;
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
 use App\Integrations\MercadoLibre\Auth\OAuthAuthorizationFlow;
@@ -55,10 +57,20 @@ final class Routes
             }
 
             $pdo = Connection::fromConfig($config);
+            $settings = new SystemSettingsRepository($pdo);
+            $runtimeSettings = $settings->get();
+            $root = dirname(__DIR__, 3);
+            $debugRecorder = new DebugRecorder(
+                $root . '/storage/debug',
+                $runtimeSettings->debugEnabled,
+                $runtimeSettings->debugMaxMb * 1024 * 1024,
+                normalLogger: new AppLogger($root . '/storage/logs'),
+            );
             $receiver = new OrderWebhookReceiver(
                 $pdo,
                 new WorkRepository($pdo),
                 $config->meliClientId,
+                $debugRecorder,
             );
             $receiver->receive($payload);
 
