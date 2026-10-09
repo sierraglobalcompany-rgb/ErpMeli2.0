@@ -6,6 +6,8 @@ namespace App\Work;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use InvalidArgumentException;
+use JsonException;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -14,6 +16,61 @@ final class WorkRepository
 {
     public function __construct(private readonly PDO $pdo)
     {
+    }
+
+    /**
+     * Enqueue one logical unit of work without owning the caller transaction.
+     *
+     * Active duplicates resolve to the existing work id through the database unique key.
+     *
+     * @param array<string,mixed> $payload
+     * @throws JsonException
+     */
+    public function enqueue(
+        ?int $companyId,
+        ?int $accountId,
+        string $scopeKey,
+        string $type,
+        ?string $resourceKey,
+        string $logicalIdentity,
+        array $payload,
+        ?DateTimeImmutable $availableAt = null,
+    ): int {
+        $scopeKey = trim($scopeKey);
+        $type = trim($type);
+        $logicalIdentity = trim($logicalIdentity);
+
+        if ($scopeKey === '' || $type === '' || $logicalIdentity === '') {
+            throw new InvalidArgumentException('Work scope, type and logical identity are required.');
+        }
+
+        $availableAt ??= new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $payloadJson = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $dedupeKey = hash('sha256', $logicalIdentity);
+
+        $statement = $this->pdo->prepare(
+            'INSERT INTO work_items '
+            . '(company_id, account_id, scope_key, type, resource_key, dedupe_key, payload_json, status, available_at) '
+            . "VALUES (:company_id, :account_id, :scope_key, :type, :resource_key, :dedupe_key, :payload_json, 'pending', :available_at) "
+            . 'ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)'
+        );
+        $statement->execute([
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'scope_key' => $scopeKey,
+            'type' => $type,
+            'resource_key' => $resourceKey,
+            'dedupe_key' => $dedupeKey,
+            'payload_json' => $payloadJson,
+            'available_at' => $availableAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u'),
+        ]);
+
+        $workId = (int) $this->pdo->lastInsertId();
+        if ($workId < 1) {
+            throw new RuntimeException('Enqueued work id is unavailable.');
+        }
+
+        return $workId;
     }
 
     /**
