@@ -36,11 +36,13 @@ final class DebugRecorder
 
     /** @var array<string,int|string> */
     private array $workContext = [];
+    private bool $capWarningEmitted = false;
 
     public function __construct(
         private readonly string $directory,
         private readonly bool $enabled,
         private readonly int $maxBytes,
+        private readonly ?AppLogger $normalLogger = null,
     ) {
         if ($this->maxBytes < 1) {
             throw new RuntimeException('Debug storage cap must be positive.');
@@ -79,7 +81,9 @@ final class DebugRecorder
             throw new RuntimeException('Invalid debug event name.');
         }
 
-        if ($this->usageBytes() >= $this->maxBytes) {
+        $usageBytes = $this->usageBytes();
+        if ($usageBytes >= $this->maxBytes) {
+            $this->warnCapOnce($usageBytes);
             return;
         }
 
@@ -94,7 +98,8 @@ final class DebugRecorder
         ];
         $line = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL;
 
-        if ($this->usageBytes() + strlen($line) > $this->maxBytes) {
+        if ($usageBytes + strlen($line) > $this->maxBytes) {
+            $this->warnCapOnce($usageBytes);
             return;
         }
 
@@ -153,6 +158,23 @@ final class DebugRecorder
         }
 
         return $safe;
+    }
+
+    private function warnCapOnce(int $usageBytes): void
+    {
+        if ($this->capWarningEmitted || $this->normalLogger === null) {
+            return;
+        }
+
+        $this->capWarningEmitted = true;
+        try {
+            $this->normalLogger->warning('debug.cap.reached', [
+                'bytes' => $usageBytes,
+                'max_bytes' => $this->maxBytes,
+            ]);
+        } catch (\Throwable) {
+            // Debug observability must never alter business behavior.
+        }
     }
 
     private function usageBytes(): int
