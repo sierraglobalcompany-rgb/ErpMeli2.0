@@ -58,6 +58,7 @@ $processor = new SalesWorkProcessor(
         new SyncOrderHandler($work, $client, $tokens),
     ),
     new ReconcileOrdersHandler($pdo, $work, $client, $tokens),
+    $work,
 );
 $execution = new WorkExecution(
     $settings,
