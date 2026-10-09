@@ -16,7 +16,7 @@ final class RemoteHostPolicy
 
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
         if ($host === 'api.mercadolibre.com') {
-            throw new RuntimeException('Real Mercado Libre HTTP is blocked outside production.');
+            throw new RuntimeException('Real Mercado Libre HTTP is blocked in local/test.');
         }
     }
 }
