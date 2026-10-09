@@ -1,6 +1,7 @@
 <?php
 /** @var \App\Modules\Settings\SystemSettings $settings */
 /** @var string $csrfToken */
+/** @var array{total_bytes:int,days:list<array{day:string,bytes:int,compressed:bool}>} $debugUsage */
 ?>
 <!doctype html>
 <html lang="es">
@@ -45,6 +46,29 @@
 
         <button type="submit">Guardar</button>
     </form>
+
+    <section>
+        <h2>Uso debug</h2>
+        <p><?= $debugUsage['total_bytes'] ?> bytes</p>
+
+        <?php if ($debugUsage['days'] !== []): ?>
+            <ul>
+                <?php foreach ($debugUsage['days'] as $day): ?>
+                    <li>
+                        <?= htmlspecialchars($day['day'], ENT_QUOTES, 'UTF-8') ?> —
+                        <?= $day['bytes'] ?> bytes<?= $day['compressed'] ? ' — gzip' : '' ?>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php else: ?>
+            <p>Sin historial debug.</p>
+        <?php endif; ?>
+
+        <form method="post" action="/settings/system/debug/clear">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <button type="submit">Limpiar debug</button>
+        </form>
+    </section>
 </main>
 </body>
 </html>
