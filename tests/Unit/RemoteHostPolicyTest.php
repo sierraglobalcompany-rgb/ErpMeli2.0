@@ -22,6 +22,12 @@ final class RemoteHostPolicyTest extends TestCase
         (new RemoteHostPolicy())->assertAllowed('https://api.mercadolibre.com/orders/1', 'local');
     }
 
+    public function testBlocksRealMercadoLibreHostForUnknownEnvironment(): void
+    {
+        $this->expectException(RuntimeException::class);
+        (new RemoteHostPolicy())->assertAllowed('https://api.mercadolibre.com/orders/1', 'prod');
+    }
+
     public function testDoesNotBlockProductionByItself(): void
     {
         (new RemoteHostPolicy())->assertAllowed('https://api.mercadolibre.com/orders/1', 'production');
