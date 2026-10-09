@@ -242,7 +242,7 @@ final class ReconcileOrdersHandlerTest extends TestCase
         $statement->execute([
             'access_token' => $cipher->encrypt('valid-access-token'),
             'refresh_token' => $cipher->encrypt('unused-refresh-token'),
-            'expires_at' => '2026-10-09 05:00:00.000000',
+            'expires_at' => '2030-01-01 00:00:00.000000',
         ]);
     }
 }
