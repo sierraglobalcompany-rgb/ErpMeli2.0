@@ -7,12 +7,14 @@ namespace Tests\Integration;
 use App\Integrations\MercadoLibre\Auth\OAuthRefreshService;
 use App\Integrations\MercadoLibre\Auth\TokenCipher;
 use App\Integrations\MercadoLibre\Client\MeliClient;
+use App\Integrations\MercadoLibre\Client\MeliCooldownRepository;
 use App\Integrations\MercadoLibre\Transport\MeliTransport;
 use App\Integrations\MercadoLibre\Transport\MeliTransportResponse;
 use App\Modules\Sales\ReconcileOrders\ReconcileOrdersHandler;
 use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestDatabase;
@@ -131,6 +133,98 @@ final class ReconcileOrdersHandlerTest extends TestCase
 
         $allPayloads = (string) $pdo->query("SELECT GROUP_CONCAT(payload_json SEPARATOR '\n') FROM work_items")->fetchColumn();
         self::assertStringNotContainsString('SENSITIVE-NOT-STORED', $allPayloads);
+    }
+
+    public function testRateLimitedSearchRequeuesSameReconcileWithoutChildWork(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('test-reconcile-rate-limit-secret');
+        $this->seedAccount($pdo, $cipher);
+
+        $work = new WorkRepository($pdo);
+        $scope = 'company:1:account:1';
+        $from = '2026-10-08T00:00:00.000-05:00';
+        $to = '2026-10-08T23:59:59.999-05:00';
+        $reconcileId = $work->enqueue(
+            1,
+            1,
+            $scope,
+            'orders.reconcile',
+            $from . '|' . $to . '|0',
+            'orders.reconcile:' . $from . ':' . $to . ':0:50',
+            ['from' => $from, 'to' => $to, 'offset' => 0, 'limit' => 50],
+        );
+
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        self::assertSame($reconcileId, $claim['id']);
+
+        $transport = new ReconcileOrdersTransport(new MeliTransportResponse(
+            429,
+            ['retry-after' => '20', 'x-request-id' => 'reconcile-429'],
+            '{"error":"rate_limit","buyer":"SENSITIVE-429-NOT-STORED"}',
+        ));
+        /** @var array<string,array{method:string,path:string,family:string,classification:string,official_doc_url:string,verified_at:string}> $operations */
+        $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
+        $client = new MeliClient(
+            $transport,
+            new SystemSettingsRepository($pdo),
+            $operations,
+            'https://api.mercadolibre.com',
+            cooldowns: new MeliCooldownRepository($pdo),
+            minRequestIntervalMs: 0,
+        );
+        $tokens = new OAuthRefreshService(
+            $pdo,
+            $pdo,
+            $client,
+            $cipher,
+            'client-id',
+            'client-secret',
+            'erp2.oauth.rate-limit',
+        );
+        $handler = new ReconcileOrdersHandler($pdo, $work, $client, $tokens);
+        $before = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+
+        $completed = $handler->processCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            1,
+            1,
+            $claim['payload'],
+            $before,
+        );
+        $after = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+
+        self::assertFalse($completed);
+        self::assertCount(1, $transport->requests, 'A 429 search response must not be retried inline.');
+
+        $row = $pdo->query(
+            'SELECT id,status,available_at,last_error_code,last_error_safe,payload_json FROM work_items WHERE id = ' . $reconcileId
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame($reconcileId, (int) $row['id']);
+        self::assertSame('pending', $row['status']);
+        self::assertSame('meli_rate_limited', $row['last_error_code']);
+        self::assertSame('Mercado Libre rate limited order reconciliation.', $row['last_error_safe']);
+
+        $availableAt = new DateTimeImmutable((string) $row['available_at'], new DateTimeZone('UTC'));
+        self::assertGreaterThanOrEqual($before->modify('+20 seconds')->getTimestamp(), $availableAt->getTimestamp());
+        self::assertLessThanOrEqual($after->modify('+22 seconds')->getTimestamp(), $availableAt->getTimestamp());
+
+        self::assertSame(
+            0,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type = 'order.sync'")->fetchColumn(),
+            'A rate-limited discovery page must not create partial child work.',
+        );
+        self::assertSame(
+            1,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type = 'orders.reconcile'")->fetchColumn(),
+            'The same reconciliation work item must be rescheduled instead of creating a replacement chain.',
+        );
+
+        self::assertStringNotContainsString('SENSITIVE-429-NOT-STORED', (string) $row['payload_json']);
+        self::assertStringNotContainsString('SENSITIVE-429-NOT-STORED', (string) $row['last_error_safe']);
     }
 
     private function seedAccount(PDO $pdo, TokenCipher $cipher): void
