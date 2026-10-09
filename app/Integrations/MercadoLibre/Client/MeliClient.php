@@ -14,6 +14,8 @@ use RuntimeException;
 
 final class MeliClient
 {
+    private ?int $lastDispatchAtNs = null;
+
     /**
      * @param array<string,array{
      *     method:string,
@@ -31,7 +33,11 @@ final class MeliClient
         private readonly string $baseUrl,
         private readonly ?ApiUsageRecorder $usageRecorder = null,
         private readonly ?MeliCooldownRepository $cooldowns = null,
+        private readonly int $minRequestIntervalMs = 2000,
     ) {
+        if ($this->minRequestIntervalMs < 0) {
+            throw new InvalidArgumentException('Mercado Libre minimum request interval cannot be negative.');
+        }
     }
 
     /** @param array<string,string> $headers */
@@ -65,6 +71,10 @@ final class MeliClient
         if ($accessToken !== null) {
             $headers['Authorization'] = 'Bearer ' . $accessToken;
         }
+
+        // Pace only requests that are actually about to cross the transport boundary.
+        // This is a conservative ERP2 default, not an official Mercado Libre quota.
+        $this->pacePhysicalRequest();
 
         $startedAt = hrtime(true);
         $response = $this->transport->send(
@@ -117,6 +127,27 @@ final class MeliClient
         $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'success', $durationMs);
 
         return new MeliClientResponse($response->status, $data, $requestId);
+    }
+
+    private function pacePhysicalRequest(): void
+    {
+        if ($this->minRequestIntervalMs === 0) {
+            $this->lastDispatchAtNs = hrtime(true);
+            return;
+        }
+
+        $nowNs = hrtime(true);
+        if ($this->lastDispatchAtNs !== null) {
+            $minimumGapNs = $this->minRequestIntervalMs * 1_000_000;
+            $remainingNs = $minimumGapNs - ($nowNs - $this->lastDispatchAtNs);
+
+            if ($remainingNs > 0) {
+                usleep((int) ceil($remainingNs / 1_000));
+            }
+        }
+
+        // Set immediately before dispatch. A transport exception still counts as a physical attempt.
+        $this->lastDispatchAtNs = hrtime(true);
     }
 
     /** @param array<string,string> $headers */
