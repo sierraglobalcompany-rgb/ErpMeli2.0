@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Sales\ReceiveOrderWebhook;
 
+use App\Core\Logging\DebugRecorder;
+use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -12,11 +14,25 @@ use Throwable;
 
 final class OrderWebhookReceiver
 {
+    private readonly DebugRecorder $debugRecorder;
+
     public function __construct(
         private readonly PDO $pdo,
         private readonly WorkRepository $work,
         private readonly string $applicationId,
+        ?DebugRecorder $debugRecorder = null,
     ) {
+        if ($debugRecorder instanceof DebugRecorder) {
+            $this->debugRecorder = $debugRecorder;
+            return;
+        }
+
+        $settings = (new SystemSettingsRepository($pdo))->get();
+        $this->debugRecorder = new DebugRecorder(
+            dirname(__DIR__, 4) . '/storage/debug',
+            $settings->debugEnabled,
+            $settings->debugMaxMb * 1024 * 1024,
+        );
     }
 
     /** @param array<string,mixed> $payload */
@@ -67,7 +83,7 @@ final class OrderWebhookReceiver
             ]);
 
             $scope = 'company:' . $account['company_id'] . ':account:' . $account['id'];
-            $this->work->enqueue(
+            $workId = $this->work->enqueue(
                 $account['company_id'],
                 $account['id'],
                 $scope,
@@ -78,6 +94,15 @@ final class OrderWebhookReceiver
             );
 
             $this->pdo->commit();
+            $this->recordDebug('webhook.accepted', [
+                'correlation_id' => 'work:' . $workId,
+                'event_id' => $eventId,
+                'topic' => $topic,
+                'work_id' => $workId,
+                'resource_id' => $orderId,
+                'company_id' => $account['company_id'],
+                'account_id' => $account['id'],
+            ]);
             return true;
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
@@ -108,6 +133,16 @@ final class OrderWebhookReceiver
             'id' => (int) $rows[0]['id'],
             'company_id' => (int) $rows[0]['company_id'],
         ];
+    }
+
+    /** @param array<string,mixed> $fields */
+    private function recordDebug(string $event, array $fields): void
+    {
+        try {
+            $this->debugRecorder->record($event, $fields);
+        } catch (Throwable) {
+            // Debug observability must never change webhook acceptance.
+        }
     }
 
     private function scalarString(mixed $value): string
