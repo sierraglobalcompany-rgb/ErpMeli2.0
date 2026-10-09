@@ -39,7 +39,27 @@ final class SyncOrderHandler
         }
 
         $scopeKey = 'company:' . $companyId . ':account:' . $accountId;
-        $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
+
+        try {
+            $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
+        } catch (MeliRateLimitException $exception) {
+            $this->work->retryCurrentClaim(
+                $workId,
+                $claimToken,
+                $exception->retryAt,
+                'meli_rate_limited',
+                'Mercado Libre rate limited OAuth before order sync.',
+            );
+            return false;
+        } catch (RuntimeException) {
+            $this->work->failCurrentClaim(
+                $workId,
+                $claimToken,
+                'meli_oauth_attention',
+                'Mercado Libre OAuth requires attention before order sync.',
+            );
+            return false;
+        }
 
         try {
             $response = $this->requestOrder($orderId, $accessToken, $scopeKey);
