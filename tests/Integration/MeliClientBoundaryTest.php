@@ -17,18 +17,21 @@ use Tests\Support\TestDatabase;
 
 final class MeliClientBoundaryTest extends TestCase
 {
-    public function testOfficialOperationRegistryContainsOnlyInitialF3Contracts(): void
+    public function testOfficialOperationRegistryContainsOnlyImplementedContracts(): void
     {
         /** @var array<string,array<string,string>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
 
-        self::assertSame(['oauth.token', 'users.me'], array_keys($operations));
+        self::assertSame(['oauth.token', 'users.me', 'orders.get'], array_keys($operations));
         self::assertSame('POST', $operations['oauth.token']['method']);
         self::assertSame('/oauth/token', $operations['oauth.token']['path']);
         self::assertSame('AUTH', $operations['oauth.token']['classification']);
         self::assertSame('GET', $operations['users.me']['method']);
         self::assertSame('/users/me', $operations['users.me']['path']);
         self::assertSame('READ', $operations['users.me']['classification']);
+        self::assertSame('GET', $operations['orders.get']['method']);
+        self::assertSame('/orders/{order_id}', $operations['orders.get']['path']);
+        self::assertSame('READ', $operations['orders.get']['classification']);
     }
 
     public function testFakeTransportObservesExactlyOnePhysicalRequest(): void
