@@ -134,6 +134,43 @@ final class MeliClientResponseMetricsTest extends TestCase
         );
     }
 
+    public function testTelemetryFailureCannotMaskSuccessfulHttpResponse(): void
+    {
+        $pdo = TestDatabase::reset();
+        $transport = new QueueTransport([
+            new MeliTransportResponse(200, ['x-request-id' => 'req-success-no-metrics'], '{"id":321}'),
+        ]);
+        $client = $this->client($pdo, $transport);
+        $pdo->exec('DROP TABLE api_usage_daily');
+
+        $response = $client->request('users.me', 'token', scopeKey: 'account:7');
+
+        self::assertSame(200, $response->status);
+        self::assertSame('req-success-no-metrics', $response->requestId);
+        self::assertSame(321, $response->data['id']);
+        self::assertCount(1, $transport->requests);
+    }
+
+    public function testTelemetryFailureCannotReplaceTypedRemoteError(): void
+    {
+        $pdo = TestDatabase::reset();
+        $transport = new QueueTransport([
+            new MeliTransportResponse(503, ['x-request-id' => 'req-503-no-metrics'], '{"error":"unavailable"}'),
+        ]);
+        $client = $this->client($pdo, $transport);
+        $pdo->exec('DROP TABLE api_usage_daily');
+
+        try {
+            $client->request('users.me', 'token', scopeKey: 'account:7');
+            self::fail('HTTP 503 must remain the authoritative typed outcome when telemetry is unavailable.');
+        } catch (MeliApiException $exception) {
+            self::assertSame(503, $exception->status);
+            self::assertSame('req-503-no-metrics', $exception->requestId);
+        }
+
+        self::assertCount(1, $transport->requests);
+    }
+
     private function client(\PDO $pdo, QueueTransport $transport): MeliClient
     {
         /** @var array<string,array{method:string,path:string,family:string,classification:string,official_doc_url:string,verified_at:string}> $operations */
