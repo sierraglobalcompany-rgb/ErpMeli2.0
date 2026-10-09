@@ -53,6 +53,28 @@ final class MeliClientBoundaryTest extends TestCase
         self::assertSame('Bearer test-access-token', $transport->requests[0]['headers']['Authorization']);
     }
 
+    public function testPhysicalRequestsRespectConfiguredMinimumInterval(): void
+    {
+        $pdo = TestDatabase::reset();
+        $transport = new TimedRecordingTransport();
+        /** @var array<string,array<string,string>> $operations */
+        $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
+        $client = new MeliClient(
+            $transport,
+            new SystemSettingsRepository($pdo),
+            $operations,
+            'https://api.mercadolibre.com',
+            minRequestIntervalMs: 30,
+        );
+
+        $client->request('users.me', 'token-1');
+        $client->request('users.me', 'token-2');
+
+        self::assertCount(2, $transport->sentAtNs);
+        $gapMs = ($transport->sentAtNs[1] - $transport->sentAtNs[0]) / 1_000_000;
+        self::assertGreaterThanOrEqual(25.0, $gapMs, 'Physical Mercado Libre dispatches must be paced, not merely counted as jobs/batches.');
+    }
+
     public function testUnknownOperationIsRejectedBeforeTransport(): void
     {
         $pdo = TestDatabase::reset();
@@ -133,6 +155,19 @@ final class RecordingTransport implements MeliTransport
             'body' => $body,
         ];
 
+        return new MeliTransportResponse(200, [], '{}');
+    }
+}
+
+final class TimedRecordingTransport implements MeliTransport
+{
+    /** @var list<int> */
+    public array $sentAtNs = [];
+
+    /** @param array<string,string> $headers */
+    public function send(string $method, string $url, array $headers, ?string $body): MeliTransportResponse
+    {
+        $this->sentAtNs[] = hrtime(true);
         return new MeliTransportResponse(200, [], '{}');
     }
 }
