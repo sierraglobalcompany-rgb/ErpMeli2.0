@@ -166,6 +166,23 @@ final class MeliClient
             return '/orders/' . $orderId;
         }
 
+        if ($path === '/billing/integration/periods/key/{period_key}/group/ML/details') {
+            $periodKey = $pathParams['period_key'] ?? null;
+            if (!is_string($periodKey) || preg_match('/^[0-9]{4}-[0-9]{2}-01$/D', $periodKey) !== 1) {
+                throw new InvalidArgumentException('Invalid Mercado Libre period_key path parameter.');
+            }
+
+            $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $periodKey, new DateTimeZone('UTC'));
+            if (!$parsed instanceof DateTimeImmutable || $parsed->format('Y-m-d') !== $periodKey) {
+                throw new InvalidArgumentException('Invalid Mercado Libre period_key path parameter.');
+            }
+            if (count($pathParams) !== 1) {
+                throw new InvalidArgumentException('Unexpected Mercado Libre path parameters.');
+            }
+
+            return '/billing/integration/periods/key/' . $periodKey . '/group/ML/details';
+        }
+
         if ($pathParams !== []) {
             throw new InvalidArgumentException('Unexpected Mercado Libre path parameters.');
         }
