@@ -10,6 +10,13 @@ use App\Core\Database\Connection;
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
 use App\Integrations\MercadoLibre\Auth\OAuthAuthorizationFlow;
+use App\Integrations\MercadoLibre\Auth\OAuthConnectService;
+use App\Integrations\MercadoLibre\Auth\TokenCipher;
+use App\Integrations\MercadoLibre\Client\ApiUsageRecorder;
+use App\Integrations\MercadoLibre\Client\MeliClient;
+use App\Integrations\MercadoLibre\Client\MeliCooldownRepository;
+use App\Integrations\MercadoLibre\Transport\CurlMeliTransport;
+use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Sales\ViewSales\SalesListController;
 use App\Modules\Settings\SystemSettingsController;
@@ -20,6 +27,7 @@ use DateTimeZone;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use RuntimeException;
 use Slim\App;
 
 final class Routes
@@ -95,6 +103,91 @@ final class Routes
                 ->withStatus(302);
         });
 
+        $app->get('/oauth/mercadolibre/callback', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            $query = $request->getQueryParams();
+            $authorizationCode = is_string($query['code'] ?? null) ? trim($query['code']) : '';
+            $returnedState = is_string($query['state'] ?? null) ? trim($query['state']) : '';
+            $userId = $_SESSION['user_id'] ?? null;
+            $boundCompanyId = $_SESSION['meli_oauth_company_id'] ?? null;
+
+            if (!is_int($userId) || $userId < 1) {
+                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+                return $response->withStatus(403);
+            }
+            if (!is_int($boundCompanyId) || $boundCompanyId < 1 || $authorizationCode === '' || $returnedState === '') {
+                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+                return $response->withStatus(400);
+            }
+
+            $pdo = Connection::fromConfig($config);
+            $membership = $pdo->prepare(
+                'SELECT 1 FROM company_users WHERE user_id = :user_id AND company_id = :company_id LIMIT 1'
+            );
+            $membership->execute([
+                'user_id' => $userId,
+                'company_id' => $boundCompanyId,
+            ]);
+            if ($membership->fetchColumn() === false) {
+                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+                return $response->withStatus(403);
+            }
+
+            $redirectUri = rtrim($config->appUrl, '/') . '/oauth/mercadolibre/callback';
+            $flow = new OAuthAuthorizationFlow(
+                $config->meliClientId,
+                $redirectUri,
+                'https://auth.mercadolibre.com.co/authorization',
+            );
+            $session =& $_SESSION;
+            try {
+                $codeVerifier = $flow->consume(
+                    $session,
+                    $returnedState,
+                    new DateTimeImmutable('now', new DateTimeZone('UTC')),
+                );
+            } catch (RuntimeException) {
+                unset($_SESSION['meli_oauth_company_id']);
+                return $response->withStatus(400);
+            }
+            unset($_SESSION['meli_oauth_company_id']);
+
+            /** @var array<string,array{method:string,path:string,family:string,classification:string,official_doc_url:string,verified_at:string}> $operations */
+            $operations = require dirname(__DIR__, 3) . '/config/meli_operations.php';
+            $settings = new SystemSettingsRepository($pdo);
+            $client = new MeliClient(
+                new CurlMeliTransport(new RemoteHostPolicy(), $config->appEnv),
+                $settings,
+                $operations,
+                'https://api.mercadolibre.com',
+                new ApiUsageRecorder($pdo),
+                new MeliCooldownRepository($pdo),
+            );
+            $connect = new OAuthConnectService(
+                $pdo,
+                $client,
+                new TokenCipher($config->appKey),
+                $config->meliClientId,
+                $config->meliClientSecret,
+                $redirectUri,
+            );
+
+            try {
+                $connect->connectAuthorizationCode(
+                    $boundCompanyId,
+                    $authorizationCode,
+                    $codeVerifier,
+                    new DateTimeImmutable('now', new DateTimeZone('UTC')),
+                );
+            } catch (RuntimeException) {
+                return $response->withStatus(502);
+            }
+
+            return $response->withHeader('Location', '/sales')->withStatus(303);
+        });
+
         $app->get('/sales', static function (
             ServerRequestInterface $request,
             ResponseInterface $response
@@ -125,7 +218,7 @@ final class Routes
 
             try {
                 (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
-            } catch (\RuntimeException) {
+            } catch (RuntimeException) {
                 return $response->withStatus(419);
             }
 
@@ -145,7 +238,7 @@ final class Routes
             $body = is_array($body) ? $body : [];
             try {
                 (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
-            } catch (\RuntimeException) {
+            } catch (RuntimeException) {
                 return $response->withStatus(419);
             }
 
@@ -161,7 +254,7 @@ final class Routes
             $body = is_array($body) ? $body : [];
             try {
                 (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
-            } catch (\RuntimeException) {
+            } catch (RuntimeException) {
                 return $response->withStatus(419);
             }
 
