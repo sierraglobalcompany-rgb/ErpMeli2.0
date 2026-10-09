@@ -6,6 +6,7 @@ namespace Tests\Integration;
 
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Work\WorkRepository;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestDatabase;
 
@@ -65,7 +66,7 @@ final class OrderWebhookReceiverTest extends TestCase
         self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type = 'order.sync'")->fetchColumn());
     }
 
-    /** @dataProvider ignoredPayloadProvider */
+    #[DataProvider('ignoredPayloadProvider')]
     public function testUnknownOrUnsupportedNotificationIsSafelyIgnored(array $changes): void
     {
         $pdo = TestDatabase::reset();
