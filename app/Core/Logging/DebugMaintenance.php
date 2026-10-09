@@ -41,6 +41,69 @@ final class DebugMaintenance
         ];
     }
 
+    /** @return array{total_bytes:int,days:list<array{day:string,bytes:int,compressed:bool}>} */
+    public function usage(): array
+    {
+        /** @var array<string,array{bytes:int,compressed:bool}> $days */
+        $days = [];
+        $totalBytes = 0;
+
+        foreach ($this->entries($this->debugDirectory) as $entry) {
+            $path = $this->debugDirectory . '/' . $entry;
+            if (is_link($path) || !is_file($path)) {
+                continue;
+            }
+
+            $metadata = $this->debugFileMetadata($entry);
+            if ($metadata === null) {
+                continue;
+            }
+
+            $bytes = filesize($path);
+            if ($bytes === false) {
+                throw new RuntimeException('Cannot inspect debug file size.');
+            }
+
+            $totalBytes += $bytes;
+            $day = $metadata['day'];
+            if (!isset($days[$day])) {
+                $days[$day] = ['bytes' => 0, 'compressed' => true];
+            }
+            $days[$day]['bytes'] += $bytes;
+            $days[$day]['compressed'] = $days[$day]['compressed'] && $metadata['compressed'];
+        }
+
+        krsort($days, SORT_STRING);
+        $history = [];
+        foreach ($days as $day => $metadata) {
+            $history[] = [
+                'day' => $day,
+                'bytes' => $metadata['bytes'],
+                'compressed' => $metadata['compressed'],
+            ];
+        }
+
+        return ['total_bytes' => $totalBytes, 'days' => $history];
+    }
+
+    public function clearDebug(): int
+    {
+        $deleted = 0;
+        foreach ($this->entries($this->debugDirectory) as $entry) {
+            $path = $this->debugDirectory . '/' . $entry;
+            if (is_link($path) || !is_file($path) || $this->debugFileMetadata($entry) === null) {
+                continue;
+            }
+
+            if (!unlink($path)) {
+                throw new RuntimeException('Cannot clear debug file.');
+            }
+            ++$deleted;
+        }
+
+        return $deleted;
+    }
+
     private function deleteExpiredDebug(string $cutoff): int
     {
         $deleted = 0;
@@ -50,11 +113,8 @@ final class DebugMaintenance
                 continue;
             }
 
-            if (preg_match('/^debug-(\d{4}-\d{2}-\d{2})\.jsonl(?:\.gz)?$/D', $entry, $matches) !== 1) {
-                continue;
-            }
-
-            if ($matches[1] >= $cutoff) {
+            $metadata = $this->debugFileMetadata($entry);
+            if ($metadata === null || $metadata['day'] >= $cutoff) {
                 continue;
             }
 
@@ -145,6 +205,19 @@ final class DebugMaintenance
         }
 
         return $deleted;
+    }
+
+    /** @return array{day:string,compressed:bool}|null */
+    private function debugFileMetadata(string $entry): ?array
+    {
+        if (preg_match('/^debug-(\d{4}-\d{2}-\d{2})\.jsonl(\.gz)?$/D', $entry, $matches) !== 1) {
+            return null;
+        }
+
+        return [
+            'day' => $matches[1],
+            'compressed' => ($matches[2] ?? '') === '.gz',
+        ];
     }
 
     /** @return list<string> */
