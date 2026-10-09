@@ -74,7 +74,18 @@ final class WorkRepository
     }
 
     /**
-     * @return array{id:int,status:string,attempts:int,claim_token:string,claimed_at:string}|null
+     * @return array{
+     *   id:int,
+     *   company_id:?int,
+     *   account_id:?int,
+     *   type:string,
+     *   resource_key:?string,
+     *   payload:array<string,mixed>,
+     *   status:string,
+     *   attempts:int,
+     *   claim_token:string,
+     *   claimed_at:string
+     * }|null
      */
     public function claimNext(): ?array
     {
@@ -111,7 +122,8 @@ final class WorkRepository
             }
 
             $fetch = $this->pdo->prepare(
-                'SELECT id, status, attempts, claim_token, claimed_at FROM work_items WHERE id = :id'
+                'SELECT id, company_id, account_id, type, resource_key, payload_json, '
+                . 'status, attempts, claim_token, claimed_at FROM work_items WHERE id = :id'
             );
             $fetch->execute(['id' => $workId]);
             $row = $fetch->fetch(PDO::FETCH_ASSOC);
@@ -120,10 +132,26 @@ final class WorkRepository
                 throw new RuntimeException('Claimed work item could not be reloaded.');
             }
 
+            $payload = [];
+            $payloadJson = $row['payload_json'] ?? null;
+            if (is_string($payloadJson) && $payloadJson !== '') {
+                $decoded = json_decode($payloadJson, true, 512, JSON_THROW_ON_ERROR);
+                if (!is_array($decoded)) {
+                    throw new RuntimeException('Claimed work payload is invalid.');
+                }
+                /** @var array<string,mixed> $decoded */
+                $payload = $decoded;
+            }
+
             $this->pdo->commit();
 
             return [
                 'id' => (int) $row['id'],
+                'company_id' => $row['company_id'] === null ? null : (int) $row['company_id'],
+                'account_id' => $row['account_id'] === null ? null : (int) $row['account_id'],
+                'type' => (string) $row['type'],
+                'resource_key' => $row['resource_key'] === null ? null : (string) $row['resource_key'],
+                'payload' => $payload,
                 'status' => (string) $row['status'],
                 'attempts' => (int) $row['attempts'],
                 'claim_token' => (string) $row['claim_token'],
