@@ -16,6 +16,7 @@ final readonly class AppConfig
         public string $dbUser,
         public string $dbPassword,
         public string $meliClientId,
+        public string $meliClientSecret,
     ) {
     }
 
@@ -32,6 +33,7 @@ final readonly class AppConfig
             self::string($env, 'DB_USER', 'root'),
             self::string($env, 'DB_PASSWORD', ''),
             self::string($env, 'MELI_CLIENT_ID', ''),
+            self::string($env, 'MELI_CLIENT_SECRET', ''),
         );
     }
 
