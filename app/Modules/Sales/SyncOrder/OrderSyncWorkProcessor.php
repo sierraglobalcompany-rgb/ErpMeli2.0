@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Modules\Sales\SyncOrder;
 
+use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
-use RuntimeException;
 
 final class OrderSyncWorkProcessor
 {
-    public function __construct(private readonly SyncOrderHandler $handler)
-    {
+    public function __construct(
+        private readonly SyncOrderHandler $handler,
+        private readonly WorkRepository $work,
+    ) {
     }
 
     /**
@@ -33,6 +35,7 @@ final class OrderSyncWorkProcessor
         $companyId = $claim['company_id'];
         $accountId = $claim['account_id'];
         $orderId = $claim['payload']['order_id'] ?? null;
+        $hasScalarOrderId = is_string($orderId) || is_int($orderId);
 
         if (
             $claim['type'] !== 'order.sync'
@@ -40,14 +43,16 @@ final class OrderSyncWorkProcessor
             || $companyId < 1
             || $accountId === null
             || $accountId < 1
-            || !(is_string($orderId) || is_int($orderId))
+            || !$hasScalarOrderId
+            || preg_match('/^[0-9]{1,32}$/D', (string) $orderId) !== 1
         ) {
-            throw new RuntimeException('Invalid order.sync work claim.');
-        }
-
-        $orderId = (string) $orderId;
-        if (preg_match('/^[0-9]{1,32}$/D', $orderId) !== 1) {
-            throw new RuntimeException('Invalid order.sync work claim.');
+            $this->work->failCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                'invalid_work_claim',
+                'Work claim payload is invalid.',
+            );
+            return;
         }
 
         $this->handler->syncCurrentClaim(
@@ -55,7 +60,7 @@ final class OrderSyncWorkProcessor
             $claim['claim_token'],
             $companyId,
             $accountId,
-            $orderId,
+            (string) $orderId,
             new DateTimeImmutable('now', new DateTimeZone('UTC')),
         );
     }
