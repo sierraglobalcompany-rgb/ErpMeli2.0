@@ -2,6 +2,7 @@
 /** @var \App\Modules\Settings\SystemSettings $settings */
 /** @var string $csrfToken */
 /** @var array{total_bytes:int,days:list<array{day:string,bytes:int,compressed:bool}>} $debugUsage */
+/** @var bool $debugCapReached */
 ?>
 <!doctype html>
 <html lang="es">
@@ -50,6 +51,10 @@
     <section>
         <h2>Uso debug</h2>
         <p><?= $debugUsage['total_bytes'] ?> bytes</p>
+
+        <?php if ($debugCapReached): ?>
+            <p role="alert">Límite de almacenamiento debug alcanzado</p>
+        <?php endif; ?>
 
         <?php if ($debugUsage['days'] !== []): ?>
             <ul>
