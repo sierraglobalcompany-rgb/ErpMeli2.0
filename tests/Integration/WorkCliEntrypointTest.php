@@ -61,4 +61,14 @@ final class WorkCliEntrypointTest extends TestCase
         self::assertStringContainsString('new ReconcileOrdersHandler($pdo, $work, $client, $tokens)', $source);
         self::assertStringNotContainsString('$processor = new OrderSyncWorkProcessor(', $source);
     }
+
+    public function testWorkRunnerLockIsScopedByConfiguredDatabaseName(): void
+    {
+        $path = dirname(__DIR__, 2) . '/bin/work.php';
+        $source = file_get_contents($path);
+
+        self::assertIsString($source);
+        self::assertStringContainsString("'erp_meli2.runner.' . $config->dbName", $source);
+        self::assertStringNotContainsString("new WorkRunner($runnerLockConnection, 'erp_meli2.runner')", $source);
+    }
 }
