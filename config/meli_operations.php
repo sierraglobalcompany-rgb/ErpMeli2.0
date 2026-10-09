@@ -27,4 +27,12 @@ return [
         'official_doc_url' => 'https://developers.mercadolibre.com.co/gestiona-ventas',
         'verified_at' => '2026-10-09',
     ],
+    'orders.search' => [
+        'method' => 'GET',
+        'path' => '/orders/search',
+        'family' => 'orders',
+        'classification' => 'READ',
+        'official_doc_url' => 'https://developers.mercadolibre.com.co/gestiona-ventas',
+        'verified_at' => '2026-10-09',
+    ],
 ];
