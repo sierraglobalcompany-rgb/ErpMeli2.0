@@ -14,6 +14,42 @@ Antes de proponer o implementar cualquier cambio, responder internamente:
 
 Si alguna respuesta es **no**, **dudosa** o existe una solución claramente más sencilla, **no implementar todavía**: simplificar y volver a evaluar hasta cumplir la puerta.
 
+## Ley obligatoria de reducción de ruido
+
+ERP MELI 2.0 no debe acumular código, archivos, caminos alternos, compatibilidad, historial técnico ni abstracciones que ya no aportan al sistema actual.
+
+Antes de **agregar** una pieza y antes de **conservar** una pieza existente, responder:
+
+1. **¿Sirve hoy para una necesidad real?**
+2. **¿Se puede mejorar o simplificar en el mismo lugar en vez de añadir otra capa?**
+3. **¿Duplica lógica, datos, flujo, documentación o responsabilidad existente?** Si sí, preferir fusionar.
+4. **¿Ya fue reemplazada o quedó obsoleta?** Si sí, evaluar eliminarla.
+5. **¿Se puede eliminar sin afectar otra área?** Verificar referencias, contratos, tests, datos y ejecución antes de borrar.
+6. **¿Debe conservarse por una razón real de auditoría, migración, rollback o compatibilidad?** Si no hay una razón demostrable, no conservar por costumbre.
+7. **¿Puede aislarse del runtime principal si debe existir pero no participa en la operación normal?**
+8. Después de la decisión: **¿el resultado final tiene menos ruido y es más fácil de entender, probar, operar y reparar?**
+
+### Regla anti-parches
+
+- **No parche sobre parche.** Antes de añadir una corrección alrededor de otra corrección, revisar si ambas pueden reemplazarse por una sola solución correcta.
+- Un bugfix no debe dejar dos caminos permanentes para resolver el mismo problema salvo una transición temporal demostrablemente necesaria.
+- Si una implementación nueva reemplaza una anterior, evaluar en el mismo cambio qué código, pruebas, configuración o documentación vieja puede retirarse con seguridad.
+- La compatibilidad temporal debe tener una razón y una condición clara de eliminación; no convertirla en arquitectura permanente por inercia.
+- No crear archivos `legacy`, `old`, `v2`, `final`, `new`, copias paralelas o implementaciones alternativas como forma normal de evolucionar el sistema.
+- No conservar código muerto “por si acaso”. Git ya conserva el historial recuperable.
+- No eliminar a ciegas: una eliminación se considera correcta cuando puede demostrarse mediante búsqueda de referencias, tests/QA y revisión de contratos o datos afectados.
+- No borrar historial que siga siendo necesario para reproducir instalaciones, migraciones de datos, auditoría o cumplimiento. El objetivo es eliminar **ruido inútil**, no evidencia necesaria.
+
+### Objetivo de complejidad neta
+
+Para correcciones, refactors y reemplazos, buscar que la complejidad final sea **igual o menor** que antes. Si el cambio añade una pieza, debe justificar qué necesidad real cubre y por qué no cabe correctamente en las piezas existentes.
+
+La pregunta final obligatoria es:
+
+> **¿Podemos resolverlo correctamente dejando el sistema con menos cosas que entender y mantener?**
+
+Si la respuesta es sí, ésa es la opción preferida.
+
 ## Orden de prioridades
 
 **Correcto > Simple > Estable > Mantenible > Eficiente > Escalable**
@@ -44,6 +80,8 @@ Ante dos soluciones igualmente correctas, elegir la que tenga:
 - menos componentes,
 - menos dependencias,
 - menos pasos operativos,
+- menos caminos alternos,
+- menos historial técnico inútil,
 - y sea más fácil de explicar y reparar.
 
 Si una solución necesita una explicación arquitectónica larga para resolver un problema pequeño, debe revisarse.
