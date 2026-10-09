@@ -15,7 +15,6 @@ use RuntimeException;
 final class SyncOrderHandler
 {
     public function __construct(
-        private readonly PDO $pdo,
         private readonly WorkRepository $work,
         private readonly MeliClient $client,
         private readonly OAuthRefreshService $tokens,
