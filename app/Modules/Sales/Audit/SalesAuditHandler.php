@@ -12,11 +12,13 @@ use App\Integrations\MercadoLibre\Client\MeliRateLimitException;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
+use PDO;
 use RuntimeException;
 
 final class SalesAuditHandler
 {
     private const REMOTE_RETRY_SECONDS = 30;
+    private const SELLER_SEARCH_HISTORY_MONTHS = 12;
 
     public function __construct(
         private readonly WorkRepository $work,
@@ -71,6 +73,42 @@ final class SalesAuditHandler
                 'Sales audit capture scope is unavailable.',
             );
             return false;
+        }
+
+        $sourceCutoff = $now
+            ->setTimezone(new DateTimeZone('UTC'))
+            ->modify('-' . self::SELLER_SEARCH_HISTORY_MONTHS . ' months');
+        if ($window->canonicalStartUtc < $sourceCutoff) {
+            try {
+                return $this->work->completeCurrentClaim(
+                    $workId,
+                    $claimToken,
+                    function (PDO $pdo) use ($runId, $companyId, $accountId): void {
+                        $statement = $pdo->prepare(
+                            "UPDATE sales_audit_runs SET status = 'unavailable', updated_at = UTC_TIMESTAMP(6) "
+                            . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+                            . "AND status = 'capturing' AND contract_version = :contract_version"
+                        );
+                        $statement->execute([
+                            'run_id' => $runId,
+                            'company_id' => $companyId,
+                            'account_id' => $accountId,
+                            'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
+                        ]);
+                        if ($statement->rowCount() !== 1) {
+                            throw new RuntimeException('Sales audit unavailable state could not be persisted.');
+                        }
+                    },
+                );
+            } catch (RuntimeException) {
+                $this->work->failCurrentClaim(
+                    $workId,
+                    $claimToken,
+                    'sales_audit_source_unavailable',
+                    'Sales audit source availability could not be persisted.',
+                );
+                return false;
+            }
         }
 
         try {
