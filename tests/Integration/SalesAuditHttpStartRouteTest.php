@@ -6,6 +6,8 @@ namespace Tests\Integration;
 
 use App\Bootstrap;
 use App\Core\Auth\PasswordService;
+use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -14,6 +16,29 @@ use Tests\Support\TestDatabase;
 
 final class SalesAuditHttpStartRouteTest extends TestCase
 {
+    public function testCurrentMcoMonthCannotStartAudit(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedCompanyUserAndAccount($pdo);
+        $csrfToken = $this->authenticate();
+
+        $periodKey = (new DateTimeImmutable('now', new DateTimeZone('America/Bogota')))->format('Y-m-01');
+        $response = $this->startAudit($csrfToken, '10', $periodKey);
+        $runCount = (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_runs')->fetchColumn();
+        $workCount = (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='sales.audit'")->fetchColumn();
+
+        self::assertSame(
+            [422, 0, 0],
+            [$response->getStatusCode(), $runCount, $workCount],
+            sprintf(
+                'Expected HTTP 422 and no persisted state; got HTTP %d, runs=%d, Work=%d.',
+                $response->getStatusCode(),
+                $runCount,
+                $workCount,
+            ),
+        );
+    }
+
     public function testCompanyAdminStartsTenantBoundAuditAndInitialWorkAtomically(): void
     {
         $pdo = TestDatabase::reset();
