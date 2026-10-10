@@ -80,7 +80,7 @@ final class SalesWorkProcessor
             }
 
             $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
-            if ($runStatus === 'capturing') {
+            if ($runStatus === 'capturing' || $runStatus === 'confirming') {
                 $this->salesAudit->processCurrentClaim(
                     $claim['id'],
                     $claim['claim_token'],
@@ -88,6 +88,7 @@ final class SalesWorkProcessor
                     $accountId,
                     $claim['payload'],
                     $now,
+                    $runStatus === 'confirming' ? 'B' : 'A',
                 );
                 return;
             }
