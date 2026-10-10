@@ -4,13 +4,15 @@
 **Date:** 2026-10-10  
 **Repo:** `sierraglobalcompany-rgb/ErpMeli2.0`  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**Previous checkpoint:** `025dc620537ca445adac7f97bf7bef67b6ae462f`  
+**Previous checkpoint:** `0c55a78cf292343f266d27fb8eb2a4450a1d5cca`  
 **Last verified functional GREEN:** `6b6093b65ad0ab65351140d79f8cfc78d1a56910`  
-**QA run:** `38093953630` — SUCCESS  
+**Functional QA:** `38093953630` — SUCCESS  
+**G4 authority closure:** `a2be85be9e1632979a38de1ca2c35666281133c4`  
+**G4 authority QA:** `38094348936` — SUCCESS  
 **Remote Mercado Libre writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
-> Live continuity checkpoint. Authority order: active code/schema → tests/CI at relevant SHA → this checkpoint → `AGENTS.md` → `docs/ERP2_AUTHORITY.md` → recent explicit decisions → historical plans/issues/PRs.
+> Live continuity checkpoint. Authority: active code/schema → tests/CI at relevant SHA → this checkpoint → `docs/ERP2_AUTHORITY.md` → `AGENTS.md` → recent explicit decisions → historical plans/issues/PRs.
 
 ---
 
@@ -23,36 +25,15 @@ DELETE -> SIMPLIFY -> REUSE -> MERGE -> EXTEND -> ADD
 Correct -> Simple -> Stable -> Maintainable -> Efficient -> Scalable
 ```
 
-No merge, deploy, destructive cleanup, production DB change, OAuth production change, or remote Mercado Libre write without explicit user authorization.
+No merge, deploy, destructive cleanup, production DB/OAuth change, or remote Mercado Libre write without explicit authorization.
 
-Supported PHP:
-
-```text
-8.3 / 8.4 / 8.5
-composer require.php = >=8.3 <8.6
-```
-
-Architecture remains deliberately small:
-
-```text
-1 PHP/Slim app
-1 MariaDB
-1 Work table
-1 WorkRunner
-1 MeliClient
-1 sales.audit Work type
-1 SalesAuditHandler
-1 SalesAuditRepository
-1 SalesAuditRepairHandler
-```
-
-Do not add by inertia: second queue, per-domain queue/scheduler, Retry/Repair/Recovery engines, SalesAuditStateMachine, ConfirmRepository, BaselineService, FinalizerEngine, StartAuditService, generic transaction/lock layers, extra audit tables, or new audit states.
+Supported PHP: `8.3 / 8.4 / 8.5`; Composer PHP contract: `>=8.3 <8.6`.
 
 ---
 
-# 2. SALES AUDIT CORE — GREEN
+# 2. G4 SALES_AUDIT_TRUTH — PASS / CLOSED
 
-Durable flow:
+Durable certified flow is GREEN:
 
 ```text
 Capture A
@@ -71,269 +52,297 @@ Source contract:
 ```text
 source = seller Orders Search
 monthly membership = order.date_created
-business timezone = America/Bogota
+site MCO business timezone = America/Bogota
 historical horizon ~= 12 months
 outside horizon -> unavailable before OAuth/HTTP
 short non-terminal page -> fail closed
+valid = verified relative to seller-search contract, not absolute ML history
 ```
 
-Baseline lifecycle:
+Architecture remains deliberately small:
 
 ```text
-no prior valid baseline -> current confirmed becomes valid
-prior equivalent valid -> current valid; old equivalent valid removed with evidence cascade
-prior divergent valid -> prior valid preserved; current attention preserved
+1 PHP/Slim app
+1 MariaDB
+1 Work table / WorkRunner
+1 MeliClient
+Work types: order.sync + sales.audit
+1 SalesAuditHandler
+1 SalesAuditRepository
+1 SalesAuditRepairHandler
 ```
 
-Closed hardening:
-
-```text
-SAH-0:
-remote/source incoherence -> meli_sales_audit_contract
-internal lifecycle/persistence -> sales_audit_state
-
-SAH-1:
-durable lifecycle SQL belongs to SalesAuditRepository
-handler remains orchestration
-
-SAH-2:
-one active run per company/account/period/contract enforced atomically by MariaDB
-```
-
-SAH-2 active statuses: `capturing`, `repairing`, `confirming`. Terminal: `valid`, `attention`, `unavailable`. The generated `active_contract_version` + UNIQUE database boundary remains the concurrency-safe guard; do not replace it with SELECT-before-INSERT or a lock manager.
+No second queue, domain scheduler, generic retry/repair/recovery engine, SalesAuditStateMachine, ConfirmRepository, BaselineService, FinalizerEngine, StartAuditService, extra audit table/state, or generic lock/transaction layer.
 
 ---
 
-# 3. START AUDIT CONTRACT — GREEN / CLOSED
+# 3. SALES AUDIT INVARIANTS — GREEN
 
-Endpoint:
+## Capture / source safety
+
+- MCO canonical month uses `America/Bogota`; remote search uses UTC guard-band ±1h.
+- Guard-band observations remain durable; canonical membership is derived from exact `date_created`.
+- Outside source horizon -> `unavailable` before token lookup / HTTP.
+- Short non-terminal page -> fail closed; no guessed pagination.
+- Offsetless/malformed remote timestamps -> fail closed with no partial evidence.
+- Capture does not fan out directly to `order.sync`.
+
+## Repair / verify
+
+- Gap is recomputed from canonical A evidence.
+- Exactly one deterministic missing order child at a time.
+- Parent `sales.audit` defers while child is pending/running.
+- Terminal child + persistent gap -> audit `attention`; child is not recreated automatically.
+- No remaining gap -> `repairing -> confirming`.
+- Repair/verify stays isolated to capture pass A.
+
+## Confirm B
+
+- Same `sales.audit` Work type; no confirmation queue/type/state.
+- B evidence is independent from A in the same durable table.
+- A remains unchanged while B is captured.
+- B terminal count/fingerprint must be complete.
+- A/B equality -> `valid` + `completed_at`, atomically with Work completion.
+- A/B mismatch -> `attention`, atomically with Work completion.
+- Terminal B creates no extra continuation or `order.sync`.
+
+## Baseline lifecycle
+
+```text
+no prior valid -> current confirmed becomes valid
+prior equivalent valid -> current valid; old equivalent run/evidence removed
+prior divergent valid -> prior valid preserved; current attention preserved
+```
+
+No age-based deletion of the valid baseline.
+
+---
+
+# 4. START / CONCURRENCY / PERIOD SAFETY — GREEN
+
+Active-run identity:
+
+```text
+company_id + account_id + period_key + contract_version
+```
+
+MariaDB generated `active_contract_version` + UNIQUE remains the final concurrency guard for `capturing`, `repairing`, `confirming`. Terminal `valid`, `attention`, `unavailable` permits replacement. No SELECT-before-INSERT race workaround.
+
+Start boundary:
 
 ```text
 POST /sales/audits
-```
-
-Boundary:
-
-```text
 authenticated session
 selected company
-company role = admin
+admin membership
 valid CSRF
-connected Mercado Libre account in selected company
-UI month input = YYYY-MM
-controller canonicalizes once -> YYYY-MM-01
-legacy canonical YYYY-MM-01 remains accepted by the boundary
-SalesAuditWindow validates real MCO site/month semantics
-only fully closed MCO months are eligible
+connected tenant-bound ML account
+UI YYYY-MM -> canonical YYYY-MM-01
+legacy YYYY-MM-01 accepted
+only fully closed MCO months
 ```
 
-HTTP behavior:
+HTTP contract:
 
 ```text
-success                         -> 303 /sales
-duplicate active scope          -> 409
-not admin / invalid membership  -> 403
-invalid CSRF                    -> 419
-invalid input/account scope     -> 422
-current MCO month               -> 422
-future MCO month                -> 422
+success -> 303 /sales
+duplicate active -> 409
+non-admin -> 403
+invalid CSRF -> 419
+invalid input/account/current/future -> 422
 ```
 
-Atomic success path remains one PDO transaction:
+Success is atomic:
 
 ```text
-create capturing sales_audit_run
+create capturing run
 -> enqueue initial sales.audit Work
 -> COMMIT
 ```
 
-Failure rolls back. Current/future rejection occurs before durable run/Work creation.
-
-Initial Work contract remains:
-
-```text
-scope_key    = company:<company_id>:account:<account_id>
-type         = sales.audit
-resource_key = <run_id>
-logical id   = sales.audit:<run_id>:0:50
-payload      = {run_id:<run_id>, offset:0, limit:50}
-status       = pending
-```
-
-Admin UX on `GET /sales`:
-
-```text
-connected account selector
-<input type="month">
-default = last closed MCO month
-max = last closed MCO month
-CSRF
-Iniciar auditoría
-```
-
-Backend/domain validation remains authoritative; HTML constraints are UX only.
-
-No separate dashboard, wizard, scheduler, StartAuditService, JavaScript workflow, new route family, schema, migration, state, or Work type was added.
+Current/future rejection occurs before durable state. Admin UI defaults/caps at last closed MCO month.
 
 ---
 
-# 4. CURRENT/FUTURE PERIOD SEMANTICS — GREEN / CLOSED
+# 5. EXACT-ORDER 404 — GREEN / CLOSED
 
-Authority is centralized in `SalesAuditWindow`.
-
-Rule:
+For exact `GET /orders/{order_id}`:
 
 ```text
-period_start < start_of_current_month_in_America/Bogota -> eligible
-current/future MCO month                                -> rejected 422
-```
-
-Rejected current/future start persists:
-
-```text
-sales_audit_runs = 0 new rows
-sales.audit Work = 0 new rows
-```
-
-Deterministic timezone boundary is covered: October 2026 is still open at `2026-11-01T04:30:00Z` (`2026-10-31 23:30` Bogotá) and becomes closed at `2026-11-01T05:00:00Z`.
-
-TDD evidence:
-
-```text
-BASE: 7011672b29e910728fc62cc293af9e98223b320e
-RED current: 90621ab3737e5a47dd676f9a1c8c4de3f3a563de
-  expected 422 / runs=0 / Work=0
-  observed 303 / runs=1 / Work=1
-RED future: 710faf374c099ecd0ba74812dc9824a73e6bdf3f
-  expected 422 / runs=0 / Work=0
-  observed 303 / runs=1 / Work=1
-GREEN: 49ef2762990484b815a46ace42c9a34af8f104c1
-```
-
-Functional diff was limited to:
-
-```text
-app/Modules/Sales/Audit/SalesAuditWindow.php
-app/Modules/Sales/ViewSales/SalesListController.php
-app/Modules/Sales/ViewSales/views/list.php
-tests/Integration/SalesAuditFoundationTest.php
-tests/Integration/SalesAuditHttpStartRouteTest.php
-```
-
-No schema/migration/source-horizon/lifecycle/queue changes.
-
----
-
-# 5. QA — VERIFIED GREEN
-
-Authoritative workflow for functional GREEN `49ef2762990484b815a46ace42c9a34af8f104c1`:
-
-```text
-RUN 38091483115 — SUCCESS
-PHP 8.3 job 114328646111 — SUCCESS
-PHP 8.4 job 114328646106 — SUCCESS
-PHP 8.5 job 114328646058 — SUCCESS
-PHPStan = 0 errors
-PHPUnit = 222 tests / 1550 assertions on each job
-REAL_MELI_HTTP = 0
-```
-
-Canonical Linux CI ran the full lint successfully. Local Windows PowerShell lacks `xargs`, and the local `WorkCliEntrypointTest` has a known POSIX environment-assignment incompatibility; neither is a functional regression because the canonical Ubuntu workflow is fully GREEN.
-
-Known pre-existing CI noise: the intentional Slim 404 diagnostic from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute()` remains visible while the test passes. Do not mix that cleanup into Sales Audit functional blocks.
-
----
-
-# 6. EXACT-ORDER 404 — GREEN / CLOSED
-
-Exact endpoint contract:
-
-```text
-GET /orders/{order_id} HTTP 404
+HTTP 404
 -> Work failed
 -> last_error_code = meli_order_not_found
--> no retry / defer / order persistence
+-> no retry/defer
+-> no order persistence
 ```
 
-Classification uses the HTTP status alone; it does not require `errorCode=order_not_found`. The 404 path exits before order persistence. A 404 after the one allowed 401 token refresh has the same terminal result and issues exactly three physical requests: order GET, OAuth refresh POST, retried order GET.
+Classification uses HTTP status, not remote-body error code.
 
-TDD evidence:
+```text
+401 -> refresh once -> 404
+```
+
+ends with the same terminal classification and exactly three physical requests: order GET, OAuth POST, retried order GET. No fourth request.
+
+403/other 4xx retain `meli_remote_permanent`; 429 defer, 5xx retry, transport retry, malformed-200 handling, OAuth and Work semantics remain unchanged.
+
+A repair child ending terminal on 404 with a persistent gap composes with the existing repair rule -> audit `attention`, no child recreation.
+
+TDD / GREEN evidence:
 
 ```text
 BASE: 025dc620537ca445adac7f97bf7bef67b6ae462f
 RED direct: 0ea4e0aabb2ad0639f25c91385568c3d2402a053
-  testOrderNotFoundFailsTerminallyWithoutPersistingAnOrder
-  expected meli_order_not_found; observed meli_remote_permanent
-RED after refresh: ced22f341a8176c55042be2527061e2cff72411c
-  testOrderNotFoundAfterUnauthorizedRefreshFailsWithoutAnotherRetry
-  expected meli_order_not_found; observed meli_remote_permanent
+RED post-refresh: ced22f341a8176c55042be2527061e2cff72411c
 FUNCTIONAL GREEN: 6b6093b65ad0ab65351140d79f8cfc78d1a56910
 ```
 
-Both tests verify terminal Work state and released claim. Direct 404 makes one order request and persists zero orders. The 401-refresh-404 test makes exactly three requests, records `refresh_version=1`, and persists zero orders. Its 404 body omits `errorCode`, proving status-based classification.
-
-Functional diff from BASE is limited to:
+Functional diff was limited to:
 
 ```text
 app/Modules/Sales/SyncOrder/SyncOrderHandler.php
 tests/Integration/SyncOrderHandlerRemoteFailureTest.php
 ```
 
-`SyncOrderHandler` classifies 404 in both the initial and post-refresh exception paths through one private helper. It adds no retry, state, type, service, schema, or configuration. 400/403/other 4xx retain `meli_remote_permanent`; 429, 5xx, transport failure, malformed 200, OAuth refresh, Work claim semantics, and Sales Audit lifecycle are unchanged. A terminal repair child with a remaining gap still moves the audit to `attention` without recreation (`SalesAuditRepairRuntimeTest::testTerminalRepairChildMovesRunToAttentionWithoutRecreation`).
+---
 
-Canonical QA for FUNCTIONAL GREEN:
+# 6. G4 ADVERSARIAL COVERAGE — SUFFICIENT / COMPOSABLE
+
+No mega-test was added because existing focused tests already cover the critical failure matrix:
 
 ```text
+SalesAuditCaptureHandlerTest
+  horizon before OAuth/HTTP
+  short non-terminal fail closed
+  malformed/offsetless date no partial evidence
+  no capture fan-out
+
+SalesAuditUnauthorizedTest
+  401 refresh once
+  second 401 terminal
+  OAuth 429 defer
+  post-refresh 5xx retry
+  403 terminal
+
+SalesAuditTransientFailureTest
+  429 defer without attempt burn
+  5xx bounded retry
+  transport bounded retry
+
+SalesAuditRepairRuntimeTest + repair tests
+  one-child repair
+  terminal child + gap -> attention
+  no recreation
+  repaired gap -> confirming
+
+SalesAuditConfirmValidTest
+  independent B equality -> valid
+  A preserved
+
+SalesAuditConfirmMismatchTest
+  B mismatch -> attention
+  A fingerprint preserved
+
+SalesAuditBaselineLifecycleTest
+  equivalent valid replacement
+  divergent run preserves prior valid + attention
+
+SalesAuditActiveRunGuardTest
+  DB UNIQUE blocks every active status
+  terminal allows replacement
+
+SalesAuditHttpStartRouteTest / SalesAuditFoundationTest
+  auth/tenant/CSRF/duplicate/closed/current/future/timezone boundary
+
+SyncOrderHandlerRemoteFailureTest
+  direct exact 404 terminal
+  401-refresh-404 terminal/no fourth request
+```
+
+No new production code or redundant adversarial test was necessary for final G4 closure.
+
+---
+
+# 7. QA / NOISE AUDIT
+
+Functional GREEN:
+
+```text
+SHA 6b6093b65ad0ab65351140d79f8cfc78d1a56910
 RUN 38093953630 — SUCCESS
 PHP 8.3 job 114335875883 — SUCCESS
 PHP 8.4 job 114335875661 — SUCCESS
 PHP 8.5 job 114335875912 — SUCCESS
-PHPStan = 0 errors on all jobs
-PHPUnit = 224 tests / 1571 assertions on each job
+PHPStan = 0
+PHPUnit = 224 tests / 1571 assertions
 REAL_MELI_HTTP = 0
 ```
 
-Targeted Windows tests against isolated MariaDB on port 3307:
+G4 authority reconciliation:
 
 ```text
-SyncOrderHandlerRemoteFailureTest.php = 7 tests / 62 assertions — PASS
-SalesAuditRepairRuntimeTest.php = 3 tests / 42 assertions — PASS
+SHA a2be85be9e1632979a38de1ca2c35666281133c4
+RUN 38094348936 — SUCCESS
+PHP 8.3 job 114337051315 — SUCCESS
+PHP 8.4 job 114337051376 — SUCCESS
+PHP 8.5 job 114337051355 — SUCCESS
+PHPStan = 0
+PHPUnit = 224 tests / 1571 assertions
+REAL_MELI_HTTP = 0
 ```
 
-No schema/migration, `MeliClient`, `MeliApiException`, Sales Audit production code, or `meli_operations.php` changes. Remote Mercado Libre writes remained OFF.
+Noise audit for G4 final closure:
+
+```text
+0c55a78c... -> a2be85be...
+only docs/ERP2_AUTHORITY.md changed
+no production/test/schema/config changes
+```
+
+The authority document was intentionally compacted from stale historical sequencing to current truth. Known Slim 404 diagnostic remains pre-existing passing-test noise and stays out of this block.
 
 ---
 
-# 7. GATES
+# 8. GATES
 
 ```text
 G1 REMOTE_TRUTH: PASS for implemented boundary
 G2 WORK_SAFETY: PASS
 G3 RATE_SAFETY: PASS for current Sales
-G4 SALES_AUDIT_TRUTH: IN PROGRESS
-   GREEN: Capture A / repair / verify / Capture B / A-B / baseline / SAH-0 / SAH-1 / SAH-2 / Start Audit / current-future semantics / exact-order 404 semantics
-   PENDING: final adversarial/noise/docs closure
+G4 SALES_AUDIT_TRUTH: PASS / CLOSED
 G5 BILLING_CURSOR_TRUTH: BLOCKED ON C0
 G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
 G7 WRITE_FAIL_CLOSED: PASS
 G8 HOSTING_REALITY: NOT CERTIFIED
 ```
 
-External gates remain Issue #3 Hostinger/runtime/main protection and Issue #5 dedicated Mercado Libre ERP2 app/OAuth reality.
+External gates remain:
 
-`docs/ERP2_AUTHORITY.md` still contains older sequencing text. Active code/tests/this checkpoint outrank that stale roadmap prose until G4 doc cleanup.
+```text
+Issue #3 Hostinger/runtime/main protection
+Issue #5 dedicated Mercado Libre ERP2 app/OAuth reality
+```
 
 ---
 
-# 8. NEXT MICROBLOCK — FROZEN
+# 9. NEXT ORDER — FROZEN
+
+Next microblock only:
 
 ```text
-G4 final adversarial/noise/docs closure
+small DOC-CLEAN / GitHub issue hygiene
 ```
 
-Closed blocks now include current/future period semantics and exact-order 404 semantics/classification. G4 remains open only for its final adversarial/noise/docs closure.
+Then:
 
-Do not mix into the next block:
+```text
+Billing C0 real sanitized MCO smoke
+-> Billing Task2
+-> sale_fee alignment before Financial
+-> Financial no-double-count
+```
+
+Separate hardening; do not mix by inertia:
 
 ```text
 Sales detail multi-account scope
@@ -341,25 +350,17 @@ webhook seller multi-company scope
 webhook timestamp timezone
 webhook_events retention
 MariaDB session UTC
-Billing C0 / Billing Task2
-sale_fee / Financial
-OAuth/Hostinger
-Git/PR/issue hygiene
 Slim diagnostic cleanup
-```
-
-After G4 final closure:
-
-```text
-small DOC-CLEAN / issue hygiene
--> Billing C0 real sanitized
--> Billing Task2
--> sale_fee alignment
--> Financial no-double-count
 ```
 
 ---
 
-# 9. STOP
+# 10. STOP
 
-Current state is intentionally paused. No merge, deploy, production write, remote Mercado Libre write, or next-block implementation has been authorized by this checkpoint.
+G4 is intentionally closed here.
+
+No merge.  
+No deploy.  
+No production DB/OAuth change.  
+No remote Mercado Libre write.  
+No Billing C0 or issue-hygiene work started in this checkpoint.
