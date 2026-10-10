@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**PAUSED BY USER — DO NOT CONTINUE IMPLEMENTATION UNTIL EXPLICITLY RESUMED**  
+**PAUSED — STOP AFTER THIS CHECKPOINT**  
 **Date:** 2026-10-10  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Master map:** `README.md`  
@@ -9,47 +9,43 @@
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
-## User execution constraint
-
-Keep future work deliberately small:
+## Execution constraint
 
 ```text
 1 microblock at a time
 RED -> confirm intended failure -> minimal GREEN -> full QA -> noise audit
 checkpoint after 1-2 microblocks maximum
-STOP after checkpoint when context is growing
+STOP after checkpoint when context grows
 ```
 
-Do not chain several phases in one long run.
-
-## Authority order when resuming
+## Authority order
 
 ```text
 1. code/schema at branch HEAD
-2. tests/CI at the relevant functional SHA
-3. this CURRENT_CHECKPOINT.md
-4. docs/ERP2_AUTHORITY.md
+2. tests/CI at relevant SHA
+3. this checkpoint
+4. ERP2_AUTHORITY.md
 5. recent explicit user decisions
 6. README.md master map
 7. historical handoffs/plans
 ```
 
-For external contracts:
+External contracts:
 
 ```text
-current official documentation + controlled real evidence > assumptions
+current official Mercado Libre docs + controlled real evidence > assumptions
 ```
 
-## Exact frozen point
+---
 
-Latest fully GREEN functional commit before this checkpoint:
+# 1. LAST FULLY GREEN FUNCTIONAL STATE
 
 ```text
 bdca863c85a0f6529f676cf78f3e495e6e7aab60
 feat(v3-k6a2): reject short nonterminal audit pages
 ```
 
-Verified full QA:
+Verified QA:
 
 ```text
 RUN=38066150484
@@ -62,290 +58,262 @@ MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Noise audit RED->GREEN K6a-2:
+K6a is closed:
 
 ```text
-1 production file changed
-+3 lines
-0 deletions
-no schema change
-no new Work type
-no new engine
+K6a-1 seller-search horizon -> unavailable before OAuth/HTTP
+K6a-2 short non-terminal page -> fail closed
 ```
 
-## K6a-1 — seller-search source horizon — CLOSED GREEN
-
-GREEN commit:
+Current Sales Audit truth through K6a:
 
 ```text
-53f1de7c44c6491df0c158b5c3b7f2914d59c00b
-feat(v3-k6a1): fail closed outside seller-search horizon
+CAPTURE
+-> fingerprint A
+-> missing ? repairing : confirming
+-> bounded one-child REPAIR
+-> local VERIFY
+-> confirming
 ```
 
-Verified full QA:
+`confirming` is durable but runtime CONFIRM is still intentionally unimplemented.
 
-```text
-RUN=38065828713
-JOB=114253159334
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=200/200 PASS
-ASSERTIONS=1362
-MEMORY=22 MB
-REAL_MELI_HTTP=0
-```
+---
 
-Durable behavior now implemented:
-
-```text
-canonicalStartUtc < nowUtc - 12 months
--> sales_audit_runs.status = unavailable
--> current sales.audit Work = done
--> zero OAuth dependency
--> zero Mercado Libre HTTP
--> zero audit-order evidence
--> no retry forever
--> no false complete
-```
-
-The transition is persisted atomically with completion of the current Work claim.
-
-No alternate historical source was added.
-
-## K6a-2 — short non-terminal seller-search page — CLOSED GREEN
+# 2. K6b-0 — INDEPENDENT CONFIRM PERSISTENCE DESIGN — RED CONFIRMED
 
 RED commit:
 
 ```text
-9e5399d23bb7ff7445254f8f588400e7e00395b3
-test(v3-k6a2): fail closed on short nonterminal audit page
+091c5a19fe8f8c4a624854cb7e76176e1c61d266
+test(v3-k6b0): prove independent confirm evidence needs A/B identity
 ```
 
-RED evidence:
+CI evidence:
 
 ```text
-RUN=38065990464
-JOB=114253625854
+RUN=38066686637
+JOB=114255647932
+PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=201 tests
-ASSERTIONS=1364
+PHPUNIT=202 tests
+ASSERTIONS=1371
 FAILURES=1
+MEMORY=22 MB
+REAL_MELI_HTTP=0
 ```
 
 Single intended failure:
 
 ```text
-SalesAuditCaptureHandlerTest::
-testShortNonTerminalPageFailsClosedWithoutEvidenceOrContinuation
+Tests\Integration\SalesAuditConfirmEvidenceSchemaTest::
+testSalesAuditOrdersCanPreserveIndependentCaptureAAndBForTheSameOrder
 
-Failed asserting that true is false.
+Failed asserting that an array has the key 'capture_pass'.
 ```
 
-GREEN commit:
+Interpretation:
 
 ```text
-bdca863c85a0f6529f676cf78f3e495e6e7aab60
-feat(v3-k6a2): reject short nonterminal audit pages
+RED is clean.
+No production/schema GREEN has been written.
+No collateral test failure exists.
 ```
 
-Implemented rule:
+---
+
+# 3. DESIGN DECISION PROVED FOR K6b
+
+Authority requires first certification:
 
 ```text
-offset + limit < remote_total
-AND count(results) < limit
--> fail closed as meli_sales_audit_contract
--> no durable observations from that page
--> no continuation skipping unknown positions
--> run remains capturing
+capture A
+-> repair
+-> verify local
+-> independent capture B
+-> same canonical count/hash
+-> valid
 ```
 
-No pagination engine was introduced.
-
-## Closed path through K6a
+Current schema cannot preserve A and B independently because:
 
 ```text
-B0        bigint-safe orders.search
-B1        two-table Sales Audit schema
-B2        MCO temporal contract + durable capturing run
-B3a       durable observation primitive
-B3b1      one validated/atomic CAPTURE page
-B3b2a     429/5xx/transport/OAuth/permanent failure semantics
-B3b2b1    sales.audit activated in SalesWorkProcessor
-B3b2b2    obsolete orders reconciler deleted
-B3c1      stable durable remote_total contract
-B3c2      stable-total page continuation
-B3c3      terminal traversal integrity by durable observed count
-B3d1      canonical local set fingerprint primitive
-B3d2      terminal CAPTURE fingerprint wiring
-B3e1      deterministic local missing-set primitive
-B3e2      guarded post-CAPTURE state decision
-B3e3a     repairing missing-set read
-B3e3b1    deterministic single repair candidate
-B3e3b2    enqueue one bounded repair candidate
-B3e3b3a   block terminal same-order recreation
-K1        repair candidate collapsed to deterministic ORDER BY ... LIMIT 1
-K2        REPAIR runtime through existing sales.audit Work
-K3        terminal repair child + persistent gap -> durable attention
-K4        terminal CAPTURE -> repairing + one continuation when needed
-K5        local VERIFY -> confirming only with zero canonical gaps
-K5b       terminal CAPTURE fast-path -> repairing or confirming
-K6a-1     seller-search horizon -> unavailable before OAuth/HTTP
-K6a-2     short non-terminal page -> fail closed
+sales_audit_orders PRIMARY KEY(audit_run_id, external_order_id)
 ```
 
-## Current runtime truth
+The same external order cannot coexist as evidence from both traversals.
 
-1. `sales.audit` is the single Sales Audit Work type.
-2. CAPTURE persists durable seller-search observations and canonical fingerprint.
-3. CAPTURE never enqueues `order.sync` directly.
-4. Post-CAPTURE:
-   - canonical gap -> `repairing` + one `sales.audit` continuation;
-   - no canonical gap -> `confirming`.
-5. REPAIR processes one deterministic missing order at a time.
-6. Parent REPAIR defers while the same child `order.sync` is pending/running.
-7. Terminal child + persistent gap is never auto-recreated; run becomes `attention`.
-8. Zero remaining canonical gaps -> `repairing -> confirming` transactionally.
-9. Old source period outside supported seller-search horizon -> `unavailable` before OAuth/HTTP.
-10. Short non-terminal source page -> fail closed rather than skipping positions.
-11. Work is execution state, not business history.
+## Rejected alternatives
 
-## Important truth about `confirming`
+### Second `sales_audit_run` for B
 
-`confirming` exists as a durable run state, but **CONFIRM runtime is NOT implemented yet**.
-
-Current `SalesWorkProcessor` only dispatches:
+Rejected for now because it creates more complexity:
 
 ```text
-capturing -> SalesAuditHandler
-repairing -> SalesAuditRepairHandler
+A<->B relation
+second business lifecycle
+orphan/cleanup semantics
+ambiguous baseline linkage
+more states/coordination
 ```
 
-A `sales.audit` claim for a run already in `confirming` currently falls into:
+### Delete/overwrite A before B
+
+Rejected because independent confirmation must preserve A until comparison completes.
+
+### New confirmation table/history engine
+
+Rejected by KISS: unnecessary extra persistence surface.
+
+## Minimal selected representation
+
+Extend the existing evidence table only:
 
 ```text
-sales_audit_state
+sales_audit_orders
++ capture_pass ENUM('A','B') NOT NULL DEFAULT 'A'
+
+PRIMARY KEY(
+  audit_run_id,
+  capture_pass,
+  external_order_id
+)
 ```
 
-and fails the Work claim.
+Why this is minimal:
 
-This is intentional unfinished scope, not a regression to patch casually.
+- one audit run;
+- one evidence table;
+- same `sales.audit` Work type;
+- no new Work state;
+- no new table;
+- no second queue;
+- no confirm engine;
+- A remains intact while B is captured;
+- same order ID may legitimately appear in A and B;
+- `DEFAULT 'A'` keeps existing CAPTURE inserts compatible during the schema microblock.
 
-## Schema fact that must be respected before CONFIRM
+Official Mercado Libre Orders Search documentation currently exposes a normal paginated seller search and no reusable snapshot identifier for proving the same result set later. Therefore B must be a genuinely separate traversal of the same source contract, not reuse A response state.
 
-Current `sales_audit_runs` has only one set of source fingerprint fields:
+---
+
+# 4. IMPORTANT CONFIRM RUNTIME CONSTRAINTS — NOT IMPLEMENTED YET
+
+Do not implement these in the next schema-only GREEN unless explicitly reached by a later RED:
 
 ```text
-remote_total
-canonical_count
-set_hash
+confirming dispatch
+B paging
+B remote_total stability
+B canonical fingerprint
+A-vs-B comparison
+valid
+attention on mismatch
+completed_at
+baseline cleanup
 ```
 
-Current `sales_audit_orders` is keyed by:
+Future CONFIRM should still reuse:
 
 ```text
-(audit_run_id, external_order_id)
+sales.audit
+MeliClient
+orders.search
+SalesAuditWindow
+same source horizon rule
+same short-page rule
+same OAuth/429/retry semantics where applicable
 ```
 
-Therefore an **independent capture B cannot be implemented by blindly reusing/overwriting capture A evidence** without first defining a correct minimal persistence contract.
+Technical traversal state such as B offset/limit and first-seen B remote total may live in Work payload if proven sufficient; do not persist new business columns merely for execution state.
 
-Do not add a second table, history engine or new Work type by reflex. Prove the minimum representation with RED/design first.
+---
 
-## Exact next microblock — K6b-0 only
-
-**Do not implement a full CONFIRM flow immediately.**
-
-Next block is strictly:
+# 5. EXACT NEXT MICROBLOCK — K6b-1 ONLY
 
 ```text
-K6b-0 — independent CONFIRM design + RED
+K6b-1 — schema GREEN for independent A/B evidence
 ```
 
-Goals:
+Scope:
 
-1. inspect existing `confirming` state, schema and current tests;
-2. define the smallest correct representation of independent capture B;
-3. preserve capture A evidence until comparison is complete;
-4. reuse the same `sales.audit` Work type;
-5. RED must prove that a confirming run cannot become `valid` without an independent second seller-search traversal and equal canonical count/hash;
-6. mismatch must fail closed to durable `attention` (or another already-approved terminal state only if Authority requires it);
-7. no `valid` GREEN in the same block unless the persistence contract is already proven minimal and the block remains small;
-8. checkpoint and STOP after K6b-0 RED/design if implementation would expand scope.
+1. edit pre-release `database/migrations/004_sales.sql` in place;
+2. add `capture_pass ENUM('A','B') NOT NULL DEFAULT 'A'`;
+3. change only the `sales_audit_orders` primary key to `(audit_run_id,capture_pass,external_order_id)`;
+4. make `SalesAuditConfirmEvidenceSchemaTest` GREEN;
+5. run full QA;
+6. audit diff/noise;
+7. verify existing CAPTURE still works unchanged because default is A;
+8. update Authority/README only if GREEN confirms this contract;
+9. checkpoint and STOP.
 
-### KISS constraints for K6b-0
-
-Do not introduce by default:
+Do NOT in K6b-1:
 
 ```text
-sales.audit.confirm Work type
-confirm engine
-second queue
-scheduler
-page table
-history table
-repair table
-capture-history engine
-priority
-extra Work status
+NO confirming runtime handler
+NO SalesWorkProcessor confirming dispatch
+NO valid transition
+NO B network request
+NO new table
+NO second audit run
+NO new Work type
+NO Billing
+NO Financial
+NO webhook cleanup
+NO sale_fee work
+NO merge/deploy
+NO real ML HTTP
+NO remote writes
 ```
 
-Any schema addition requires proof that capture A and capture B cannot be compared correctly with fewer pieces.
+---
 
-## Gates at pause
+# 6. GATES
 
 | Gate | Status |
 |---|---|
-| G1 REMOTE_TRUTH | PASS for implemented boundary and K6a source-truth guards |
+| G1 REMOTE_TRUTH | PASS for implemented boundary + K6a guards |
 | G2 WORK_SAFETY | PASS |
-| G3 RATE_SAFETY | PASS for active Sales paths |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — CAPTURE + bounded REPAIR + local VERIFY + horizon + short-page guards green; independent CONFIRM/valid still missing |
+| G3 RATE_SAFETY | PASS for current Sales paths |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + source guards green; B persistence RED confirmed |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
 | G8 HOSTING_REALITY | NOT CERTIFIED |
 
-## Open gaps — do not mix into K6b-0
+---
+
+# 7. OPEN GAPS — DO NOT MIX INTO K6b-1
 
 ```text
-independent capture B / CONFIRM
+CONFIRM runtime / independent B traversal
+A-vs-B equal hash/count -> valid
+mismatch -> durable attention
 valid/baseline lifecycle
 start UX + active-run guard
 exact order 404 final audit classification
 sale_fee schema alignment before Financial
-webhook_events lifecycle/retention audit
-MariaDB session timezone certification in G8
-Billing C0 cursor/206 smoke
+webhook_events lifecycle
+MariaDB session timezone certification
+Billing C0
 Hostinger/runtime/main protection
 ```
 
-## Do not touch next
+---
 
-```text
-NO Billing handler before C0
-NO Financial
-NO sale_fee alignment inside CONFIRM
-NO webhook_events cleanup
-NO Hostinger work inside CONFIRM
-NO new queue
-NO new scheduler
-NO generic history/recovery engine
-NO merge
-NO deploy
-NO real Mercado Libre batch
-NO remote writes
-```
-
-## Resume protocol
+# 8. RESUME PROTOCOL
 
 When user says `continua`:
 
 ```text
 1. fetch branch HEAD
-2. read this checkpoint + AGENTS + ERP2_AUTHORITY
-3. audit only delta since functional SHA bdca863...
-4. optionally sync stale operational section of README before code
-5. execute K6b-0 only
-6. RED first
-7. checkpoint and STOP before a larger CONFIRM implementation
+2. confirm K6b-0 RED commit + CI evidence above
+3. read AGENTS + Authority + this checkpoint
+4. implement K6b-1 schema GREEN only
+5. full QA
+6. DELETE/SIMPLIFY/REUSE/MERGE audit
+7. sync README/Authority if contract becomes GREEN
+8. checkpoint and STOP
 ```
 
-Do not re-audit the whole project and do not ask where we were.
+Do not re-audit the whole project. Do not ask where we were.
