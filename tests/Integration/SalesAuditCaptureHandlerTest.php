@@ -148,6 +148,73 @@ final class SalesAuditCaptureHandlerTest extends TestCase
         self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM meli_tokens')->fetchColumn());
     }
 
+    public function testShortNonTerminalPageFailsClosedWithoutEvidenceOrContinuation(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-audit-short-page-secret');
+        $this->seedAccountAndToken($pdo, $cipher);
+
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $audit->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:00:00+00:00'),
+        );
+        $work = new WorkRepository($pdo);
+        $workId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':0:3',
+            ['run_id' => $runId, 'offset' => 0, 'limit' => 3],
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+
+        $transport = new SalesAuditCaptureTransport(new MeliTransportResponse(
+            200,
+            [],
+            '{"paging":{"total":5,"offset":0,"limit":3},"results":['
+            . '{"id":200000000001,"date_created":"2026-10-10T10:00:00-05:00"},'
+            . '{"id":200000000002,"date_created":"2026-10-10T11:00:00-05:00"}'
+            . ']}',
+        ));
+        $handler = $this->handler($pdo, $work, $audit, $transport, $cipher);
+
+        self::assertFalse($handler->processCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            1,
+            1,
+            $claim['payload'],
+            new DateTimeImmutable('2026-10-10T02:00:00+00:00'),
+        ));
+
+        $row = $pdo->query(
+            'SELECT status,last_error_code FROM work_items WHERE id = ' . $workId
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('failed', $row['status']);
+        self::assertSame('meli_sales_audit_contract', $row['last_error_code']);
+        self::assertSame(
+            0,
+            (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id = ' . $runId)->fetchColumn(),
+        );
+        self::assertSame(
+            1,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type = 'sales.audit'")->fetchColumn(),
+            'A short non-terminal page must not enqueue a continuation by skipping unknown positions.',
+        );
+        self::assertSame(
+            'capturing',
+            $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
+        );
+    }
+
     public function testOffsetlessRemoteDateFailsClosedWithoutPartialEvidence(): void
     {
         $pdo = TestDatabase::reset();
