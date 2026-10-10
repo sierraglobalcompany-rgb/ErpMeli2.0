@@ -138,6 +138,10 @@ final class SalesAuditConfirmMismatchTest extends TestCase
 
         $bFingerprint = $audit->canonicalFingerprint($runId, $window, 'B');
         self::assertSame(2, $bFingerprint['canonical_count']);
+        self::assertSame(
+            hash('sha256', "200000000100\n200000000101"),
+            $bFingerprint['set_hash'],
+        );
         self::assertNotSame($aFingerprint['set_hash'], $bFingerprint['set_hash']);
         self::assertCount(1, $transport->requests);
         self::assertSame(
