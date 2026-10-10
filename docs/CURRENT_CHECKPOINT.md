@@ -3,349 +3,237 @@
 **PAUSED — STOP AFTER THIS CHECKPOINT**  
 **Date:** 2026-10-10  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**Master map:** `README.md`  
-**Authority:** `docs/ERP2_AUTHORITY.md`  
-**Engineering law:** `AGENTS.md`  
+**Functional HEAD before this docs-only checkpoint:** `1931746b264866f5d45d8017ca79af8dc606d0a1`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
-## Execution constraint
+## Execution law
 
 ```text
 1 microblock at a time
-RED -> confirm intended failure -> minimal GREEN -> full QA -> noise audit
-checkpoint after 1-2 microblocks maximum
-STOP after checkpoint when context grows
+RED -> confirm intended failure -> minimal GREEN -> full QA -> noise audit -> checkpoint
+DELETE -> SIMPLIFY -> REUSE -> MERGE -> EXTEND -> ADD
 ```
 
-## Authority order
+Authority order:
 
 ```text
 1. code/schema at branch HEAD
 2. tests/CI at relevant SHA
 3. this checkpoint
-4. ERP2_AUTHORITY.md
+4. docs/ERP2_AUTHORITY.md
 5. recent explicit user decisions
-6. README.md master map
+6. README.md
 7. historical handoffs/plans
 ```
 
 ---
 
-# 1. LAST FUNCTIONAL GREEN — K6c-1 DIVERGENT BASELINE GUARD
+# 1. PHP-COMPAT-0 — CLOSED GREEN
 
-Functional GREEN:
+Goal completed:
+
+```text
+ERP MELI 2.0 supports and is CI-certified on PHP 8.3, 8.4 and 8.5.
+```
+
+Persistent contract now:
+
+```text
+composer require.php = >=8.3 <8.6
+RuntimePreflight PASS only for >=8.3.0 and <8.6.0
+required runtime extensions include phar + zlib
+one GitHub Actions QA matrix: 8.3 / 8.4 / 8.5
+same composer.lock installs on all three runtimes
+```
+
+Functional GREEN SHA:
+
+```text
+1931746b264866f5d45d8017ca79af8dc606d0a1
+fix(platform): keep explicit preflight range check
+```
+
+Final CI matrix:
+
+```text
+RUN=38079245005
+
+PHP 8.3.35
+JOB=114292569616
+PHPSTAN=0
+PHPUNIT=209/209 PASS
+ASSERTIONS=1483
+MEMORY=22 MB
+
+PHP 8.4.26
+JOB=114292569582
+PHPSTAN=0
+PHPUNIT=209/209 PASS
+ASSERTIONS=1483
+MEMORY=22 MB
+
+PHP 8.5.11
+JOB=114292569448
+PHPSTAN=0
+PHPUNIT=209/209 PASS
+ASSERTIONS=1483
+MEMORY=22 MB
+```
+
+All three also passed:
+
+```text
+syntax lint
+Composer platform contract assertion
+composer validate --strict
+composer install from the same lock
+REAL_MELI_HTTP=0
+```
+
+The usual benign Slim 404 trace from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute` still appears while the suite remains GREEN.
+
+## RED history
+
+```text
+3be0efc21157e2331188ce89b279a209e32622a0
+test(platform): require PHP 8.3-8.5 contract
+
+RUN=38078761003
+PHPSTAN=0
+PHPUNIT=209 tests
+ASSERTIONS=1481
+FAILURES=1 intended
+Expected >=8.3 <8.6; actual ^8.5
+```
+
+First matrix attempt exposed one real PHPStan issue common to 8.3/8.4/8.5: under Composer's new platform range, PHPStan inferred the explicit `<8.6` check on `PHP_VERSION` as redundant. Minimal GREEN changed the runtime value source to `phpversion()`; PHPStan configuration was not weakened.
+
+---
+
+# 2. PHP-COMPAT NOISE AUDIT
+
+Delta from pre-compatibility checkpoint:
+
+```text
+974d151c4845536f06ac73a296c5ff4c765a0189
+```
+
+to functional GREEN:
+
+```text
+1931746b264866f5d45d8017ca79af8dc606d0a1
+```
+
+contains exactly five persistent files:
+
+```text
+.github/workflows/qa.yml
+app/Core/Runtime/RuntimePreflight.php
+composer.json
+composer.lock
+tests/Integration/PlatformCompatibilityContractTest.php
+```
+
+No persistent temporary workflow.
+No Sales/Billing/Financial behavior change.
+No schema/table/column change.
+No Work type/status/queue/engine change.
+No OAuth/Mercado Libre behavior change.
+No dependency-version drift during lock refresh.
+
+---
+
+# 3. SALES AUDIT — CURRENT FUNCTIONAL TRUTH
+
+Last Sales Audit functional GREEN remains:
 
 ```text
 0c164793e12f3f289b2f16e93e1bda265b49eff2
 feat(v3-k6c1): guard divergent valid baseline
 ```
 
-Fresh full QA:
+Core flow:
 
 ```text
-RUN=38076990793
-JOB=114285940280
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=208/208 PASS
-ASSERTIONS=1480
-MEMORY=22 MB
-REAL_MELI_HTTP=0
-```
-
-The normal expected Slim 404 output from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute` appears in logs but all tests pass.
-
----
-
-# 2. SALES AUDIT CORE TRUTH
-
-```text
-CAPTURE A
+Capture A
 -> durable A evidence + canonical fingerprint
--> bounded REPAIR / local VERIFY
--> confirming
--> independent Capture B traversal
--> terminal B count/fingerprint
--> A/B mismatch -> attention + Work done atomically
+-> bounded repair / local verify
+-> independent Capture B
+-> A/B mismatch -> attention
 -> A/B equality -> baseline comparison
 ```
 
-`valid` means consistent/verified relative to seller-search and the known contract for that run, not an absolute guarantee of the complete historical Mercado Libre universe.
-
----
-
-# 3. BASELINE AUTHORITY RULE — CLOSED GREEN
-
-Binding rule:
-
-```text
-conservar el más reciente válido;
-evidencia superseded equivalente se elimina.
-Si aparece diferencia, conservar baseline anterior + run attention hasta resolver.
-```
-
-Runtime behavior now:
+Baseline lifecycle rule remains GREEN:
 
 ```text
 no prior valid baseline
--> internally confirmed run becomes valid
+-> current internally confirmed run becomes valid
 
-prior valid baseline fingerprint == new internally confirmed fingerprint
--> new run becomes valid
--> prior equivalent valid run is deleted
--> prior A+B evidence pruned by existing ON DELETE CASCADE
+prior equivalent valid baseline
+-> current run becomes valid
+-> prior equivalent valid run removed
+-> superseded A+B evidence pruned by FK cascade
 
-prior valid baseline fingerprint != new internally confirmed fingerprint
--> prior baseline remains valid and untouched
--> new run becomes attention
--> new A+B evidence remains durable for diagnosis
+prior divergent valid baseline
+-> prior valid baseline preserved
+-> current run becomes attention
+-> current evidence preserved for diagnosis
 ```
 
 No baseline pointer, history table, baseline engine, new Work type/status, second queue or cleanup engine was added.
 
----
-
-# 4. K6c-1 RED / GREEN
-
-RED:
-
-```text
-04fbc19d1a4eb99eec63cb6318cecbcfc0f9ccae
-test(v3-k6c1): prove divergent baseline attention
-```
-
-RED QA:
-
-```text
-RUN=38075246021
-JOB=114280747237
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=208 tests
-ASSERTIONS=1475
-FAILURES=1
-MEMORY=22 MB
-REAL_MELI_HTTP=0
-```
-
-Single intended failure:
-
-```text
-Tests\Integration\SalesAuditBaselineLifecycleTest::
-testNewInternallyConfirmedDifferentFingerprintPreservesPriorBaselineAndEndsAttention
-
-Expected: attention
-Actual:   valid
-```
-
-GREEN:
-
-```text
-0c164793e12f3f289b2f16e93e1bda265b49eff2
-feat(v3-k6c1): guard divergent valid baseline
-```
-
-Minimal implementation:
-
-```text
-terminal B first keeps existing B-vs-A mismatch guard
-then, only when A == B internally:
-  scoped self-JOIN checks prior valid baseline(s)
-  same company/account/period/contract
-  if any prior valid fingerprint differs -> current confirming -> attention
-  otherwise current confirming -> valid
-  then K6c-0 equivalent pruning remains unchanged
-```
-
-Everything remains inside existing `WorkRepository::completeCurrentClaim` transaction, so terminal B evidence + lifecycle transition + Work completion are atomic.
+`valid` remains relative to seller-search + the known run contract, not an absolute guarantee of the complete Mercado Libre historical universe.
 
 ---
 
-# 5. K6c-1 GREEN NOISE AUDIT
+# 4. CURRENT GAPS / NEXT WORK
 
-Delta from RED checkpoint `e8f668b90b80d86363cba70534abfbe4361bcb90` to functional GREEN `0c164793e12f3f289b2f16e93e1bda265b49eff2`:
+Do not mix these together.
 
-```text
-1 production file only
-app/Modules/Sales/Audit/SalesAuditHandler.php
-+33/-0
-```
-
-No:
+Sales Audit remaining:
 
 ```text
-schema change
-table/column
-new class
-repository
-engine
-state
-Work type/status
-queue
-cron
+start UX + duplicate active-run guard
+exact order 404 final audit classification
 ```
 
-K6c-0 equivalent replacement test remains GREEN and K6c-1 divergent baseline test is now GREEN.
-
----
-
-# 6. BASELINE LIFECYCLE STATUS
-
-```text
-K6c-0 equivalent replacement = GREEN
-K6c-1 divergent baseline preservation/attention = GREEN
-```
-
-Baseline lifecycle is functionally closed for the currently frozen authority rule.
-
-Do not expand it into history/versioning/recovery abstractions without new evidence.
-
----
-
-# 7. NEW BINDING REQUIREMENT — PHP 8.3 THROUGH 8.5
-
-Explicit user requirement on 2026-10-10:
-
-```text
-ERP MELI 2.0 must be compatible with PHP 8.3, PHP 8.4 and PHP 8.5.
-```
-
-Current repository does NOT yet satisfy/certify this requirement.
-
-Confirmed blockers:
-
-```text
-composer.json require.php = ^8.5
-composer.lock platform.php = ^8.5
-RuntimePreflight currently requires PHP >= 8.5.0
-GitHub Actions QA runs only PHP 8.5
-GitHub Actions explicitly asserts composer require.php == ^8.5
-README currently describes stack as PHP 8.5
-```
-
-Dependency audit so far is favorable:
-
-```text
-locked PHPUnit 12.5.x requires PHP >= 8.3
-locked Slim 4.15.3 supports PHP 8.3 / 8.4 / 8.5
-locked PHPStan supports PHP 8.3
-```
-
-But compatibility must NOT be claimed until the full suite passes under all three runtimes.
-
-Target contract:
-
-```text
-composer PHP range: >=8.3 <8.6
-CI matrix: 8.3, 8.4, 8.5
-RuntimePreflight: PASS only inside supported range >=8.3 and <8.6
-composer.lock regenerated/updated consistently with no dependency drift unless required
-full lint + PHPStan + PHPUnit GREEN on each PHP version
-```
-
-Do not use PHP 8.4/8.5-only language/runtime features in production code while this support contract is active.
-
----
-
-# 8. EXACT NEXT MICROBLOCK — PHP-COMPAT-0 ONLY
-
-This compatibility correction now takes priority over K6c-DOC.
-
-Next execution:
-
-1. verify branch HEAD equals this checkpoint commit;
-2. change Composer platform contract from `^8.5` to `>=8.3 <8.6`;
-3. keep `composer.lock` fresh and aligned with the exact new platform contract;
-4. change RuntimePreflight from `>=8.5.0` to the supported interval `>=8.3.0 && <8.6.0`;
-5. change GitHub Actions to a PHP matrix `8.3`, `8.4`, `8.5`;
-6. replace the old `^8.5` CI assertion with the exact supported-range assertion;
-7. run full QA on all three matrix jobs;
-8. if any runtime fails, treat it as a compatibility RED and fix minimally before claiming support;
-9. update README stack only after matrix GREEN;
-10. noise-audit and checkpoint;
-11. STOP.
-
-Do not mix Sales Audit start UX, exact-order 404, Billing or Financial into PHP-COMPAT-0.
-
----
-
-# 9. DEFERRED NEXT MICROBLOCK — K6c-DOC
-
-After PHP-COMPAT-0 is GREEN:
-
-1. update `README.md` to state baseline lifecycle GREEN through K6c-1 and the certified PHP 8.3-8.5 range;
-2. update `docs/ERP2_AUTHORITY.md` with the exact three-case baseline rule and PHP support contract;
-3. remove obsolete baseline lifecycle statements;
-4. keep G4 `IN PROGRESS` because start UX / duplicate-active guard and exact-order 404 classification remain;
-5. documentation-only diff;
-6. checkpoint and STOP.
-
----
-
-# 10. OPEN G4 GAPS AFTER K6c-1
-
-```text
-baseline lifecycle = GREEN
-Sales Audit start UX + duplicate active-run guard = OPEN
-exact order 404 final audit classification = OPEN
-```
-
-Other domains/ops remain separate:
+Other separate gaps:
 
 ```text
 sale_fee schema/persistence alignment before Financial
-webhook_events lifecycle
+webhook_events lifecycle / timezone hardening
 MariaDB session timezone certification
 Billing C0 sanitized MCO smoke
 Financial no-double-count
 Hosting/runtime/main protection
 ```
 
----
-
-# 11. GATES
-
-| Gate | Status |
-|---|---|
-| G1 REMOTE_TRUTH | PASS for implemented boundary + K6a guards |
-| G2 WORK_SAFETY | PASS |
-| G3 RATE_SAFETY | PASS for current Sales paths |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — core A/B + baseline lifecycle GREEN; start/duplicate-active + exact-order 404 remain |
-| G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
-| G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
-| G7 WRITE_FAIL_CLOSED | PASS |
-| G8 HOSTING_REALITY | NOT CERTIFIED; PHP 8.3-8.5 runtime compatibility now binding and not yet certified |
-
----
-
-# 12. TOOLING NOTE
-
-Authoritative branch:
+Gates:
 
 ```text
-impl/v3-b-sales-audit-20261010
+G1 REMOTE_TRUTH: PASS for implemented boundary + current guards
+G2 WORK_SAFETY: PASS
+G3 RATE_SAFETY: PASS current Sales
+G4 SALES_AUDIT_TRUTH: IN PROGRESS — core A/B + baseline lifecycle GREEN; start/404 remain
+G5 BILLING_CURSOR_TRUTH: BLOCKED on C0 sanitized MCO smoke
+G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
+G7 WRITE_FAIL_CLOSED: PASS
+G8 HOSTING_REALITY: NOT CERTIFIED
 ```
-
-Auxiliary refs `tmp` and `impl/v3-b-sales-audit-20261010-red` remain accidental/non-authoritative older refs. Do not use them for continuation.
-
-The user has declined Work-mode handoff. Continue through the GitHub connector unless the user later explicitly chooses otherwise.
 
 ---
 
-# 13. STOP CONDITIONS
+# 5. EXACT RESUME POINT
 
-```text
-STOP now until explicit user continua
-NO PHP compatibility claim yet
-NO K6c-DOC yet
-NO start UX
-NO duplicate-active guard implementation
-NO exact-order 404 work
-NO Billing
-NO Financial
-NO merge
-NO deploy
-NO real Mercado Libre HTTP
-NO remote writes
-```
+**STOP NOW.**
+
+When work resumes:
+
+1. verify branch HEAD equals the docs-only checkpoint commit created from this file;
+2. confirm functional ancestor `1931746b264866f5d45d8017ca79af8dc606d0a1` still has matrix GREEN `38079245005`;
+3. do not rerun or redesign PHP compatibility unless evidence changed;
+4. README still needs its stack line synchronized from `PHP 8.5` to `PHP 8.3–8.5`; treat that as docs-only cleanup, not a new functional block;
+5. then continue only one next microblock at a time from the frozen project gaps above.
+
+Do not merge/deploy or enable remote Mercado Libre writes without explicit user authorization.
