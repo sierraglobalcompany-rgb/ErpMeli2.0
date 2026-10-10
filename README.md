@@ -810,7 +810,7 @@ No pagination engine.
 
 ## Semántica de `valid`
 
-Cuando exista:
+Actualmente:
 
 > consistente/verificado respecto de seller-search y del contrato conocido para ese run.
 
@@ -898,7 +898,7 @@ Reglas:
 
 # 21. SALES AUDIT — CONFIRM B RUNTIME
 
-Diseño KISS vigente y runtime GREEN hasta K6b-4:
+Diseño KISS vigente y runtime GREEN hasta K6b-5:
 
 1. B usa el mismo `sales.audit`.
 2. `SalesWorkProcessor` enruta `confirming` al mismo `SalesAuditHandler` con pass B.
@@ -911,8 +911,10 @@ Diseño KISS vigente y runtime GREEN hasta K6b-4:
 9. Terminal B deriva count/hash con `canonicalFingerprint(...,'B')`.
 10. Compara B directamente contra `canonical_count/set_hash` durable de A.
 11. mismatch A/B → `confirming -> attention` + Work `done` atómicamente.
-12. A y B permanecen durables tras mismatch.
-13. Igualdad A/B todavía no transiciona a `valid`; sigue fail-closed hasta K6b-5.
+12. equality A/B → `confirming -> valid` + `completed_at=UTC_TIMESTAMP(6)` + Work `done` atómicamente.
+13. Ambas decisiones ocurren dentro de la transacción existente de `completeCurrentClaim` junto con la persistencia terminal B.
+14. A y B permanecen durables; el fingerprint A no se sobrescribe.
+15. Terminal B no encola continuación ni `order.sync`.
 
 Rechazado sin nueva evidencia:
 
@@ -1164,7 +1166,7 @@ Remote writes no es switch normal de usuario antes de F16.
 | G1 REMOTE_TRUTH | contratos remotos exactos y honestos | PASS para boundary implementado + source guards K6a |
 | G2 WORK_SAFETY | dedupe/retry/defer/recovery/cleanup seguros | PASS |
 | G3 RATE_SAFETY | 429/cooldown sin storms | PASS para Sales actual |
-| G4 SALES_AUDIT_TRUTH | captura/reparación/verificación/confirmación honestas | IN PROGRESS — A + guards + independent B traversal + mismatch→attention GREEN; equality→valid pendiente |
+| G4 SALES_AUDIT_TRUTH | captura/reparación/verificación/confirmación honestas | IN PROGRESS — core A/B certification GREEN through valid; baseline lifecycle, start guard y exact-order 404 classification pendientes |
 | G5 BILLING_CURSOR_TRUTH | cursor/terminal/206 probado | BLOCKED ON C0 |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | reconciliación sin duplicar conceptos | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | mutaciones remotas bloqueadas por defecto | PASS |
@@ -1217,14 +1219,15 @@ CAPTURE A
 → independent CONFIRM B pagination
 → terminal B count/fingerprint
 → mismatch A/B -> attention atomically
+→ equality A/B -> valid + completed_at atomically
 ```
 
 Pendiente:
 
 ```text
-equality A/B -> valid
-→ baseline lifecycle
+baseline lifecycle
 → start UX + active-run guard
+→ exact order 404 final audit classification
 ```
 
 ## Después de G4
@@ -1261,24 +1264,24 @@ impl/v3-b-sales-audit-20261010
 Último funcional totalmente GREEN verificado:
 
 ```text
-3486ecc1783e40abf8321de5780535700253da2f
-feat(v3-k6b4): mark terminal capture B mismatch attention
+81dd33c863bb1ec7eea1bb40cb51ad55167cbc69
+feat(v3-k6b5): mark matching confirmation valid
 ```
 
 QA:
 
 ```text
-RUN=38071706793
-JOB=114270259722
+RUN=38072885363
+JOB=114273775595
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=205/205 PASS
-ASSERTIONS=1419
+PHPUNIT=206/206 PASS
+ASSERTIONS=1441
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-## Cerrado hasta K6b-4
+## Cerrado hasta K6b-5
 
 ```text
 B0        bigint-safe orders.search
@@ -1309,41 +1312,36 @@ K6b-1     A/B schema GREEN
 K6b-2     pass-aware record/count/fingerprint + A-only repair SQL GREEN
 K6b-3     confirming dispatch + independent Capture B pagination GREEN
 K6b-4     terminal B count/fingerprint + mismatch -> attention GREEN
+K6b-5     terminal B equality -> valid + completed_at GREEN
 ```
 
 ---
 
 # 34. PUNTO EXACTO DE REANUDACIÓN
 
-Después de esta sincronización documental, el siguiente microbloque es:
+Después de esta sincronización documental, el siguiente comportamiento a abrir es:
 
 ```text
-K6b-5 — terminal B equality -> valid RED ONLY
+K6c-0 — baseline lifecycle RED ONLY
 ```
 
-Objetivo del RED:
+Regla ya congelada:
 
-1. partir de un run durable `confirming` con A ya fingerprinted;
-2. completar terminal B con evidence durable y count coherente;
-3. demostrar `canonicalFingerprint(...,'B')` exactamente igual a A;
-4. exigir `confirming -> valid` y Work `done` atómicamente;
-5. conservar A y B;
-6. no encolar continuación ni `order.sync`;
-7. no crear tabla, columna, Work type, state técnico o engine nuevo.
+> conservar el más reciente válido; evidencia superseded equivalente se elimina. Si aparece diferencia, conservar baseline anterior + run attention hasta resolver.
 
-En K6b-5 RED **no implementar todavía**:
+Objetivo del siguiente RED: inspeccionar primero el lifecycle/start actual y demostrar la garantía mínima de que un run nuevo que termina `attention` no destruye ni degrada el baseline `valid` anterior, y que sólo un nuevo `valid` equivalente puede supersederlo. Mantener diseño KISS y no agregar tabla/history engine sin evidencia.
+
+No mezclar en ese RED:
 
 ```text
-baseline lifecycle
 start UX / active-run guard
+exact order 404 final classification
 Billing Task 2
 Financial
 merge/deploy
 real ML batch
 remote writes
 ```
-
-Si el RED confirma una causa limpia, el siguiente turno podrá implementar el GREEN mínimo de igualdad→`valid`.
 
 ---
 
@@ -1353,10 +1351,9 @@ Sólo huecos vigentes:
 
 | Gap | Severidad | Estado/acción |
 |---|---:|---|
-| Equality A/B → `valid` | Alta | siguiente RED K6b-5 |
-| Baseline/valid lifecycle | Alta | después de equality→valid |
+| Baseline/valid lifecycle | Alta | siguiente RED K6c-0 |
 | Exact order 404 dentro de audit | Alta | clasificación final attention/unavailable pendiente |
-| Start UX + duplicate active-run guard | Media | después del core G4 |
+| Start UX + duplicate active-run guard | Media | después del baseline lifecycle |
 | `sale_fee` falta en schema/persistencia Sales | Alta para Financial | microbloque independiente antes de G6 |
 | `webhook_events` posible write-only growth | Media | auditar consumidor/retention/delete |
 | MariaDB session timezone | Media ops | certificar en G8; nunca business truth |
@@ -1391,7 +1388,8 @@ Sólo huecos vigentes:
 - independent Capture B traversal;
 - B remote_total continuation guard;
 - terminal B durable count/fingerprint;
-- mismatch A/B → durable attention.
+- mismatch A/B → durable attention;
+- equality A/B → durable valid + completed_at.
 
 ---
 
@@ -1416,7 +1414,7 @@ NO real Mercado Libre batch
 NO migrar engines de ERP1
 NO gross_price por inercia
 NO borrar webhook_events sin auditoría
-NO marcar Sales Audit valid antes de K6b-5 RED -> GREEN -> QA
+NO borrar baseline válido previo por edad o por un run attention
 ```
 
 ---
@@ -1599,9 +1597,9 @@ ACTIVE DOMAIN:
 Sales Audit V3-B
 
 LAST FUNCTIONAL GREEN:
-3486ecc1783e40abf8321de5780535700253da2f
-205/205 tests
-1419 assertions
+81dd33c863bb1ec7eea1bb40cb51ad55167cbc69
+206/206 tests
+1441 assertions
 PHPStan 0
 REAL_MELI_HTTP=0
 
@@ -1613,13 +1611,14 @@ repair queries isolated to A
 CONFIRM B traversal GREEN
 terminal B count/fingerprint GREEN
 mismatch A/B -> attention GREEN
-valid equality path NOT IMPLEMENTED
+equality A/B -> valid + completed_at GREEN
 
 NEXT:
-K6b-5 terminal B equality -> valid RED ONLY
+K6c-0 baseline lifecycle RED ONLY
 
 DO NOT START YET:
-baseline lifecycle
+start UX / active-run guard
+exact order 404 final classification
 Billing Task 2
 Financial
 merge/deploy
