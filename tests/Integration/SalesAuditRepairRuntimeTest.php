@@ -76,6 +76,71 @@ final class SalesAuditRepairRuntimeTest extends TestCase
         self::assertSame([], $transport->requests);
     }
 
+    public function testTerminalRepairChildMovesRunToAttentionWithoutRecreation(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo);
+
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $this->seedRepairingRun($audit);
+        $work = new WorkRepository($pdo);
+        $transport = new SalesAuditRepairRuntimeTransport();
+        $processor = $this->processor($pdo, $work, $audit, $transport);
+
+        $scopeKey = 'company:1:account:1';
+        $childId = $work->enqueue(
+            1,
+            1,
+            $scopeKey,
+            'order.sync',
+            '100000000001',
+            'order.sync:100000000001',
+            ['order_id' => '100000000001'],
+            new DateTimeImmutable('2026-10-10T00:00:00+00:00'),
+        );
+        $childClaim = $work->claimNext();
+        self::assertIsArray($childClaim);
+        self::assertSame($childId, $childClaim['id']);
+        self::assertTrue($work->failCurrentClaim(
+            $childClaim['id'],
+            $childClaim['claim_token'],
+            'meli_remote_permanent',
+            'Mercado Libre rejected the order sync.',
+        ));
+
+        $parentId = $work->enqueue(
+            1,
+            1,
+            $scopeKey,
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':repair',
+            ['run_id' => $runId],
+            new DateTimeImmutable('2026-10-10T00:00:00+00:00'),
+        );
+        $parentClaim = $work->claimNext();
+        self::assertIsArray($parentClaim);
+        self::assertSame($parentId, $parentClaim['id']);
+
+        $processor($parentClaim);
+
+        self::assertSame(
+            1,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn(),
+            'A terminal child with a persistent local gap must never be recreated automatically.',
+        );
+        self::assertSame(
+            'attention',
+            $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
+        );
+        self::assertSame(
+            'done',
+            $pdo->query('SELECT status FROM work_items WHERE id = ' . $parentId)->fetchColumn(),
+            'The parent successfully records a durable business outcome; Work is not the business history.',
+        );
+        self::assertSame([], $transport->requests);
+    }
+
     private function processor(
         PDO $pdo,
         WorkRepository $work,
