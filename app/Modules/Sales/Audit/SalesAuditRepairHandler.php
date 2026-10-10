@@ -52,12 +52,25 @@ final class SalesAuditRepairHandler
         }
 
         if ($childWorkId === null) {
-            return $this->work->completeCurrentClaim(
-                $workId,
-                $claimToken,
-                static function (PDO $_pdo): void {
-                },
-            );
+            try {
+                return $this->work->completeCurrentClaim(
+                    $workId,
+                    $claimToken,
+                    function (PDO $_pdo) use ($runId, $companyId, $accountId): void {
+                        if (!$this->audit->transitionToConfirmingIfRepaired($runId, $companyId, $accountId)) {
+                            throw new RuntimeException('Sales audit repair verification did not confirm local coverage.');
+                        }
+                    },
+                );
+            } catch (RuntimeException) {
+                $this->work->failCurrentClaim(
+                    $workId,
+                    $claimToken,
+                    'sales_audit_repair_attention',
+                    'Sales audit repair verification requires attention.',
+                );
+                return false;
+            }
         }
 
         return $this->work->deferCurrentClaim(
