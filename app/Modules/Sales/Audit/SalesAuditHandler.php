@@ -271,6 +271,39 @@ final class SalesAuditHandler
                                 return;
                             }
 
+                            $baselineConflict = $pdo->prepare(
+                                'UPDATE sales_audit_runs current_run '
+                                . 'INNER JOIN sales_audit_runs baseline '
+                                . 'ON baseline.company_id = current_run.company_id '
+                                . 'AND baseline.account_id = current_run.account_id '
+                                . 'AND baseline.period_key = current_run.period_key '
+                                . 'AND baseline.contract_version = current_run.contract_version '
+                                . "AND baseline.status = 'valid' "
+                                . 'AND baseline.id <> current_run.id '
+                                . 'AND baseline.canonical_count IS NOT NULL AND baseline.set_hash IS NOT NULL '
+                                . 'AND (baseline.canonical_count <> current_run.canonical_count '
+                                . 'OR baseline.set_hash <> current_run.set_hash) '
+                                . "SET current_run.status = 'attention', current_run.updated_at = UTC_TIMESTAMP(6) "
+                                . 'WHERE current_run.id = :run_id '
+                                . 'AND current_run.company_id = :company_id '
+                                . 'AND current_run.account_id = :account_id '
+                                . "AND current_run.status = 'confirming' "
+                                . 'AND current_run.contract_version = :contract_version '
+                                . 'AND current_run.canonical_count = :canonical_count '
+                                . 'AND current_run.set_hash = :set_hash'
+                            );
+                            $baselineConflict->execute([
+                                'run_id' => $runId,
+                                'company_id' => $companyId,
+                                'account_id' => $accountId,
+                                'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
+                                'canonical_count' => $fingerprint['canonical_count'],
+                                'set_hash' => $fingerprint['set_hash'],
+                            ]);
+                            if ($baselineConflict->rowCount() === 1) {
+                                return;
+                            }
+
                             $valid = $pdo->prepare(
                                 "UPDATE sales_audit_runs SET status = 'valid', completed_at = UTC_TIMESTAMP(6), "
                                 . 'updated_at = UTC_TIMESTAMP(6) '
