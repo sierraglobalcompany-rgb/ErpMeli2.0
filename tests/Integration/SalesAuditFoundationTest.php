@@ -7,7 +7,6 @@ namespace Tests\Integration;
 use App\Modules\Sales\Audit\SalesAuditRepository;
 use App\Modules\Sales\Audit\SalesAuditWindow;
 use DateTimeImmutable;
-use DateTimeZone;
 use InvalidArgumentException;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -129,6 +128,67 @@ final class SalesAuditFoundationTest extends TestCase
         self::assertCount(1, $rows);
         self::assertSame('9007199254740993', (string) $rows[0]['external_order_id']);
         self::assertSame('2026-10-10 10:30:00.000000', $rows[0]['remote_date_created']);
+    }
+
+    public function testRemoteTotalIsFixedOnceAndCannotDrift(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo, 1, 1, 'MCO');
+        $repository = new SalesAuditRepository($pdo);
+        $runId = $repository->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:20:00+00:00'),
+        );
+
+        self::assertTrue($repository->acceptRemoteTotal($runId, 1, 1, 127));
+        self::assertSame('127', (string) $pdo->query(
+            'SELECT remote_total FROM sales_audit_runs WHERE id=' . $runId
+        )->fetchColumn());
+
+        self::assertTrue($repository->acceptRemoteTotal($runId, 1, 1, 127));
+        self::assertFalse($repository->acceptRemoteTotal($runId, 1, 1, 128));
+        self::assertSame('127', (string) $pdo->query(
+            'SELECT remote_total FROM sales_audit_runs WHERE id=' . $runId
+        )->fetchColumn(), 'A drifting remote total must never overwrite the first observed total.');
+    }
+
+    public function testRemoteTotalRejectsInvalidValueAndWrongScopeOrState(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo, 1, 1, 'MCO');
+        $repository = new SalesAuditRepository($pdo);
+        $runId = $repository->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:20:00+00:00'),
+        );
+
+        try {
+            $repository->acceptRemoteTotal($runId, 1, 1, -1);
+            self::fail('Negative remote total was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            self::assertSame('Sales audit remote total is invalid.', $exception->getMessage());
+        }
+
+        try {
+            $repository->acceptRemoteTotal($runId, 2, 1, 10);
+            self::fail('Wrong company scope was accepted.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('Sales audit capturing run is unavailable.', $exception->getMessage());
+        }
+
+        $pdo->exec("UPDATE sales_audit_runs SET status='attention' WHERE id={$runId}");
+        try {
+            $repository->acceptRemoteTotal($runId, 1, 1, 10);
+            self::fail('Non-capturing run accepted remote total.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('Sales audit capturing run is unavailable.', $exception->getMessage());
+        }
     }
 
     private function seedAccount(PDO $pdo, int $companyId, int $accountId, string $siteId): void
