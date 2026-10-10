@@ -425,6 +425,12 @@ final class SalesAuditRepository
         return $missing;
     }
 
+    public function nextRepairingMissingCanonicalOrderId(int $runId, int $companyId, int $accountId): ?string
+    {
+        $missing = $this->repairingMissingCanonicalOrderIds($runId, $companyId, $accountId);
+        return $missing[0] ?? null;
+    }
+
     public function observationCount(int $runId): int
     {
         if ($runId < 1) {
