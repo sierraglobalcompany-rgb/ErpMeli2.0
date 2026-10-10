@@ -111,6 +111,47 @@ final class SalesAuditRepository
         ];
     }
 
+    public function acceptRemoteTotal(int $runId, int $companyId, int $accountId, int $remoteTotal): bool
+    {
+        if ($remoteTotal < 0) {
+            throw new InvalidArgumentException('Sales audit remote total is invalid.');
+        }
+
+        $update = $this->pdo->prepare(
+            'UPDATE sales_audit_runs SET remote_total = :remote_total '
+            . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+            . "AND status = 'capturing' AND contract_version = :contract_version AND remote_total IS NULL"
+        );
+        $update->execute([
+            'remote_total' => $remoteTotal,
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'contract_version' => self::CONTRACT_VERSION,
+        ]);
+        if ($update->rowCount() === 1) {
+            return true;
+        }
+
+        $select = $this->pdo->prepare(
+            'SELECT remote_total FROM sales_audit_runs '
+            . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+            . "AND status = 'capturing' AND contract_version = :contract_version LIMIT 1"
+        );
+        $select->execute([
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'contract_version' => self::CONTRACT_VERSION,
+        ]);
+        $stored = $select->fetchColumn();
+        if ($stored === false) {
+            throw new RuntimeException('Sales audit capturing run is unavailable.');
+        }
+
+        return (string) $stored === (string) $remoteTotal;
+    }
+
     public function recordObservation(
         int $runId,
         string $externalOrderId,
