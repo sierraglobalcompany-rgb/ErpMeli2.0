@@ -36,6 +36,7 @@ final class SalesAuditHandler
         int $accountId,
         array $payload,
         DateTimeImmutable $now,
+        string $capturePass = 'A',
     ): bool {
         $runId = $payload['run_id'] ?? null;
         $offset = $payload['offset'] ?? null;
@@ -45,6 +46,7 @@ final class SalesAuditHandler
             || $claimToken === ''
             || $companyId < 1
             || $accountId < 1
+            || ($capturePass !== 'A' && $capturePass !== 'B')
             || !is_int($runId)
             || $runId < 1
             || !is_int($offset)
@@ -62,8 +64,26 @@ final class SalesAuditHandler
             return false;
         }
 
+        $expectedRemoteTotal = $payload['remote_total'] ?? null;
+        if (
+            $capturePass === 'B'
+            && (
+                ($expectedRemoteTotal !== null && (!is_int($expectedRemoteTotal) || $expectedRemoteTotal < 0))
+                || ($offset > 0 && $expectedRemoteTotal === null)
+            )
+        ) {
+            $this->work->failCurrentClaim(
+                $workId,
+                $claimToken,
+                'sales_audit_payload',
+                'Sales audit work payload is invalid.',
+            );
+            return false;
+        }
+
+        $runStatus = $capturePass === 'A' ? 'capturing' : 'confirming';
         try {
-            $context = $this->audit->captureContext($runId, $companyId, $accountId);
+            $context = $this->audit->captureContext($runId, $companyId, $accountId, $runStatus);
             $window = SalesAuditWindow::forSitePeriod($context['site_id'], $context['period_key']);
         } catch (RuntimeException|\InvalidArgumentException) {
             $this->work->failCurrentClaim(
@@ -83,16 +103,17 @@ final class SalesAuditHandler
                 return $this->work->completeCurrentClaim(
                     $workId,
                     $claimToken,
-                    function (PDO $pdo) use ($runId, $companyId, $accountId): void {
+                    function (PDO $pdo) use ($runId, $companyId, $accountId, $runStatus): void {
                         $statement = $pdo->prepare(
                             "UPDATE sales_audit_runs SET status = 'unavailable', updated_at = UTC_TIMESTAMP(6) "
                             . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
-                            . "AND status = 'capturing' AND contract_version = :contract_version"
+                            . 'AND status = :run_status AND contract_version = :contract_version'
                         );
                         $statement->execute([
                             'run_id' => $runId,
                             'company_id' => $companyId,
                             'account_id' => $accountId,
+                            'run_status' => $runStatus,
                             'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
                         ]);
                         if ($statement->rowCount() !== 1) {
@@ -189,14 +210,28 @@ final class SalesAuditHandler
             return $this->work->completeCurrentClaim(
                 $workId,
                 $claimToken,
-                function () use ($runId, $companyId, $accountId, $limit, $page, $now, $window): void {
-                    if (!$this->audit->acceptRemoteTotal(
-                        $runId,
-                        $companyId,
-                        $accountId,
-                        $page['remote_total'],
-                    )) {
-                        throw new RuntimeException('Sales audit remote total changed during capture.');
+                function () use (
+                    $runId,
+                    $companyId,
+                    $accountId,
+                    $limit,
+                    $page,
+                    $now,
+                    $window,
+                    $capturePass,
+                    $expectedRemoteTotal,
+                ): void {
+                    if ($capturePass === 'A') {
+                        if (!$this->audit->acceptRemoteTotal(
+                            $runId,
+                            $companyId,
+                            $accountId,
+                            $page['remote_total'],
+                        )) {
+                            throw new RuntimeException('Sales audit remote total changed during capture.');
+                        }
+                    } elseif ($expectedRemoteTotal !== null && $expectedRemoteTotal !== $page['remote_total']) {
+                        throw new RuntimeException('Sales audit remote total changed during confirmation capture.');
                     }
 
                     foreach ($page['observations'] as $observation) {
@@ -204,12 +239,17 @@ final class SalesAuditHandler
                             $runId,
                             $observation['external_order_id'],
                             $observation['remote_date_created'],
+                            $capturePass,
                         )) {
                             throw new RuntimeException('Sales audit capture contains a duplicate order id.');
                         }
                     }
 
                     if ($page['next_offset'] === null) {
+                        if ($capturePass === 'B') {
+                            throw new RuntimeException('Sales audit confirmation terminal comparison is not implemented.');
+                        }
+
                         if ($this->audit->observationCount($runId) !== $page['remote_total']) {
                             throw new RuntimeException('Sales audit terminal capture evidence is incomplete.');
                         }
@@ -237,18 +277,25 @@ final class SalesAuditHandler
                         return;
                     }
 
+                    $payload = [
+                        'run_id' => $runId,
+                        'offset' => $page['next_offset'],
+                        'limit' => $limit,
+                    ];
+                    $resourceKey = 'sales.audit:' . $runId . ':' . $page['next_offset'] . ':' . $limit;
+                    if ($capturePass === 'B') {
+                        $payload['remote_total'] = $expectedRemoteTotal ?? $page['remote_total'];
+                        $resourceKey = 'sales.audit:' . $runId . ':confirm:' . $page['next_offset'] . ':' . $limit;
+                    }
+
                     $this->work->enqueue(
                         $companyId,
                         $accountId,
                         'company:' . $companyId . ':account:' . $accountId,
                         'sales.audit',
                         (string) $runId,
-                        'sales.audit:' . $runId . ':' . $page['next_offset'] . ':' . $limit,
-                        [
-                            'run_id' => $runId,
-                            'offset' => $page['next_offset'],
-                            'limit' => $limit,
-                        ],
+                        $resourceKey,
+                        $payload,
                         $now,
                     );
                 },
