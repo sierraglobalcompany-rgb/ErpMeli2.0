@@ -65,7 +65,12 @@ final class MeliClient
             throw new InvalidArgumentException('Unknown Mercado Libre operation: ' . $operationKey);
         }
 
-        if ($operation['classification'] === 'WRITE' && !$this->settings->get()->meliWritesEnabled) {
+        $classification = $operation['classification'] ?? null;
+        if (!is_string($classification) || !in_array($classification, ['READ', 'AUTH', 'WRITE'], true)) {
+            throw new InvalidArgumentException('Invalid Mercado Libre operation classification: ' . $operationKey);
+        }
+
+        if ($classification === 'WRITE' && !$this->settings->get()->meliWritesEnabled) {
             throw new RuntimeException('Remote Mercado Libre writes are disabled.');
         }
 
