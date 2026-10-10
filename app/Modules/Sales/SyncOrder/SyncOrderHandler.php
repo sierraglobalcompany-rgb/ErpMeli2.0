@@ -43,7 +43,7 @@ final class SyncOrderHandler
         try {
             $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
         } catch (MeliRateLimitException $exception) {
-            $this->work->retryCurrentClaim(
+            $this->work->deferCurrentClaim(
                 $workId,
                 $claimToken,
                 $exception->retryAt,
@@ -64,7 +64,7 @@ final class SyncOrderHandler
         try {
             $response = $this->requestOrder($orderId, $accessToken, $scopeKey);
         } catch (MeliRateLimitException $exception) {
-            $this->work->retryCurrentClaim(
+            $this->work->deferCurrentClaim(
                 $workId,
                 $claimToken,
                 $exception->retryAt,
@@ -121,7 +121,7 @@ final class SyncOrderHandler
             $freshAccessToken = $this->tokens->refreshAfterUnauthorized($accountId, $rejectedAccessToken, $now);
             $response = $this->requestOrder($orderId, $freshAccessToken, $scopeKey);
         } catch (MeliRateLimitException $exception) {
-            $this->work->retryCurrentClaim(
+            $this->work->deferCurrentClaim(
                 $workId,
                 $claimToken,
                 $exception->retryAt,
