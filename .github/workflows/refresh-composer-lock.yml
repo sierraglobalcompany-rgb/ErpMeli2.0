@@ -1,0 +1,44 @@
+name: refresh-composer-lock
+
+on:
+  push:
+    branches:
+      - impl/v3-b-sales-audit-20261010
+    paths:
+      - composer.json
+      - composer.lock
+      - .github/workflows/refresh-composer-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          extensions: curl, json, mbstring, openssl, pdo_mysql, phar, session, sodium, zlib
+          coverage: none
+          tools: composer:v2
+
+      - name: Refresh lock metadata only
+        run: |
+          composer update --lock --no-install --no-interaction --no-progress
+          git diff --exit-code -- composer.json
+
+      - name: Commit refreshed lock when needed
+        run: |
+          if git diff --quiet -- composer.lock; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock
+          git commit -m "chore(platform): refresh Composer lock"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
