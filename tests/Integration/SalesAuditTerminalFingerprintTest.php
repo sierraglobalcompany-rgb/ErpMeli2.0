@@ -21,7 +21,7 @@ use Tests\Support\TestDatabase;
 
 final class SalesAuditTerminalFingerprintTest extends TestCase
 {
-    public function testTerminalHandlerPersistsCanonicalFingerprintAndExcludesGuardBand(): void
+    public function testTerminalHandlerPersistsFingerprintTransitionsToRepairingAndEnqueuesOneContinuation(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('sales-audit-terminal-fingerprint-secret');
@@ -92,8 +92,25 @@ final class SalesAuditTerminalFingerprintTest extends TestCase
             '04c877d65985ebec0e96d15636a1a5c7e3d9e7c46832a6d45ed973f6d2de4335',
             $row['set_hash'],
         );
-        self::assertSame('capturing', $row['status']);
+        self::assertSame('repairing', $row['status']);
         self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id = ' . $workId)->fetchColumn());
+
+        $continuations = $pdo->query(
+            "SELECT status,resource_key,payload_json FROM work_items "
+            . "WHERE type='sales.audit' AND id <> " . $workId . ' ORDER BY id'
+        )->fetchAll(PDO::FETCH_ASSOC);
+        self::assertCount(1, $continuations);
+        self::assertSame('pending', $continuations[0]['status']);
+        self::assertSame((string) $runId, $continuations[0]['resource_key']);
+        self::assertSame(
+            ['run_id' => $runId],
+            json_decode((string) $continuations[0]['payload_json'], true, 512, JSON_THROW_ON_ERROR),
+        );
+        self::assertSame(
+            0,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn(),
+            'CAPTURE must never fan out order.sync directly.',
+        );
     }
 
     public function testFingerprintPersistenceFailureRollsBackTerminalObservationAndFailsWork(): void
