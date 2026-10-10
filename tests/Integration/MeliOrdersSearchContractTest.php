@@ -64,6 +64,35 @@ final class MeliOrdersSearchContractTest extends TestCase
         );
         self::assertSame('Bearer sales-access-token', $transport->requests[0]['headers']['Authorization']);
     }
+
+    public function testSellerOrderSearchPreservesHugeIntegerTokensAsStrings(): void
+    {
+        $pdo = TestDatabase::reset();
+        $transport = new class implements MeliTransport {
+            /** @param array<string,string> $headers */
+            public function send(string $method, string $url, array $headers, ?string $body): MeliTransportResponse
+            {
+                return new MeliTransportResponse(
+                    200,
+                    [],
+                    '{"paging":{"total":1,"offset":0,"limit":50},"results":[{"id":90071992547409931234,"date_created":"2026-10-07T12:00:00.000-05:00"}]}',
+                );
+            }
+        };
+        /** @var array<string,array<string,mixed>> $operations */
+        $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
+        $client = new MeliClient(
+            $transport,
+            new SystemSettingsRepository($pdo),
+            $operations,
+            'https://api.mercadolibre.com',
+            minRequestIntervalMs: 0,
+        );
+
+        $response = $client->request('orders.search', 'sales-access-token');
+
+        self::assertSame('90071992547409931234', $response->data['results'][0]['id'] ?? null);
+    }
 }
 
 final class OrdersSearchRecordingTransport implements MeliTransport
