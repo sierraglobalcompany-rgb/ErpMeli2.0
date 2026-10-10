@@ -140,9 +140,11 @@ final class SalesAuditConfirmValidTest extends TestCase
             'valid',
             $pdo->query('SELECT status FROM sales_audit_runs WHERE id=' . $runId)->fetchColumn(),
         );
-        self::assertNotFalse(
-            $pdo->query('SELECT completed_at FROM sales_audit_runs WHERE id=' . $runId)->fetchColumn(),
-        );
+        $completedAt = $pdo->query(
+            'SELECT completed_at FROM sales_audit_runs WHERE id=' . $runId
+        )->fetchColumn();
+        self::assertIsString($completedAt);
+        self::assertNotSame('', $completedAt);
         self::assertSame(2, $audit->observationCount($runId, 'A'));
         self::assertSame(2, $audit->observationCount($runId, 'B'));
 
