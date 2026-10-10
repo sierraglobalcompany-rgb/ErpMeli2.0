@@ -33,6 +33,35 @@ final class SalesAuditRepairMissingSetTest extends TestCase
         );
     }
 
+    public function testRepairingRunReturnsOnlyFirstDeterministicRepairCandidate(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo);
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $this->seedFingerprintedRun($audit);
+
+        self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
+        self::assertSame(
+            '100000000001',
+            $audit->nextRepairingMissingCanonicalOrderId($runId, 1, 1),
+        );
+    }
+
+    public function testRepairingRunReturnsNullWhenNoCanonicalOrderRemainsMissing(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo);
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $this->seedFingerprintedRun($audit);
+
+        self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
+        $this->insertLocalOrder($pdo, '100000000001', '2026-10-10 10:00:00.000000');
+        $this->insertLocalOrder($pdo, '200000000002', '2026-10-11 10:00:00.000000');
+        $this->insertLocalOrder($pdo, '300000000003', '2026-10-12 10:00:00.000000');
+
+        self::assertNull($audit->nextRepairingMissingCanonicalOrderId($runId, 1, 1));
+    }
+
     public function testCapturingRunCannotUseRepairingMissingSetRead(): void
     {
         $pdo = TestDatabase::reset();
