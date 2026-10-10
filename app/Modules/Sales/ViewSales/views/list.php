@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 /** @var list<array<string,mixed>> $orders */
+/** @var bool $canStartAudit */
+/** @var list<array<string,mixed>> $auditAccounts */
+/** @var string $csrfToken */
 ?>
 <!doctype html>
 <html lang="es">
@@ -14,6 +17,38 @@ declare(strict_types=1);
 <body>
     <main>
         <h1>Ventas</h1>
+
+        <?php if ($canStartAudit): ?>
+            <section aria-labelledby="sales-audit-title">
+                <h2 id="sales-audit-title">Auditoría histórica</h2>
+                <?php if ($auditAccounts === []): ?>
+                    <p>No hay cuentas de Mercado Libre conectadas para auditar.</p>
+                <?php else: ?>
+                    <form method="post" action="/sales/audits">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <label>
+                            Cuenta
+                            <select name="account_id" required>
+                                <?php foreach ($auditAccounts as $account): ?>
+                                    <?php
+                                    $nickname = trim((string) ($account['nickname'] ?? ''));
+                                    $sellerId = (string) ($account['external_user_id'] ?? '');
+                                    $label = $nickname === '' ? $sellerId : $nickname . ' (' . $sellerId . ')';
+                                    ?>
+                                    <option value="<?= htmlspecialchars((string) $account['id'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>
+                            Mes a auditar
+                            <input name="period_key" inputmode="numeric" pattern="[0-9]{4}-[0-9]{2}-01" placeholder="AAAA-MM-01" required>
+                        </label>
+                        <button type="submit">Iniciar auditoría</button>
+                    </form>
+                <?php endif; ?>
+            </section>
+        <?php endif; ?>
+
         <table>
             <thead>
                 <tr>
