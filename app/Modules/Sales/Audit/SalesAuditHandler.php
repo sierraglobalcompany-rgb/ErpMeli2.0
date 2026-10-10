@@ -14,6 +14,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use RuntimeException;
+use UnexpectedValueException;
 
 final class SalesAuditHandler
 {
@@ -228,10 +229,10 @@ final class SalesAuditHandler
                             $accountId,
                             $page['remote_total'],
                         )) {
-                            throw new RuntimeException('Sales audit remote total changed during capture.');
+                            throw new UnexpectedValueException('Sales audit remote total changed during capture.');
                         }
                     } elseif ($expectedRemoteTotal !== null && $expectedRemoteTotal !== $page['remote_total']) {
-                        throw new RuntimeException('Sales audit remote total changed during confirmation capture.');
+                        throw new UnexpectedValueException('Sales audit remote total changed during confirmation capture.');
                     }
 
                     foreach ($page['observations'] as $observation) {
@@ -241,14 +242,14 @@ final class SalesAuditHandler
                             $observation['remote_date_created'],
                             $capturePass,
                         )) {
-                            throw new RuntimeException('Sales audit capture contains a duplicate order id.');
+                            throw new UnexpectedValueException('Sales audit capture contains a duplicate order id.');
                         }
                     }
 
                     if ($page['next_offset'] === null) {
                         if ($capturePass === 'B') {
                             if ($this->audit->observationCount($runId, 'B') !== $page['remote_total']) {
-                                throw new RuntimeException('Sales audit terminal confirmation evidence is incomplete.');
+                                throw new UnexpectedValueException('Sales audit terminal confirmation evidence is incomplete.');
                             }
 
                             $fingerprint = $this->audit->canonicalFingerprint($runId, $window, 'B');
@@ -341,7 +342,7 @@ final class SalesAuditHandler
                         }
 
                         if ($this->audit->observationCount($runId) !== $page['remote_total']) {
-                            throw new RuntimeException('Sales audit terminal capture evidence is incomplete.');
+                            throw new UnexpectedValueException('Sales audit terminal capture evidence is incomplete.');
                         }
 
                         $this->audit->persistCanonicalFingerprint(
@@ -390,12 +391,20 @@ final class SalesAuditHandler
                     );
                 },
             );
-        } catch (RuntimeException) {
+        } catch (UnexpectedValueException) {
             $this->work->failCurrentClaim(
                 $workId,
                 $claimToken,
                 'meli_sales_audit_contract',
                 'Mercado Libre returned an incoherent sales audit page.',
+            );
+            return false;
+        } catch (RuntimeException) {
+            $this->work->failCurrentClaim(
+                $workId,
+                $claimToken,
+                'sales_audit_state',
+                'Sales audit lifecycle state could not be persisted.',
             );
             return false;
         }
