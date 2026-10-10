@@ -32,32 +32,7 @@ STOP after checkpoint when context grows
 
 ---
 
-# 1. K6b-4 — TERMINAL B MISMATCH — CLOSED GREEN
-
-RED:
-
-```text
-64c34b0e7281b9ff8aec50e28ccd83a1bcfe05ec
-test(v3-k6b4): pin terminal B canonical fingerprint mismatch
-```
-
-RED QA:
-
-```text
-RUN=38070935380
-JOB=114268024652
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=205 tests
-ASSERTIONS=1407
-FAILURES=1
-MEMORY=22 MB
-REAL_MELI_HTTP=0
-```
-
-Single intended failure was current Work `failed` instead of expected `done` because terminal Capture B deliberately failed closed.
-
-Functional GREEN:
+# 1. LAST FUNCTIONAL GREEN — K6b-4
 
 ```text
 3486ecc1783e40abf8321de5780535700253da2f
@@ -77,29 +52,66 @@ MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Noise audit from checkpoint `0673809...` to functional GREEN `3486ecc...`:
+K6b-4 runtime truth:
 
 ```text
-1 existing production file only
-app/Modules/Sales/Audit/SalesAuditHandler.php
-+25/-2
-
-no schema
-no table
-no column
-no new class
-no Work type
-no Work status
-no queue
-no second run
-no ConfirmRepository/ConfirmEngine
+CAPTURE A
+-> repair / local verify
+-> confirming
+-> independent Capture B traversal
+-> terminal B requires durable B count == B remote_total
+-> canonicalFingerprint(...,'B')
+-> compare with durable A canonical_count/set_hash
+-> mismatch -> attention
+-> Work done atomically
 ```
+
+A and B evidence remains durable. No B fingerprint columns, second run, second queue, ConfirmRepository or ConfirmEngine exist.
 
 ---
 
-# 2. RUNTIME TRUTH NOW
+# 2. K6b-DOC — CLOSED
 
-Sales Audit proven flow:
+Documentation sync commits:
+
+```text
+6159164313f61871cc22e0f18e2ca3d5f8eda28c
+docs(v3-k6b): sync authority through terminal B mismatch
+
+a1f516472a41c8f1cd25a79259e6f83ab2bd0237
+docs(v3-k6b): sync master map through terminal B mismatch
+```
+
+Documentation truth now states:
+
+```text
+K6b-3 independent Capture B traversal = GREEN
+K6b-4 terminal B count/fingerprint + mismatch -> attention = GREEN
+A/B equality -> valid = NOT IMPLEMENTED
+```
+
+Noise audit from previous checkpoint `902c60f...` to README sync `a1f5164...`:
+
+```text
+README.md                +59/-59
+docs/ERP2_AUTHORITY.md   +32/-26
+
+100% documentation
+no app code
+no schema
+no tests
+no table/column
+no Work type/status
+no queue/engine
+```
+
+No functional QA was rerun for the documentation-only sync. The latest functional QA remains run `38071706793` on `3486ecc...`.
+
+---
+
+# 3. RUNTIME TRUTH NOW
+
+Proven Sales Audit flow:
 
 ```text
 CAPTURE A
@@ -111,125 +123,92 @@ CAPTURE A
 -> local VERIFY
 -> confirming
 -> independent Capture B traversal
--> terminal B integrity check
--> B canonical fingerprint
--> A/B mismatch -> attention
+-> stable B remote_total in Work continuation payload
+-> terminal B durable count/fingerprint
+-> mismatch A/B -> attention
 ```
 
-Terminal Capture B mismatch contract now GREEN:
+Capture B reuses:
 
 ```text
-terminal B
--> require observationCount(runId,'B') == B traversal remote_total
--> canonicalFingerprint(runId, window, 'B')
--> compare against durable A canonical_count/set_hash
--> mismatch -> confirming -> attention
--> terminal B evidence remains durable
--> A observations remain unchanged
--> durable A fingerprint remains unchanged
--> current sales.audit Work -> done
--> no continuation
--> no order.sync fanout
+same sales.audit Work type
+same SalesAuditHandler
+same OAuth/MeliClient/orders.search read path
+same source-horizon guard
+same page-contract/short-page guard
 ```
 
-The comparison and `attention` update execute inside the existing `completeCurrentClaim` transaction, so terminal B evidence + run transition + Work completion commit atomically.
-
-No B fingerprint columns were added. B fingerprint remains derivable from `sales_audit_orders`.
+No second architecture exists for CONFIRM.
 
 ---
 
-# 3. DELIBERATE FAIL-CLOSED BOUNDARY STILL OPEN
+# 4. DELIBERATE FAIL-CLOSED BOUNDARY
 
-A/B equality is intentionally **not implemented yet**.
+A/B equality is intentionally not implemented.
 
 Current equality behavior:
 
 ```text
-B count/hash == durable A count/hash
--> mismatch UPDATE affects 0 rows
+B count/hash == A count/hash
+-> mismatch guarded UPDATE affects 0 rows
 -> handler throws
--> completeCurrentClaim rolls back terminal page
--> current Work fails closed
--> NO false valid
+-> completeCurrentClaim rolls back terminal B page
+-> Work fails closed
+-> run does NOT become valid
 ```
 
-This is temporary by design until K6b-5 proves `valid` with a RED.
+This prevents false `valid` until K6b-5 proves the success path by RED.
 
 Do not patch around this boundary.
 
 ---
 
-# 4. A/B EVIDENCE CONTRACT
-
-Schema remains:
-
-```text
-sales_audit_orders
-PRIMARY KEY(audit_run_id, capture_pass, external_order_id)
-capture_pass ENUM('A','B') NOT NULL DEFAULT 'A'
-```
-
-Repository primitives remain:
-
-```text
-recordObservation(..., capturePass='A')
-observationCount(..., capturePass='A')
-canonicalFingerprint(..., capturePass='A')
-```
-
-Durable `sales_audit_runs.remote_total`, `canonical_count`, `set_hash` are Capture A evidence.
-
-Repair/missing/local verify SQL remains explicitly A-only.
-
-Capture B traversal uses the same `sales.audit`, `SalesAuditHandler`, OAuth/MeliClient/orders.search path and source guards.
-
-B `remote_total` is traversal execution state carried only in continuation Work payload.
-
----
-
-# 5. DOCUMENTATION SYNC REQUIRED NEXT
-
-`README.md` and `docs/ERP2_AUTHORITY.md` were last synchronized before K6b-3/K6b-4 runtime closure.
-
-Before opening `valid`, perform one bounded documentation sync so living docs state:
-
-```text
-K6b-3 independent B traversal = GREEN
-K6b-4 terminal mismatch -> attention = GREEN
-A/B equality -> valid = still missing
-```
-
-This must be documentation-only. No production/schema/test changes.
-
----
-
-# 6. EXACT NEXT MICROBLOCS
-
-## K6b-DOC — next
+# 5. EXACT NEXT MICROBLOCK — K6b-5 RED ONLY
 
 When user says `continua`:
 
 1. verify branch HEAD equals this checkpoint commit;
-2. update only `README.md` and `docs/ERP2_AUTHORITY.md` to current K6b-4 GREEN truth;
-3. remove obsolete statements that say terminal B is wholly unimplemented;
-4. preserve the explicit equality fail-closed boundary;
-5. audit diff as documentation-only;
-6. checkpoint and STOP.
+2. inspect only terminal B comparison path + relevant test fixtures;
+3. add one focused RED for equality A/B;
+4. model a terminal B with durable evidence and `observationCount(B) == remote_total`;
+5. make canonical B count/hash exactly equal durable A count/hash;
+6. require current Work `done`;
+7. require run `confirming -> valid` atomically;
+8. require `completed_at` to be set;
+9. require A/B evidence preserved;
+10. require no continuation and no `order.sync` fanout;
+11. confirm one intended failure only;
+12. checkpoint and STOP.
 
-## K6b-5 — after K6b-DOC, not yet
+K6b-5 RED should prove the missing equality-success contract only.
 
-RED only:
+Do not implement GREEN in the same checkpoint unless explicitly resumed afterward.
+
+Preferred KISS direction for the later GREEN:
 
 ```text
-terminal B equality
--> B count/hash == A count/hash
--> current Work done
--> confirming -> valid atomically
--> completed_at set
--> A/B evidence preserved until baseline lifecycle is separately defined
+extend the existing terminal B guarded transition
+no new repository/handler/table/column/state/Work type/queue/engine
 ```
 
-Do not implement GREEN for `valid` in the same RED checkpoint unless explicitly resumed afterward.
+---
+
+# 6. NOT IN K6b-5 RED
+
+```text
+NO baseline lifecycle
+NO pruning of prior valid runs
+NO Sales Audit start UX / active-run guard
+NO exact order 404 final classification
+NO sale_fee alignment
+NO webhook cleanup
+NO Billing Task 2 before C0 sanitized smoke
+NO Financial
+NO merge
+NO deploy
+NO real Mercado Libre HTTP
+NO remote writes
+```
 
 ---
 
@@ -240,7 +219,7 @@ Do not implement GREEN for `valid` in the same RED checkpoint unless explicitly 
 | G1 REMOTE_TRUTH | PASS for implemented boundary + K6a guards |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for current Sales paths |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + B traversal + terminal mismatch attention GREEN; equality/valid missing |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + B traversal + mismatch attention GREEN; equality/valid missing |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -252,6 +231,7 @@ Do not implement GREEN for `valid` in the same RED checkpoint unless explicitly 
 
 ```text
 STOP now until explicit user continua
+NO K6b-5 GREEN yet
 NO valid yet
 NO baseline lifecycle
 NO Billing
