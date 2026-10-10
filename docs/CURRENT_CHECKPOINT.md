@@ -3,7 +3,7 @@
 **PAUSED — STOP AFTER THIS CHECKPOINT**  
 **Date:** 2026-10-10  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**RED test HEAD before this docs-only checkpoint:** `8d796ac6fc074829037c3dd5c67d93951a71d791`  
+**Last functional GREEN:** `23be87e355b11b58070735e9997af1154a5dd6b6`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
@@ -31,7 +31,7 @@ Authority order:
 
 # 1. PLATFORM BASELINE — GREEN
 
-ERP MELI 2.0 remains certified on:
+Supported contract remains:
 
 ```text
 PHP 8.3
@@ -40,31 +40,13 @@ PHP 8.5
 composer require.php = >=8.3 <8.6
 ```
 
-Last pre-SAH all-GREEN matrix:
-
-```text
-functional SHA = 1931746b264866f5d45d8017ca79af8dc606d0a1
-RUN = 38079245005
-PHPUNIT = 209/209 PASS
-ASSERTIONS = 1483
-PHPSTAN = 0
-REAL_MELI_HTTP = 0
-```
-
 Do not reopen PHP compatibility without new evidence.
 
 ---
 
 # 2. SALES AUDIT — CURRENT DURABLE TRUTH
 
-Last functional Sales Audit GREEN remains:
-
-```text
-0c164793e12f3f289b2f16e93e1bda265b49eff2
-feat(v3-k6c1): guard divergent valid baseline
-```
-
-Core flow:
+Core flow remains:
 
 ```text
 Capture A
@@ -75,7 +57,7 @@ Capture A
 -> A/B equality -> baseline comparison
 ```
 
-Baseline lifecycle GREEN:
+Baseline lifecycle remains GREEN:
 
 ```text
 no prior valid baseline
@@ -92,15 +74,20 @@ prior divergent valid baseline
 -> current evidence preserved for diagnosis
 ```
 
-`valid` remains relative to seller-search + known run contract, not an absolute guarantee of the complete Mercado Libre historical universe.
+Last baseline lifecycle functional commit before SAH cleanup:
+
+```text
+0c164793e12f3f289b2f16e93e1bda265b49eff2
+feat(v3-k6c1): guard divergent valid baseline
+```
+
+`valid` remains relative to seller-search + the known audit contract, not an absolute guarantee of the complete Mercado Libre historical universe.
 
 ---
 
-# 3. SALESAUDITHANDLER FORENSIC AUDIT — DESIGN FROZEN
+# 3. SALESAUDITHANDLER FORENSIC DESIGN — FROZEN
 
-Do not replace or explode the Sales Audit design.
-
-Keep:
+Keep the current architecture:
 
 ```text
 1 Work type: sales.audit
@@ -159,86 +146,23 @@ WorkRepository and SalesAuditRepository share the same PDO in production. Preser
 
 ---
 
-# 4. DEFECT PROVEN — INTERNAL FAILURE MISCLASSIFIED AS MELI CONTRACT
+# 4. SAH-0 RED — CLOSED
 
-Current `SalesAuditHandler` final persistence catch is too broad.
-
-Today it maps both categories to:
-
-```text
-meli_sales_audit_contract
-```
-
-But they are not equivalent.
-
-Remote/source contract examples:
-
-```text
-remote_total drift
-duplicate remote order evidence
-incomplete terminal remote evidence
-unusable/malformed remote page
-```
-
-These may remain:
-
-```text
-meli_sales_audit_contract
-```
-
-Internal lifecycle/persistence examples:
-
-```text
-fingerprint persistence no longer applicable
-run transition no longer applicable
-baseline lifecycle persistence failure
-DB/integrity failure inside terminal lifecycle
-```
-
-These must not blame Mercado Libre. Reuse existing:
-
-```text
-sales_audit_state
-```
-
-No new exception hierarchy or error taxonomy is justified yet.
-
----
-
-# 5. SAH-0 RED — CLOSED / INTENDED FAILURE CONFIRMED
-
-RED test commit:
+RED commit:
 
 ```text
 8d796ac6fc074829037c3dd5c67d93951a71d791
 test(sah0): classify internal audit persistence as state failure
 ```
 
-Only file changed:
+Test:
 
 ```text
-tests/Integration/SalesAuditTerminalFingerprintTest.php
-```
-
-Noise from prior checkpoint `83cbf8a9f6a5748a6ff94af2184c2617abae4bed`:
-
-```text
-1 existing test file modified
-+16 / -3
-no production code
-no schema/table/column
-no Work type/status/queue
-no audit state
-no engine/service/repository added
-```
-
-Strengthened case:
-
-```text
+Tests\Integration\SalesAuditTerminalFingerprintTest::
 testFingerprintPersistenceFailureRollsBackTerminalObservationAndFailsAsAuditState
 ```
 
-The test now proves, in this order:
+The RED proved, before its final failing assertion:
 
 ```text
 handler returns false
@@ -247,34 +171,25 @@ terminal observation is rolled back
 run remains capturing
 prior canonical_count remains unchanged
 prior set_hash remains unchanged
-THEN last_error_code must equal sales_audit_state
 ```
 
-Therefore the RED isolates error classification while confirming existing transaction rollback remains correct.
+Then it required:
 
----
+```text
+last_error_code = sales_audit_state
+```
 
-# 6. SAH-0 RED MATRIX — EXACT RESULT
-
-Workflow:
+RED matrix:
 
 ```text
 RUN = 38080589248
 HEAD = 8d796ac6fc074829037c3dd5c67d93951a71d791
 REAL_MELI_HTTP = 0
-```
 
-Jobs:
-
-```text
 PHP 8.3.35 -> JOB 114296504570
 PHP 8.4.26 -> JOB 114296504683
 PHP 8.5.11 -> JOB 114296504712
-```
 
-All three produced the same intended result:
-
-```text
 PHPSTAN = 0
 PHPUNIT = 209 tests
 ASSERTIONS = 1487
@@ -282,31 +197,148 @@ FAILURES = 1 intended
 MEMORY = 22 MB
 ```
 
-Only failure:
-
-```text
-Tests\Integration\SalesAuditTerminalFingerprintTest::
-testFingerprintPersistenceFailureRollsBackTerminalObservationAndFailsAsAuditState
-```
-
-Exact mismatch:
+Exact intended mismatch:
 
 ```text
 Expected: sales_audit_state
 Actual:   meli_sales_audit_contract
 ```
 
-Location:
+Conclusion from RED:
+
+> Transaction rollback/atomicity was already correct. The defect was only that an internal Sales Audit lifecycle/persistence failure was being blamed on Mercado Libre contract data.
+
+---
+
+# 5. SAH-0 GREEN — CLOSED
+
+Functional GREEN commit:
 
 ```text
-tests/Integration/SalesAuditTerminalFingerprintTest.php:264
+23be87e355b11b58070735e9997af1154a5dd6b6
+fix(sah0): distinguish audit state from remote contract
 ```
 
-The usual benign Slim 404 trace from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute` still appears but is not a second failure.
+Only production file changed:
 
-RED cause confirmed:
+```text
+app/Modules/Sales/Audit/SalesAuditHandler.php
+```
 
-> rollback/atomicity are already correct; only the broad final catch misclassifies an internal Sales Audit lifecycle/persistence failure as a Mercado Libre contract failure.
+Noise audit versus prior checkpoint `496a391123a696a96fa4fd59e467a68b8dbd4702`:
+
+```text
+1 existing production file modified
++15 / -6
+no schema/table/column
+no Work type/status/queue
+no audit run state
+no service/repository/engine/class added
+```
+
+Minimal implementation:
+
+```text
+use existing SPL UnexpectedValueException
+```
+
+Explicit remote-contract incoherence authored by the handler now throws `UnexpectedValueException` for:
+
+```text
+remote_total drift during Capture A
+remote_total drift during Capture B
+duplicate remote order evidence
+incomplete terminal Capture A evidence
+incomplete terminal Capture B evidence
+```
+
+Final classification now separates:
+
+```text
+UnexpectedValueException
+-> meli_sales_audit_contract
+
+RuntimeException
+-> sales_audit_state
+```
+
+The existing separate `normalizePage()` catch is unchanged and continues to classify malformed/unusable remote pages as:
+
+```text
+meli_sales_audit_contract
+```
+
+Binding error rule after SAH-0:
+
+```text
+REMOTE / SOURCE CONTRACT PROBLEM
+-> meli_sales_audit_contract
+
+INTERNAL AUDIT LIFECYCLE / PERSISTENCE PROBLEM
+-> sales_audit_state
+```
+
+Examples of internal state failures now covered by the latter path:
+
+```text
+fingerprint persistence no longer applicable
+run transition no longer applicable
+baseline lifecycle persistence failure
+DB/integrity failure inside terminal lifecycle
+```
+
+No message-string inspection was introduced. No custom exception hierarchy was introduced.
+
+`recordObservation()` still returns false only for duplicate-key evidence and rethrows non-duplicate PDO failures, therefore database failures remain internal state failures.
+
+`acceptRemoteTotal()` still returns false for durable remote-total disagreement but throws when the run state itself is unavailable, preserving the same distinction.
+
+Transaction boundary and rollback semantics remain unchanged:
+
+```text
+WorkRepository::completeCurrentClaim()
+BEGIN
+-> terminal observation/lifecycle work
+-> Work done
+-> COMMIT
+```
+
+Any runtime failure inside that transaction rolls back business effects and the Work completion before the outer failure classification is persisted.
+
+---
+
+# 6. SAH-0 GREEN MATRIX — VERIFIED
+
+Workflow:
+
+```text
+RUN = 38081132232
+HEAD = 23be87e355b11b58070735e9997af1154a5dd6b6
+REAL_MELI_HTTP = 0
+STATUS = success
+```
+
+Jobs:
+
+```text
+PHP 8.3.35 -> JOB 114298097273 -> SUCCESS
+PHP 8.4.26 -> JOB 114298097281 -> SUCCESS
+PHP 8.5.11 -> JOB 114298097116 -> SUCCESS
+```
+
+Fresh logs from all three jobs confirm:
+
+```text
+PHPSTAN = 0 errors
+PHPUNIT = 209 / 209 PASS
+ASSERTIONS = 1487
+FAILURES = 0
+MEMORY = 22 MB
+```
+
+The usual benign Slim 404 trace from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute` is still emitted during the suite but is expected and does not represent a failure.
+
+Therefore SAH-0 RED -> GREEN is closed.
 
 ---
 
@@ -329,9 +361,9 @@ repairing
 confirming
 ```
 
-Global WorkRunner named lock prevents current parallel processing, but does not prevent duplicate audit starts and duplicated remote work/evidence.
+Global WorkRunner locking prevents current parallel processing, but it does not prevent duplicate audit starts and duplicate remote work/evidence.
 
-Do not solve this in SAH-0 or SAH-1.
+Do not solve this in SAH-1.
 
 ---
 
@@ -340,8 +372,7 @@ Do not solve this in SAH-0 or SAH-1.
 Sales Audit order is frozen:
 
 ```text
-SAH-0 GREEN
--> SAH-1 SIMPLIFY: move durable lifecycle/baseline SQL ownership into SalesAuditRepository
+SAH-1 SIMPLIFY
 -> SAH-2 active-run guard RED/GREEN
 -> Start UX
 -> exact order 404 final audit classification
@@ -367,7 +398,7 @@ Gates:
 G1 REMOTE_TRUTH: PASS for implemented boundary + current guards
 G2 WORK_SAFETY: PASS
 G3 RATE_SAFETY: PASS current Sales
-G4 SALES_AUDIT_TRUTH: IN PROGRESS — core A/B + baseline lifecycle GREEN; handler cleanup/start/404 remain
+G4 SALES_AUDIT_TRUTH: IN PROGRESS — core A/B + baseline lifecycle + SAH-0 classification GREEN; handler ownership/start/404 remain
 G5 BILLING_CURSOR_TRUTH: BLOCKED on C0
 G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
 G7 WRITE_FAIL_CLOSED: PASS
@@ -376,27 +407,34 @@ G8 HOSTING_REALITY: NOT CERTIFIED
 
 ---
 
-# 9. EXACT RESUME POINT
+# 9. EXACT NEXT MICROBLOCK — SAH-1 SIMPLIFY ONLY
 
 **STOP NOW.**
 
-Next microblock is **SAH-0 GREEN ONLY**.
+Next microblock is **SAH-1 SIMPLIFY ONLY**.
+
+Goal:
+
+> Move durable Sales Audit lifecycle/baseline SQL ownership out of `SalesAuditHandler` and into the existing `SalesAuditRepository`, without changing behavior, states, schema, Work semantics, or architecture.
 
 When work resumes:
 
-1. verify branch HEAD equals the docs-only checkpoint commit created from this file;
-2. confirm RED ancestor `8d796ac6fc074829037c3dd5c67d93951a71d791` and run `38080589248`;
-3. inspect only the final persistence path in `SalesAuditHandler`;
-4. make the smallest change that distinguishes internal lifecycle/persistence failure from remote-contract incoherence;
-5. internal lifecycle/persistence failure must result in `sales_audit_state`;
-6. remote-contract failures must retain `meli_sales_audit_contract`;
-7. preserve current transaction rollback and Work atomicity;
-8. do not perform SAH-1 repository refactor yet;
-9. do not implement active-run guard yet;
-10. do not add exceptions/services/engines unless the RED proves they are unavoidable;
-11. run the full PHP 8.3/8.4/8.5 matrix;
-12. require all 209 tests GREEN and PHPStan zero;
-13. noise audit;
-14. checkpoint and STOP.
+1. verify branch HEAD equals this docs-only checkpoint commit;
+2. verify functional GREEN ancestor `23be87e355b11b58070735e9997af1154a5dd6b6` and run `38081132232`;
+3. inspect direct `sales_audit_runs` SQL still owned by `SalesAuditHandler`;
+4. move only coherent durable lifecycle operations into existing `SalesAuditRepository`;
+5. likely minimum ownership targets are the existing unavailable transition and terminal confirmation/baseline lifecycle block, but inspect before deciding exact method boundaries;
+6. prefer a small number of repository methods with domain names over exposing raw SQL fragments;
+7. keep `SalesAuditHandler` responsible for orchestration only;
+8. preserve the same shared PDO and `WorkRepository::completeCurrentClaim()` transaction boundary;
+9. preserve all current behavior and error classification from SAH-0;
+10. do not add a new repository/service/state machine/finalizer/transaction abstraction;
+11. do not add schema/table/column/state/Work type/status/queue;
+12. do not implement the active-run guard yet;
+13. do not implement Start UX or exact-order 404 classification yet;
+14. run full PHP 8.3/8.4/8.5 QA;
+15. require 209/209 tests GREEN and PHPStan zero unless a deliberately added characterization test changes the count;
+16. perform noise audit;
+17. checkpoint and STOP.
 
 Do not merge/deploy or enable remote Mercado Libre writes without explicit user authorization.
