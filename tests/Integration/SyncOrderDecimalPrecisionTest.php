@@ -20,7 +20,7 @@ use Tests\Support\TestDatabase;
 
 final class SyncOrderDecimalPrecisionTest extends TestCase
 {
-    public function testLargeDecimalStringsArePersistedWithoutFloatPrecisionLoss(): void
+    public function testLargeJsonNumberDecimalsArePersistedWithoutFloatPrecisionLoss(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('decimal-precision-test-key');
@@ -106,25 +106,29 @@ final class DecimalPrecisionTransport implements MeliTransport
             throw new RuntimeException('Unexpected decimal precision HTTP request.');
         }
 
-        return new MeliTransportResponse(200, [], json_encode([
-            'id' => 200000000999,
-            'status' => 'paid',
-            'status_detail' => null,
-            'date_created' => '2026-10-09T11:00:00.000Z',
-            'date_closed' => null,
-            'last_updated' => '2026-10-09T11:05:00.000Z',
-            'total_amount' => '90071992547409.1234',
-            'currency_id' => 'COP',
-            'buyer' => ['id' => 800000999],
-            'order_items' => [[
-                'item' => [
-                    'id' => 'MCO999999999',
-                    'title' => 'Producto precision decimal',
-                ],
-                'quantity' => '12345.6789',
-                'unit_price' => '90071992547409.1234',
-                'currency_id' => 'COP',
-            ]],
-        ], JSON_THROW_ON_ERROR));
+        $json = <<<'JSON'
+{
+  "id": 200000000999,
+  "status": "paid",
+  "status_detail": null,
+  "date_created": "2026-10-09T11:00:00.000Z",
+  "date_closed": null,
+  "last_updated": "2026-10-09T11:05:00.000Z",
+  "total_amount": 90071992547409.1234,
+  "currency_id": "COP",
+  "buyer": {"id": 800000999},
+  "order_items": [{
+    "item": {
+      "id": "MCO999999999",
+      "title": "Producto precision decimal"
+    },
+    "quantity": 12345.6789,
+    "unit_price": 90071992547409.1234,
+    "currency_id": "COP"
+  }]
+}
+JSON;
+
+        return new MeliTransportResponse(200, [], $json);
     }
 }
