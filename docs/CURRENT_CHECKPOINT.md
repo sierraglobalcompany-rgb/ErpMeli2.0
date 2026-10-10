@@ -30,55 +30,18 @@ STOP after checkpoint when context grows
 7. historical handoffs/plans
 ```
 
-External contracts:
-
-```text
-current official Mercado Libre docs + controlled real evidence > assumptions
-```
-
 ---
 
-# 1. LAST FUNCTIONAL GREEN
+# 1. K6b-3 — CLOSED GREEN
 
-```text
-364256b1cc9135f33c780005c398c60d95e5882a
-feat(v3-k6b2): isolate audit evidence by capture pass
-```
-
-Fresh verified QA:
-
-```text
-RUN=38068906148
-JOB=114262117720
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=203/203 PASS
-ASSERTIONS=1388
-MEMORY=22 MB
-REAL_MELI_HTTP=0
-```
-
-Documentation was then synchronized without production changes through:
-
-```text
-bc43338ccff63f12716794f9a29387b28ae857cc
-docs(checkpoint): close K6b documentation sync
-```
-
-`README.md`, `docs/ERP2_AUTHORITY.md` and the prior checkpoint reflect K6a + K6b-2 truth.
-
----
-
-# 2. K6b-3 — CONFIRMING DISPATCH / FIRST B PAGE — RED CONFIRMED
-
-RED commit:
+RED:
 
 ```text
 1fab5dbbda7dee4649e10318f7872b0ef6a37028
 test(v3-k6b3): prove confirming dispatch starts independent capture B
 ```
 
-CI evidence:
+RED QA:
 
 ```text
 RUN=38069661480
@@ -92,115 +55,49 @@ MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Single intended failure:
+Single intended failure proved `confirming` still fell through to `sales_audit_state`.
+
+Functional GREEN:
 
 ```text
-SalesWorkProcessorTest::
-testConfirmingRunDispatchesOneIndependentCaptureBPageAndPreservesCaptureA
-
-Expected Work status: done
-Actual Work status:   failed
+3240dfd23a9d5d79dcc1818004721fd23faad1ae
+feat(v3-k6b3): dispatch confirming through capture B
 ```
 
-Current production cause is exactly the known processor gap:
+Fresh full QA:
 
 ```text
-capturing -> SalesAuditHandler
-repairing -> SalesAuditRepairHandler
-confirming -> fallback sales_audit_state -> failed
+RUN=38070168398
+JOB=114265772278
+PHP=8.5.11
+PHPSTAN=0
+PHPUNIT=204/204 PASS
+ASSERTIONS=1400
+MEMORY=22 MB
+REAL_MELI_HTTP=0
 ```
 
-No production code or schema changed in the RED.
-
-RED diff from checkpoint `bc43338...`:
+Noise audit from prior checkpoint `545c594...` to GREEN `3240dfd...`:
 
 ```text
-1 test file changed
-tests/Integration/SalesWorkProcessorTest.php
-no app code
+3 existing production files only
+app/Modules/Sales/Audit/SalesAuditHandler.php      +64/-17
+app/Modules/Sales/Audit/SalesAuditRepository.php   +13/-4
+app/Modules/Sales/SalesWorkProcessor.php             +2/-1
+
 no schema
-no docs except this checkpoint
+no table
+no Work type
+no Work status
+no queue
+no new handler/repository/engine class
 ```
-
-The test setup is somewhat repetitive; during GREEN, simplify test-only setup if it lowers net noise without obscuring behavior. Do not refactor unrelated production code.
 
 ---
 
-# 3. CONTRACT PROVED / EXPECTED BY K6b-3 RED
+# 2. RUNTIME TRUTH NOW
 
-A `sales.audit` Work whose durable run is `confirming` must process one independent Capture B page using existing infrastructure.
-
-First-page B contract under test:
-
-```text
-same sales.audit Work type
-same orders.search operation
-same OAuth/MeliClient path
-same canonical month/source contract
-one remote page per Work
-A evidence remains untouched
-new observations persist as capture_pass='B'
-run remains confirming on non-terminal B page
-no order.sync fanout
-```
-
-For a non-terminal first B page:
-
-```text
-initial payload:
-{run_id, offset, limit}
-
-continuation payload:
-{run_id, offset, limit, remote_total}
-```
-
-`remote_total` here is traversal execution state for B, not new durable business history. This avoids adding another column/table/run.
-
-The RED response intentionally uses:
-
-```text
-paging.total=2
-paging.offset=0
-paging.limit=1
-1 result
-```
-
-Therefore GREEN must make exactly one HTTP request, persist exactly one B observation, complete the current Work and enqueue exactly one B continuation at offset 1 carrying `remote_total=2`.
-
----
-
-# 4. CURRENT A/B EVIDENCE CONTRACT — GREEN
-
-`database/migrations/004_sales.sql`:
-
-```text
-sales_audit_orders
-
- audit_run_id
- capture_pass ENUM('A','B') NOT NULL DEFAULT 'A'
- external_order_id
- remote_date_created
-
-PRIMARY KEY(audit_run_id, capture_pass, external_order_id)
-```
-
-Repository primitives:
-
-```text
-recordObservation(runId, orderId, dateCreated, capturePass='A')
-observationCount(runId, capturePass='A')
-canonicalFingerprint(runId, window, capturePass='A')
-```
-
-`persistCanonicalFingerprint()` remains A-only durable writer.
-
-Repair/missing/verify SQL is explicitly `capture_pass='A'`.
-
-No second run, table, queue, Work type, Work status, ConfirmRepository or ConfirmEngine exists.
-
----
-
-# 5. SALES AUDIT RUNTIME GREEN BEFORE K6b-3
+Current proven Sales Audit flow:
 
 ```text
 CAPTURE A
@@ -211,140 +108,133 @@ CAPTURE A
 -> bounded one-child REPAIR
 -> local VERIFY
 -> confirming
+-> independent Capture B page traversal
 ```
 
-Green safeguards:
+K6b-3 behavior now GREEN:
 
 ```text
-bigint-safe seller-search IDs
-zoned date_created
-MCO canonical month
-remote_total drift guard
-terminal A observation-count integrity
-12-month source horizon -> unavailable before OAuth/HTTP
+run status confirming
+-> same sales.audit Work type
+-> same SalesAuditHandler
+-> same OAuth/MeliClient/orders.search path
+-> same source-horizon guard
+-> same page normalization + short-page fail-closed
+-> observations persist only as capture_pass='B'
+-> A evidence remains untouched
+-> one page per Work
+-> non-terminal B page enqueues exactly one continuation
+-> B remote_total travels only in continuation payload
+-> run remains confirming
+```
+
+B continuation payload:
+
+```text
+{run_id, offset, limit, remote_total}
+```
+
+B does **not** overwrite `sales_audit_runs.remote_total`; that durable field remains Capture A source evidence.
+
+`captureContext()` now accepts only:
+
+```text
+capturing
+confirming
+```
+
+with default `capturing`, preserving existing callers.
+
+---
+
+# 3. DELIBERATE FAIL-CLOSED BOUNDARY
+
+Terminal Capture B is intentionally **not implemented yet**.
+
+Current behavior if a B page is terminal:
+
+```text
+fail closed
+-> no partial terminal B commit
+-> no false valid
+```
+
+This is deliberate separation of microblocks, not the final terminal behavior.
+
+Do not patch around it.
+
+---
+
+# 4. SOURCE / A-B CONTRACT STILL BINDING
+
+Seller-search guards already GREEN:
+
+```text
+outside supported horizon -> unavailable before OAuth/HTTP
 short non-terminal page -> fail closed
-bounded one-child repair
-terminal child + persistent gap -> attention
-no automatic same-child recreation
-A/B evidence identity independent
-A/B observation count independent
-A/B canonical fingerprint independent
-repair/verify SQL A-only
+remote dates zoned
+bigint-safe ids
 ```
+
+Evidence model:
+
+```text
+sales_audit_orders
+PRIMARY KEY(audit_run_id, capture_pass, external_order_id)
+capture_pass ENUM('A','B')
+```
+
+Repository primitives:
+
+```text
+recordObservation(..., capturePass='A')
+observationCount(..., capturePass='A')
+canonicalFingerprint(..., capturePass='A')
+```
+
+Repair/verify remains explicitly A-only.
+
+No second run/table/queue/Work type/ConfirmRepository/ConfirmEngine.
 
 ---
 
-# 6. CONFIRM DESIGN FROZEN
-
-Target:
+# 5. EXACT NEXT MICROBLOCK — K6b-4 RED ONLY
 
 ```text
-capture A
--> repair
--> verify local
--> independent capture B
--> same canonical count/hash
--> valid
+K6b-4 — terminal Capture B integrity + A/B mismatch attention
 ```
 
-Accepted KISS constraints:
+RED should prove terminal B behavior without implementing `valid` yet:
 
-1. reuse `sales.audit`;
-2. B writes `capture_pass='B'`;
-3. A remains untouched;
-4. no `confirm_count` / `confirm_hash` columns by default;
-5. terminal B derives `canonicalFingerprint(...,'B')`;
-6. compare against A `canonical_count/set_hash`;
-7. B total stability may travel in Work payload;
-8. mismatch -> durable `attention`;
-9. equality required before `valid`.
+1. terminal B requires durable B observation count equal to B traversal `remote_total`;
+2. derive B canonical fingerprint using existing `canonicalFingerprint(...,'B')`;
+3. compare B `canonical_count/set_hash` against durable A `canonical_count/set_hash`;
+4. mismatch must transition run `confirming -> attention` atomically with current Work completion;
+5. A evidence remains unchanged;
+6. B evidence remains durable when mismatch is accepted as attention;
+7. no new table/column/state/Work type/engine.
 
-Rejected absent new evidence:
+Keep equality/`valid` separate unless the RED proves one atomic transition is materially simpler and still easy to reason about. Default plan: **K6b-4 handles mismatch->attention only**; `valid` follows as its own microblock.
 
-```text
-second audit run
-A<->B relation table
-confirm table
-ConfirmRepository
-ConfirmEngine
-second queue
-new Work type
-new Work status
-```
+K6b-4 starts RED only, then checkpoint if context grows.
 
 ---
 
-# 7. EXACT NEXT MICROBLOCK — K6b-3 GREEN ONLY
-
-When user says `continua`:
-
-1. fetch branch HEAD and this checkpoint;
-2. confirm RED SHA `1fab5db...` and CI run `38069661480`;
-3. inspect `SalesAuditHandler` and `SalesWorkProcessor` only as needed;
-4. design the smallest reuse of existing capture logic for `confirming`;
-5. do **not** duplicate source-horizon, OAuth, error, pagination or normalization logic into a second engine;
-6. make RED test GREEN;
-7. run full QA;
-8. audit DELETE/SIMPLIFY/REUSE/MERGE;
-9. simplify duplicated test setup if safe;
-10. checkpoint and STOP.
-
-Preferred direction:
+# 6. DO NOT OPEN NOW
 
 ```text
-reuse/extend existing SalesAuditHandler behavior with a capture-pass/mode boundary
-rather than create SalesAuditConfirmHandler with duplicated remote machinery
-```
-
-But do not force this if a smaller correct solution emerges from the RED.
-
-Do NOT include terminal compare or `valid` in K6b-3 GREEN. The RED deliberately uses a non-terminal B page so that terminal semantics remain a separate microblock.
-
----
-
-# 8. NEXT AFTER K6b-3 GREEN — NOT YET
-
-Only after K6b-3 full GREEN + checkpoint:
-
-```text
-K6b-4 RED
--> terminal B integrity
--> B canonical fingerprint
--> compare A vs B
--> mismatch -> attention
-```
-
-`valid` should remain separate unless that RED proves it can be safely atomic and smaller without hiding behavior.
-
----
-
-# 9. GATES
-
-| Gate | Status |
-|---|---|
-| G1 REMOTE_TRUTH | PASS for implemented boundary + K6a guards |
-| G2 WORK_SAFETY | PASS |
-| G3 RATE_SAFETY | PASS for current Sales paths |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A path + source guards + A/B persistence/primitives GREEN; K6b-3 RED confirmed; B runtime still missing |
-| G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
-| G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
-| G7 WRITE_FAIL_CLOSED | PASS |
-| G8 HOSTING_REALITY | NOT CERTIFIED |
-
----
-
-# 10. STOP CONDITIONS
-
-```text
-STOP now until explicit user continua
-NO K6b-3 production GREEN in this checkpoint
-NO terminal B compare
-NO valid
+NO valid yet
 NO baseline lifecycle
-NO Billing Task 2
+NO Billing Task 2 before C0
 NO Financial
 NO merge
 NO deploy
-NO real ML HTTP
+NO real Mercado Libre HTTP
 NO remote writes
 ```
+
+---
+
+# 7. DOCUMENTATION NOTE
+
+`README.md` and `ERP2_AUTHORITY.md` were synchronized through K6b-2/K6a before K6b-3. This checkpoint is the exact higher-authority execution state for K6b-3. To avoid documentation churn, synchronize the living README/Authority again after the next bounded CONFIRM terminal microblock or sooner if a binding contract changes.
