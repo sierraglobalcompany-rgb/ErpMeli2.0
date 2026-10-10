@@ -30,7 +30,7 @@ final class SystemSettingsTest extends TestCase
         self::assertFalse((new SystemSettingsRepository($pdo))->get()->meliWritesEnabled);
     }
 
-    public function testUpdatePersistsOnlyTypedValues(): void
+    public function testOperationalUpdateDoesNotMutateRemoteWritesGuard(): void
     {
         $pdo = TestDatabase::reset();
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main')");
@@ -40,7 +40,7 @@ final class SystemSettingsTest extends TestCase
         );
 
         $repo = new SystemSettingsRepository($pdo);
-        $repo->updateOperationalToggles(true, false, true, 14, 200, 1);
+        $repo->updateOperationalToggles(true, true, 14, 200, 1);
 
         $settings = $repo->get();
         self::assertTrue($settings->automationEnabled);
