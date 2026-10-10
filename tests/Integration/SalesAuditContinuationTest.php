@@ -164,6 +164,151 @@ final class SalesAuditContinuationTest extends TestCase
         );
     }
 
+    public function testTerminalPageWithCompleteDurableEvidenceCreatesNoContinuationAndKeepsRunCapturing(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-audit-terminal-complete-secret');
+        $this->seedAccountAndToken($pdo, $cipher);
+
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $audit->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:00:00+00:00'),
+        );
+        self::assertTrue($audit->acceptRemoteTotal($runId, 1, 1, 3));
+        self::assertTrue($audit->recordObservation(
+            $runId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-10T10:00:00-05:00'),
+        ));
+        self::assertTrue($audit->recordObservation(
+            $runId,
+            '200000000002',
+            new DateTimeImmutable('2026-10-10T11:00:00-05:00'),
+        ));
+
+        $work = new WorkRepository($pdo);
+        $workId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':2:2',
+            ['run_id' => $runId, 'offset' => 2, 'limit' => 2],
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+
+        $transport = new SalesAuditContinuationTransport(new MeliTransportResponse(
+            200,
+            [],
+            '{"paging":{"total":3,"offset":2,"limit":2},"results":['
+            . '{"id":200000000003,"date_created":"2026-10-20T10:00:00-05:00"}'
+            . ']}',
+        ));
+        $handler = $this->handler($pdo, $work, $audit, $transport, $cipher);
+
+        self::assertTrue($handler->processCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            1,
+            1,
+            $claim['payload'],
+            new DateTimeImmutable('2026-10-10T02:00:00+00:00'),
+        ));
+
+        self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id = ' . $workId)->fetchColumn());
+        self::assertSame(
+            3,
+            (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id = ' . $runId)->fetchColumn(),
+        );
+        self::assertSame(
+            0,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='sales.audit' AND status='pending'")->fetchColumn(),
+        );
+        self::assertSame(
+            'capturing',
+            $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
+        );
+    }
+
+    public function testTerminalPageWithIncompleteDurableEvidenceRollsBackAndFailsClosed(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-audit-terminal-incomplete-secret');
+        $this->seedAccountAndToken($pdo, $cipher);
+
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $audit->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:00:00+00:00'),
+        );
+        self::assertTrue($audit->acceptRemoteTotal($runId, 1, 1, 3));
+        self::assertTrue($audit->recordObservation(
+            $runId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-10T10:00:00-05:00'),
+        ));
+
+        $work = new WorkRepository($pdo);
+        $workId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':2:2',
+            ['run_id' => $runId, 'offset' => 2, 'limit' => 2],
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+
+        $transport = new SalesAuditContinuationTransport(new MeliTransportResponse(
+            200,
+            [],
+            '{"paging":{"total":3,"offset":2,"limit":2},"results":['
+            . '{"id":200000000003,"date_created":"2026-10-20T10:00:00-05:00"}'
+            . ']}',
+        ));
+        $handler = $this->handler($pdo, $work, $audit, $transport, $cipher);
+
+        self::assertFalse($handler->processCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            1,
+            1,
+            $claim['payload'],
+            new DateTimeImmutable('2026-10-10T02:00:00+00:00'),
+        ));
+
+        $row = $pdo->query(
+            'SELECT status,last_error_code FROM work_items WHERE id = ' . $workId
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('failed', $row['status']);
+        self::assertSame('meli_sales_audit_contract', $row['last_error_code']);
+        self::assertSame(
+            1,
+            (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id = ' . $runId)->fetchColumn(),
+            'The terminal page observation must roll back when durable evidence is incomplete.',
+        );
+        self::assertSame(
+            0,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='sales.audit' AND status='pending'")->fetchColumn(),
+        );
+        self::assertSame(
+            'capturing',
+            $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
+        );
+    }
+
     private function handler(
         PDO $pdo,
         WorkRepository $work,
