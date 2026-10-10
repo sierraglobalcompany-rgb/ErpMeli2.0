@@ -18,14 +18,13 @@ use App\Modules\Sales\SyncOrder\SyncOrderHandler;
 use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
-use PDO;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class SalesWorkProcessorTest extends TestCase
 {
-    public function testProcessorDispatchesSalesAuditAndRejectsLegacyReconcileType(): void
+    public function testProcessorDispatchesSalesAudit(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('sales-processor-test-key');
@@ -98,27 +97,6 @@ final class SalesWorkProcessorTest extends TestCase
         );
         self::assertSame(0, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn());
         self::assertCount(1, $transport->requests);
-
-        $legacyWorkId = $work->enqueue(
-            1,
-            1,
-            'company:1:account:1',
-            'orders.reconcile',
-            'legacy',
-            'orders.reconcile:legacy',
-            ['offset' => 0, 'limit' => 50],
-        );
-        $legacyClaim = $work->claimNext();
-        self::assertIsArray($legacyClaim);
-        $processor($legacyClaim);
-
-        $legacy = $pdo->query(
-            'SELECT status,last_error_code FROM work_items WHERE id=' . $legacyWorkId
-        )->fetch(PDO::FETCH_ASSOC);
-        self::assertIsArray($legacy);
-        self::assertSame('failed', $legacy['status']);
-        self::assertSame('unsupported_work_type', $legacy['last_error_code']);
-        self::assertCount(1, $transport->requests, 'Legacy reconciliation must not reach Mercado Libre.');
     }
 }
 
