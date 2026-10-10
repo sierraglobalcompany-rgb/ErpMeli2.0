@@ -14,36 +14,25 @@ use Tests\Support\TestDatabase;
 
 final class SalesAuditRepairMissingSetTest extends TestCase
 {
-    public function testRepairingRunReturnsDeterministicMissingCanonicalOrderIds(): void
+    public function testRepairingRunReturnsOnlyFirstDeterministicMissingCanonicalOrder(): void
     {
         $pdo = TestDatabase::reset();
         $this->seedAccount($pdo);
         $audit = new SalesAuditRepository($pdo);
         $runId = $this->seedFingerprintedRun($audit);
+
         $this->insertLocalOrder($pdo, '100000000001', '2026-10-10 10:00:00.000000');
+        $this->insertLocalOrder($pdo, '200000000002', '2026-11-01 05:00:00.000000');
+        $this->insertLocalOrder($pdo, '400000000004', '2026-10-13 10:00:00.000000');
 
         self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
         self::assertSame(
-            ['200000000002', '300000000003'],
-            $audit->repairingMissingCanonicalOrderIds($runId, 1, 1),
+            '200000000002',
+            $audit->nextRepairingMissingCanonicalOrderId($runId, 1, 1),
         );
         self::assertSame(
             'repairing',
             $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
-        );
-    }
-
-    public function testRepairingRunReturnsOnlyFirstDeterministicRepairCandidate(): void
-    {
-        $pdo = TestDatabase::reset();
-        $this->seedAccount($pdo);
-        $audit = new SalesAuditRepository($pdo);
-        $runId = $this->seedFingerprintedRun($audit);
-
-        self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
-        self::assertSame(
-            '100000000001',
-            $audit->nextRepairingMissingCanonicalOrderId($runId, 1, 1),
         );
     }
 
@@ -62,7 +51,7 @@ final class SalesAuditRepairMissingSetTest extends TestCase
         self::assertNull($audit->nextRepairingMissingCanonicalOrderId($runId, 1, 1));
     }
 
-    public function testCapturingRunCannotUseRepairingMissingSetRead(): void
+    public function testCapturingRunCannotReadRepairCandidate(): void
     {
         $pdo = TestDatabase::reset();
         $this->seedAccount($pdo);
@@ -70,10 +59,10 @@ final class SalesAuditRepairMissingSetTest extends TestCase
         $runId = $this->seedFingerprintedRun($audit);
 
         $this->expectException(RuntimeException::class);
-        $audit->repairingMissingCanonicalOrderIds($runId, 1, 1);
+        $audit->nextRepairingMissingCanonicalOrderId($runId, 1, 1);
     }
 
-    public function testRepairingMissingSetRejectsWrongScope(): void
+    public function testRepairCandidateRejectsWrongScope(): void
     {
         $pdo = TestDatabase::reset();
         $this->seedAccount($pdo);
@@ -82,7 +71,7 @@ final class SalesAuditRepairMissingSetTest extends TestCase
         self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
 
         $this->expectException(RuntimeException::class);
-        $audit->repairingMissingCanonicalOrderIds($runId, 1, 999);
+        $audit->nextRepairingMissingCanonicalOrderId($runId, 1, 999);
     }
 
     private function seedFingerprintedRun(SalesAuditRepository $audit): int
