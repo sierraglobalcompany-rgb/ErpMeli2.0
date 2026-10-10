@@ -210,7 +210,7 @@ final class SalesAuditHandler
             return $this->work->completeCurrentClaim(
                 $workId,
                 $claimToken,
-                function () use (
+                function (PDO $pdo) use (
                     $runId,
                     $companyId,
                     $accountId,
@@ -247,7 +247,30 @@ final class SalesAuditHandler
 
                     if ($page['next_offset'] === null) {
                         if ($capturePass === 'B') {
-                            throw new RuntimeException('Sales audit confirmation terminal comparison is not implemented.');
+                            if ($this->audit->observationCount($runId, 'B') !== $page['remote_total']) {
+                                throw new RuntimeException('Sales audit terminal confirmation evidence is incomplete.');
+                            }
+
+                            $fingerprint = $this->audit->canonicalFingerprint($runId, $window, 'B');
+                            $attention = $pdo->prepare(
+                                "UPDATE sales_audit_runs SET status = 'attention', updated_at = UTC_TIMESTAMP(6) "
+                                . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+                                . "AND status = 'confirming' AND contract_version = :contract_version "
+                                . 'AND canonical_count IS NOT NULL AND set_hash IS NOT NULL '
+                                . 'AND (canonical_count <> :canonical_count OR set_hash <> :set_hash)'
+                            );
+                            $attention->execute([
+                                'run_id' => $runId,
+                                'company_id' => $companyId,
+                                'account_id' => $accountId,
+                                'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
+                                'canonical_count' => $fingerprint['canonical_count'],
+                                'set_hash' => $fingerprint['set_hash'],
+                            ]);
+                            if ($attention->rowCount() !== 1) {
+                                throw new RuntimeException('Sales audit confirmation match transition is not implemented.');
+                            }
+                            return;
                         }
 
                         if ($this->audit->observationCount($runId) !== $page['remote_total']) {
