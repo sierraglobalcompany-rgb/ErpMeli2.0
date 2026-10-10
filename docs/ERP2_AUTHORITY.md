@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-10  
 **Estado:** APROBADA PARA EJECUCIÓN POR MICROBLOQUES  
-**Base funcional GREEN verificada:** `3486ecc1783e40abf8321de5780535700253da2f`  
+**Base funcional GREEN verificada:** `81dd33c863bb1ec7eea1bb40cb51ad55167cbc69`  
 **Rama activa:** `impl/v3-b-sales-audit-20261010`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP normal:** `0`  
@@ -571,9 +571,9 @@ Reglas:
 
 ---
 
-# 16. Sales Audit — CONFIRM B runtime GREEN parcial
+# 16. Sales Audit — CONFIRM B runtime GREEN
 
-Primera certificación de mes cerrado sigue siendo:
+Primera certificación de mes cerrado:
 
 ```text
 capture A
@@ -586,7 +586,7 @@ capture A
 
 Esto demuestra repetibilidad respecto de seller-search y su contrato conocido, **no snapshot absoluto de todo Mercado Libre**.
 
-Contrato GREEN actual K6b-3/K6b-4:
+Contrato GREEN actual K6b-3/K6b-4/K6b-5:
 
 1. B usa el mismo `sales.audit`.
 2. `SalesWorkProcessor` enruta `confirming` al mismo `SalesAuditHandler` con pass B.
@@ -598,8 +598,10 @@ Contrato GREEN actual K6b-3/K6b-4:
 8. Terminal B deriva count/hash con `canonicalFingerprint(...,'B')`.
 9. B se compara directamente contra `canonical_count/set_hash` durable de A.
 10. mismatch A/B → `confirming -> attention` y Work `done` dentro de la misma transacción.
-11. A y B permanecen durables después de mismatch.
-12. Igualdad A/B todavía **no** transiciona a `valid`; sigue fail-closed hasta K6b-5.
+11. equality A/B → `confirming -> valid`, fija `completed_at=UTC_TIMESTAMP(6)` y completa el Work en la misma transacción.
+12. Persistencia terminal B + transición del run + Work completion son atómicas.
+13. A y B permanecen durables y el fingerprint A no se sobrescribe.
+14. Terminal B no encola continuación ni `order.sync`.
 
 Rechazado sin nueva evidencia:
 
@@ -863,7 +865,7 @@ No feature-flag forest.
 | G1 REMOTE_TRUTH | PASS para boundary implementado + guards K6a |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS para Sales actual |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + source guards + independent B traversal + mismatch→attention GREEN; equality→valid pendiente |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — core A capture/repair/verify + guards + independent B traversal + mismatch→attention + equality→valid GREEN; lifecycle/start/404 gaps pendientes |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -903,28 +905,26 @@ independent Capture B pagination
 B remote_total carried only in Work payload
 terminal B durable count/fingerprint
 A/B mismatch -> durable attention atomically
+A/B equality -> durable valid + completed_at atomically
 ```
 
 Próximo comportamiento a abrir mediante RED:
 
 ```text
-K6b-5 — terminal B equality -> valid
+K6c-0 — baseline lifecycle
 ```
 
-Ese RED debe demostrar:
+Regla vinculante ya congelada:
 
-1. B terminal completo y durable;
-2. `observationCount(runId,'B') === remote_total`;
-3. canonical count/hash B iguales a A;
-4. `confirming -> valid` y Work `done` en la misma transacción;
-5. A y B permanecen coherentes;
-6. no continuación, no `order.sync`, no segunda arquitectura.
+> conservar el más reciente válido; evidencia superseded equivalente se elimina. Si aparece diferencia, conservar baseline anterior + run attention hasta resolver.
+
+El siguiente RED debe comenzar inspeccionando el lifecycle/start actual y demostrar como mínimo que un run nuevo que termina `attention` no destruye ni degrada el baseline `valid` anterior. Sólo un nuevo `valid` equivalente puede supersederlo. No crear history table/engine sin evidencia.
 
 No implementar todavía en el mismo salto:
 
 ```text
-baseline lifecycle
 start UX / active-run guard
+exact order 404 final classification
 Billing Task 2
 Financial
 ```
@@ -939,6 +939,6 @@ No merge.
 No deploy.
 No remote writes.
 No real ML batch salvo smoke sanitizado explícitamente autorizado.
-No declarar Sales Audit `valid` hasta que K6b-5 tenga RED → GREEN → QA completo.
+No borrar baseline válido previo por edad ni por un run `attention`.
 
 Cada microbloque termina con QA/noise audit/checkpoint antes de continuar.
