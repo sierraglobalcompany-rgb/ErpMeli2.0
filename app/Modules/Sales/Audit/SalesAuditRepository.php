@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
 use PDO;
+use PDOException;
 use RuntimeException;
 
 final class SalesAuditRepository
@@ -71,5 +72,34 @@ final class SalesAuditRepository
         }
 
         return $id;
+    }
+
+    public function recordObservation(
+        int $runId,
+        string $externalOrderId,
+        DateTimeImmutable $remoteDateCreated,
+    ): bool {
+        $statement = $this->pdo->prepare(
+            'INSERT INTO sales_audit_orders (audit_run_id,external_order_id,remote_date_created) '
+            . 'VALUES (:audit_run_id,:external_order_id,:remote_date_created)'
+        );
+
+        try {
+            $statement->execute([
+                'audit_run_id' => $runId,
+                'external_order_id' => $externalOrderId,
+                'remote_date_created' => $remoteDateCreated
+                    ->setTimezone(new DateTimeZone('UTC'))
+                    ->format('Y-m-d H:i:s.u'),
+            ]);
+        } catch (PDOException $exception) {
+            if ($exception->getCode() === '23000' && (int) ($exception->errorInfo[1] ?? 0) === 1062) {
+                return false;
+            }
+
+            throw $exception;
+        }
+
+        return true;
     }
 }
