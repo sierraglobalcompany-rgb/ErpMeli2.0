@@ -10,12 +10,14 @@ use App\Integrations\MercadoLibre\Auth\TokenCipher;
 use App\Integrations\MercadoLibre\Client\MeliClient;
 use App\Integrations\MercadoLibre\Transport\MeliTransport;
 use App\Integrations\MercadoLibre\Transport\MeliTransportResponse;
-use App\Modules\Sales\ReconcileOrders\ReconcileOrdersHandler;
+use App\Modules\Sales\Audit\SalesAuditHandler;
+use App\Modules\Sales\Audit\SalesAuditRepository;
 use App\Modules\Sales\SalesWorkProcessor;
 use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
 use App\Modules\Sales\SyncOrder\SyncOrderHandler;
 use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
+use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -23,7 +25,7 @@ use Tests\Support\TestDatabase;
 
 final class SalesWorkProcessorTest extends TestCase
 {
-    public function testSameProcessorDispatchesReconcileThenGeneratedOrderSync(): void
+    public function testProcessorDispatchesSalesAuditAndRejectsLegacyReconcileType(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('sales-processor-test-key');
@@ -42,8 +44,8 @@ final class SalesWorkProcessorTest extends TestCase
             '2030-01-01 00:00:00.000000',
         ]);
 
-        $transport = new SalesWorkSequenceTransport();
-        /** @var array<string,array{method:string,path:string,family:string,classification:string,official_doc_url:string,verified_at:string}> $operations */
+        $transport = new SalesAuditProcessorTransport();
+        /** @var array<string,array<string,mixed>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
         $client = new MeliClient(
             $transport,
@@ -62,42 +64,65 @@ final class SalesWorkProcessorTest extends TestCase
             'erp_meli2.test.sales.processor.oauth',
         );
         $work = new WorkRepository($pdo);
+        $audit = new SalesAuditRepository($pdo);
         $processor = new SalesWorkProcessor(
             new OrderSyncWorkProcessor(new SyncOrderHandler($work, $client, $tokens), $work),
-            new ReconcileOrdersHandler($pdo, $work, $client, $tokens),
+            new SalesAuditHandler($work, $audit, $client, $tokens),
             $work,
         );
 
-        $from = '2026-10-08T00:00:00.000-05:00';
-        $to = '2026-10-08T23:59:59.999-05:00';
-        $work->enqueue(
+        $runId = $audit->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:00:00+00:00'),
+        );
+        $auditWorkId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':0:50',
+            ['run_id' => $runId, 'offset' => 0, 'limit' => 50],
+        );
+        $auditClaim = $work->claimNext();
+        self::assertIsArray($auditClaim);
+        $processor($auditClaim);
+
+        self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id=' . $auditWorkId)->fetchColumn());
+        self::assertSame(
+            1,
+            (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id=' . $runId)->fetchColumn(),
+        );
+        self::assertSame(0, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn());
+        self::assertCount(1, $transport->requests);
+
+        $legacyWorkId = $work->enqueue(
             1,
             1,
             'company:1:account:1',
             'orders.reconcile',
-            $from . '|' . $to . '|0',
-            'orders.reconcile:' . $from . ':' . $to . ':0:50',
-            ['from' => $from, 'to' => $to, 'offset' => 0, 'limit' => 50],
+            'legacy',
+            'orders.reconcile:legacy',
+            ['offset' => 0, 'limit' => 50],
         );
+        $legacyClaim = $work->claimNext();
+        self::assertIsArray($legacyClaim);
+        $processor($legacyClaim);
 
-        $reconcileClaim = $work->claimNext();
-        self::assertIsArray($reconcileClaim);
-        $processor($reconcileClaim);
-
-        $orderClaim = $work->claimNext();
-        self::assertIsArray($orderClaim);
-        self::assertSame('order.sync', $orderClaim['type']);
-        $processor($orderClaim);
-
-        self::assertCount(2, $transport->requests);
-        self::assertStringContainsString('/orders/search?', $transport->requests[0]);
-        self::assertSame('https://api.mercadolibre.com/orders/200000000099', $transport->requests[1]);
-        self::assertSame(2, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE status='done'")->fetchColumn());
-        self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE external_order_id='200000000099'")->fetchColumn());
+        $legacy = $pdo->query(
+            'SELECT status,last_error_code FROM work_items WHERE id=' . $legacyWorkId
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($legacy);
+        self::assertSame('failed', $legacy['status']);
+        self::assertSame('unsupported_work_type', $legacy['last_error_code']);
+        self::assertCount(1, $transport->requests, 'Legacy reconciliation must not reach Mercado Libre.');
     }
 }
 
-final class SalesWorkSequenceTransport implements MeliTransport
+final class SalesAuditProcessorTransport implements MeliTransport
 {
     /** @var list<string> */
     public array $requests = [];
@@ -108,30 +133,13 @@ final class SalesWorkSequenceTransport implements MeliTransport
         $this->requests[] = $url;
 
         if (str_contains($url, '/orders/search?')) {
-            return new MeliTransportResponse(200, [], json_encode([
-                'paging' => ['total' => 1, 'offset' => 0, 'limit' => 50],
-                'results' => [['id' => 200000000099]],
-            ], JSON_THROW_ON_ERROR));
-        }
-
-        if ($url === 'https://api.mercadolibre.com/orders/200000000099') {
-            return new MeliTransportResponse(200, [], json_encode([
-                'id' => 200000000099,
-                'status' => 'paid',
-                'status_detail' => null,
-                'date_created' => '2026-10-08T15:00:00.000Z',
-                'date_closed' => null,
-                'last_updated' => '2026-10-08T15:05:00.000Z',
-                'total_amount' => 123456,
-                'currency_id' => 'COP',
-                'buyer' => ['id' => 800000099],
-                'order_items' => [[
-                    'item' => ['id' => 'MCO999999999', 'title' => 'Producto conciliado'],
-                    'quantity' => 1,
-                    'unit_price' => 123456,
-                    'currency_id' => 'COP',
-                ]],
-            ], JSON_THROW_ON_ERROR));
+            return new MeliTransportResponse(
+                200,
+                [],
+                '{"paging":{"total":1,"offset":0,"limit":50},"results":['
+                . '{"id":200000000099,"date_created":"2026-10-08T15:00:00-05:00"}'
+                . ']}',
+            );
         }
 
         throw new RuntimeException('Unexpected Sales work processor request: ' . $url);
