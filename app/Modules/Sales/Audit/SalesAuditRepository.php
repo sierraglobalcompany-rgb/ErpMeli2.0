@@ -248,6 +248,73 @@ final class SalesAuditRepository
         ];
     }
 
+    /** @return list<string> */
+    public function missingCanonicalOrderIds(int $runId, int $companyId, int $accountId): array
+    {
+        $context = $this->captureContext($runId, $companyId, $accountId);
+        $window = SalesAuditWindow::forSitePeriod($context['site_id'], $context['period_key']);
+
+        $ready = $this->pdo->prepare(
+            'SELECT canonical_count,set_hash FROM sales_audit_runs '
+            . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+            . "AND status = 'capturing' AND contract_version = :contract_version "
+            . 'AND remote_total IS NOT NULL AND canonical_count IS NOT NULL AND set_hash IS NOT NULL LIMIT 1'
+        );
+        $ready->execute([
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'contract_version' => self::CONTRACT_VERSION,
+        ]);
+        $fingerprint = $ready->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($fingerprint)) {
+            throw new RuntimeException('Sales audit canonical fingerprint is unavailable.');
+        }
+        $canonicalCount = $fingerprint['canonical_count'] ?? null;
+        $setHash = $fingerprint['set_hash'] ?? null;
+        if (
+            (!is_int($canonicalCount) && !(is_string($canonicalCount) && ctype_digit($canonicalCount)))
+            || !is_string($setHash)
+            || preg_match('/^[a-f0-9]{64}$/D', $setHash) !== 1
+        ) {
+            throw new RuntimeException('Sales audit canonical fingerprint is invalid.');
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT ao.external_order_id FROM sales_audit_orders ao '
+            . 'WHERE ao.audit_run_id = :run_id '
+            . 'AND ao.remote_date_created >= :remote_start '
+            . 'AND ao.remote_date_created < :remote_end '
+            . 'AND NOT EXISTS ('
+            . 'SELECT 1 FROM orders o '
+            . 'WHERE o.company_id = :company_id AND o.account_id = :account_id '
+            . 'AND o.external_order_id = ao.external_order_id '
+            . 'AND o.date_created >= :local_start AND o.date_created < :local_end'
+            . ') ORDER BY ao.external_order_id ASC'
+        );
+        $canonicalStart = $window->canonicalStartUtc->format('Y-m-d H:i:s.u');
+        $canonicalEnd = $window->canonicalEndUtc->format('Y-m-d H:i:s.u');
+        $statement->execute([
+            'run_id' => $runId,
+            'remote_start' => $canonicalStart,
+            'remote_end' => $canonicalEnd,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'local_start' => $canonicalStart,
+            'local_end' => $canonicalEnd,
+        ]);
+
+        $missing = [];
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $value) {
+            if (!is_string($value) || preg_match('/^[0-9]{1,32}$/D', $value) !== 1) {
+                throw new RuntimeException('Sales audit missing order id is invalid.');
+            }
+            $missing[] = $value;
+        }
+
+        return $missing;
+    }
+
     public function observationCount(int $runId): int
     {
         if ($runId < 1) {
