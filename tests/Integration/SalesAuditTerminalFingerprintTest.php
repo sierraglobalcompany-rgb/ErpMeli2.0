@@ -113,6 +113,73 @@ final class SalesAuditTerminalFingerprintTest extends TestCase
         );
     }
 
+    public function testTerminalCaptureWithNoMissingLocalOrdersTransitionsDirectlyToConfirming(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-audit-terminal-complete-local-secret');
+        $this->seedAccountAndToken($pdo, $cipher);
+        $this->insertLocalOrder($pdo, '200000000001', '2026-10-10 15:00:00.000000');
+
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $audit->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:00:00+00:00'),
+        );
+        $work = new WorkRepository($pdo);
+        $workId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':0:50',
+            ['run_id' => $runId, 'offset' => 0, 'limit' => 50],
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+
+        $handler = $this->handler(
+            $pdo,
+            $work,
+            $audit,
+            new SalesAuditTerminalFingerprintTransport(new MeliTransportResponse(
+                200,
+                [],
+                '{"paging":{"total":1,"offset":0,"limit":50},"results":['
+                . '{"id":200000000001,"date_created":"2026-10-10T10:00:00-05:00"}'
+                . ']}',
+            )),
+            $cipher,
+        );
+
+        self::assertTrue($handler->processCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            1,
+            1,
+            $claim['payload'],
+            new DateTimeImmutable('2026-10-10T02:00:00+00:00'),
+        ));
+
+        self::assertSame(
+            'confirming',
+            $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
+        );
+        self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id = ' . $workId)->fetchColumn());
+        self::assertSame(
+            1,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='sales.audit'")->fetchColumn(),
+            'No repair continuation is needed when local coverage is already complete.',
+        );
+        self::assertSame(
+            0,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn(),
+        );
+    }
+
     public function testFingerprintPersistenceFailureRollsBackTerminalObservationAndFailsWork(): void
     {
         $pdo = TestDatabase::reset();
@@ -215,6 +282,19 @@ final class SalesAuditTerminalFingerprintTest extends TestCase
         );
 
         return new SalesAuditHandler($work, $audit, $client, $tokens);
+    }
+
+    private function insertLocalOrder(PDO $pdo, string $externalOrderId, string $dateCreated): void
+    {
+        $statement = $pdo->prepare(
+            'INSERT INTO orders '
+            . '(company_id,account_id,external_order_id,status,date_created,total_amount,currency_id) '
+            . "VALUES (1,1,:external_order_id,'paid',:date_created,'1000.0000','COP')"
+        );
+        $statement->execute([
+            'external_order_id' => $externalOrderId,
+            'date_created' => $dateCreated,
+        ]);
     }
 
     private function seedAccountAndToken(PDO $pdo, TokenCipher $cipher): void
