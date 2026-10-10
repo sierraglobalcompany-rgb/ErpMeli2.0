@@ -96,6 +96,41 @@ final class SalesAuditFoundationTest extends TestCase
         $repository->siteIdForScope(2, 1);
     }
 
+    public function testObservationIsInsertedOnceAndDuplicateDoesNotOverwriteOriginalEvidence(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo, 1, 1, 'MCO');
+        $repository = new SalesAuditRepository($pdo);
+        $runId = $repository->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:20:00+00:00'),
+        );
+
+        self::assertTrue($repository->recordObservation(
+            $runId,
+            '9007199254740993',
+            new DateTimeImmutable('2026-10-10T05:30:00-05:00'),
+        ));
+        self::assertFalse($repository->recordObservation(
+            $runId,
+            '9007199254740993',
+            new DateTimeImmutable('2026-10-11T06:45:00-05:00'),
+        ));
+
+        $statement = $pdo->prepare(
+            'SELECT external_order_id,remote_date_created FROM sales_audit_orders WHERE audit_run_id = :run_id'
+        );
+        $statement->execute(['run_id' => $runId]);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        self::assertCount(1, $rows);
+        self::assertSame('9007199254740993', (string) $rows[0]['external_order_id']);
+        self::assertSame('2026-10-10 10:30:00.000000', $rows[0]['remote_date_created']);
+    }
+
     private function seedAccount(PDO $pdo, int $companyId, int $accountId, string $siteId): void
     {
         $pdo->exec(
