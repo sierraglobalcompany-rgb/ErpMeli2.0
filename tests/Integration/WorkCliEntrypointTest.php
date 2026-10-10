@@ -56,10 +56,13 @@ final class WorkCliEntrypointTest extends TestCase
         self::assertIsString($source);
         self::assertStringContainsString('use App\\Modules\\Sales\\SalesWorkProcessor;', $source);
         self::assertStringContainsString('use App\\Modules\\Sales\\Audit\\SalesAuditHandler;', $source);
+        self::assertStringContainsString('use App\\Modules\\Sales\\Audit\\SalesAuditRepairHandler;', $source);
         self::assertStringContainsString('use App\\Modules\\Sales\\Audit\\SalesAuditRepository;', $source);
+        self::assertStringContainsString('$audit = new SalesAuditRepository($pdo);', $source);
         self::assertStringContainsString('$processor = new SalesWorkProcessor(', $source);
         self::assertStringContainsString('new OrderSyncWorkProcessor(', $source);
-        self::assertStringContainsString('new SalesAuditHandler($work, new SalesAuditRepository($pdo), $client, $tokens)', $source);
+        self::assertStringContainsString('new SalesAuditHandler($work, $audit, $client, $tokens)', $source);
+        self::assertStringContainsString('new SalesAuditRepairHandler($audit, $work)', $source);
         self::assertStringNotContainsString('$processor = new OrderSyncWorkProcessor(', $source);
     }
 
