@@ -10,7 +10,8 @@ use App\Integrations\MercadoLibre\Auth\TokenCipher;
 use App\Integrations\MercadoLibre\Client\MeliClient;
 use App\Integrations\MercadoLibre\Transport\MeliTransport;
 use App\Integrations\MercadoLibre\Transport\MeliTransportResponse;
-use App\Modules\Sales\ReconcileOrders\ReconcileOrdersHandler;
+use App\Modules\Sales\Audit\SalesAuditHandler;
+use App\Modules\Sales\Audit\SalesAuditRepository;
 use App\Modules\Sales\SalesWorkProcessor;
 use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
 use App\Modules\Sales\SyncOrder\SyncOrderHandler;
@@ -53,7 +54,7 @@ final class SalesWorkPoisonLoopTest extends TestCase
         );
         $processor = new SalesWorkProcessor(
             new OrderSyncWorkProcessor(new SyncOrderHandler($work, $client, $tokens), $work),
-            new ReconcileOrdersHandler($pdo, $work, $client, $tokens),
+            new SalesAuditHandler($work, new SalesAuditRepository($pdo), $client, $tokens),
             $work,
         );
 
