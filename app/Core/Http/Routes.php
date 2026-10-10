@@ -209,6 +209,13 @@ final class Routes
             return (new SalesListController(Connection::fromConfig($config)))->show($request, $response);
         });
 
+        $app->post('/sales/audits', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return (new SalesListController(Connection::fromConfig($config)))->startAudit($request, $response);
+        });
+
         $app->get('/sales/{order_id:[0-9]+}', static function (
             ServerRequestInterface $request,
             ResponseInterface $response,
