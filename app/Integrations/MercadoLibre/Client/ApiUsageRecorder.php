@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Integrations\MercadoLibre\Client;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use InvalidArgumentException;
 use PDO;
 
@@ -61,5 +63,17 @@ final class ApiUsageRecorder
             'duration_ms' => $durationMs,
             'duration_ms_max' => $durationMs,
         ]);
+    }
+
+    public function purgeBefore(DateTimeImmutable $cutoff): int
+    {
+        $statement = $this->pdo->prepare(
+            'DELETE FROM api_usage_daily WHERE usage_date < :cutoff_date'
+        );
+        $statement->execute([
+            'cutoff_date' => $cutoff->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d'),
+        ]);
+
+        return $statement->rowCount();
     }
 }
