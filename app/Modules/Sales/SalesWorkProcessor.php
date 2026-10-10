@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Sales;
 
-use App\Modules\Sales\ReconcileOrders\ReconcileOrdersHandler;
+use App\Modules\Sales\Audit\SalesAuditHandler;
 use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
@@ -14,7 +14,7 @@ final class SalesWorkProcessor
 {
     public function __construct(
         private readonly OrderSyncWorkProcessor $orderSync,
-        private readonly ReconcileOrdersHandler $reconcileOrders,
+        private readonly SalesAuditHandler $salesAudit,
         private readonly WorkRepository $work,
     ) {
     }
@@ -40,7 +40,7 @@ final class SalesWorkProcessor
             return;
         }
 
-        if ($claim['type'] === 'orders.reconcile') {
+        if ($claim['type'] === 'sales.audit') {
             $companyId = $claim['company_id'];
             $accountId = $claim['account_id'];
 
@@ -59,7 +59,7 @@ final class SalesWorkProcessor
                 return;
             }
 
-            $this->reconcileOrders->processCurrentClaim(
+            $this->salesAudit->processCurrentClaim(
                 $claim['id'],
                 $claim['claim_token'],
                 $companyId,
