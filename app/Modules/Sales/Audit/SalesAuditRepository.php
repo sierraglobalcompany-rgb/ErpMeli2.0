@@ -181,6 +181,73 @@ final class SalesAuditRepository
         return true;
     }
 
+    /** @return array{canonical_count:int,set_hash:string} */
+    public function persistCanonicalFingerprint(
+        int $runId,
+        int $companyId,
+        int $accountId,
+        SalesAuditWindow $window,
+    ): array {
+        $context = $this->captureContext($runId, $companyId, $accountId);
+        $expectedWindow = SalesAuditWindow::forSitePeriod($context['site_id'], $context['period_key']);
+        if (
+            $window->periodKey !== $expectedWindow->periodKey
+            || $window->canonicalStartUtc != $expectedWindow->canonicalStartUtc
+            || $window->canonicalEndUtc != $expectedWindow->canonicalEndUtc
+        ) {
+            throw new RuntimeException('Sales audit canonical window does not match the run.');
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT external_order_id FROM sales_audit_orders '
+            . 'WHERE audit_run_id = :run_id '
+            . 'AND remote_date_created >= :canonical_start '
+            . 'AND remote_date_created < :canonical_end '
+            . 'ORDER BY external_order_id ASC'
+        );
+        $statement->execute([
+            'run_id' => $runId,
+            'canonical_start' => $window->canonicalStartUtc->format('Y-m-d H:i:s.u'),
+            'canonical_end' => $window->canonicalEndUtc->format('Y-m-d H:i:s.u'),
+        ]);
+
+        $ids = [];
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $value) {
+            if (!is_string($value) || preg_match('/^[0-9]{1,32}$/D', $value) !== 1) {
+                throw new RuntimeException('Sales audit canonical order id is invalid.');
+            }
+            $ids[] = $value;
+        }
+
+        $canonicalCount = count($ids);
+        $setHash = hash('sha256', implode("\n", $ids));
+
+        $update = $this->pdo->prepare(
+            'UPDATE sales_audit_runs SET canonical_count = :canonical_count, set_hash = :set_hash '
+            . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+            . 'AND period_key = :period_key '
+            . "AND status = 'capturing' AND contract_version = :contract_version "
+            . 'AND remote_total IS NOT NULL AND canonical_count IS NULL AND set_hash IS NULL'
+        );
+        $update->execute([
+            'canonical_count' => $canonicalCount,
+            'set_hash' => $setHash,
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'period_key' => $window->periodKey,
+            'contract_version' => self::CONTRACT_VERSION,
+        ]);
+        if ($update->rowCount() !== 1) {
+            throw new RuntimeException('Sales audit canonical fingerprint could not be persisted.');
+        }
+
+        return [
+            'canonical_count' => $canonicalCount,
+            'set_hash' => $setHash,
+        ];
+    }
+
     public function observationCount(int $runId): int
     {
         if ($runId < 1) {
