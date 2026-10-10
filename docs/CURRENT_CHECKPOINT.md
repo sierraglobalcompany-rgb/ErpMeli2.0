@@ -32,7 +32,7 @@ STOP after checkpoint when context grows
 
 ---
 
-# 1. LAST FUNCTIONAL GREEN — K6c-0 EQUIVALENT BASELINE REPLACEMENT
+# 1. LAST FUNCTIONAL GREEN — K6c-0
 
 Functional GREEN:
 
@@ -41,7 +41,7 @@ Functional GREEN:
 feat(v3-k6c0): replace equivalent valid baseline
 ```
 
-Fresh full QA:
+Fresh full QA for that functional SHA:
 
 ```text
 RUN=38074658105
@@ -54,7 +54,17 @@ MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-The normal expected Slim 404 output from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute` appears in logs but all tests pass.
+K6c-0 behavior:
+
+```text
+new valid fingerprint == prior valid baseline fingerprint
+-> new run remains newest valid baseline
+-> prior equivalent valid run is deleted
+-> prior A+B evidence is pruned by existing ON DELETE CASCADE
+-> terminal B + valid transition + replacement + Work done are atomic
+```
+
+No baseline pointer/table/history engine/new state was added.
 
 ---
 
@@ -83,86 +93,125 @@ evidencia superseded equivalente se elimina.
 Si aparece diferencia, conservar baseline anterior + run attention hasta resolver.
 ```
 
-No `baseline_id`, history table, baseline engine, second queue or new Work status is justified by current evidence.
+K6c-0 closed the equivalent replacement half. K6c-1 now proves the divergent-fingerprint half.
 
 ---
 
-# 4. K6c-0 — EQUIVALENT VALID REPLACEMENT — CLOSED GREEN
+# 4. K6c-1 — DIVERGENT BASELINE — RED CONFIRMED
 
-RED:
-
-```text
-115365d955ac90ce87970ad8455305f1432bd3db
-test(v3-k6c0): prove equivalent valid baseline replacement
-```
-
-RED proved the exact missing behavior:
+RED commit:
 
 ```text
-old equivalent run = valid
-new equivalent run = valid
-valid baseline count = 2
+04fbc19d1a4eb99eec63cb6318cecbcfc0f9ccae
+test(v3-k6c1): prove divergent baseline attention
 ```
 
-GREEN now extends only the existing terminal B equality transaction.
-
-After the current run transitions `confirming -> valid`, one guarded `DELETE ... JOIN` removes other runs that are simultaneously:
+Test:
 
 ```text
-status = valid
-same company_id
-same account_id
-same period_key
-same contract_version
-same canonical_count
-same set_hash
-id != current run
+tests/Integration/SalesAuditBaselineLifecycleTest.php
+
+testNewInternallyConfirmedDifferentFingerprintPreservesPriorBaselineAndEndsAttention
 ```
 
-The current run remains the newest valid baseline.
-
-Existing FK semantics do the evidence pruning:
+Scenario:
 
 ```text
-sales_audit_orders.audit_run_id
--> sales_audit_runs.id
-ON DELETE CASCADE
+prior durable baseline:
+  scope = company 1 / account 1 / 2026-10-01 / seller-search-v1
+  status = valid
+  A+B canonical set = {200000000100, 200000000101}
+
+new independent run:
+  same scope/contract
+  A canonical set = {200000000100, 200000000102}
+  local verification passes
+  B independently confirms exactly the same new set
+  therefore A == B internally
+  but new fingerprint != prior valid baseline fingerprint
 ```
 
-Therefore no cleanup engine/table/repository was added.
-
-All of this runs inside the same existing `WorkRepository::completeCurrentClaim` transaction, so:
+Required lifecycle contract:
 
 ```text
-terminal B observation
-+ valid transition
-+ equivalent baseline replacement
-+ superseded evidence cascade
-+ Work done
+terminal Work = done
+prior baseline remains valid
+prior baseline A+B evidence remains durable
+new run ends attention, not valid
+new run A+B evidence remains durable for diagnosis
+exactly one valid baseline remains
+no continuation Work
+no order.sync fanout
 ```
 
-commit atomically.
+Current behavior proven by RED:
 
-Mismatch -> `attention` behavior remains untouched.
+```text
+prior baseline survives correctly
+new A == new B
+current code marks new run valid
+prior baseline has different hash, so K6c-0 equivalent delete does not remove it
+result = two conflicting valid truths
+```
+
+This is the exact missing behavior.
 
 ---
 
-# 5. K6c-0 GREEN NOISE AUDIT
-
-Delta from RED checkpoint `fea0e88ac7954df52bde8ea44765477161242ea9` to functional GREEN `436210d0ff576de8189dfb35434305de271b9ce0`:
+# 5. K6c-1 RED QA
 
 ```text
-1 production file only
-app/Modules/Sales/Audit/SalesAuditHandler.php
-+15/-0
+RUN=38075246021
+JOB=114280747237
+PHP=8.5.11
+PHPSTAN=0
+PHPUNIT=208 tests
+ASSERTIONS=1475
+FAILURES=1
+MEMORY=22 MB
+REAL_MELI_HTTP=0
 ```
+
+Single intended failure:
+
+```text
+Tests\Integration\SalesAuditBaselineLifecycleTest::
+testNewInternallyConfirmedDifferentFingerprintPreservesPriorBaselineAndEndsAttention
+
+An internally confirmed run that differs from the valid baseline must end attention.
+Expected: 'attention'
+Actual:   'valid'
+```
+
+Failure line at RED SHA:
+
+```text
+tests/Integration/SalesAuditBaselineLifecycleTest.php:331
+```
+
+The usual Slim 404 output from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute` appears in logs but is benign and not a failure.
+
+---
+
+# 6. RED NOISE AUDIT
+
+Delta from prior checkpoint `f14d2c6f7150600f729e55341f892c042d631c4f` to RED `04fbc19d1a4eb99eec63cb6318cecbcfc0f9ccae`:
+
+```text
+1 test file modified only
+tests/Integration/SalesAuditBaselineLifecycleTest.php
++174/-1
+```
+
+The one deletion is only the previous fixed transport response replaced by a parameterized test transport default; existing equivalent-baseline test behavior remains unchanged.
 
 No:
 
 ```text
-schema change
+app code
+schema
 table/column
-new class
+new production class
 repository
 engine
 state
@@ -171,59 +220,51 @@ queue
 cron
 ```
 
-The existing K6c-0 RED test now passes and verifies that the old baseline row and its A+B evidence are gone while the new baseline A+B evidence remains.
-
 ---
 
-# 6. IMPORTANT REMAINING BASELINE GAP
-
-K6c-0 intentionally handles only equivalent replacement.
-
-The following authority rule is still NOT implemented/proved:
-
-```text
-prior valid baseline fingerprint != new run fingerprint
-AND new run A == new run B internally
--> prior valid baseline must survive
--> new run must end attention
--> new run must NOT become a second conflicting valid baseline
-```
-
-Current terminal B equality code can still mark such a new internally-consistent but baseline-different run `valid` because it only compares B against that same run's A before the equivalent-pruning query.
-
-This is the next RED.
-
----
-
-# 7. EXACT NEXT MICROBLOCK — K6c-1 RED ONLY
+# 7. EXACT NEXT MICROBLOCK — K6c-1 GREEN ONLY
 
 When user says `continua`:
 
 1. verify branch HEAD equals this checkpoint commit;
-2. keep K6c-0 GREEN unchanged;
-3. add the minimum integration RED with an existing durable `valid` baseline for the same company/account/period/contract;
-4. baseline fingerprint example: `{200000000100, 200000000101}`;
-5. new run A and B must independently agree with each other but use a different canonical set, e.g. `{200000000100, 200000000102}`;
-6. require terminal Work `done`;
-7. require old baseline remains `valid` with its A+B evidence intact;
-8. require new run ends `attention`, not `valid`;
-9. require new run A+B evidence remains durable for diagnosis;
-10. require no continuation and no `order.sync` fanout;
-11. do NOT implement GREEN in the RED microblock;
-12. run full QA and confirm exactly one intended failure;
-13. noise-audit;
+2. preserve K6c-0 equivalent replacement GREEN;
+3. inspect only the terminal B equality transaction and `sales_audit_runs` query needs;
+4. implement the minimum guarded baseline comparison before committing the new run as valid;
+5. same scope means:
+   - same company_id;
+   - same account_id;
+   - same period_key;
+   - same contract_version;
+   - prior row status = valid;
+   - prior id != current run;
+6. if no prior valid baseline exists, keep current equality behavior -> valid;
+7. if prior valid baseline exists and its canonical_count/set_hash equals the current run fingerprint, keep K6c-0 behavior -> current valid + prune prior equivalent baseline;
+8. if prior valid baseline exists and its canonical_count/set_hash differs, current run must transition confirming -> attention, preserving both prior baseline and new A+B evidence;
+9. keep Work completion atomic in the existing `completeCurrentClaim` transaction;
+10. no continuation/order.sync fanout on terminal divergent attention;
+11. do not add baseline pointer/table/history engine/new status;
+12. run fresh full QA;
+13. noise-audit RED -> GREEN;
 14. checkpoint and STOP.
 
-Do not add a baseline pointer/table/history engine. The existing run table should remain the first KISS target.
+Preferred KISS direction:
+
+```text
+EXTEND the existing terminal B equality transaction
+with one scoped read/guard of the prior valid baseline
+then choose attention vs valid/replacement
+```
+
+Do not alter B-vs-A mismatch handling; that already ends attention.
 
 ---
 
-# 8. OPEN G4 GAPS
+# 8. OPEN G4 GAPS AFTER K6c-1 RED
 
 ```text
 baseline lifecycle:
   - equivalent valid replacement GREEN
-  - differing fingerprint -> preserve prior valid + new attention needs RED/GREEN
+  - divergent fingerprint preservation/attention RED confirmed, GREEN next
 Sales Audit start UX + duplicate active-run guard
 exact order 404 final audit classification
 ```
@@ -248,7 +289,7 @@ Hosting/runtime/main protection
 | G1 REMOTE_TRUTH | PASS for implemented boundary + K6a guards |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for current Sales paths |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — core A/B + equivalent baseline replacement GREEN; divergent baseline/start/404 remain |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — core A/B + equivalent baseline replacement GREEN; divergent baseline RED confirmed; start/404 remain |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -274,8 +315,7 @@ The user has declined Work-mode handoff. Continue through the GitHub connector u
 
 ```text
 STOP now until explicit user continua
-NO K6c-1 RED yet
-NO divergent-baseline implementation yet
+NO K6c-1 GREEN yet
 NO start UX
 NO exact-order 404 work
 NO Billing
