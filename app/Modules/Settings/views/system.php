@@ -22,11 +22,6 @@
         </label><br>
 
         <label>
-            <input type="checkbox" name="meli_writes_enabled" value="1" <?= $settings->meliWritesEnabled ? 'checked' : '' ?>>
-            Escrituras Mercado Libre
-        </label><br>
-
-        <label>
             <input type="checkbox" name="debug_enabled" value="1" <?= $settings->debugEnabled ? 'checked' : '' ?>>
             Debug
         </label><br>
