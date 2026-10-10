@@ -74,6 +74,28 @@ final class SalesAuditRepository
         return $id;
     }
 
+    public function runStatus(int $runId, int $companyId, int $accountId): string
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT status FROM sales_audit_runs '
+            . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+            . 'AND contract_version = :contract_version LIMIT 1'
+        );
+        $statement->execute([
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'contract_version' => self::CONTRACT_VERSION,
+        ]);
+        $status = $statement->fetchColumn();
+
+        if (!is_string($status) || $status === '') {
+            throw new RuntimeException('Sales audit run scope is unavailable.');
+        }
+
+        return $status;
+    }
+
     /** @return array{period_key:string,site_id:string,seller_id:string} */
     public function captureContext(int $runId, int $companyId, int $accountId): array
     {

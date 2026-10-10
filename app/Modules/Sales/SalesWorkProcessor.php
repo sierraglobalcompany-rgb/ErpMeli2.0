@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace App\Modules\Sales;
 
 use App\Modules\Sales\Audit\SalesAuditHandler;
+use App\Modules\Sales\Audit\SalesAuditRepairHandler;
+use App\Modules\Sales\Audit\SalesAuditRepository;
 use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
+use RuntimeException;
 
 final class SalesWorkProcessor
 {
     public function __construct(
         private readonly OrderSyncWorkProcessor $orderSync,
         private readonly SalesAuditHandler $salesAudit,
+        private readonly SalesAuditRepairHandler $salesAuditRepair,
+        private readonly SalesAuditRepository $audit,
         private readonly WorkRepository $work,
     ) {
     }
@@ -43,12 +48,15 @@ final class SalesWorkProcessor
         if ($claim['type'] === 'sales.audit') {
             $companyId = $claim['company_id'];
             $accountId = $claim['account_id'];
+            $runId = $claim['payload']['run_id'] ?? null;
 
             if (
                 $companyId === null
                 || $companyId < 1
                 || $accountId === null
                 || $accountId < 1
+                || !is_int($runId)
+                || $runId < 1
             ) {
                 $this->work->failCurrentClaim(
                     $claim['id'],
@@ -59,13 +67,48 @@ final class SalesWorkProcessor
                 return;
             }
 
-            $this->salesAudit->processCurrentClaim(
+            try {
+                $runStatus = $this->audit->runStatus($runId, $companyId, $accountId);
+            } catch (RuntimeException) {
+                $this->work->failCurrentClaim(
+                    $claim['id'],
+                    $claim['claim_token'],
+                    'sales_audit_scope',
+                    'Sales audit scope is unavailable.',
+                );
+                return;
+            }
+
+            $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+            if ($runStatus === 'capturing') {
+                $this->salesAudit->processCurrentClaim(
+                    $claim['id'],
+                    $claim['claim_token'],
+                    $companyId,
+                    $accountId,
+                    $claim['payload'],
+                    $now,
+                );
+                return;
+            }
+
+            if ($runStatus === 'repairing') {
+                $this->salesAuditRepair->processCurrentClaim(
+                    $claim['id'],
+                    $claim['claim_token'],
+                    $runId,
+                    $companyId,
+                    $accountId,
+                    $now,
+                );
+                return;
+            }
+
+            $this->work->failCurrentClaim(
                 $claim['id'],
                 $claim['claim_token'],
-                $companyId,
-                $accountId,
-                $claim['payload'],
-                new DateTimeImmutable('now', new DateTimeZone('UTC')),
+                'sales_audit_state',
+                'Sales audit run is not processable in its current state.',
             );
             return;
         }
