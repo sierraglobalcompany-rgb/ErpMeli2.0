@@ -4,13 +4,13 @@
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
 **Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
-**Current verified SHA:** `f7574c02104fbdcec2cdd198f0ccaf08d0e157df`  
+**Current verified SHA:** `d76ef6d841aba98d9593ca30dbeeca2da0d012f2`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
 ## Current truth
 
-V3-A is closed/green. V3-B Sales Audit is in progress in small verified blocks.
+V3-A is closed/green. V3-B Sales Audit remains in progress in small verified blocks.
 
 Closed:
 
@@ -22,114 +22,109 @@ B3a       durable observation primitive
 B3b1      one validated/atomic remote CAPTURE page
 B3b2a1    429 + 5xx + transport semantics
 B3b2a2    OAuth 401 recovery + permanent failure semantics
+B3b2b1    sales.audit active in SalesWorkProcessor / orders.reconcile unsupported
 ```
 
-`SalesAuditHandler` is complete enough to activate for one-page CAPTURE, but is still NOT wired into `SalesWorkProcessor` at this checkpoint.
+## Active runtime contract
 
-## Proven SalesAuditHandler behavior
-
-- exact company/account/run scope;
-- only `capturing` + `seller-search-v1` + connected account;
-- MCO month/window derives from durable run;
-- one `orders.search` page;
-- numeric exact order ID + zoned `date_created` required;
-- validate full page before persistence;
-- evidence + Work completion atomic;
-- duplicate evidence fails closed without overwrite;
-- malformed page leaves zero partial evidence;
-- CAPTURE enqueues zero `order.sync`;
-- no continuation page yet;
-- 429/cooldown -> defer same Work, no attempt burn;
-- 5xx/transport -> bounded retry same Work +30s, attempt consumed;
-- first 401 -> existing OAuth refresh -> exactly one retry;
-- second 401 -> terminal `meli_unauthorized`;
-- 429 during OAuth recovery -> defer without attempt burn;
-- 5xx after OAuth recovery -> bounded retry;
-- non-401/non-5xx remote rejection -> terminal `meli_remote_permanent`;
-- no replacement Work chain.
-
-## B3b2a2 evidence
-
-RED 401 commit:
+`SalesWorkProcessor` now accepts only:
 
 ```text
-2bef9806366cd44d8bff3a187f9d225be7221c08
+order.sync
+sales.audit
 ```
 
-RED run `38014320179`: 174 tests, exactly 2 failures proving first 401 was terminal.
-
-GREEN product commit:
+Any other type, including legacy `orders.reconcile`, is terminally failed with:
 
 ```text
-57629ce9a78a235ff84352d3fe9aa9aa25d81478
+unsupported_work_type
 ```
 
-QA run `38014453196`, job `114101524210`:
+`bin/work.php` now composes:
+
+```text
+OrderSyncWorkProcessor
+SalesAuditHandler + SalesAuditRepository
+```
+
+and no longer imports or constructs `ReconcileOrdersHandler`.
+
+The generic unsupported-work poison-loop guard remains active on the new processor. The obsolete `ReconcileMalformedWorkTest` was deleted because its only contract no longer exists.
+
+## B3b2b1 evidence
+
+RED:
+
+```text
+f12f47a72e3f382d2b5813963c6fb47cf347d87b
+```
+
+RED run `38014803229`, job `114102596240`:
+
+```text
+PHPSTAN=0
+TESTS=177
+ERRORS=1
+CAUSE=SalesWorkProcessor constructor still required ReconcileOrdersHandler
+```
+
+GREEN path:
+
+```text
+20522a0...  SalesWorkProcessor -> SalesAuditHandler
+4ebf78f...  bin/work.php active composition
+34c0f9e...  CLI composition contract
+```
+
+First GREEN QA exposed only two legacy test constructors still injecting the old handler. No production regression appeared.
+
+Cleanup inside this block:
+
+```text
+d722a814...  preserve generic poison-loop guard on active processor
+d76ef6d8...  delete obsolete ReconcileMalformedWorkTest
+```
+
+Fresh QA — run `38015079749`, job `114103436832`:
 
 ```text
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=174/174 PASS
-ASSERTIONS=1169
+PHPUNIT=176/176 PASS
+ASSERTIONS=1194
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Verification-only commit:
-
-```text
-f7574c02104fbdcec2cdd198f0ccaf08d0e157df
-```
-
-It added only tests for rate limit during OAuth refresh, 5xx after refresh and permanent 403. No product change was needed.
-
-QA run `38014672791`, job `114102202622`:
-
-```text
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=177/177 PASS
-ASSERTIONS=1202
-MEMORY=22 MB
-REAL_MELI_HTTP=0
-```
-
-## Gates
+## Current gates
 
 | Gate | Status |
 |---|---|
 | G1 REMOTE_TRUTH | PASS for implemented boundary |
 | G2 WORK_SAFETY | PASS |
-| G3 RATE_SAFETY | PASS for new handler semantics; handler not active yet |
+| G3 RATE_SAFETY | PASS for active Sales Audit handler |
 | G4 SALES_AUDIT_TRUTH | IN PROGRESS |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 real sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
 | G8 HOSTING_REALITY | NOT CERTIFIED |
 
-## Exact next microblocks
+## Exact next microblock
 
-### B3b2b1 — activate `sales.audit`
+### B3b2b2 — DELETE obsolete reconciler
 
-1. RED: processor dispatches `sales.audit` and terminally rejects old `orders.reconcile`.
-2. GREEN: replace Reconcile handler dependency in `SalesWorkProcessor` with `SalesAuditHandler`.
-3. Update `bin/work.php` construction only.
-4. Keep old Reconcile files temporarily inactive; do not delete in this block.
-5. Full QA -> checkpoint.
+Scope only:
 
-### B3b2b2 — delete obsolete reconciler
+1. delete `app/Modules/Sales/ReconcileOrders/ReconcileOrdersHandler.php`;
+2. delete `tests/Integration/ReconcileOrdersHandlerTest.php`;
+3. repo-wide audit on the branch for active `orders.reconcile` / `ReconcileOrdersHandler` references;
+4. keep only intentional historical text in checkpoint/plan if needed; runtime/test code must have zero references;
+5. full QA -> checkpoint.
 
-Only after B3b2b1 green:
-
-1. delete `ReconcileOrdersHandler`;
-2. delete/supersede reconciliation-only tests;
-3. grep/audit no active `orders.reconcile` references remain;
-4. full QA -> checkpoint.
+No next-page continuation, VALIDATE/hash, REPAIR, VERIFY or CONFIRM in this block.
 
 ## Stop conditions
 
-- no next-page continuation yet;
-- no VALIDATE/hash/REPAIR/VERIFY/CONFIRM yet;
 - no Billing handler / F6A Task2 before C0;
 - no merge;
 - no deploy;
