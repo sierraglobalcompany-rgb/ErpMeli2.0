@@ -352,6 +352,79 @@ final class SalesAuditRepository
         return $statement->rowCount() === 1;
     }
 
+    /** @return list<string> */
+    public function repairingMissingCanonicalOrderIds(int $runId, int $companyId, int $accountId): array
+    {
+        $scope = $this->pdo->prepare(
+            'SELECT r.period_key,a.site_id,r.canonical_count,r.set_hash '
+            . 'FROM sales_audit_runs r '
+            . 'INNER JOIN meli_accounts a ON a.id = r.account_id AND a.company_id = r.company_id '
+            . 'WHERE r.id = :run_id AND r.company_id = :company_id AND r.account_id = :account_id '
+            . "AND r.status = 'repairing' AND r.contract_version = :contract_version "
+            . "AND a.status = 'connected' AND r.remote_total IS NOT NULL "
+            . 'AND r.canonical_count IS NOT NULL AND r.set_hash IS NOT NULL LIMIT 1'
+        );
+        $scope->execute([
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'contract_version' => self::CONTRACT_VERSION,
+        ]);
+        $row = $scope->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            throw new RuntimeException('Sales audit repairing scope is unavailable.');
+        }
+
+        $periodKey = is_string($row['period_key'] ?? null) ? $row['period_key'] : '';
+        $siteId = is_string($row['site_id'] ?? null) ? $row['site_id'] : '';
+        $canonicalCount = $row['canonical_count'] ?? null;
+        $setHash = $row['set_hash'] ?? null;
+        if (
+            $periodKey === ''
+            || $siteId === ''
+            || (!is_int($canonicalCount) && !(is_string($canonicalCount) && ctype_digit($canonicalCount)))
+            || !is_string($setHash)
+            || preg_match('/^[a-f0-9]{64}$/D', $setHash) !== 1
+        ) {
+            throw new RuntimeException('Sales audit repairing scope is invalid.');
+        }
+
+        $window = SalesAuditWindow::forSitePeriod($siteId, $periodKey);
+        $canonicalStart = $window->canonicalStartUtc->format('Y-m-d H:i:s.u');
+        $canonicalEnd = $window->canonicalEndUtc->format('Y-m-d H:i:s.u');
+        $statement = $this->pdo->prepare(
+            'SELECT ao.external_order_id FROM sales_audit_orders ao '
+            . 'WHERE ao.audit_run_id = :run_id '
+            . 'AND ao.remote_date_created >= :remote_start '
+            . 'AND ao.remote_date_created < :remote_end '
+            . 'AND NOT EXISTS ('
+            . 'SELECT 1 FROM orders o '
+            . 'WHERE o.company_id = :company_id AND o.account_id = :account_id '
+            . 'AND o.external_order_id = ao.external_order_id '
+            . 'AND o.date_created >= :local_start AND o.date_created < :local_end'
+            . ') ORDER BY ao.external_order_id ASC'
+        );
+        $statement->execute([
+            'run_id' => $runId,
+            'remote_start' => $canonicalStart,
+            'remote_end' => $canonicalEnd,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'local_start' => $canonicalStart,
+            'local_end' => $canonicalEnd,
+        ]);
+
+        $missing = [];
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $value) {
+            if (!is_string($value) || preg_match('/^[0-9]{1,32}$/D', $value) !== 1) {
+                throw new RuntimeException('Sales audit repairing order id is invalid.');
+            }
+            $missing[] = $value;
+        }
+
+        return $missing;
+    }
+
     public function observationCount(int $runId): int
     {
         if ($runId < 1) {
