@@ -91,9 +91,10 @@ CREATE TABLE sales_audit_runs (
 
 CREATE TABLE sales_audit_orders (
     audit_run_id BIGINT UNSIGNED NOT NULL,
+    capture_pass ENUM('A', 'B') NOT NULL DEFAULT 'A',
     external_order_id VARCHAR(32) NOT NULL,
     remote_date_created DATETIME(6) NOT NULL,
-    PRIMARY KEY (audit_run_id, external_order_id),
+    PRIMARY KEY (audit_run_id, capture_pass, external_order_id),
     CONSTRAINT fk_sales_audit_orders_run
         FOREIGN KEY (audit_run_id) REFERENCES sales_audit_runs(id)
         ON DELETE CASCADE ON UPDATE RESTRICT
