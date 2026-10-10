@@ -314,4 +314,18 @@ final class WorkRepository
 
         return $statement->rowCount();
     }
+
+    public function purgeTerminalBefore(DateTimeImmutable $cutoff): int
+    {
+        $statement = $this->pdo->prepare(
+            "DELETE FROM work_items "
+            . "WHERE status IN ('done', 'failed') "
+            . "AND finished_at IS NOT NULL AND finished_at < :cutoff"
+        );
+        $statement->execute([
+            'cutoff' => $cutoff->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u'),
+        ]);
+
+        return $statement->rowCount();
+    }
 }
