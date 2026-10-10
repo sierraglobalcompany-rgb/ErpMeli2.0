@@ -24,7 +24,7 @@ final class MeliClient
      *     method:string,
      *     path:string,
      *     family:string,
-     *     classification:string,
+     *     classification?:string,
      *     official_doc_url:string,
      *     verified_at:string,
      *     preserve_numbers?:bool
