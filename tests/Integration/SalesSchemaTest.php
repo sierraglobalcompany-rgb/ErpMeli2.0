@@ -22,6 +22,61 @@ final class SalesSchemaTest extends TestCase
         }
     }
 
+    public function testSalesAuditSchemaStoresOnlyDurableRunAndObservedOrderEvidence(): void
+    {
+        $pdo = TestDatabase::reset();
+
+        foreach (['sales_audit_runs', 'sales_audit_orders'] as $table) {
+            self::assertSame(
+                $table,
+                $pdo->query('SHOW TABLES LIKE ' . $pdo->quote($table))->fetchColumn(),
+                'Missing sales audit table: ' . $table,
+            );
+        }
+
+        $runColumns = $pdo->query('SHOW COLUMNS FROM sales_audit_runs')->fetchAll();
+        $runNames = array_map(static fn (array $column): string => (string) $column['Field'], $runColumns);
+        self::assertSame([
+            'id',
+            'company_id',
+            'account_id',
+            'period_key',
+            'contract_version',
+            'status',
+            'remote_total',
+            'canonical_count',
+            'set_hash',
+            'started_at',
+            'completed_at',
+            'updated_at',
+        ], $runNames);
+
+        $runByName = [];
+        foreach ($runColumns as $column) {
+            $runByName[(string) $column['Field']] = $column;
+        }
+        self::assertSame(
+            "enum('capturing','repairing','confirming','valid','attention','unavailable')",
+            strtolower((string) $runByName['status']['Type']),
+        );
+
+        $orderColumns = $pdo->query('SHOW COLUMNS FROM sales_audit_orders')->fetchAll();
+        $orderNames = array_map(static fn (array $column): string => (string) $column['Field'], $orderColumns);
+        self::assertSame([
+            'audit_run_id',
+            'external_order_id',
+            'remote_date_created',
+        ], $orderNames);
+
+        $primary = $pdo->query("SHOW INDEX FROM sales_audit_orders WHERE Key_name = 'PRIMARY'")->fetchAll();
+        $primaryColumns = [];
+        foreach ($primary as $index) {
+            $primaryColumns[(int) $index['Seq_in_index']] = (string) $index['Column_name'];
+        }
+        ksort($primaryColumns);
+        self::assertSame(['audit_run_id', 'external_order_id'], array_values($primaryColumns));
+    }
+
     public function testWebhookEventsStoreMetadataButNotRawPayloads(): void
     {
         $pdo = TestDatabase::reset();
