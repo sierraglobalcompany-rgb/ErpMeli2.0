@@ -135,7 +135,7 @@ final class ReconcileOrdersHandlerTest extends TestCase
         self::assertStringNotContainsString('SENSITIVE-NOT-STORED', $allPayloads);
     }
 
-    public function testRateLimitedSearchRequeuesSameReconcileWithoutChildWork(): void
+    public function testRateLimitedSearchRequeuesSameReconcileWithoutAttemptBurnOrChildWork(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('test-reconcile-rate-limit-secret');
@@ -158,6 +158,7 @@ final class ReconcileOrdersHandlerTest extends TestCase
         $claim = $work->claimNext();
         self::assertIsArray($claim);
         self::assertSame($reconcileId, $claim['id']);
+        self::assertSame(1, $claim['attempts']);
 
         $transport = new ReconcileOrdersTransport(new MeliTransportResponse(
             429,
@@ -200,11 +201,12 @@ final class ReconcileOrdersHandlerTest extends TestCase
         self::assertCount(1, $transport->requests, 'A 429 search response must not be retried inline.');
 
         $row = $pdo->query(
-            'SELECT id,status,available_at,last_error_code,last_error_safe,payload_json FROM work_items WHERE id = ' . $reconcileId
+            'SELECT id,status,attempts,available_at,last_error_code,last_error_safe,payload_json FROM work_items WHERE id = ' . $reconcileId
         )->fetch(PDO::FETCH_ASSOC);
         self::assertIsArray($row);
         self::assertSame($reconcileId, (int) $row['id']);
         self::assertSame('pending', $row['status']);
+        self::assertSame(0, (int) $row['attempts']);
         self::assertSame('meli_rate_limited', $row['last_error_code']);
         self::assertSame('Mercado Libre rate limited order reconciliation.', $row['last_error_safe']);
 
