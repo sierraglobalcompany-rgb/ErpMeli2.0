@@ -75,6 +75,37 @@ final class WorkRepository
         return $workId;
     }
 
+    /** @return array{id:int,status:string}|null */
+    public function latestLogicalState(string $scopeKey, string $type, string $logicalIdentity): ?array
+    {
+        $scopeKey = trim($scopeKey);
+        $type = trim($type);
+        $logicalIdentity = trim($logicalIdentity);
+        if ($scopeKey === '' || $type === '' || $logicalIdentity === '') {
+            throw new InvalidArgumentException('Work scope, type and logical identity are required.');
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT id,status FROM work_items '
+            . 'WHERE scope_key = :scope_key AND type = :type AND dedupe_key = :dedupe_key '
+            . 'ORDER BY id DESC LIMIT 1'
+        );
+        $statement->execute([
+            'scope_key' => $scopeKey,
+            'type' => $type,
+            'dedupe_key' => hash('sha256', $logicalIdentity),
+        ]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $row['id'],
+            'status' => (string) $row['status'],
+        ];
+    }
+
     /**
      * @return array{
      *   id:int,
