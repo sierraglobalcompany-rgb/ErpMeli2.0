@@ -22,6 +22,36 @@ use Tests\Support\TestDatabase;
 
 final class SyncOrderHandlerRemoteFailureTest extends TestCase
 {
+    public function testOrderNotFoundFailsTerminallyWithoutPersistingAnOrder(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-failure-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new RemoteOutcomeTransport([
+            new MeliTransportResponse(404, [], '{"error":"order_not_found","message":"Order not found"}'),
+        ]);
+        [$handler, $work] = $this->handler($pdo, $cipher, $transport);
+        $claim = $this->claim($work, $companyId, $accountId);
+
+        self::assertFalse($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T01:20:00+00:00'),
+        ));
+
+        self::assertCount(1, $transport->requests);
+        self::assertSame('https://api.mercadolibre.com/orders/200000000001', $transport->requests[0]['url']);
+        $row = $pdo->query('SELECT status, last_error_code, claim_token FROM work_items WHERE id=' . $claim['id'])->fetch();
+        self::assertIsArray($row);
+        self::assertSame('failed', $row['status']);
+        self::assertSame('meli_order_not_found', $row['last_error_code']);
+        self::assertNull($row['claim_token']);
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+    }
+
     public function testUnauthorizedOrderRefreshesTokenAndRetriesSafeGetExactlyOnce(): void
     {
         $pdo = TestDatabase::reset();
