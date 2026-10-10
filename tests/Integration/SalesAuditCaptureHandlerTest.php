@@ -92,6 +92,62 @@ final class SalesAuditCaptureHandlerTest extends TestCase
         );
     }
 
+    public function testMonthOutsideSellerSearchHorizonBecomesUnavailableWithoutOAuthOrRemoteHttp(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-audit-horizon-secret');
+        $this->seedAccount($pdo);
+
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $audit->createCapturingRun(
+            1,
+            1,
+            '2025-09-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:00:00+00:00'),
+        );
+        $work = new WorkRepository($pdo);
+        $workId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':0:50',
+            ['run_id' => $runId, 'offset' => 0, 'limit' => 50],
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+
+        $transport = new SalesAuditCaptureTransport(new MeliTransportResponse(
+            500,
+            [],
+            '{"error":"must_not_be_called"}',
+        ));
+        $handler = $this->handler($pdo, $work, $audit, $transport, $cipher);
+
+        self::assertTrue($handler->processCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            1,
+            1,
+            $claim['payload'],
+            new DateTimeImmutable('2026-10-10T14:00:00+00:00'),
+        ));
+
+        self::assertSame([], $transport->requests);
+        self::assertSame(
+            'unavailable',
+            $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
+        );
+        self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id = ' . $workId)->fetchColumn());
+        self::assertSame(
+            0,
+            (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id = ' . $runId)->fetchColumn(),
+        );
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM meli_tokens')->fetchColumn());
+    }
+
     public function testOffsetlessRemoteDateFailsClosedWithoutPartialEvidence(): void
     {
         $pdo = TestDatabase::reset();
@@ -182,11 +238,7 @@ final class SalesAuditCaptureHandlerTest extends TestCase
 
     private function seedAccountAndToken(PDO $pdo, TokenCipher $cipher): void
     {
-        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main')");
-        $pdo->exec(
-            "INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,nickname,status) "
-            . "VALUES (1,1,'99887766','MCO','Seller','connected')"
-        );
+        $this->seedAccount($pdo);
         $statement = $pdo->prepare(
             'INSERT INTO meli_tokens(account_id,access_token_cipher,refresh_token_cipher,expires_at,refresh_version) '
             . 'VALUES (1,:access_token,:refresh_token,:expires_at,0)'
@@ -196,6 +248,15 @@ final class SalesAuditCaptureHandlerTest extends TestCase
             'refresh_token' => $cipher->encrypt('unused-refresh-token'),
             'expires_at' => '2030-01-01 00:00:00.000000',
         ]);
+    }
+
+    private function seedAccount(PDO $pdo): void
+    {
+        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main')");
+        $pdo->exec(
+            "INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,nickname,status) "
+            . "VALUES (1,1,'99887766','MCO','Seller','connected')"
+        );
     }
 }
 
