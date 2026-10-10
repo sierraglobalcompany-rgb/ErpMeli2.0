@@ -1213,7 +1213,7 @@ impl/v3-b-sales-audit-20261010
 feat(v3-k5b): advance terminal capture directly to next durable state
 ```
 
-QA verificado:
+QA verificado del último GREEN funcional:
 
 ```text
 RUN=38057589089
@@ -1226,24 +1226,48 @@ MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Checkpoint de auditoría K1–K5b:
-
-```text
-4796f1805445d5853e500be76787eef31d005bc5
-```
-
-RED actual bajo prueba al pausar:
+K6a-1 RED:
 
 ```text
 35730c23fafd59b3fc7c6f737b21bcbcf87b8c91
 test(v3-k6a1): prove old seller-search month becomes unavailable
 ```
 
-Checkpoint de pausa posterior:
+RED **confirmado** por CI:
 
 ```text
-bfe8ae56c2e909659631dff98b826d31dcd00e7e
-docs(checkpoint): pause at K6a1 RED without further implementation
+RUN=38060132448
+JOB=114236531063
+PHP=8.5.11
+PHPSTAN=0
+PHPUNIT=200 tests
+ASSERTIONS=1357
+FAILURES=1
+MEMORY=22 MB
+REAL_MELI_HTTP=0
+```
+
+Única falla esperada:
+
+```text
+SalesAuditCaptureHandlerTest::
+testMonthOutsideSellerSearchHorizonBecomesUnavailableWithoutOAuthOrRemoteHttp
+
+Failed asserting that false is true.
+```
+
+Esto demuestra que el comportamiento de producción todavía falta y que el RED no introdujo una regresión colateral.
+
+README maestro establecido inicialmente en:
+
+```text
+fa9c2e9c90f2887649aec3455d2902af15e7d0b0
+```
+
+Checkpoint sincronizado después de confirmar el RED:
+
+```text
+b5dd3ca8eb159acf1269044968989bae74a54798
 ```
 
 ## Cerrado hasta K5b
@@ -1280,11 +1304,13 @@ K5b       CAPTURE fast-path -> repairing or confirming
 
 # 31. PUNTO EXACTO DE REANUDACIÓN
 
-Proyecto **PAUSADO deliberadamente** antes de producción GREEN de K6a-1.
+Proyecto **PAUSADO deliberadamente** antes del production GREEN de K6a-1.
 
 ## K6a-1 — source horizon
 
-RED existente debe demostrar:
+RED confirmado.
+
+El GREEN mínimo debe lograr:
 
 ```text
 mes canónico fuera de seller-search horizon
@@ -1293,19 +1319,21 @@ mes canónico fuera de seller-search horizon
 → zero OAuth dependency
 → zero remote HTTP
 → zero audit evidence
+→ no retry forever
+→ no false complete
 ```
 
 Antes de modificar producción:
 
 ```text
 1. fetch branch HEAD
-2. leer CURRENT_CHECKPOINT
-3. inspeccionar workflow 38060132448
-4. confirmar que RED falla por la causa esperada
-5. sólo entonces GREEN mínimo K6a-1
+2. leer README + CURRENT_CHECKPOINT + Authority + AGENTS
+3. confirmar que el RED sigue siendo el único fallo relevante
+4. diseñar el cambio mínimo local
+5. production GREEN K6a-1 solamente
 6. full QA
-7. DELETE/MERGE audit
-8. checkpoint
+7. DELETE/SIMPLIFY/REUSE/MERGE audit
+8. actualizar README + checkpoint
 ```
 
 ## K6a-2 — short non-terminal page
@@ -1333,7 +1361,7 @@ Sólo conservar aquí huecos que todavía existan.
 
 | Gap | Severidad | Estado/acción |
 |---|---:|---|
-| Seller-search horizon puede false-complete | Crítica | K6a-1 en RED |
+| Seller-search horizon puede false-complete | Crítica | K6a-1 RED confirmado; GREEN pendiente |
 | Short non-terminal page podría saltar posiciones | Alta | K6a-2 pendiente, fail closed si no hay contrato fuerte |
 | Independent capture B / CONFIRM | Alta | pendiente después de K6a |
 | Baseline/valid lifecycle | Alta | pendiente después de CONFIRM |
@@ -1586,13 +1614,13 @@ PHPStan 0
 REAL_MELI_HTTP=0
 
 CURRENT PAUSE:
-K6a-1 RED
+K6a-1 RED CONFIRMED
 35730c23fafd59b3fc7c6f737b21bcbcf87b8c91
+200 tests / 1357 assertions / 1 expected failure / PHPStan 0
 old seller-search month must become unavailable before OAuth/HTTP
 
 NEXT:
-inspect RED CI
-→ minimal K6a-1 GREEN
+minimal K6a-1 GREEN
 → QA/noise audit/checkpoint
 → K6a-2 short-page RED
 
