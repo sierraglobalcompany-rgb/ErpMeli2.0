@@ -4,7 +4,7 @@
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
 **Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
-**Current verified functional SHA:** `fe167945954a5f1bb38f5dce4197546e23c09152`  
+**Current verified functional SHA:** `305ba6fd7fe8df235c742433538ba52a6020b0b6`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
@@ -27,53 +27,53 @@ B3c1      stable durable remote_total contract
 B3c2      stable-total page continuation
 B3c3      terminal traversal integrity by durable observed count
 B3d1      canonical local set fingerprint primitive
+B3d2      terminal CAPTURE fingerprint wiring
 ```
 
-## B3d1 contract
+## B3d2 contract
 
-`SalesAuditRepository::persistCanonicalFingerprint()` now:
+At terminal CAPTURE, the existing `SalesAuditHandler` now:
 
-1. requires the exact scoped `capturing` run using `seller-search-v1`;
-2. verifies the supplied canonical window belongs to the run/site/period;
-3. derives membership from persisted `remote_date_created` with `[canonicalStartUtc, canonicalEndUtc)`;
-4. excludes guard-band observations outside the month without persisting `in_period`;
-5. reads canonical external order IDs in deterministic ascending order;
-6. serializes IDs with `\n` and computes SHA-256;
-7. persists only existing `canonical_count` + `set_hash` while both are still NULL;
-8. empty canonical set hashes the empty string deterministically;
-9. leaves run status `capturing`;
-10. adds no table, column, status, Work type, handler or scheduler.
+1. validates terminal durable observation count equals stable `remote_total`;
+2. inside the same existing Work completion transaction, calls `SalesAuditRepository::persistCanonicalFingerprint()`;
+3. persists `canonical_count` + `set_hash` before current Work can commit as done;
+4. derives canonical membership from persisted `remote_date_created`, so guard-band rows remain evidence but do not enter the canonical set;
+5. if fingerprint persistence fails, the terminal-page observation rolls back and current Work fails closed with `meli_sales_audit_contract`;
+6. leaves the run in `capturing`;
+7. adds no schema, status, Work type, engine, scheduler or service.
 
-## B3d1 evidence
+## B3d2 evidence
 
 RED commit:
 
 ```text
-529d967c78b1c8c80c34b7b89a832f0856c520bf
+5f123711c685ee60c09ba5ce0d0e191f80a8e124
 ```
 
-RED run `38017401760`, job `114110635306`:
+RED run `38017725349`, job `114111642713`:
 
 ```text
 PHPSTAN=0
-TESTS=182
-ERRORS=2
-CAUSE=SalesAuditRepository::persistCanonicalFingerprint() did not exist
+TESTS=184
+FAILURES=2
+CAUSES=
+- terminal handler did not persist canonical fingerprint
+- occupied fingerprint did not fail/rollback terminal Work
 ```
 
 GREEN functional commit:
 
 ```text
-fe167945954a5f1bb38f5dce4197546e23c09152
+305ba6fd7fe8df235c742433538ba52a6020b0b6
 ```
 
-Fresh QA — run `38017522499`, job `114111008904`:
+Fresh QA — run `38017833423`, job `114111967942`:
 
 ```text
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=182/182 PASS
-ASSERTIONS=1214
+PHPUNIT=184/184 PASS
+ASSERTIONS=1232
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
@@ -90,7 +90,9 @@ REAL_MELI_HTTP=0
 - terminal durable observed count must equal stable remote total;
 - malformed, drifting or incomplete terminal pages fail closed;
 - canonical membership is derived locally from `remote_date_created`;
-- deterministic canonical count/hash primitive exists;
+- deterministic canonical count/hash is persisted atomically at terminal CAPTURE;
+- fingerprint failure cannot silently complete terminal Work;
+- run still remains `capturing` pending VALIDATE/REPAIR flow;
 - no `order.sync` during CAPTURE;
 - 429 defer, 5xx/transport bounded retry, one OAuth refresh retry;
 - obsolete reconciler deleted.
@@ -102,7 +104,7 @@ REAL_MELI_HTTP=0
 | G1 REMOTE_TRUTH | PASS for implemented boundary |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for active Sales Audit path |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — canonical fingerprint primitive verified; terminal wiring next |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — CAPTURE + canonical fingerprint verified; local missing-set validation next |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 real sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -110,21 +112,23 @@ REAL_MELI_HTTP=0
 
 ## Exact next microblock
 
-### B3d2 — wire canonical fingerprint into terminal CAPTURE
+### B3e1 — derive deterministic local missing-set only
 
 Scope only:
 
-1. RED: a valid terminal page atomically persists `canonical_count` + `set_hash` before Work completion;
-2. RED: guard-band observations remain excluded when fingerprint is produced through the handler;
-3. RED: any fingerprint persistence failure rolls back terminal-page observations and prevents Work completion;
-4. GREEN: minimum call from existing `SalesAuditHandler` inside the existing completion transaction;
-5. run remains `capturing`;
-6. no REPAIR fan-out, no status transition, no second capture, no CONFIRM;
-7. full QA → checkpoint.
+1. inspect current `orders` schema and Sales repository/query ownership before coding;
+2. RED: compare canonical remote audit IDs against local `orders` for the same company/account/month;
+3. RED: return only remote canonical IDs missing locally;
+4. RED: local orders outside the canonical month must not satisfy the audit set;
+5. RED: result order is deterministic;
+6. GREEN: smallest repository/query primitive; no Work enqueue;
+7. no `order.sync` fan-out, no run status transition, no second capture, no CONFIRM;
+8. full QA → checkpoint.
 
 ## Stop conditions
 
-- no REPAIR/VERIFY/CONFIRM in B3d2;
+- no REPAIR fan-out in B3e1;
+- no VERIFY/CONFIRM in B3e1;
 - no Billing handler / F6A Task2 before C0;
 - no merge;
 - no deploy;
