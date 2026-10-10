@@ -289,6 +289,21 @@ final class SalesAuditHandler
                             if ($valid->rowCount() !== 1) {
                                 throw new RuntimeException('Sales audit confirmation transition could not be persisted.');
                             }
+
+                            $superseded = $pdo->prepare(
+                                'DELETE old_run FROM sales_audit_runs old_run '
+                                . 'INNER JOIN sales_audit_runs current_run '
+                                . 'ON current_run.id = :run_id '
+                                . 'AND current_run.company_id = old_run.company_id '
+                                . 'AND current_run.account_id = old_run.account_id '
+                                . 'AND current_run.period_key = old_run.period_key '
+                                . 'AND current_run.contract_version = old_run.contract_version '
+                                . 'AND current_run.canonical_count = old_run.canonical_count '
+                                . 'AND current_run.set_hash = old_run.set_hash '
+                                . 'WHERE old_run.id <> current_run.id '
+                                . "AND old_run.status = 'valid' AND current_run.status = 'valid'"
+                            );
+                            $superseded->execute(['run_id' => $runId]);
                             return;
                         }
 
