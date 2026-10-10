@@ -203,27 +203,87 @@ Do not expand it into history/versioning/recovery abstractions without new evide
 
 ---
 
-# 7. EXACT NEXT MICROBLOCK — K6c-DOC ONLY
+# 7. NEW BINDING REQUIREMENT — PHP 8.3 THROUGH 8.5
 
-When user says `continua`:
+Explicit user requirement on 2026-10-10:
 
-1. verify branch HEAD equals this checkpoint commit;
-2. update `README.md` to state baseline lifecycle GREEN through K6c-1;
-3. update `docs/ERP2_AUTHORITY.md` with the exact three-case baseline rule:
-   - no prior baseline -> valid;
-   - equivalent prior valid -> replace/prune old;
-   - divergent prior valid -> preserve old + new attention;
-4. remove obsolete statements that baseline lifecycle remains unimplemented;
-5. keep G4 `IN PROGRESS` because start UX / duplicate-active guard and exact-order 404 classification remain;
-6. no app/schema/test changes;
-7. audit diff is documentation-only;
-8. update this checkpoint and STOP.
+```text
+ERP MELI 2.0 must be compatible with PHP 8.3, PHP 8.4 and PHP 8.5.
+```
 
-Do not open start UX or exact-order 404 in the same microblock.
+Current repository does NOT yet satisfy/certify this requirement.
+
+Confirmed blockers:
+
+```text
+composer.json require.php = ^8.5
+composer.lock platform.php = ^8.5
+RuntimePreflight currently requires PHP >= 8.5.0
+GitHub Actions QA runs only PHP 8.5
+GitHub Actions explicitly asserts composer require.php == ^8.5
+README currently describes stack as PHP 8.5
+```
+
+Dependency audit so far is favorable:
+
+```text
+locked PHPUnit 12.5.x requires PHP >= 8.3
+locked Slim 4.15.3 supports PHP 8.3 / 8.4 / 8.5
+locked PHPStan supports PHP 8.3
+```
+
+But compatibility must NOT be claimed until the full suite passes under all three runtimes.
+
+Target contract:
+
+```text
+composer PHP range: >=8.3 <8.6
+CI matrix: 8.3, 8.4, 8.5
+RuntimePreflight: PASS only inside supported range >=8.3 and <8.6
+composer.lock regenerated/updated consistently with no dependency drift unless required
+full lint + PHPStan + PHPUnit GREEN on each PHP version
+```
+
+Do not use PHP 8.4/8.5-only language/runtime features in production code while this support contract is active.
 
 ---
 
-# 8. OPEN G4 GAPS AFTER K6c-1
+# 8. EXACT NEXT MICROBLOCK — PHP-COMPAT-0 ONLY
+
+This compatibility correction now takes priority over K6c-DOC.
+
+Next execution:
+
+1. verify branch HEAD equals this checkpoint commit;
+2. change Composer platform contract from `^8.5` to `>=8.3 <8.6`;
+3. keep `composer.lock` fresh and aligned with the exact new platform contract;
+4. change RuntimePreflight from `>=8.5.0` to the supported interval `>=8.3.0 && <8.6.0`;
+5. change GitHub Actions to a PHP matrix `8.3`, `8.4`, `8.5`;
+6. replace the old `^8.5` CI assertion with the exact supported-range assertion;
+7. run full QA on all three matrix jobs;
+8. if any runtime fails, treat it as a compatibility RED and fix minimally before claiming support;
+9. update README stack only after matrix GREEN;
+10. noise-audit and checkpoint;
+11. STOP.
+
+Do not mix Sales Audit start UX, exact-order 404, Billing or Financial into PHP-COMPAT-0.
+
+---
+
+# 9. DEFERRED NEXT MICROBLOCK — K6c-DOC
+
+After PHP-COMPAT-0 is GREEN:
+
+1. update `README.md` to state baseline lifecycle GREEN through K6c-1 and the certified PHP 8.3-8.5 range;
+2. update `docs/ERP2_AUTHORITY.md` with the exact three-case baseline rule and PHP support contract;
+3. remove obsolete baseline lifecycle statements;
+4. keep G4 `IN PROGRESS` because start UX / duplicate-active guard and exact-order 404 classification remain;
+5. documentation-only diff;
+6. checkpoint and STOP.
+
+---
+
+# 10. OPEN G4 GAPS AFTER K6c-1
 
 ```text
 baseline lifecycle = GREEN
@@ -244,7 +304,7 @@ Hosting/runtime/main protection
 
 ---
 
-# 9. GATES
+# 11. GATES
 
 | Gate | Status |
 |---|---|
@@ -255,11 +315,11 @@ Hosting/runtime/main protection
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
-| G8 HOSTING_REALITY | NOT CERTIFIED |
+| G8 HOSTING_REALITY | NOT CERTIFIED; PHP 8.3-8.5 runtime compatibility now binding and not yet certified |
 
 ---
 
-# 10. TOOLING NOTE
+# 12. TOOLING NOTE
 
 Authoritative branch:
 
@@ -273,10 +333,11 @@ The user has declined Work-mode handoff. Continue through the GitHub connector u
 
 ---
 
-# 11. STOP CONDITIONS
+# 13. STOP CONDITIONS
 
 ```text
 STOP now until explicit user continua
+NO PHP compatibility claim yet
 NO K6c-DOC yet
 NO start UX
 NO duplicate-active guard implementation
