@@ -136,7 +136,7 @@ final class SalesAuditHandler
         }
 
         try {
-            $observations = $this->normalizePage($response, $offset);
+            $page = $this->normalizePage($response, $offset, $limit);
         } catch (RuntimeException) {
             $this->work->failCurrentClaim(
                 $workId,
@@ -151,8 +151,17 @@ final class SalesAuditHandler
             return $this->work->completeCurrentClaim(
                 $workId,
                 $claimToken,
-                function () use ($runId, $observations): void {
-                    foreach ($observations as $observation) {
+                function () use ($runId, $companyId, $accountId, $limit, $page, $now): void {
+                    if (!$this->audit->acceptRemoteTotal(
+                        $runId,
+                        $companyId,
+                        $accountId,
+                        $page['remote_total'],
+                    )) {
+                        throw new RuntimeException('Sales audit remote total changed during capture.');
+                    }
+
+                    foreach ($page['observations'] as $observation) {
                         if (!$this->audit->recordObservation(
                             $runId,
                             $observation['external_order_id'],
@@ -160,6 +169,23 @@ final class SalesAuditHandler
                         )) {
                             throw new RuntimeException('Sales audit capture contains a duplicate order id.');
                         }
+                    }
+
+                    if ($page['next_offset'] !== null) {
+                        $this->work->enqueue(
+                            $companyId,
+                            $accountId,
+                            'company:' . $companyId . ':account:' . $accountId,
+                            'sales.audit',
+                            (string) $runId,
+                            'sales.audit:' . $runId . ':' . $page['next_offset'] . ':' . $limit,
+                            [
+                                'run_id' => $runId,
+                                'offset' => $page['next_offset'],
+                                'limit' => $limit,
+                            ],
+                            $now,
+                        );
                     }
                 },
             );
@@ -281,10 +307,17 @@ final class SalesAuditHandler
     }
 
     /**
-     * @return list<array{external_order_id:string,remote_date_created:DateTimeImmutable}>
+     * @return array{
+     *   remote_total:int,
+     *   next_offset:?int,
+     *   observations:list<array{external_order_id:string,remote_date_created:DateTimeImmutable}>
+     * }
      */
-    private function normalizePage(MeliClientResponse $response, int $requestedOffset): array
-    {
+    private function normalizePage(
+        MeliClientResponse $response,
+        int $requestedOffset,
+        int $requestedLimit,
+    ): array {
         $results = $response->data['results'] ?? null;
         $paging = $response->data['paging'] ?? null;
         if (!is_array($results) || !is_array($paging)) {
@@ -294,7 +327,13 @@ final class SalesAuditHandler
         $total = $this->nonNegativeInt($paging['total'] ?? null);
         $offset = $this->nonNegativeInt($paging['offset'] ?? null);
         $limit = $this->positiveInt($paging['limit'] ?? null);
-        if ($total === null || $offset === null || $limit === null || $offset !== $requestedOffset) {
+        if (
+            $total === null
+            || $offset === null
+            || $limit === null
+            || $offset !== $requestedOffset
+            || $limit !== $requestedLimit
+        ) {
             throw new RuntimeException('Sales audit paging contract is invalid.');
         }
 
@@ -320,7 +359,17 @@ final class SalesAuditHandler
             throw new RuntimeException('Sales audit returned an empty non-terminal page.');
         }
 
-        return $observations;
+        if ($offset > PHP_INT_MAX - $limit) {
+            throw new RuntimeException('Sales audit paging offset overflowed.');
+        }
+        $candidateNextOffset = $offset + $limit;
+        $nextOffset = $candidateNextOffset < $total ? $candidateNextOffset : null;
+
+        return [
+            'remote_total' => $total,
+            'next_offset' => $nextOffset,
+            'observations' => $observations,
+        ];
     }
 
     private function requiredZonedTimestamp(mixed $value): DateTimeImmutable
