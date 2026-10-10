@@ -4,15 +4,17 @@
   "license": "proprietary",
   "type": "project",
   "require": {
-    "php": "^8.5",
+    "php": ">=8.3 <8.6",
     "ext-curl": "*",
     "ext-json": "*",
     "ext-mbstring": "*",
     "ext-openssl": "*",
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
+    "ext-phar": "*",
     "ext-session": "*",
     "ext-sodium": "*",
+    "ext-zlib": "*",
     "slim/slim": "^4.15.3",
     "slim/psr7": "^1.8"
   },
