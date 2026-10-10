@@ -83,6 +83,44 @@ final class SalesAuditFoundationTest extends TestCase
         self::assertNull($row['completed_at']);
     }
 
+    public function testRepositoryRejectsSecondActiveRunForSameScope(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo, 1, 1, 'MCO');
+        $repository = new SalesAuditRepository($pdo);
+        $startedAt = new DateTimeImmutable('2026-10-10T01:20:00+00:00');
+
+        $repository->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            $startedAt,
+        );
+
+        try {
+            $repository->createCapturingRun(
+                1,
+                1,
+                '2026-10-01',
+                SalesAuditRepository::CONTRACT_VERSION,
+                $startedAt->modify('+1 second'),
+            );
+            self::fail('Second active sales audit run was created for the same scope.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('Active sales audit run already exists for this scope.', $exception->getMessage());
+        }
+
+        self::assertSame(
+            '1',
+            (string) $pdo->query(
+                "SELECT COUNT(*) FROM sales_audit_runs WHERE company_id=1 AND account_id=1 "
+                . "AND period_key='2026-10-01' AND contract_version='seller-search-v1' "
+                . "AND status IN ('capturing','repairing','confirming')"
+            )->fetchColumn(),
+        );
+    }
+
     public function testRepositoryFailsClosedWhenAccountDoesNotBelongToCompany(): void
     {
         $pdo = TestDatabase::reset();
