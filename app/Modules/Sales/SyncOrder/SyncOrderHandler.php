@@ -86,6 +86,10 @@ final class SyncOrderHandler
                 );
             }
 
+            if ($exception->status === 404) {
+                return $this->failOrderNotFound($workId, $claimToken);
+            }
+
             if ($exception->status >= 500) {
                 $this->scheduleRemoteRetry($workId, $claimToken, $now);
                 return false;
@@ -130,6 +134,10 @@ final class SyncOrderHandler
             );
             return false;
         } catch (MeliApiException $exception) {
+            if ($exception->status === 404) {
+                return $this->failOrderNotFound($workId, $claimToken);
+            }
+
             if ($exception->status >= 500) {
                 $this->scheduleRemoteRetry($workId, $claimToken, $now);
                 return false;
@@ -148,6 +156,17 @@ final class SyncOrderHandler
         }
 
         return $this->persistResponse($workId, $claimToken, $companyId, $accountId, $orderId, $response);
+    }
+
+    private function failOrderNotFound(int $workId, string $claimToken): bool
+    {
+        $this->work->failCurrentClaim(
+            $workId,
+            $claimToken,
+            'meli_order_not_found',
+            'Mercado Libre reports that the requested order does not exist.',
+        );
+        return false;
     }
 
     private function requestOrder(string $orderId, string $accessToken, string $scopeKey): MeliClientResponse
