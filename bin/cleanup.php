@@ -9,15 +9,13 @@ use App\Core\Logging\DebugMaintenance;
 use App\Integrations\MercadoLibre\Client\ApiUsageRecorder;
 use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
-use DateTimeImmutable;
-use DateTimeZone;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 $config = AppConfig::fromEnvironment(Environment::all());
 $pdo = Connection::fromConfig($config);
 $settings = (new SystemSettingsRepository($pdo))->get();
-$now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+$now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
 $maintenance = new DebugMaintenance(
     dirname(__DIR__) . '/storage/debug',
