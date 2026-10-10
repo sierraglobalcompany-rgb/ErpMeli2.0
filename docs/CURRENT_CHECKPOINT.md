@@ -4,98 +4,79 @@
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
 **Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
-**Current implementation SHA:** `afb879328482528a57dd48d1e2cab62c90336b25`  
+**Current implementation SHA:** `57629ce9a78a235ff84352d3fe9aa9aa25d81478`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
 ## Current truth
 
-V3-A is closed/green. V3-B Sales Audit is in progress using small `RED -> minimum GREEN -> full QA -> checkpoint` blocks.
-
-A post-blockage audit found one V3-A gap only: native `orders.search` lacked `JSON_BIGINT_AS_STRING`; B0 closed it. No other A1-A8 regression was found.
+V3-A is closed/green. V3-B Sales Audit is in progress in deliberately small blocks.
 
 Closed V3-B blocks:
 
 ```text
-B0  bigint-safe orders.search
-B1  two-table Sales Audit schema
-B2  MCO temporal contract + durable capturing run
-B3a durable observation primitive
-B3b1 one validated/atomic remote CAPTURE page
-B3b2a1 429 + 5xx + transport semantics
+B0        bigint-safe orders.search
+B1        two-table Sales Audit schema
+B2        MCO temporal contract + durable capturing run
+B3a       durable observation primitive
+B3b1      one validated/atomic remote CAPTURE page
+B3b2a1    429 + 5xx + transport semantics
+B3b2a2.1  401 refresh + exactly one safe retry
 ```
 
-## Current Sales Audit design
+`SalesAuditHandler` remains inactive: it is still NOT wired into `SalesWorkProcessor`.
 
-```text
-sales_audit_runs
-sales_audit_orders
-```
+## Current handler guarantees
 
-MCO historical month:
-
-```text
-America/Bogota
-local [month start, next month start)
-remote query = canonical UTC +/-1h
-unsupported site = fail closed
-```
-
-`SalesAuditHandler` currently:
-
-- derives seller/site/period from durable scoped run;
-- accepts only `capturing` + `seller-search-v1` + connected account;
-- calls existing `orders.search` one page at a time;
-- requires numeric order id + explicitly zoned `date_created`;
-- validates full page before persistence;
-- stores all guard-band observations;
-- persists observations + Work completion atomically;
+- exact company/account/run scope;
+- only `capturing` + `seller-search-v1` + connected account;
+- MCO month derives from durable run, not Work dates;
+- one `orders.search` page;
+- numeric exact order ID + zoned `date_created` required;
+- whole page validates before persistence;
+- evidence + Work completion atomic;
 - duplicate evidence fails closed without overwrite;
 - malformed page leaves zero partial evidence;
 - CAPTURE enqueues zero `order.sync`;
-- creates no continuation page yet;
-- is NOT wired into `SalesWorkProcessor` yet.
+- no continuation page yet;
+- 429/cooldown -> defer same Work, no attempt burn;
+- 5xx/transport -> bounded retry same Work +30s, attempt consumed;
+- first 401 -> existing OAuth `refreshAfterUnauthorized()` -> exactly one retry;
+- second 401 after refresh -> terminal `meli_unauthorized`;
+- no replacement Work chain.
 
-## B3b2a1 — CLOSED
+## B3b2a2.1 — CLOSED
 
 RED:
 
 ```text
-080f9962f2bad9aee8319e1a6ad11ae1b7ec17ee
+2bef9806366cd44d8bff3a187f9d225be7221c08
 ```
 
-RED run `38013983417`, job `114100110831`:
+RED run `38014320179`, job `114101127967`:
 
 ```text
 PHPSTAN=0
-TESTS=172
-ERRORS=3
-only: 429, 503, transport escaped SalesAuditHandler
+PHPUNIT=174 tests
+FAILURES=2
+only: first 401 was terminal instead of refresh+retry
 ```
 
 GREEN:
 
 ```text
-afb879328482528a57dd48d1e2cab62c90336b25
+57629ce9a78a235ff84352d3fe9aa9aa25d81478
 ```
 
-Semantics now proven:
+Implementation reused the existing `OAuthRefreshService::refreshAfterUnauthorized()` and extracted only the existing search call for one retry. There is no retry loop, OAuth engine, table or setting.
 
-```text
-429/cooldown -> defer same Work, attempts restored, no evidence
-5xx         -> bounded retry same Work +30s, attempt consumed
-transport   -> bounded retry same Work +30s, attempt consumed
-```
-
-No replacement Work chain, new table, setting, retry engine or scheduler was added.
-
-Fresh QA — run `38014141832`, job `114100586878`:
+Fresh QA — run `38014453196`, job `114101524210`:
 
 ```text
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=172/172 PASS
-ASSERTIONS=1146
+PHPUNIT=174/174 PASS
+ASSERTIONS=1169
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
@@ -115,23 +96,20 @@ REAL_MELI_HTTP=0
 
 ## Exact next microblock
 
-### V3-B3b2a2 — OAuth 401 + permanent remote rejection only
+### V3-B3b2a2.2 — verify remaining post-401/permanent boundaries
 
 Still **no Work processor wiring**.
 
-RED must prove:
+Add focused tests only for:
 
-1. first `orders.search` 401 triggers existing OAuth refresh and exactly one safe retry;
-2. successful retry can persist/complete normally;
-3. rate limit during refresh/retry defers without attempt burn;
-4. 5xx after refresh uses bounded retry;
-5. second 401 becomes terminal `meli_unauthorized`;
-6. other non-401/non-5xx remote rejection becomes terminal `meli_remote_permanent`;
-7. no replacement Work chain and no partial evidence.
+1. 429 during OAuth refresh or retry search -> defer, attempts restored, zero evidence;
+2. 5xx after refresh/retry -> bounded retry +30s, attempt consumed, zero evidence;
+3. initial non-401/non-5xx rejection (e.g. 403) -> terminal `meli_remote_permanent`, zero evidence;
+4. no replacement Work chain.
 
-Then minimum GREEN -> full QA -> checkpoint.
+If these tests pass on current code, make **no product change**; record it as verification, not fake RED.
 
-Only after B3b2a2 is green:
+Only after this verification block is green:
 
 ```text
 B3b2b = wire sales.audit + delete orders.reconcile/ReconcileOrdersHandler
