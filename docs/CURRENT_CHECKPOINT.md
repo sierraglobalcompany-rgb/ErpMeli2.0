@@ -1,11 +1,36 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**PAUSED BY USER — DO NOT CONTINUE IMPLEMENTATION FROM THIS CHAT**  
+**PAUSED BY USER — DO NOT CONTINUE IMPLEMENTATION UNTIL EXPLICITLY RESUMED**  
 **Date:** 2026-10-10  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
+**Master map:** `README.md`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
+**Engineering law:** `AGENTS.md`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
+
+## Continuity model
+
+Use this order when resuming:
+
+```text
+1. code/schema at branch HEAD
+2. tests/CI for the relevant SHA
+3. this CURRENT_CHECKPOINT.md
+4. ERP2_AUTHORITY.md
+5. recent explicit user decisions
+6. README.md master map
+7. historical handoffs/plans
+```
+
+`README.md` was rebuilt as the living master plan in:
+
+```text
+fa9c2e9c90f2887649aec3455d2902af15e7d0b0
+docs(readme): establish living ERP2 master plan and continuity map
+```
+
+It now consolidates product purpose, ERP1 lessons, golden rules, architecture budget, Work/Meli/Sales/Billing/Financial contracts, roadmap, gates, active gaps and recovery protocol. Future checkpoints must keep its operational sections current and replace superseded text instead of appending historical versions.
 
 ## Exact resume point
 
@@ -16,7 +41,7 @@ Last fully GREEN functional commit:
 feat(v3-k5b): advance terminal capture directly to next durable state
 ```
 
-Verified QA for that commit:
+Verified QA for that functional commit:
 
 ```text
 RUN=38057589089
@@ -29,29 +54,59 @@ MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Audit/checkpoint correction commit:
+Audit/checkpoint correction commit before K6a:
 
 ```text
 4796f1805445d5853e500be76787eef31d005bc5
 docs(checkpoint): audit K1-K5b and freeze source-truth gates
 ```
 
-Current code-under-test RED commit at pause:
+K6a-1 RED commit:
 
 ```text
 35730c23fafd59b3fc7c6f737b21bcbcf87b8c91
 test(v3-k6a1): prove old seller-search month becomes unavailable
 ```
 
-Its workflow was still running when the user requested the pause:
+K6a-1 RED is now **CONFIRMED**.
+
+Workflow evidence:
 
 ```text
 RUN=38060132448
 JOB=114236531063
-STATUS=in_progress at pause
+PHP=8.5.11
+PHPSTAN=0
+PHPUNIT=200 tests
+ASSERTIONS=1357
+FAILURES=1
+MEMORY=22 MB
+REAL_MELI_HTTP=0
 ```
 
-The commit that contains this file is **documentation-only** and is expected to be the branch HEAD after the pause. When resuming, inspect its parent chain and the workflow above before changing code. Do not assume the RED result without reading CI/logs.
+Single expected failure:
+
+```text
+Tests\Integration\SalesAuditCaptureHandlerTest::
+testMonthOutsideSellerSearchHorizonBecomesUnavailableWithoutOAuthOrRemoteHttp
+
+Failed asserting that false is true.
+```
+
+Interpretation:
+
+```text
+RED is clean.
+The test is proving missing production behavior, not a collateral regression.
+No production GREEN has been written yet.
+```
+
+Documentation-only pause commit before README rebuild:
+
+```text
+bfe8ae56c2e909659631dff98b826d31dcd00e7e
+docs(checkpoint): pause at K6a1 RED without further implementation
+```
 
 ## What is already closed
 
@@ -83,7 +138,7 @@ K5        local VERIFY -> confirming only with zero canonical gaps
 K5b       terminal CAPTURE fast-path -> repairing or confirming
 ```
 
-## KISS audit result before pause
+## KISS audit result
 
 Architecture remains intentionally small:
 
@@ -98,18 +153,30 @@ Sales Work types: order.sync / sales.audit
 1 Sales audit run state machine
 ```
 
-Still **no** repair engine, recovery engine, priority queue, domain scheduler, repair/history table, child-state table, extra Work status or extra Sales Work type.
+Still no:
 
-Important anti-ERP1 rules preserved:
+```text
+repair engine
+recovery engine
+priority queue
+domain scheduler
+repair table
+repair history table
+child-state table
+extra Work status
+extra Sales Work type
+```
+
+Anti-ERP1 rules preserved:
 
 - no queue-state churn such as running/waiting/ready incompatibilities;
 - no generic retry/recovery engine;
 - no historical backfill engine coupled to current work;
 - no business truth dependent on retained Work rows;
 - no retries forever for old historical gaps;
-- Git keeps history; current tree does not keep obsolete parallel paths.
+- Git keeps history; current tree must not keep obsolete parallel paths.
 
-## Current runtime truth
+## Current runtime truth through K5b
 
 1. CAPTURE never enqueues `order.sync` directly.
 2. Terminal CAPTURE persists canonical fingerprint.
@@ -122,29 +189,30 @@ Important anti-ERP1 rules preserved:
 7. No remaining canonical gap -> `repairing -> confirming` transactionally.
 8. Work is execution state, not business history.
 
-## Mercado Libre truth gate discovered by audit
+## Mercado Libre source-truth gate
 
-Official Mercado Libre documentation revalidated on 2026-10-10 indicates seller order search is limited to approximately the last **12 months** and seller searches filter cancelled orders. Therefore seller search cannot be treated as all-time absolute truth.
+Official Mercado Libre documentation revalidated on 2026-10-10 indicates seller order search is limited to approximately the last **12 months** and seller searches filter cancelled orders. Seller search therefore cannot be treated as all-time absolute truth.
 
-Before independent CONFIRM/capture B or `valid`, two safeguards remain:
+Before independent CONFIRM/capture B or `valid`, two safeguards remain.
 
 ### K6a-1 — source horizon
 
-A canonical month outside the supported seller-search horizon must become durable `unavailable` **before OAuth/HTTP**, not empty=complete and not retry forever.
+RED confirmed.
 
-Current RED added exactly this proof:
+Required GREEN behavior:
 
 ```text
-month 2025-09
-now 2026-10-10
--> expected run unavailable
--> Work done
--> zero OAuth token dependency
--> zero remote HTTP
--> zero audit evidence rows
+canonical month outside supported seller-search horizon
+-> durable run unavailable
+-> current sales.audit Work done
+-> no OAuth token dependency
+-> no remote HTTP
+-> no sales_audit_orders evidence
+-> no retry forever
+-> no false complete
 ```
 
-No production GREEN for K6a-1 has been written yet.
+No alternate historical source is added in this block.
 
 ### K6a-2 — short non-terminal page
 
@@ -157,20 +225,20 @@ count(results) < paging.limit
 AND offset + limit < total
 ```
 
-fail closed rather than advance by requested limit, unless an official endpoint contract proves short non-terminal pages cannot occur.
+fail closed rather than advancing by requested `limit`, unless an official endpoint contract proves that short non-terminal pages cannot occur.
 
 No pagination engine is allowed.
 
 ## Exact sequence when resuming
 
-1. Read branch HEAD and this checkpoint.
-2. Inspect workflow `38060132448` and confirm the K6a-1 RED failure is the expected single cause.
-3. If RED is clean, implement the smallest GREEN for K6a-1 only.
+1. Fetch branch HEAD and read `README.md`, this checkpoint, `ERP2_AUTHORITY.md` and `AGENTS.md`.
+2. Confirm K6a-1 RED evidence above still matches commit `35730c23...`.
+3. Implement the **smallest production GREEN for K6a-1 only**.
 4. Full QA.
-5. Audit/delete/merge any superseded helper created by the change.
-6. Checkpoint.
+5. Run DELETE/SIMPLIFY/REUSE/MERGE audit on anything touched.
+6. Update README operational state + this checkpoint.
 7. Only then start K6a-2 as a separate RED.
-8. Do **not** start capture B or `valid` until K6a-1 and K6a-2 are green.
+8. Do not start independent capture B or `valid` until K6a-1 and K6a-2 are green.
 
 ## Gates at pause
 
@@ -187,8 +255,8 @@ No pagination engine is allowed.
 
 ## Stop conditions
 
-- STOP after this checkpoint until explicit user instruction to continue.
-- no production GREEN for K6a-1 in this paused turn;
+- STOP after this documentation sync until explicit user instruction to continue implementation.
+- no production GREEN for K6a-1 during this documentation-only block;
 - no K6a-2 yet;
 - no capture B;
 - no `valid`;
