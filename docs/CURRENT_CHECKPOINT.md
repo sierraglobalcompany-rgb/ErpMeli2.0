@@ -41,87 +41,65 @@ current official Mercado Libre docs + controlled real evidence > assumptions
 # 1. LAST FULLY GREEN FUNCTIONAL STATE
 
 ```text
-be56e3c11e121054299dd008beb736e69f4cb9db
-test(v3-k6b1): align sales schema contract with A/B evidence
-```
-
-This SHA includes the K6b-1 production schema commit:
-
-```text
-34c48f6970224a6fda8c5cf4f5407021dc0b3fcd
-feat(v3-k6b1): preserve independent audit capture evidence
+364256b1cc9135f33c780005c398c60d95e5882a
+feat(v3-k6b2): isolate audit evidence by capture pass
 ```
 
 Verified full QA:
 
 ```text
-RUN=38067480529
-JOB=114257963448
+RUN=38068906148
+JOB=114262117720
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=202/202 PASS
-ASSERTIONS=1373
+PHPUNIT=203/203 PASS
+ASSERTIONS=1388
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Important intermediate QA failure was understood and corrected without production expansion:
+K6b-2 RED was:
 
 ```text
-34c48f6... schema GREEN candidate
--> only SalesSchemaTest had stale exact-column expectation
--> production behavior/schema itself matched the new K6b contract
--> test contract updated in be56e3c...
--> fresh full QA GREEN
-```
-
----
-
-# 2. K6b-0 — INDEPENDENT CONFIRM PERSISTENCE DESIGN — RED CLOSED
-
-RED commit:
-
-```text
-091c5a19fe8f8c4a624854cb7e76176e1c61d266
-test(v3-k6b0): prove independent confirm evidence needs A/B identity
+a6acfc9339d221685e4eba3cfa6a33875707d00b
+test(v3-k6b2): prove audit evidence primitives isolate A and B
 ```
 
 RED evidence:
 
 ```text
-RUN=38066686637
-JOB=114255647932
+RUN=38068771263
+JOB=114261715811
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=202 tests
-ASSERTIONS=1371
+PHPUNIT=203 tests
+ASSERTIONS=1377
 FAILURES=1
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Single intended failure:
+Single intended RED failure:
 
 ```text
-SalesAuditConfirmEvidenceSchemaTest::
-testSalesAuditOrdersCanPreserveIndependentCaptureAAndBForTheSameOrder
+SalesAuditEvidencePassTest::
+testEvidencePrimitivesSeparateCapturePassesWithoutChangingDefaultA
 
-Failed asserting that an array has the key 'capture_pass'.
+Failed asserting that false is true.
 ```
 
-The RED proved that the old identity:
+Cause proved:
 
 ```text
-PRIMARY KEY(audit_run_id, external_order_id)
+recordObservation(..., 'B') was still treated as A
+-> same external_order_id collided with A identity
 ```
 
-could not preserve independent A and B observations for the same order.
+No collateral failures existed.
 
 ---
 
-# 3. K6b-1 — MINIMAL A/B EVIDENCE SCHEMA — CLOSED GREEN
-
-Pre-release schema was edited in place, not by adding a migration-number chain.
+# 2. K6b-1 — A/B EVIDENCE SCHEMA — CLOSED GREEN
 
 Current `sales_audit_orders` contract:
 
@@ -138,7 +116,7 @@ PRIMARY KEY(
 )
 ```
 
-Why this is the selected KISS representation:
+Why this remains the selected KISS representation:
 
 ```text
 1 audit run
@@ -149,29 +127,103 @@ no second queue
 no second business run
 no confirm/history table
 A and B can coexist
-DEFAULT A preserves current CAPTURE inserts
+DEFAULT A preserves current CAPTURE callers
 ```
 
-Noise audit of production schema commit `321fa357... -> 34c48f6...`:
+---
+
+# 3. K6b-2 — PASS-AWARE EVIDENCE PRIMITIVES — CLOSED GREEN
+
+Implemented only inside existing `SalesAuditRepository`.
+
+## `recordObservation`
+
+Current contract:
+
+```text
+recordObservation(runId, orderId, dateCreated, capturePass='A')
+```
+
+Properties:
+
+- existing callers remain A by default;
+- B can store the same external order independently;
+- duplicate identity is per `(run, pass, order)`;
+- unsupported pass fails closed;
+- no new repository/class/table/state.
+
+## `observationCount`
+
+Current contract:
+
+```text
+observationCount(runId, capturePass='A')
+```
+
+A and B counts are independent.
+
+Existing CAPTURE terminal integrity remains A by default.
+
+## `canonicalFingerprint`
+
+Reusable read primitive now exists:
+
+```text
+canonicalFingerprint(runId, window, capturePass='A')
+→ canonical_count
+→ set_hash
+```
+
+It:
+
+- filters by capture pass;
+- filters canonical window;
+- sorts external IDs deterministically;
+- hashes the canonical serialization exactly once.
+
+`persistCanonicalFingerprint()` now reuses this primitive for pass A instead of duplicating the fingerprint query.
+
+## Repair remains A-only
+
+All repository SQL that drives missing-set / repair / local verify is now explicitly scoped to:
+
+```text
+capture_pass='A'
+```
+
+This prevents future B observations from contaminating:
+
+```text
+post-CAPTURE missing decision
+repair candidate selection
+repair completion / confirming transition
+```
+
+## Noise audit
+
+RED -> GREEN production diff:
 
 ```text
 1 production file changed
-3 lines of diff
-+2 / -1
+SalesAuditRepository.php only
++59 / -28
+no schema change
 no handler change
-no repository change
 no Work change
+no new class
 no new table
-no new state
+no new run status
+no new Work type
+no network behavior
 ```
 
-The only follow-up commit aligned a superseded exact-schema test expectation; no production code changed there.
+Net growth is justified by one second-consumer primitive (`canonicalFingerprint`) plus shared capture-pass validation; existing fingerprint SQL was merged into the reusable primitive rather than duplicated.
 
 ---
 
 # 4. CURRENT SALES AUDIT RUNTIME TRUTH
 
-Closed path:
+Closed runtime path:
 
 ```text
 CAPTURE A
@@ -184,7 +236,7 @@ CAPTURE A
 -> confirming
 ```
 
-Current safeguards already GREEN:
+Current safeguards GREEN:
 
 ```text
 bigint-safe IDs
@@ -196,9 +248,12 @@ short non-terminal page fail-closed
 seller-search 12-month horizon -> unavailable before OAuth/HTTP
 terminal repair child + persistent gap -> attention
 no automatic same-child recreation
+A/B evidence identity independent
+A/B count/fingerprint primitives independent
+repair SQL insulated from B evidence
 ```
 
-`confirming` remains a durable state, but **CONFIRM runtime is not implemented yet**.
+`confirming` is durable but CONFIRM runtime is still intentionally unimplemented.
 
 Current `SalesWorkProcessor` still dispatches only:
 
@@ -207,13 +262,15 @@ capturing -> SalesAuditHandler
 repairing -> SalesAuditRepairHandler
 ```
 
-A `sales.audit` claim for `confirming` still fails as `sales_audit_state`. Do not patch this without the next RED.
+A `sales.audit` claim for `confirming` still fails as `sales_audit_state`.
+
+Do not patch that state without the next RED.
 
 ---
 
-# 5. CONFIRM DESIGN FROZEN AFTER K6b-1
+# 5. CONFIRM DESIGN STILL FROZEN
 
-Authority objective remains:
+Authority objective:
 
 ```text
 capture A
@@ -224,23 +281,24 @@ capture A
 -> valid
 ```
 
-Minimal design after proving A/B persistence:
+Minimal accepted design:
 
 1. B uses the same `sales.audit` Work type.
-2. B writes `sales_audit_orders.capture_pass='B'`.
-3. A evidence remains untouched during B.
-4. Do **not** add `confirm_count` or `confirm_hash` columns by default.
-5. At B terminal, derive B canonical count/hash from durable B observations and compare directly to A's existing `canonical_count`/`set_hash`.
-6. B traversal `remote_total` stability is execution state, not business history; first-seen B total may travel in the continuation Work payload if RED proves that sufficient.
-7. A/B mismatch must fail closed to durable `attention`; never overwrite A then call the run valid.
-8. Equal A/B canonical count+hash is necessary before `valid`, but `valid` is not implemented yet.
+2. B writes `capture_pass='B'` into the same `sales_audit_orders` table.
+3. A evidence remains untouched while B runs.
+4. Do not add `confirm_count` or `confirm_hash` columns by default.
+5. At B terminal derive B count/hash with `canonicalFingerprint(..., 'B')`.
+6. Compare B directly with A's existing `canonical_count` / `set_hash`.
+7. B traversal remote-total stability is execution state, not business history; payload is preferred unless evidence proves otherwise.
+8. Mismatch must become durable `attention`.
+9. Equality is necessary before `valid`, but `valid` runtime is still not implemented.
 
-This avoids:
+Rejected unless new evidence appears:
 
 ```text
 second audit run
 A<->B relation table
-second fingerprint columns unless proven necessary
+confirm repository
 confirm engine
 history table
 second queue
@@ -250,67 +308,55 @@ new Work status
 
 ---
 
-# 6. EXACT NEXT MICROBLOCK — K6b-2 ONLY
+# 6. DOCUMENTATION DRIFT — MUST BE CLOSED BEFORE CONFIRM GREEN
+
+`README.md` remains the master product map, but its operational Sales Audit block still predates K6a/K6b.
+
+`docs/ERP2_AUTHORITY.md` also still lists the pre-K6b `sales_audit_orders` identity.
+
+This is known drift, not code truth.
+
+Because code/schema + tests + this checkpoint outrank those stale sections, no contract is ambiguous now; however before a larger CONFIRM runtime GREEN, perform one small documentation-sync microblock that updates only current facts and removes superseded field lists.
+
+Required sync facts:
 
 ```text
-K6b-2 — pass-aware evidence primitives RED
+K6a-1 GREEN: old seller-search period -> unavailable before OAuth/HTTP
+K6a-2 GREEN: short non-terminal page -> fail closed
+K6b-1 GREEN: capture_pass A/B schema
+K6b-2 GREEN: pass-aware record/count/fingerprint + A-only repair SQL
+next runtime point: confirming
 ```
 
-Scope must remain repository/test level only unless RED proves a tiny GREEN is safe:
-
-1. prove `recordObservation` can target pass B while current callers remain pass A;
-2. prove observation count/fingerprint queries can be scoped by capture pass;
-3. A queries must never accidentally include B evidence;
-4. preserve existing A behavior by default or explicit A parameter with minimal caller churn;
-5. no network/runtime dispatch in this microblock;
-6. RED first, verify single intended cause;
-7. if GREEN is small, implement it, full QA, noise audit, checkpoint and STOP.
-
-Preferred KISS direction:
-
-```text
-extend existing SalesAuditRepository primitives with capture pass
-rather than create SalesAuditConfirmRepository
-```
-
-Do NOT in K6b-2:
-
-```text
-NO confirming dispatch
-NO B HTTP traversal
-NO valid transition
-NO attention-on-mismatch runtime
-NO new table/columns unless new RED proves necessity
-NO second audit run
-NO new Work type
-NO Billing
-NO Financial
-NO sale_fee
-NO webhook cleanup
-NO merge/deploy
-NO real ML HTTP
-NO remote writes
-```
+Do not turn docs into a changelog. Replace stale truth; Git keeps history.
 
 ---
 
-# 7. DOCUMENTATION DRIFT WARNING
+# 7. EXACT NEXT MICROBLOCK
 
-`README.md` remains the master product map, but its operational-status block predates K6a/K6b and is currently stale. Stable philosophy/architecture sections remain valid.
-
-Before any larger CONFIRM runtime implementation, sync the README operational Sales Audit section so it reflects:
+Before runtime production changes:
 
 ```text
-K6a-1 GREEN
-K6a-2 GREEN
-K6b-0 RED closed
-K6b-1 A/B schema GREEN
-current next point K6b-2
+K6b-DOC — sync README + Authority current Sales Audit truth
 ```
 
-Do not let stale README field lists override current schema + this checkpoint.
+Then, in a separate microblock:
 
-`docs/ERP2_AUTHORITY.md` also still documents the pre-K6b `sales_audit_orders` field list. Code/schema + this checkpoint are authoritative until that small documentation sync is performed.
+```text
+K6b-3 — CONFIRM first-page / confirming-dispatch RED only
+```
+
+K6b-3 RED should prove, without implementing `valid` yet:
+
+1. a `sales.audit` Work whose durable run state is `confirming` does not fail as unknown state;
+2. it performs the independent B traversal through existing Mercado Libre read path;
+3. observations go only to pass B;
+4. A observations are untouched;
+5. one page per Work remains true;
+6. pagination uses the existing short-page/source-horizon protections;
+7. no second Work type, engine, table or run is introduced.
+
+Do NOT combine K6b-DOC and K6b-3 GREEN in one large block.
 
 ---
 
@@ -321,7 +367,7 @@ Do not let stale README field lists override current schema + this checkpoint.
 | G1 REMOTE_TRUTH | PASS for implemented boundary + K6a guards |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for current Sales paths |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + source guards + A/B persistence schema GREEN; B traversal/compare/valid missing |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + source guards + A/B persistence/primitives GREEN; B runtime/compare/valid missing |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -329,10 +375,10 @@ Do not let stale README field lists override current schema + this checkpoint.
 
 ---
 
-# 9. OPEN GAPS — DO NOT MIX INTO K6b-2
+# 9. OPEN GAPS — DO NOT MIX INTO NEXT BLOCK
 
 ```text
-pass-aware evidence repository primitives
+README/Authority current-truth sync
 CONFIRM runtime / independent B traversal
 A-vs-B equal hash/count -> valid
 mismatch -> durable attention
@@ -354,15 +400,12 @@ When user says `continua`:
 
 ```text
 1. fetch branch HEAD
-2. verify last GREEN SHA be56e3c... and CI run 38067480529
-3. read AGENTS + Authority + this checkpoint
-4. sync stale README/Authority operational schema text when a safe small docs edit is available
-5. execute K6b-2 only
-6. RED first
-7. minimal GREEN only if scope stays repository-level
-8. full QA
-9. DELETE/SIMPLIFY/REUSE/MERGE audit
-10. checkpoint and STOP
+2. verify K6b-2 GREEN SHA 364256b... + CI run 38068906148
+3. read AGENTS + this checkpoint
+4. perform K6b-DOC only: replace stale README/Authority Sales Audit facts
+5. checkpoint if documentation edit is substantial
+6. only after docs truth is synchronized, open K6b-3 RED
+7. do not implement valid yet
 ```
 
-Do not re-audit the whole project. Do not ask where we were.
+No whole-project re-audit. Do not ask where we were.
