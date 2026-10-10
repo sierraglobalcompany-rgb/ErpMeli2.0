@@ -64,6 +64,7 @@ final class SalesSchemaTest extends TestCase
         $orderNames = array_map(static fn (array $column): string => (string) $column['Field'], $orderColumns);
         self::assertSame([
             'audit_run_id',
+            'capture_pass',
             'external_order_id',
             'remote_date_created',
         ], $orderNames);
@@ -74,7 +75,10 @@ final class SalesSchemaTest extends TestCase
             $primaryColumns[(int) $index['Seq_in_index']] = (string) $index['Column_name'];
         }
         ksort($primaryColumns);
-        self::assertSame(['audit_run_id', 'external_order_id'], array_values($primaryColumns));
+        self::assertSame(
+            ['audit_run_id', 'capture_pass', 'external_order_id'],
+            array_values($primaryColumns),
+        );
     }
 
     public function testWebhookEventsStoreMetadataButNotRawPayloads(): void
