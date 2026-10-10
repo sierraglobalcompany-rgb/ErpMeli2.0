@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-10  
 **Estado:** APROBADA PARA EJECUCIÓN POR MICROBLOQUES  
-**Base funcional GREEN verificada:** `364256b1cc9135f33c780005c398c60d95e5882a`  
+**Base funcional GREEN verificada:** `3486ecc1783e40abf8321de5780535700253da2f`  
 **Rama activa:** `impl/v3-b-sales-audit-20261010`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP normal:** `0`  
@@ -545,7 +545,7 @@ no canonical A gap
 
 sin estado `verifying`.
 
-Todos los queries de repair/verify están explícitamente anclados a `capture_pass='A'`, para impedir que futura evidencia B contamine reparación.
+Todos los queries de repair/verify están explícitamente anclados a `capture_pass='A'`, para impedir que evidencia B contamine reparación.
 
 ---
 
@@ -571,9 +571,9 @@ Reglas:
 
 ---
 
-# 16. Sales Audit — CONFIRM objetivo, aún no runtime
+# 16. Sales Audit — CONFIRM B runtime GREEN parcial
 
-Primera certificación de mes cerrado:
+Primera certificación de mes cerrado sigue siendo:
 
 ```text
 capture A
@@ -586,17 +586,20 @@ capture A
 
 Esto demuestra repetibilidad respecto de seller-search y su contrato conocido, **no snapshot absoluto de todo Mercado Libre**.
 
-Diseño KISS congelado:
+Contrato GREEN actual K6b-3/K6b-4:
 
 1. B usa el mismo `sales.audit`.
-2. B persiste `capture_pass='B'` en la misma tabla.
-3. A permanece intacto durante B.
-4. No agregar `confirm_count` ni `confirm_hash` por defecto.
-5. Al terminal B, derivar count/hash con `canonicalFingerprint(...,'B')`.
-6. Comparar directamente contra `canonical_count/set_hash` de A.
-7. Primer `remote_total` de B puede vivir en payload de Work si resulta suficiente; no persistir business column sólo para ejecución.
-8. mismatch → durable `attention`.
-9. igualdad A/B es necesaria antes de `valid`.
+2. `SalesWorkProcessor` enruta `confirming` al mismo `SalesAuditHandler` con pass B.
+3. B persiste `capture_pass='B'` en la misma tabla.
+4. A permanece intacto durante B.
+5. B procesa una página por Work y reutiliza los mismos source-horizon / page-contract guards.
+6. El primer `remote_total` de B vive sólo en el payload de continuación; no se añadió columna durable.
+7. Terminal B exige `observationCount(runId,'B') === remote_total`.
+8. Terminal B deriva count/hash con `canonicalFingerprint(...,'B')`.
+9. B se compara directamente contra `canonical_count/set_hash` durable de A.
+10. mismatch A/B → `confirming -> attention` y Work `done` dentro de la misma transacción.
+11. A y B permanecen durables después de mismatch.
+12. Igualdad A/B todavía **no** transiciona a `valid`; sigue fail-closed hasta K6b-5.
 
 Rechazado sin nueva evidencia:
 
@@ -609,9 +612,8 @@ history table
 second queue
 new Work type
 new Work status
+confirm_count / confirm_hash columns
 ```
-
-Estado actual: `confirming` existe durablemente, pero `SalesWorkProcessor` todavía no ejecuta CONFIRM B. Eso se abre sólo mediante RED específico.
 
 ---
 
@@ -861,7 +863,7 @@ No feature-flag forest.
 | G1 REMOTE_TRUTH | PASS para boundary implementado + guards K6a |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS para Sales actual |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + source guards + A/B persistence/primitives GREEN; B runtime/compare/valid pendiente |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + source guards + independent B traversal + mismatch→attention GREEN; equality→valid pendiente |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -896,29 +898,33 @@ short non-terminal page guard
 A/B evidence identity
 A/B record/count/fingerprint primitives
 A-only repair isolation
+confirming dispatch through same sales.audit
+independent Capture B pagination
+B remote_total carried only in Work payload
+terminal B durable count/fingerprint
+A/B mismatch -> durable attention atomically
 ```
 
 Próximo comportamiento a abrir mediante RED:
 
 ```text
-K6b-3 — confirming dispatch + primera página independiente B
+K6b-5 — terminal B equality -> valid
 ```
 
 Ese RED debe demostrar:
 
-1. `sales.audit` con run `confirming` no cae como estado desconocido;
-2. usa el mismo read path / `orders.search`;
-3. evidencia sólo en pass B;
-4. A queda intacto;
-5. una página por Work;
-6. conserva guards de source horizon y short-page;
-7. no crea segundo Work type, engine, table o run.
+1. B terminal completo y durable;
+2. `observationCount(runId,'B') === remote_total`;
+3. canonical count/hash B iguales a A;
+4. `confirming -> valid` y Work `done` en la misma transacción;
+5. A y B permanecen coherentes;
+6. no continuación, no `order.sync`, no segunda arquitectura.
 
 No implementar todavía en el mismo salto:
 
 ```text
-valid
 baseline lifecycle
+start UX / active-run guard
 Billing Task 2
 Financial
 ```
@@ -933,6 +939,6 @@ No merge.
 No deploy.
 No remote writes.
 No real ML batch salvo smoke sanitizado explícitamente autorizado.
-No `valid` antes de completar CONFIRM B + comparación A/B.
+No declarar Sales Audit `valid` hasta que K6b-5 tenga RED → GREEN → QA completo.
 
 Cada microbloque termina con QA/noise audit/checkpoint antes de continuar.
