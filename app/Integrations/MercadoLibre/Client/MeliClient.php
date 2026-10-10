@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Integrations\MercadoLibre\Client;
 
 use App\Core\Logging\DebugRecorder;
+use App\Integrations\MercadoLibre\Json\LosslessJsonDecoder;
 use App\Integrations\MercadoLibre\Transport\MeliTransport;
 use App\Modules\Settings\SystemSettingsRepository;
 use DateTimeImmutable;
@@ -25,7 +26,8 @@ final class MeliClient
      *     family:string,
      *     classification:string,
      *     official_doc_url:string,
-     *     verified_at:string
+     *     verified_at:string,
+     *     preserve_numbers?:bool
      * }> $operations
      */
     public function __construct(
@@ -132,7 +134,9 @@ final class MeliClient
             if ($response->body === '') {
                 $data = [];
             } else {
-                $decoded = json_decode($response->body, true, 512, JSON_THROW_ON_ERROR);
+                $decoded = ($operation['preserve_numbers'] ?? false) === true
+                    ? LosslessJsonDecoder::decodeObject($response->body)
+                    : json_decode($response->body, true, 512, JSON_THROW_ON_ERROR);
                 if (!is_array($decoded)) {
                     throw new JsonException('Expected JSON object.');
                 }
