@@ -74,6 +74,43 @@ final class SalesAuditRepository
         return $id;
     }
 
+    /** @return array{period_key:string,site_id:string,seller_id:string} */
+    public function captureContext(int $runId, int $companyId, int $accountId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT r.period_key,a.site_id,a.external_user_id '
+            . 'FROM sales_audit_runs r '
+            . 'INNER JOIN meli_accounts a ON a.id = r.account_id AND a.company_id = r.company_id '
+            . "WHERE r.id = :run_id AND r.company_id = :company_id AND r.account_id = :account_id "
+            . "AND r.status = 'capturing' AND r.contract_version = :contract_version "
+            . "AND a.status = 'connected' LIMIT 1"
+        );
+        $statement->execute([
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'contract_version' => self::CONTRACT_VERSION,
+        ]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        if (!is_array($row)) {
+            throw new RuntimeException('Sales audit capture scope is unavailable.');
+        }
+
+        $periodKey = is_string($row['period_key'] ?? null) ? $row['period_key'] : '';
+        $siteId = is_string($row['site_id'] ?? null) ? $row['site_id'] : '';
+        $sellerId = is_string($row['external_user_id'] ?? null) ? $row['external_user_id'] : '';
+        if ($periodKey === '' || $siteId === '' || preg_match('/^[0-9]{1,32}$/D', $sellerId) !== 1) {
+            throw new RuntimeException('Sales audit capture scope is invalid.');
+        }
+
+        return [
+            'period_key' => $periodKey,
+            'site_id' => $siteId,
+            'seller_id' => $sellerId,
+        ];
+    }
+
     public function recordObservation(
         int $runId,
         string $externalOrderId,
