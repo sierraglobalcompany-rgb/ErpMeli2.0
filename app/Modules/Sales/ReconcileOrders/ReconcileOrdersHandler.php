@@ -67,7 +67,7 @@ final class ReconcileOrdersHandler
         try {
             $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
         } catch (MeliRateLimitException $exception) {
-            $this->work->retryCurrentClaim(
+            $this->work->deferCurrentClaim(
                 $workId,
                 $claimToken,
                 $exception->retryAt,
@@ -88,7 +88,7 @@ final class ReconcileOrdersHandler
         try {
             $response = $this->requestPage($sellerId, $accessToken, $scopeKey, $window);
         } catch (MeliRateLimitException $exception) {
-            $this->work->retryCurrentClaim(
+            $this->work->deferCurrentClaim(
                 $workId,
                 $claimToken,
                 $exception->retryAt,
@@ -157,7 +157,7 @@ final class ReconcileOrdersHandler
             $freshAccessToken = $this->tokens->refreshAfterUnauthorized($accountId, $rejectedAccessToken, $now);
             $response = $this->requestPage($sellerId, $freshAccessToken, $scopeKey, $window);
         } catch (MeliRateLimitException $exception) {
-            $this->work->retryCurrentClaim(
+            $this->work->deferCurrentClaim(
                 $workId,
                 $claimToken,
                 $exception->retryAt,
