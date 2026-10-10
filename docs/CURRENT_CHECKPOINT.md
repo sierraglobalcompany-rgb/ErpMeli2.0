@@ -4,9 +4,9 @@
 **Date:** 2026-10-10  
 **Repo:** `sierraglobalcompany-rgb/ErpMeli2.0`  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**Previous checkpoint:** `8682d2cec3f2db4f2d59dcbed93e891c02e343b7`  
-**Last verified functional GREEN:** `49ef2762990484b815a46ace42c9a34af8f104c1`  
-**QA run:** `38091483115` — SUCCESS  
+**Previous checkpoint:** `025dc620537ca445adac7f97bf7bef67b6ae462f`  
+**Last verified functional GREEN:** `6b6093b65ad0ab65351140d79f8cfc78d1a56910`  
+**QA run:** `38093953630` — SUCCESS  
 **Remote Mercado Libre writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
