@@ -178,15 +178,18 @@ final class SalesAuditRepository
         int $runId,
         string $externalOrderId,
         DateTimeImmutable $remoteDateCreated,
+        string $capturePass = 'A',
     ): bool {
+        $capturePass = $this->capturePass($capturePass);
         $statement = $this->pdo->prepare(
-            'INSERT INTO sales_audit_orders (audit_run_id,external_order_id,remote_date_created) '
-            . 'VALUES (:audit_run_id,:external_order_id,:remote_date_created)'
+            'INSERT INTO sales_audit_orders (audit_run_id,capture_pass,external_order_id,remote_date_created) '
+            . 'VALUES (:audit_run_id,:capture_pass,:external_order_id,:remote_date_created)'
         );
 
         try {
             $statement->execute([
                 'audit_run_id' => $runId,
+                'capture_pass' => $capturePass,
                 'external_order_id' => $externalOrderId,
                 'remote_date_created' => $remoteDateCreated
                     ->setTimezone(new DateTimeZone('UTC'))
@@ -201,6 +204,45 @@ final class SalesAuditRepository
         }
 
         return true;
+    }
+
+    /** @return array{canonical_count:int,set_hash:string} */
+    public function canonicalFingerprint(
+        int $runId,
+        SalesAuditWindow $window,
+        string $capturePass = 'A',
+    ): array {
+        if ($runId < 1) {
+            throw new InvalidArgumentException('Sales audit run id is invalid.');
+        }
+        $capturePass = $this->capturePass($capturePass);
+
+        $statement = $this->pdo->prepare(
+            'SELECT external_order_id FROM sales_audit_orders '
+            . 'WHERE audit_run_id = :run_id AND capture_pass = :capture_pass '
+            . 'AND remote_date_created >= :canonical_start '
+            . 'AND remote_date_created < :canonical_end '
+            . 'ORDER BY external_order_id ASC'
+        );
+        $statement->execute([
+            'run_id' => $runId,
+            'capture_pass' => $capturePass,
+            'canonical_start' => $window->canonicalStartUtc->format('Y-m-d H:i:s.u'),
+            'canonical_end' => $window->canonicalEndUtc->format('Y-m-d H:i:s.u'),
+        ]);
+
+        $ids = [];
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $value) {
+            if (!is_string($value) || preg_match('/^[0-9]{1,32}$/D', $value) !== 1) {
+                throw new RuntimeException('Sales audit canonical order id is invalid.');
+            }
+            $ids[] = $value;
+        }
+
+        return [
+            'canonical_count' => count($ids),
+            'set_hash' => hash('sha256', implode("\n", $ids)),
+        ];
     }
 
     /** @return array{canonical_count:int,set_hash:string} */
@@ -220,29 +262,7 @@ final class SalesAuditRepository
             throw new RuntimeException('Sales audit canonical window does not match the run.');
         }
 
-        $statement = $this->pdo->prepare(
-            'SELECT external_order_id FROM sales_audit_orders '
-            . 'WHERE audit_run_id = :run_id '
-            . 'AND remote_date_created >= :canonical_start '
-            . 'AND remote_date_created < :canonical_end '
-            . 'ORDER BY external_order_id ASC'
-        );
-        $statement->execute([
-            'run_id' => $runId,
-            'canonical_start' => $window->canonicalStartUtc->format('Y-m-d H:i:s.u'),
-            'canonical_end' => $window->canonicalEndUtc->format('Y-m-d H:i:s.u'),
-        ]);
-
-        $ids = [];
-        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $value) {
-            if (!is_string($value) || preg_match('/^[0-9]{1,32}$/D', $value) !== 1) {
-                throw new RuntimeException('Sales audit canonical order id is invalid.');
-            }
-            $ids[] = $value;
-        }
-
-        $canonicalCount = count($ids);
-        $setHash = hash('sha256', implode("\n", $ids));
+        $fingerprint = $this->canonicalFingerprint($runId, $window);
 
         $update = $this->pdo->prepare(
             'UPDATE sales_audit_runs SET canonical_count = :canonical_count, set_hash = :set_hash '
@@ -252,8 +272,8 @@ final class SalesAuditRepository
             . 'AND remote_total IS NOT NULL AND canonical_count IS NULL AND set_hash IS NULL'
         );
         $update->execute([
-            'canonical_count' => $canonicalCount,
-            'set_hash' => $setHash,
+            'canonical_count' => $fingerprint['canonical_count'],
+            'set_hash' => $fingerprint['set_hash'],
             'run_id' => $runId,
             'company_id' => $companyId,
             'account_id' => $accountId,
@@ -264,10 +284,7 @@ final class SalesAuditRepository
             throw new RuntimeException('Sales audit canonical fingerprint could not be persisted.');
         }
 
-        return [
-            'canonical_count' => $canonicalCount,
-            'set_hash' => $setHash,
-        ];
+        return $fingerprint;
     }
 
     /** @return 'repairing'|'confirming' */
@@ -289,7 +306,7 @@ final class SalesAuditRepository
         ];
         $missingPredicate = 'EXISTS ('
             . 'SELECT 1 FROM sales_audit_orders ao '
-            . 'WHERE ao.audit_run_id = r.id '
+            . "WHERE ao.audit_run_id = r.id AND ao.capture_pass = 'A' "
             . 'AND ao.remote_date_created >= :remote_start AND ao.remote_date_created < :remote_end '
             . 'AND NOT EXISTS ('
             . 'SELECT 1 FROM orders o '
@@ -352,7 +369,7 @@ final class SalesAuditRepository
             . 'AND r.remote_total IS NOT NULL AND r.canonical_count IS NOT NULL AND r.set_hash IS NOT NULL '
             . 'AND NOT EXISTS ('
             . 'SELECT 1 FROM sales_audit_orders ao '
-            . 'WHERE ao.audit_run_id = r.id '
+            . "WHERE ao.audit_run_id = r.id AND ao.capture_pass = 'A' "
             . 'AND ao.remote_date_created >= :remote_start AND ao.remote_date_created < :remote_end '
             . 'AND NOT EXISTS ('
             . 'SELECT 1 FROM orders o '
@@ -382,7 +399,7 @@ final class SalesAuditRepository
         $canonicalEnd = $window->canonicalEndUtc->format('Y-m-d H:i:s.u');
         $statement = $this->pdo->prepare(
             'SELECT ao.external_order_id FROM sales_audit_orders ao '
-            . 'WHERE ao.audit_run_id = :run_id '
+            . "WHERE ao.audit_run_id = :run_id AND ao.capture_pass = 'A' "
             . 'AND ao.remote_date_created >= :remote_start '
             . 'AND ao.remote_date_created < :remote_end '
             . 'AND NOT EXISTS ('
@@ -413,16 +430,21 @@ final class SalesAuditRepository
         return $value;
     }
 
-    public function observationCount(int $runId): int
+    public function observationCount(int $runId, string $capturePass = 'A'): int
     {
         if ($runId < 1) {
             throw new InvalidArgumentException('Sales audit run id is invalid.');
         }
+        $capturePass = $this->capturePass($capturePass);
 
         $statement = $this->pdo->prepare(
-            'SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id = :run_id'
+            'SELECT COUNT(*) FROM sales_audit_orders '
+            . 'WHERE audit_run_id = :run_id AND capture_pass = :capture_pass'
         );
-        $statement->execute(['run_id' => $runId]);
+        $statement->execute([
+            'run_id' => $runId,
+            'capture_pass' => $capturePass,
+        ]);
         $count = $statement->fetchColumn();
 
         if (!is_int($count) && !(is_string($count) && ctype_digit($count))) {
@@ -469,5 +491,14 @@ final class SalesAuditRepository
         }
 
         return SalesAuditWindow::forSitePeriod($siteId, $periodKey);
+    }
+
+    private function capturePass(string $capturePass): string
+    {
+        if ($capturePass !== 'A' && $capturePass !== 'B') {
+            throw new InvalidArgumentException('Sales audit capture pass is invalid.');
+        }
+
+        return $capturePass;
     }
 }
