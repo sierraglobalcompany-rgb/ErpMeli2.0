@@ -17,8 +17,10 @@ final class RuntimePreflight
         'openssl',
         'pdo',
         'pdo_mysql',
+        'phar',
         'session',
         'sodium',
+        'zlib',
     ];
 
     /**
@@ -36,7 +38,10 @@ final class RuntimePreflight
      */
     public function inspect(AppConfig $config, PDO $pdo, string $projectRoot): array
     {
-        $phpStatus = version_compare(PHP_VERSION, '8.5.0', '>=') ? 'PASS' : 'FAIL';
+        $phpStatus = version_compare(PHP_VERSION, '8.3.0', '>=')
+            && version_compare(PHP_VERSION, '8.6.0', '<')
+            ? 'PASS'
+            : 'FAIL';
 
         $missing = [];
         foreach (self::REQUIRED_EXTENSIONS as $extension) {
