@@ -182,6 +182,19 @@ final class SalesAuditHandler
                             $accountId,
                             $window,
                         );
+
+                        if ($this->audit->transitionToRepairingIfMissing($runId, $companyId, $accountId)) {
+                            $this->work->enqueue(
+                                $companyId,
+                                $accountId,
+                                'company:' . $companyId . ':account:' . $accountId,
+                                'sales.audit',
+                                (string) $runId,
+                                'sales.audit:' . $runId . ':repair',
+                                ['run_id' => $runId],
+                                $now,
+                            );
+                        }
                         return;
                     }
 
