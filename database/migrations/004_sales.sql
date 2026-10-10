@@ -73,6 +73,8 @@ CREATE TABLE sales_audit_runs (
     period_key DATE NOT NULL,
     contract_version VARCHAR(32) NOT NULL,
     status ENUM('capturing', 'repairing', 'confirming', 'valid', 'attention', 'unavailable') NOT NULL DEFAULT 'capturing',
+    active_contract_version VARCHAR(32)
+        AS (CASE WHEN status IN ('capturing', 'repairing', 'confirming') THEN contract_version ELSE NULL END) PERSISTENT,
     remote_total BIGINT UNSIGNED NULL,
     canonical_count BIGINT UNSIGNED NULL,
     set_hash CHAR(64) NULL,
@@ -80,6 +82,7 @@ CREATE TABLE sales_audit_runs (
     completed_at DATETIME(6) NULL,
     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
+    UNIQUE KEY uq_sales_audit_runs_active (company_id, account_id, period_key, active_contract_version),
     KEY idx_sales_audit_runs_scope (company_id, account_id, period_key, status, id),
     CONSTRAINT fk_sales_audit_runs_company
         FOREIGN KEY (company_id) REFERENCES companies(id)
