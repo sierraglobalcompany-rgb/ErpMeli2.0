@@ -9,7 +9,13 @@ on:
 
 jobs:
   qa:
+    name: qa (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.3", "8.4", "8.5"]
+
     services:
       mariadb:
         image: mariadb:11.4
@@ -38,16 +44,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Setup PHP 8.5
+      - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.5"
-          extensions: curl, json, mbstring, openssl, pdo_mysql, session, sodium
+          php-version: ${{ matrix.php }}
+          extensions: curl, json, mbstring, openssl, pdo_mysql, phar, session, sodium, zlib
           coverage: none
           tools: composer:v2
 
-      - name: Assert PHP target
-        run: php -r '$c=json_decode(file_get_contents("composer.json"), true, 512, JSON_THROW_ON_ERROR); if (($c["require"]["php"] ?? "") !== "^8.5") { fwrite(STDERR, "composer php constraint must be ^8.5\n"); exit(1); }'
+      - name: Assert PHP support contract
+        run: php -r '$c=json_decode(file_get_contents("composer.json"), true, 512, JSON_THROW_ON_ERROR); if (($c["require"]["php"] ?? "") !== ">=8.3 <8.6") { fwrite(STDERR, "composer php constraint must be >=8.3 <8.6\n"); exit(1); }'
 
       - name: Validate Composer
         run: composer validate --strict
