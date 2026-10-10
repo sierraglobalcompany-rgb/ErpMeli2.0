@@ -3,7 +3,7 @@
 **Date:** 2026-10-10  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
-**Current implementation SHA:** `62954301183f487382d79ca119e965d2165c6229`  
+**Current implementation SHA:** `acb0bca2f0cfa0673e3cc5d17569f679fe308f3c`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
 **V3-B plan:** `docs/superpowers/plans/2026-10-10-v3-b-sales-audit.md`  
 **Remote writes:** OFF  
@@ -62,37 +62,18 @@ MEMORY=20 MB
 REAL_MELI_HTTP=0
 ```
 
-Checkpoint B0+B1 commit `bc1102a3000882375fa9bf04591fc64244264201` was itself verified green: 161/161, 1064 assertions, PHPStan 0.
-
 ## B2 — temporal contract + durable run creation CLOSED
 
-RED commit:
+RED `2602ce1d88fe56e2ea1be16cdb161c8e8a323ded` failed only because `SalesAuditWindow` / `SalesAuditRepository` did not exist.
 
-```text
-2602ce1d88fe56e2ea1be16cdb161c8e8a323ded
-```
-
-RED result — run `38012786522`, job `114096327063`:
-
-```text
-PHPSTAN=0
-TESTS=166
-EXPECTED NEW FAILURES=5
-CAUSE=SalesAuditWindow / SalesAuditRepository did not exist
-```
-
-No unrelated regression appeared.
-
-GREEN commits:
+GREEN:
 
 ```text
 f47e9fc1c8da4be1ee416d69189a41b6a31acbd4  SalesAuditWindow
 62954301183f487382d79ca119e965d2165c6229  SalesAuditRepository
 ```
 
-### `SalesAuditWindow`
-
-Current historical support is intentionally narrow:
+Historical certification is intentionally narrow:
 
 ```text
 site_id=MCO -> America/Bogota
@@ -105,42 +86,16 @@ Canonical month:
 [first day 00:00 local, first day next month 00:00 local)
 ```
 
-For `2026-10-01` MCO this becomes:
+For `2026-10-01` MCO:
 
 ```text
 canonical UTC: 2026-10-01T05:00:00Z -> 2026-11-01T05:00:00Z
 remote guard:  2026-10-01T04:00:00Z -> 2026-11-01T06:00:00Z
 ```
 
-The period key must be a real `YYYY-MM-01`; unsupported sites and invalid period keys fail closed.
+The repository resolves exact company/account scope, validates site/period, and creates a durable `capturing` run using fixed contract `seller-search-v1`.
 
-### `SalesAuditRepository`
-
-Added only domain-specific persistence needed immediately by Sales Audit:
-
-- resolve `site_id` by exact company/account scope;
-- reject a mismatched company/account scope;
-- fixed contract version `seller-search-v1`;
-- create durable run in `capturing` state;
-- normalize supplied operational start time to UTC before persistence;
-- validate site/period through `SalesAuditWindow` before creating the run.
-
-Not added:
-
-```text
-SalesAuditHandler
-sales.audit Work wiring
-remote request
-multipage capture
-order.sync fan-out
-REPAIR
-VERIFY
-CONFIRM
-generic timezone resolver
-generic history engine
-```
-
-Fresh B2 QA — run `38012892267`, job `114096660065`:
+Fresh QA — run `38012892267`, job `114096660065`:
 
 ```text
 PHP=8.5.11
@@ -148,6 +103,73 @@ PHPSTAN=0
 PHPUNIT=166/166 PASS
 ASSERTIONS=1089
 MEMORY=20 MB
+REAL_MELI_HTTP=0
+```
+
+Checkpoint commit `9122700a86cecccb9a1a1cd85c9cbd7e56a870a8` was itself verified green with the same 166/166 tests and 1089 assertions.
+
+## B3a — durable observation persistence CLOSED
+
+RED commit:
+
+```text
+12f19e0046f70265f88f6ff527f32977454f671a
+```
+
+RED result — run `38013290533`, job `114097932371`:
+
+```text
+PHPSTAN=0
+TESTS=167
+ERRORS=1
+CAUSE=SalesAuditRepository::recordObservation() did not exist
+```
+
+GREEN commit:
+
+```text
+acb0bca2f0cfa0673e3cc5d17569f679fe308f3c
+```
+
+Added one method to the existing `SalesAuditRepository` only:
+
+```text
+recordObservation(runId, externalOrderId, remoteDateCreated): bool
+```
+
+Semantics:
+
+- first observation inserts `(audit_run_id, external_order_id, remote_date_created)`;
+- remote timestamp is normalized to UTC for persistence;
+- duplicate primary key MariaDB error `1062` returns `false`;
+- duplicate never overwrites the original `remote_date_created`;
+- any non-duplicate DB error propagates fail-closed, including invalid FK/run;
+- no `INSERT IGNORE`, so FK/data errors are not silently suppressed.
+
+Intentionally NOT added:
+
+```text
+new class
+new table
+new migration
+HTTP
+Work wiring
+page state table
+order.sync enqueue
+capture validation/hash
+REPAIR
+VERIFY
+CONFIRM
+```
+
+Fresh B3a QA — run `38013378562`, job `114098221485`:
+
+```text
+PHP=8.5.11
+PHPSTAN=0
+PHPUNIT=167/167 PASS
+ASSERTIONS=1094
+MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
@@ -177,36 +199,29 @@ Only the `orders.search` bigint decode gap was found; B0 closed it with RED/GREE
 | `G1 REMOTE_TRUTH` | PASS for implemented boundary | exact decimals, strict timestamps, bigint-safe search, MCO time contract |
 | `G2 WORK_SAFETY` | PASS | bounded retry/defer/recovery/retention |
 | `G3 RATE_SAFETY` | PASS for implemented Sales paths | cooldown defer + bounded transient retry |
-| `G4 SALES_AUDIT_TRUTH` | IN PROGRESS | schema + temporal/run foundation green; remote capture not implemented |
+| `G4 SALES_AUDIT_TRUTH` | IN PROGRESS | schema + run + durable observation primitive green; remote capture not implemented |
 | `G5 BILLING_CURSOR_TRUTH` | BLOCKED | C0 real sanitized MCO cursor smoke required |
 | `G6 FINANCIAL_NO_DOUBLE_COUNT` | NOT STARTED | later Financial block |
 | `G7 WRITE_FAIL_CLOSED` | PASS | semantic classification + fuse + no admin activation path |
 | `G8 HOSTING_REALITY` | NOT CERTIFIED | real Hostinger limits still pending |
 
-## Exact next microblocks
-
-To keep implementation small, original B3 is split operationally without changing its final contract:
-
-### V3-B3a — evidence persistence primitives only
-
-1. Persist one observed `(audit_run_id, external_order_id, remote_date_created)` fact.
-2. Duplicate same ID inside same run must not create a second fact.
-3. No remote HTTP.
-4. No Work wiring.
-5. No capture validation/hash yet.
-6. Full RED -> GREEN -> QA.
+## Exact next microblock
 
 ### V3-B3b — one remote CAPTURE page
 
-Only after B3a green:
+Scope only:
 
-1. add `sales.audit` one-page processing;
-2. use B2 window and existing `orders.search`;
-3. require ID + explicitly zoned `date_created`;
-4. persist observations only;
-5. CAPTURE must not enqueue `order.sync`;
-6. preserve existing 429 defer / bounded 5xx+transport retry semantics;
-7. no REPAIR/VERIFY/CONFIRM yet.
+1. Add one-page `sales.audit` processing.
+2. Reuse `SalesAuditWindow` and existing `orders.search`.
+3. Require order ID and explicitly zoned `date_created` in every observed result.
+4. Persist observations through `recordObservation()`.
+5. A duplicate observation must remain detectable; never overwrite evidence.
+6. CAPTURE must not enqueue `order.sync`.
+7. Preserve existing 429 defer semantics.
+8. Preserve bounded 5xx/transport retry semantics.
+9. Do not implement multipage completion validation/hash yet.
+10. No REPAIR, VERIFY or CONFIRM.
+11. RED -> minimum GREEN -> full QA -> checkpoint.
 
 ## Stop conditions
 
