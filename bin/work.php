@@ -14,7 +14,8 @@ use App\Integrations\MercadoLibre\Client\MeliClient;
 use App\Integrations\MercadoLibre\Client\MeliCooldownRepository;
 use App\Integrations\MercadoLibre\Transport\CurlMeliTransport;
 use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
-use App\Modules\Sales\ReconcileOrders\ReconcileOrdersHandler;
+use App\Modules\Sales\Audit\SalesAuditHandler;
+use App\Modules\Sales\Audit\SalesAuditRepository;
 use App\Modules\Sales\SalesWorkProcessor;
 use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
 use App\Modules\Sales\SyncOrder\SyncOrderHandler;
@@ -70,7 +71,7 @@ $processor = new SalesWorkProcessor(
         $work,
         $debugRecorder,
     ),
-    new ReconcileOrdersHandler($pdo, $work, $client, $tokens),
+    new SalesAuditHandler($work, new SalesAuditRepository($pdo), $client, $tokens),
     $work,
 );
 $execution = new WorkExecution(
