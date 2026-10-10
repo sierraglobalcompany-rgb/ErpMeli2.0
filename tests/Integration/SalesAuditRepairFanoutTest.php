@@ -11,6 +11,7 @@ use App\Work\WorkRepository;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class SalesAuditRepairFanoutTest extends TestCase
@@ -76,6 +77,50 @@ final class SalesAuditRepairFanoutTest extends TestCase
             1,
             (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn(),
         );
+    }
+
+    public function testRepairActionDoesNotRecreateFailedOrderSyncForSameMissingCandidate(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo);
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $this->seedRepairingRun($audit);
+        $work = new WorkRepository($pdo);
+        $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'order.sync',
+            '100000000001',
+            'order.sync:100000000001',
+            ['order_id' => '100000000001'],
+            new DateTimeImmutable('2026-10-10T03:09:00+00:00'),
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        self::assertTrue($work->failCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            'meli_remote_permanent',
+            'Permanent repair sync failure.',
+        ));
+
+        $handler = new SalesAuditRepairHandler($audit, $work);
+
+        try {
+            $handler->enqueueNextMissingOrder(
+                $runId,
+                1,
+                1,
+                new DateTimeImmutable('2026-10-10T03:10:00+00:00'),
+            );
+            self::fail('Expected failed repair sync to block automatic recreation.');
+        } catch (RuntimeException) {
+            self::assertSame(
+                1,
+                (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn(),
+            );
+        }
     }
 
     public function testRepairActionReturnsNullWhenNothingRemainsMissing(): void
