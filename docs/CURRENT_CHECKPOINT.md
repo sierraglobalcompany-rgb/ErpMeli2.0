@@ -32,39 +32,29 @@ STOP after checkpoint when context grows
 
 ---
 
-# 1. LAST FUNCTIONAL GREEN — K6c-0
+# 1. LAST FUNCTIONAL GREEN — K6c-1 DIVERGENT BASELINE GUARD
 
 Functional GREEN:
 
 ```text
-436210d0ff576de8189dfb35434305de271b9ce0
-feat(v3-k6c0): replace equivalent valid baseline
+0c164793e12f3f289b2f16e93e1bda265b49eff2
+feat(v3-k6c1): guard divergent valid baseline
 ```
 
-Fresh full QA for that functional SHA:
+Fresh full QA:
 
 ```text
-RUN=38074658105
-JOB=114278993275
+RUN=38076990793
+JOB=114285940280
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=207/207 PASS
-ASSERTIONS=1460
+PHPUNIT=208/208 PASS
+ASSERTIONS=1480
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-K6c-0 behavior:
-
-```text
-new valid fingerprint == prior valid baseline fingerprint
--> new run remains newest valid baseline
--> prior equivalent valid run is deleted
--> prior A+B evidence is pruned by existing ON DELETE CASCADE
--> terminal B + valid transition + replacement + Work done are atomic
-```
-
-No baseline pointer/table/history engine/new state was added.
+The normal expected Slim 404 output from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute` appears in logs but all tests pass.
 
 ---
 
@@ -77,15 +67,17 @@ CAPTURE A
 -> confirming
 -> independent Capture B traversal
 -> terminal B count/fingerprint
--> mismatch A/B -> attention + Work done atomically
--> equality A/B -> valid + completed_at + Work done atomically
+-> A/B mismatch -> attention + Work done atomically
+-> A/B equality -> baseline comparison
 ```
 
 `valid` means consistent/verified relative to seller-search and the known contract for that run, not an absolute guarantee of the complete historical Mercado Libre universe.
 
 ---
 
-# 3. BASELINE AUTHORITY RULE — BINDING
+# 3. BASELINE AUTHORITY RULE — CLOSED GREEN
+
+Binding rule:
 
 ```text
 conservar el más reciente válido;
@@ -93,72 +85,37 @@ evidencia superseded equivalente se elimina.
 Si aparece diferencia, conservar baseline anterior + run attention hasta resolver.
 ```
 
-K6c-0 closed the equivalent replacement half. K6c-1 now proves the divergent-fingerprint half.
+Runtime behavior now:
+
+```text
+no prior valid baseline
+-> internally confirmed run becomes valid
+
+prior valid baseline fingerprint == new internally confirmed fingerprint
+-> new run becomes valid
+-> prior equivalent valid run is deleted
+-> prior A+B evidence pruned by existing ON DELETE CASCADE
+
+prior valid baseline fingerprint != new internally confirmed fingerprint
+-> prior baseline remains valid and untouched
+-> new run becomes attention
+-> new A+B evidence remains durable for diagnosis
+```
+
+No baseline pointer, history table, baseline engine, new Work type/status, second queue or cleanup engine was added.
 
 ---
 
-# 4. K6c-1 — DIVERGENT BASELINE — RED CONFIRMED
+# 4. K6c-1 RED / GREEN
 
-RED commit:
+RED:
 
 ```text
 04fbc19d1a4eb99eec63cb6318cecbcfc0f9ccae
 test(v3-k6c1): prove divergent baseline attention
 ```
 
-Test:
-
-```text
-tests/Integration/SalesAuditBaselineLifecycleTest.php
-
-testNewInternallyConfirmedDifferentFingerprintPreservesPriorBaselineAndEndsAttention
-```
-
-Scenario:
-
-```text
-prior durable baseline:
-  scope = company 1 / account 1 / 2026-10-01 / seller-search-v1
-  status = valid
-  A+B canonical set = {200000000100, 200000000101}
-
-new independent run:
-  same scope/contract
-  A canonical set = {200000000100, 200000000102}
-  local verification passes
-  B independently confirms exactly the same new set
-  therefore A == B internally
-  but new fingerprint != prior valid baseline fingerprint
-```
-
-Required lifecycle contract:
-
-```text
-terminal Work = done
-prior baseline remains valid
-prior baseline A+B evidence remains durable
-new run ends attention, not valid
-new run A+B evidence remains durable for diagnosis
-exactly one valid baseline remains
-no continuation Work
-no order.sync fanout
-```
-
-Current behavior proven by RED:
-
-```text
-prior baseline survives correctly
-new A == new B
-current code marks new run valid
-prior baseline has different hash, so K6c-0 equivalent delete does not remove it
-result = two conflicting valid truths
-```
-
-This is the exact missing behavior.
-
----
-
-# 5. K6c-1 RED QA
+RED QA:
 
 ```text
 RUN=38075246021
@@ -178,40 +135,49 @@ Single intended failure:
 Tests\Integration\SalesAuditBaselineLifecycleTest::
 testNewInternallyConfirmedDifferentFingerprintPreservesPriorBaselineAndEndsAttention
 
-An internally confirmed run that differs from the valid baseline must end attention.
-Expected: 'attention'
-Actual:   'valid'
+Expected: attention
+Actual:   valid
 ```
 
-Failure line at RED SHA:
+GREEN:
 
 ```text
-tests/Integration/SalesAuditBaselineLifecycleTest.php:331
+0c164793e12f3f289b2f16e93e1bda265b49eff2
+feat(v3-k6c1): guard divergent valid baseline
 ```
 
-The usual Slim 404 output from `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute` appears in logs but is benign and not a failure.
+Minimal implementation:
+
+```text
+terminal B first keeps existing B-vs-A mismatch guard
+then, only when A == B internally:
+  scoped self-JOIN checks prior valid baseline(s)
+  same company/account/period/contract
+  if any prior valid fingerprint differs -> current confirming -> attention
+  otherwise current confirming -> valid
+  then K6c-0 equivalent pruning remains unchanged
+```
+
+Everything remains inside existing `WorkRepository::completeCurrentClaim` transaction, so terminal B evidence + lifecycle transition + Work completion are atomic.
 
 ---
 
-# 6. RED NOISE AUDIT
+# 5. K6c-1 GREEN NOISE AUDIT
 
-Delta from prior checkpoint `f14d2c6f7150600f729e55341f892c042d631c4f` to RED `04fbc19d1a4eb99eec63cb6318cecbcfc0f9ccae`:
+Delta from RED checkpoint `e8f668b90b80d86363cba70534abfbe4361bcb90` to functional GREEN `0c164793e12f3f289b2f16e93e1bda265b49eff2`:
 
 ```text
-1 test file modified only
-tests/Integration/SalesAuditBaselineLifecycleTest.php
-+174/-1
+1 production file only
+app/Modules/Sales/Audit/SalesAuditHandler.php
++33/-0
 ```
-
-The one deletion is only the previous fixed transport response replaced by a parameterized test transport default; existing equivalent-baseline test behavior remains unchanged.
 
 No:
 
 ```text
-app code
-schema
+schema change
 table/column
-new production class
+new class
 repository
 engine
 state
@@ -220,53 +186,49 @@ queue
 cron
 ```
 
+K6c-0 equivalent replacement test remains GREEN and K6c-1 divergent baseline test is now GREEN.
+
 ---
 
-# 7. EXACT NEXT MICROBLOCK — K6c-1 GREEN ONLY
+# 6. BASELINE LIFECYCLE STATUS
+
+```text
+K6c-0 equivalent replacement = GREEN
+K6c-1 divergent baseline preservation/attention = GREEN
+```
+
+Baseline lifecycle is functionally closed for the currently frozen authority rule.
+
+Do not expand it into history/versioning/recovery abstractions without new evidence.
+
+---
+
+# 7. EXACT NEXT MICROBLOCK — K6c-DOC ONLY
 
 When user says `continua`:
 
 1. verify branch HEAD equals this checkpoint commit;
-2. preserve K6c-0 equivalent replacement GREEN;
-3. inspect only the terminal B equality transaction and `sales_audit_runs` query needs;
-4. implement the minimum guarded baseline comparison before committing the new run as valid;
-5. same scope means:
-   - same company_id;
-   - same account_id;
-   - same period_key;
-   - same contract_version;
-   - prior row status = valid;
-   - prior id != current run;
-6. if no prior valid baseline exists, keep current equality behavior -> valid;
-7. if prior valid baseline exists and its canonical_count/set_hash equals the current run fingerprint, keep K6c-0 behavior -> current valid + prune prior equivalent baseline;
-8. if prior valid baseline exists and its canonical_count/set_hash differs, current run must transition confirming -> attention, preserving both prior baseline and new A+B evidence;
-9. keep Work completion atomic in the existing `completeCurrentClaim` transaction;
-10. no continuation/order.sync fanout on terminal divergent attention;
-11. do not add baseline pointer/table/history engine/new status;
-12. run fresh full QA;
-13. noise-audit RED -> GREEN;
-14. checkpoint and STOP.
+2. update `README.md` to state baseline lifecycle GREEN through K6c-1;
+3. update `docs/ERP2_AUTHORITY.md` with the exact three-case baseline rule:
+   - no prior baseline -> valid;
+   - equivalent prior valid -> replace/prune old;
+   - divergent prior valid -> preserve old + new attention;
+4. remove obsolete statements that baseline lifecycle remains unimplemented;
+5. keep G4 `IN PROGRESS` because start UX / duplicate-active guard and exact-order 404 classification remain;
+6. no app/schema/test changes;
+7. audit diff is documentation-only;
+8. update this checkpoint and STOP.
 
-Preferred KISS direction:
-
-```text
-EXTEND the existing terminal B equality transaction
-with one scoped read/guard of the prior valid baseline
-then choose attention vs valid/replacement
-```
-
-Do not alter B-vs-A mismatch handling; that already ends attention.
+Do not open start UX or exact-order 404 in the same microblock.
 
 ---
 
-# 8. OPEN G4 GAPS AFTER K6c-1 RED
+# 8. OPEN G4 GAPS AFTER K6c-1
 
 ```text
-baseline lifecycle:
-  - equivalent valid replacement GREEN
-  - divergent fingerprint preservation/attention RED confirmed, GREEN next
-Sales Audit start UX + duplicate active-run guard
-exact order 404 final audit classification
+baseline lifecycle = GREEN
+Sales Audit start UX + duplicate active-run guard = OPEN
+exact order 404 final audit classification = OPEN
 ```
 
 Other domains/ops remain separate:
@@ -289,7 +251,7 @@ Hosting/runtime/main protection
 | G1 REMOTE_TRUTH | PASS for implemented boundary + K6a guards |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for current Sales paths |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — core A/B + equivalent baseline replacement GREEN; divergent baseline RED confirmed; start/404 remain |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — core A/B + baseline lifecycle GREEN; start/duplicate-active + exact-order 404 remain |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -315,8 +277,9 @@ The user has declined Work-mode handoff. Continue through the GitHub connector u
 
 ```text
 STOP now until explicit user continua
-NO K6c-1 GREEN yet
+NO K6c-DOC yet
 NO start UX
+NO duplicate-active guard implementation
 NO exact-order 404 work
 NO Billing
 NO Financial
