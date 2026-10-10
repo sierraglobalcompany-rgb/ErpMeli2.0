@@ -4,9 +4,9 @@
 **Date:** 2026-10-10  
 **Repo:** `sierraglobalcompany-rgb/ErpMeli2.0`  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**Last verified GREEN head:** `d9b1d7e954137353832ec4772a3805237ac5a2ec`  
-**SAH-2 production change:** `46bc609829a5193b5cc5a09ecc8b3e2df570a737` — `fix(sah2): enforce one active audit run per scope`  
-**QA run:** `38088781355` — SUCCESS  
+**Last verified GREEN head:** `b88b8654f0cd16e6ba612084d1067cabc6948ee4`  
+**Start Audit functional boundary:** `1b3df5b802359b358592154dddfc65424e6af96a` + `1906c89c386c708ae5ab598840be0ec03949ae89` + `2444909ceb376214f0a00b784de492550203c080`  
+**QA run:** `38089427123` — SUCCESS  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
@@ -77,13 +77,14 @@ SalesAuditStateMachine
 ConfirmRepository
 BaselineService
 FinalizerEngine
+StartAuditService
 generic transaction layer
 generic lock manager
 history/page/repair/confirm tables
 new audit states
 ```
 
-`WorkRepository::completeCurrentClaim()` remains the atomic Work/business completion boundary, and Work/SalesAudit repositories keep sharing the same PDO.
+`WorkRepository::completeCurrentClaim()` remains the atomic Work/business completion boundary. Work and Sales Audit repositories continue sharing the same PDO.
 
 ---
 
@@ -129,22 +130,24 @@ prior divergent valid baseline
 -> current attention preserved
 ```
 
-SAH-0 remains closed:
+Closed hardening already preserved:
 
 ```text
+SAH-0:
 remote/source contract incoherence -> meli_sales_audit_contract
 internal audit lifecycle/persistence failure -> sales_audit_state
-```
 
-SAH-1 remains closed: durable Sales Audit lifecycle SQL belongs to `SalesAuditRepository`; `SalesAuditHandler` orchestrates.
+SAH-1:
+durable lifecycle SQL belongs to SalesAuditRepository
+SalesAuditHandler remains remote orchestration
+
+SAH-2:
+one active run per company/account/period/contract enforced atomically by MariaDB
+```
 
 ---
 
 # 4. SAH-2 ACTIVE-RUN GUARD — GREEN / CLOSED
-
-Problem proven:
-
-> Before SAH-2, `SalesAuditRepository::createCapturingRun()` could create a second active audit run for the same company/account/period/contract.
 
 Active identity:
 
@@ -171,31 +174,7 @@ attention
 unavailable
 ```
 
-## RED evidence
-
-Initial RED commit:
-
-```text
-882f291db0e0e31a45bcb7b056b004e51191c5c2
-test(sah2): prove duplicate active audit run gap
-```
-
-RED CI proved the intended failure only:
-
-```text
-PHPStan = 0 errors
-PHPUnit = 210 tests / 1489 assertions
-Failures = 1
-failure = second active run was created for the same scope
-```
-
-The RED did not fail from syntax, setup, migration, or unrelated behavior.
-
-## GREEN mechanism
-
-Reuse the already-proven Work active-dedupe pattern at the database boundary.
-
-`database/migrations/004_sales.sql` now adds only:
+Canonical schema mechanism in `database/migrations/004_sales.sql`:
 
 ```text
 active_contract_version VARCHAR(32)
@@ -213,63 +192,198 @@ Consequences:
 capturing  -> blocks same active scope
 repairing  -> blocks same active scope
 confirming -> blocks same active scope
-valid      -> allows future replacement run
-attention  -> allows future replacement run
-unavailable-> allows future replacement run
+valid      -> allows replacement
+attention  -> allows replacement
+unavailable-> allows replacement
 ```
 
-The guard is enforced atomically by MariaDB. There is no SELECT-then-INSERT race.
+The guard is concurrency-safe at the database boundary. No SELECT-then-INSERT race, lock manager, service, new table, new state, or new Work type was introduced.
 
-No new table, service, engine, lock manager, state, Work type, route, controller, config, package, cron, or retry path was added.
+SAH-2 production change:
 
-## Important simplification
+```text
+46bc609829a5193b5cc5a09ecc8b3e2df570a737
+fix(sah2): enforce one active audit run per scope
+```
 
-`SalesAuditRepository` was intentionally NOT changed.
+SAH-2 verified QA:
 
-The database duplicate violation currently remains the native PDO/MariaDB integrity error (`SQLSTATE 23000`, driver code `1062`). Translating that into a user-facing/domain HTTP response is deferred to the real Start Audit boundary, where there will be an actual consumer. Do not add exception translation earlier just for abstraction.
-
-ERP2 is still pre-release, so `004_sales.sql` was edited in place; no synthetic `006/007` migration was created.
+```text
+RUN 38088781355
+PHP 8.3 / 8.4 / 8.5 = SUCCESS
+212 tests / 1502 assertions
+PHPStan = 0
+```
 
 ---
 
-# 5. SAH-2 TEST CONTRACT — GREEN
+# 5. START AUDIT CONTRACT + UX/API — GREEN / CLOSED
 
-Dedicated coverage:
+This block exposed the first real user-facing start boundary without adding an orchestration layer.
 
-```text
-tests/Integration/SalesAuditActiveRunGuardTest.php
-```
+## Contract
 
-Verifies:
+Endpoint:
 
 ```text
-capturing blocks duplicate
-repairing blocks duplicate
-confirming blocks duplicate
-valid permits replacement
-attention permits replacement
-unavailable permits replacement
-uq_sales_audit_runs_active exists and is UNIQUE
-index columns are exactly:
-company_id, account_id, period_key, active_contract_version
+POST /sales/audits
 ```
 
-`SalesSchemaTest` also verifies the generated column is part of the canonical pre-release Sales schema.
+Required boundary:
+
+```text
+authenticated user
+selected company in session
+role = admin for selected company
+valid CSRF
+connected Mercado Libre account belonging to selected company
+period_key shaped as YYYY-MM-01
+existing SalesAuditWindow validation remains authoritative for a real MCO month/site
+```
+
+Important: **current/future-period policy is NOT decided in this block.** A syntactically and calendrically valid current/future month is not newly rejected here. That is the next isolated microblock.
+
+## Atomic start
+
+The HTTP boundary reuses only existing pieces:
+
+```text
+SalesListController
+SalesAuditRepository::createCapturingRun()
+WorkRepository::enqueue()
+Csrf
+existing session tenancy/admin membership
+existing sales.audit Work type
+same PDO
+```
+
+The controller opens one PDO transaction and performs:
+
+```text
+1. create sales_audit_runs row in capturing
+2. enqueue initial sales.audit Work
+3. COMMIT
+```
+
+Initial Work contract:
+
+```text
+scope_key    = company:<company_id>:account:<account_id>
+type         = sales.audit
+resource_key = <run_id>
+logical id   = sales.audit:<run_id>:0:50
+payload      = {run_id:<run_id>, offset:0, limit:50}
+status       = pending
+```
+
+If either durable run creation or enqueue fails, the transaction rolls back. This avoids an orphan active run with no Work item.
+
+No Mercado Libre HTTP occurs while starting the audit. Start only persists local state and queues existing Work.
+
+## HTTP behavior
+
+```text
+success                         -> 303 Location: /sales
+duplicate active same scope     -> 409
+not admin / no valid membership -> 403
+invalid CSRF                    -> 419
+invalid input/account scope     -> 422
+```
+
+The SAH-2 MariaDB UNIQUE remains the race-safe final defense. At this real consumer boundary, native MariaDB duplicate `SQLSTATE 23000 / 1062` is translated to HTTP `409` with a safe Spanish message.
+
+## UX
+
+`GET /sales` remains available to valid company members.
+
+For company admins only it now exposes a small `Auditoría histórica` form containing:
+
+```text
+connected Mercado Libre account selector
+month input in canonical YYYY-MM-01 form
+CSRF token
+Iniciar auditoría button
+```
+
+Ordinary members do not receive the audit-start form.
+
+No separate dashboard, wizard, scheduler, StartAuditService, JavaScript workflow, or new route family was added.
 
 ---
 
-# 6. QA / CI — GREEN
+# 6. START AUDIT TDD EVIDENCE
 
-Verified head:
+## RED
+
+Commit:
 
 ```text
-d9b1d7e954137353832ec4772a3805237ac5a2ec
+672d9ff8143acd8a7e772911e323d6ee7df808be
+test(sah3): define Sales Audit start HTTP contract
+```
+
+RED run:
+
+```text
+RUN 38089110850
+PHPStan = 0 errors
+PHPUnit = 213 tests / 1503 assertions
+Failures = exactly 1
+expected = 303
+actual = 404 on POST /sales/audits
+```
+
+The RED failed only because the Start Audit route/boundary did not exist.
+
+## GREEN production
+
+```text
+1b3df5b802359b358592154dddfc65424e6af96a
+feat(sah3): add atomic Sales Audit start boundary
+
+1906c89c386c708ae5ab598840be0ec03949ae89
+feat(sah3): expose Sales Audit start form
+
+2444909ceb376214f0a00b784de492550203c080
+feat(sah3): route Sales Audit starts through Sales UI
+
+117ea64b6a1ca0ecb83a0d8ea5aa996010f4415d
+chore(sah3): restore Routes trailing newline
+```
+
+Dedicated final coverage:
+
+```text
+tests/Integration/SalesAuditHttpStartRouteTest.php
+```
+
+It verifies:
+
+```text
+admin can start tenant-bound audit
+run + initial Work contract
+duplicate active start -> 409 and no extra run/work
+member start -> 403 and no state
+invalid CSRF -> 419 and no state
+foreign-company account -> 422 and no state
+admin sees Start Audit form
+member does not see Start Audit form
+```
+
+---
+
+# 7. QA / CI — GREEN
+
+Verified GREEN head:
+
+```text
+b88b8654f0cd16e6ba612084d1067cabc6948ee4
 ```
 
 Workflow:
 
 ```text
-RUN = 38088781355
+RUN = 38089427123
 STATUS = success
 REAL_MELI_HTTP = 0
 ```
@@ -277,56 +391,74 @@ REAL_MELI_HTTP = 0
 Jobs:
 
 ```text
-PHP 8.3 -> JOB 114320745692 -> SUCCESS
-PHP 8.4 -> JOB 114320745663 -> SUCCESS
-PHP 8.5 -> JOB 114320745486 -> SUCCESS
+PHP 8.3 -> JOB 114322625074 -> SUCCESS
+PHP 8.4 -> JOB 114322625117 -> SUCCESS
+PHP 8.5 -> JOB 114322624920 -> SUCCESS
 ```
 
-Fresh QA evidence:
+Fresh QA evidence from PHP 8.4 job:
 
 ```text
 lint = PASS
 PHPStan = 0 errors
-PHPUnit = 212 / 212 tests
-Assertions = 1502
+PHPUnit = 218 / 218 tests
+Assertions = 1538
 ```
+
+The existing intentional Slim 404 diagnostic emitted by `BootstrapTest::testStoragePathIsNotExposedAsApplicationRoute()` is still visible in CI output but the test passes. It is pre-existing noise, not a SAH-3 failure, and was not mixed into this block.
 
 No real Mercado Libre HTTP and no remote writes were enabled.
 
 ---
 
-# 7. NOISE AUDIT — CLEAN
+# 8. NOISE AUDIT — CLEAN
 
-Final diff from prior checkpoint `a1d3656d126fe7de3da263a29471ef92544cffd5` to GREEN `d9b1d7e954137353832ec4772a3805237ac5a2ec`:
+Final diff from prior checkpoint `1fcace89c6c807577cc9cbee736cf7b6eec9015d` to GREEN `b88b8654f0cd16e6ba612084d1067cabc6948ee4`:
 
 ```text
-1 production file modified
-  database/migrations/004_sales.sql
-  +3 / -0
+app/Core/Http/Routes.php
+  +7 / -0
+  only POST /sales/audits route
 
-1 dedicated test file added
-  tests/Integration/SalesAuditActiveRunGuardTest.php
+app/Modules/Sales/ViewSales/SalesListController.php
+  Start Audit boundary + admin-role reuse + connected-account data for form
 
-1 existing schema test updated
-  tests/Integration/SalesSchemaTest.php
-  +2 / -0
+app/Modules/Sales/ViewSales/views/list.php
+  minimal admin-only audit form
+
+tests/Integration/SalesAuditHttpStartRouteTest.php
+  dedicated Start Audit contract coverage
 ```
 
-No final diff remains in `SalesAuditFoundationTest.php`; the initial RED characterization was deliberately consolidated into the dedicated SAH-2 test.
+The temporary missing trailing newline in `Routes.php` was detected and corrected before final GREEN. Final route diff is exactly `+7 / -0`.
 
-No unrelated production code changed.
+No changes to:
+
+```text
+database schema
+SalesAuditRepository
+SalesAuditHandler
+SalesAuditRepairHandler
+WorkRepository
+WorkRunner
+MeliClient
+Mercado Libre operations/config
+Billing
+Financial
+webhook behavior
+```
 
 ---
 
-# 8. GATES
+# 9. GATES
 
 ```text
 G1 REMOTE_TRUTH: PASS for implemented boundary
 G2 WORK_SAFETY: PASS
 G3 RATE_SAFETY: PASS for current Sales
 G4 SALES_AUDIT_TRUTH: IN PROGRESS
-   Capture A/repair/verify/Capture B/A-B/baseline/SAH-0/SAH-1/SAH-2 GREEN
-   Start Audit + current/future semantics + exact-order 404 + final closure pending
+   Capture A/repair/verify/Capture B/A-B/baseline/SAH-0/SAH-1/SAH-2/Start Audit GREEN
+   current/future semantics + exact-order 404 + final closure pending
 G5 BILLING_CURSOR_TRUTH: BLOCKED ON C0
 G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
 G7 WRITE_FAIL_CLOSED: PASS
@@ -342,18 +474,18 @@ Issue #5 dedicated Mercado Libre ERP2 app/OAuth reality
 
 Historical draft PRs/issues remain tracking debt, not roadmap authority.
 
-`docs/ERP2_AUTHORITY.md` still contains an older immediate-order section that predates baseline/SAH-0/SAH-1/SAH-2. Do not follow that stale subsection over this checkpoint/code. Full doc cleanup remains deferred until G4 closure.
+`docs/ERP2_AUTHORITY.md` still contains an older immediate-order subsection that predates newer Sales Audit work. Do not follow that stale subsection over code/tests/this checkpoint. Full doc cleanup remains deferred until G4 closure.
 
 ---
 
-# 9. CURRENT GAPS / FROZEN ORDER
+# 10. CURRENT GAPS / FROZEN ORDER
 
 Immediate order is now:
 
 ```text
-NOW CLOSED: SAH-2 duplicate active-run guard
-NEXT: Start Audit contract + UX/API
-THEN: current/future period semantics
+CLOSED: SAH-2 duplicate active-run guard
+CLOSED: Start Audit contract + UX/API
+NEXT: current/future period semantics
 THEN: exact-order 404 semantics/classification
 THEN: G4 adversarial/noise/docs closure
 ```
@@ -380,33 +512,33 @@ MariaDB session UTC
 
 ---
 
-# 10. EXACT NEXT MICROBLOCK — START AUDIT CONTRACT + UX/API
+# 11. EXACT NEXT MICROBLOCK — CURRENT/FUTURE PERIOD SEMANTICS
 
 **STOP NOW.**
 
 Next microblock is:
 
 ```text
-Start Audit contract + UX/API
+current/future period semantics
 ```
 
 Goal:
 
-> Expose the smallest safe authenticated start boundary for a Sales Audit using the existing `SalesAuditRepository`, `WorkRepository`, CSRF/auth/tenancy patterns and the existing `sales.audit` Work type, without creating a new orchestration layer.
+> Define and enforce the smallest deterministic policy for starting Sales Audit periods that are current or future, without altering historical-source truth, duplicate-run behavior, or exact-order repair semantics.
 
 When work resumes:
 
 1. verify repo/branch/head and this checkpoint;
-2. verify GREEN ancestor `d9b1d7e954137353832ec4772a3805237ac5a2ec` and QA `38088781355`;
-3. inspect current Sales UI, auth/CSRF/admin patterns, Work enqueue contract, and every current call site of `createCapturingRun()`;
-4. define the smallest real user-facing start contract before adding a route;
-5. write the minimal RED for that boundary;
-6. confirm failure is only the missing Start Audit behavior;
+2. verify GREEN ancestor `b88b8654f0cd16e6ba612084d1067cabc6948ee4` and QA `38089427123`;
+3. inspect `SalesAuditWindow`, the new `POST /sales/audits` boundary, source historical horizon semantics, and existing tests;
+4. establish the real desired meaning of historical audit for closed/current/future months from existing project authority before choosing implementation;
+5. write one minimal RED proving the unresolved current/future behavior;
+6. confirm RED fails only for that missing semantic policy;
 7. DELETE -> SIMPLIFY -> REUSE -> MERGE -> EXTEND -> ADD;
-8. reuse `SalesAuditRepository::createCapturingRun()` and existing `WorkRepository`; do not add StartService/engine/queue/Work type/state machine;
-9. preserve the SAH-2 MariaDB UNIQUE as the race-safe last line of defense;
-10. decide duplicate-start HTTP/user behavior at this actual consumer boundary, not in speculative infrastructure;
-11. do not mix current/future-period policy unless the RED proves it is inseparable from the start contract;
+8. prefer enforcing the policy at the existing audit-window/start boundary; do not create a scheduler/service/state for it;
+9. preserve MCO `America/Bogota` month semantics and deterministic absolute time handling;
+10. do not alter SAH-2 active-run identity/UNIQUE;
+11. do not alter Start Audit auth/CSRF/transaction/Work contract unless the RED proves inseparability;
 12. do not mix exact-order 404, Billing, Financial, webhook hardening, DB UTC, docs cleanup, or Git hygiene;
 13. remote writes OFF; REAL_MELI_HTTP=0;
 14. full PHP 8.3/8.4/8.5 QA;
