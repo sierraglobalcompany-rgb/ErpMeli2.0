@@ -6,6 +6,7 @@ namespace App\Modules\Sales\Audit;
 
 use App\Work\WorkRepository;
 use DateTimeImmutable;
+use RuntimeException;
 
 final class SalesAuditRepairHandler
 {
@@ -30,13 +31,24 @@ final class SalesAuditRepairHandler
             return null;
         }
 
+        $scopeKey = 'company:' . $companyId . ':account:' . $accountId;
+        $logicalIdentity = 'order.sync:' . $externalOrderId;
+        $latest = $this->work->latestLogicalState($scopeKey, 'order.sync', $logicalIdentity);
+        if ($latest !== null) {
+            if ($latest['status'] === 'pending' || $latest['status'] === 'running') {
+                return $latest['id'];
+            }
+
+            throw new RuntimeException('Sales audit repair sync ended without repairing the local order.');
+        }
+
         return $this->work->enqueue(
             $companyId,
             $accountId,
-            'company:' . $companyId . ':account:' . $accountId,
+            $scopeKey,
             'order.sync',
             $externalOrderId,
-            'order.sync:' . $externalOrderId,
+            $logicalIdentity,
             ['order_id' => $externalOrderId],
             $now,
         );
