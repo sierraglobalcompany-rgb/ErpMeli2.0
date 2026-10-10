@@ -180,4 +180,23 @@ final class SalesAuditRepository
 
         return true;
     }
+
+    public function observationCount(int $runId): int
+    {
+        if ($runId < 1) {
+            throw new InvalidArgumentException('Sales audit run id is invalid.');
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id = :run_id'
+        );
+        $statement->execute(['run_id' => $runId]);
+        $count = $statement->fetchColumn();
+
+        if (!is_int($count) && !(is_string($count) && ctype_digit($count))) {
+            throw new RuntimeException('Sales audit observation count is unavailable.');
+        }
+
+        return (int) $count;
+    }
 }
