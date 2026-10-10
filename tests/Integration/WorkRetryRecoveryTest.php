@@ -7,6 +7,7 @@ namespace Tests\Integration;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
+use PDO;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestDatabase;
 
@@ -41,6 +42,64 @@ final class WorkRetryRecoveryTest extends TestCase
         self::assertSame('Remote request timed out.', $row['last_error_safe']);
         self::assertGreaterThan(time() + 8 * 60, strtotime((string) $row['available_at']));
         self::assertNull($repository->claimNext(), 'A retry scheduled in the future must not be immediately reclaimed.');
+    }
+
+    public function testRetryAtAutomaticAttemptCapBecomesTerminal(): void
+    {
+        $pdo = TestDatabase::reset();
+        $repository = new WorkRepository($pdo);
+        $workId = $this->insertEligibleWork($pdo, 'retry-cap', 4);
+        $claim = $repository->claimNext();
+        self::assertNotNull($claim);
+        self::assertSame(5, $claim['attempts']);
+
+        self::assertTrue($repository->retryCurrentClaim(
+            $workId,
+            $claim['claim_token'],
+            new DateTimeImmutable('+10 minutes', new DateTimeZone('UTC')),
+            'remote_timeout',
+            'Remote request timed out.'
+        ));
+
+        $row = $pdo->query('SELECT status, attempts, claim_token, claimed_at, finished_at, last_error_code, last_error_safe FROM work_items WHERE id = ' . $workId)->fetch();
+        self::assertIsArray($row);
+        self::assertSame('failed', $row['status']);
+        self::assertSame(5, (int) $row['attempts']);
+        self::assertNull($row['claim_token']);
+        self::assertNull($row['claimed_at']);
+        self::assertNotNull($row['finished_at']);
+        self::assertSame('remote_timeout', $row['last_error_code']);
+        self::assertSame('Remote request timed out.', $row['last_error_safe']);
+    }
+
+    public function testDeferReturnsClaimToPendingWithoutConsumingAttempt(): void
+    {
+        $pdo = TestDatabase::reset();
+        $repository = new WorkRepository($pdo);
+        $workId = $this->insertEligibleWork($pdo, 'defer');
+        $claim = $repository->claimNext();
+        self::assertNotNull($claim);
+        self::assertSame(1, $claim['attempts']);
+
+        $availableAt = new DateTimeImmutable('+10 minutes', new DateTimeZone('UTC'));
+        self::assertTrue($repository->deferCurrentClaim(
+            $workId,
+            $claim['claim_token'],
+            $availableAt,
+            'meli_rate_limited',
+            'Mercado Libre operation is cooling down.'
+        ));
+
+        $row = $pdo->query('SELECT status, attempts, available_at, claim_token, claimed_at, finished_at, last_error_code, last_error_safe FROM work_items WHERE id = ' . $workId)->fetch();
+        self::assertIsArray($row);
+        self::assertSame('pending', $row['status']);
+        self::assertSame(0, (int) $row['attempts']);
+        self::assertNull($row['claim_token']);
+        self::assertNull($row['claimed_at']);
+        self::assertNull($row['finished_at']);
+        self::assertSame('meli_rate_limited', $row['last_error_code']);
+        self::assertSame('Mercado Libre operation is cooling down.', $row['last_error_safe']);
+        self::assertGreaterThan(time() + 8 * 60, strtotime((string) $row['available_at']));
     }
 
     public function testTerminalFailureMarksOnlyCurrentClaimFailed(): void
@@ -113,17 +172,40 @@ final class WorkRetryRecoveryTest extends TestCase
         self::assertNotSame($firstClaim['claim_token'], $reclaimed['claim_token']);
     }
 
-    private function insertEligibleWork(\PDO $pdo, string $resourceKey): int
+    public function testRecoverRunningAtAutomaticAttemptCapFailsInsteadOfRequeueing(): void
+    {
+        $pdo = TestDatabase::reset();
+        $repository = new WorkRepository($pdo);
+        $workId = $this->insertEligibleWork($pdo, 'crash-cap', 4);
+        $claim = $repository->claimNext();
+        self::assertNotNull($claim);
+        self::assertSame(5, $claim['attempts']);
+
+        self::assertSame(1, $repository->recoverRunning());
+
+        $row = $pdo->query('SELECT status, attempts, claim_token, claimed_at, finished_at, last_error_code, last_error_safe FROM work_items WHERE id = ' . $workId)->fetch();
+        self::assertIsArray($row);
+        self::assertSame('failed', $row['status']);
+        self::assertSame(5, (int) $row['attempts']);
+        self::assertNull($row['claim_token']);
+        self::assertNull($row['claimed_at']);
+        self::assertNotNull($row['finished_at']);
+        self::assertSame('work_attempts_exhausted', $row['last_error_code']);
+        self::assertSame('Work exhausted its automatic attempt limit after interruption.', $row['last_error_safe']);
+    }
+
+    private function insertEligibleWork(PDO $pdo, string $resourceKey, int $attempts = 0): int
     {
         $statement = $pdo->prepare(
             "INSERT INTO work_items "
-            . "(company_id, account_id, scope_key, type, resource_key, dedupe_key, status, available_at, created_at, updated_at) "
+            . "(company_id, account_id, scope_key, type, resource_key, dedupe_key, status, available_at, attempts, created_at, updated_at) "
             . "VALUES (1, 10, 'company:1:account:10', 'order.sync', :resource_key, :dedupe_key, 'pending', "
-            . "UTC_TIMESTAMP(6) - INTERVAL 1 MINUTE, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))"
+            . "UTC_TIMESTAMP(6) - INTERVAL 1 MINUTE, :attempts, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))"
         );
         $statement->execute([
             'resource_key' => $resourceKey,
             'dedupe_key' => hash('sha256', 'order.sync|' . $resourceKey),
+            'attempts' => $attempts,
         ]);
 
         return (int) $pdo->lastInsertId();
