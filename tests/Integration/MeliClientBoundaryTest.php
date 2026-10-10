@@ -19,7 +19,7 @@ final class MeliClientBoundaryTest extends TestCase
 {
     public function testOfficialOperationRegistryContainsOnlyImplementedContracts(): void
     {
-        /** @var array<string,array<string,string>> $operations */
+        /** @var array<string,array<string,mixed>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
 
         self::assertSame(
@@ -50,7 +50,7 @@ final class MeliClientBoundaryTest extends TestCase
     {
         $pdo = TestDatabase::reset();
         $transport = new RecordingTransport();
-        /** @var array<string,array<string,string>> $operations */
+        /** @var array<string,array<string,mixed>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
         $client = new MeliClient(
             $transport,
@@ -72,7 +72,7 @@ final class MeliClientBoundaryTest extends TestCase
     {
         $pdo = TestDatabase::reset();
         $transport = new TimedRecordingTransport();
-        /** @var array<string,array<string,string>> $operations */
+        /** @var array<string,array<string,mixed>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
         $client = new MeliClient(
             $transport,
@@ -94,7 +94,7 @@ final class MeliClientBoundaryTest extends TestCase
     {
         $pdo = TestDatabase::reset();
         $transport = new RecordingTransport();
-        /** @var array<string,array<string,string>> $operations */
+        /** @var array<string,array<string,mixed>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
         $client = new MeliClient(
             $transport,
@@ -108,6 +108,37 @@ final class MeliClientBoundaryTest extends TestCase
             self::fail('Unknown Mercado Libre operations must be rejected.');
         } catch (InvalidArgumentException $exception) {
             self::assertSame('Unknown Mercado Libre operation: does.not.exist', $exception->getMessage());
+        }
+
+        self::assertCount(0, $transport->requests);
+    }
+
+    public function testUnknownClassificationIsRejectedBeforeTransport(): void
+    {
+        $pdo = TestDatabase::reset();
+        $transport = new RecordingTransport();
+        $operations = [
+            'test.typo' => [
+                'method' => 'POST',
+                'path' => '/test/typo',
+                'family' => 'test',
+                'classification' => 'WRTE',
+                'official_doc_url' => 'https://developers.mercadolibre.com.co/',
+                'verified_at' => '2026-10-10',
+            ],
+        ];
+        $client = new MeliClient(
+            $transport,
+            new SystemSettingsRepository($pdo),
+            $operations,
+            'https://api.mercadolibre.com',
+        );
+
+        try {
+            $client->request('test.typo', 'test-access-token');
+            self::fail('Unknown Mercado Libre classifications must fail closed.');
+        } catch (InvalidArgumentException $exception) {
+            self::assertSame('Invalid Mercado Libre operation classification: test.typo', $exception->getMessage());
         }
 
         self::assertCount(0, $transport->requests);
