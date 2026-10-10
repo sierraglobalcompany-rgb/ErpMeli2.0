@@ -1,83 +1,68 @@
-# ERP MELI 2.0 — AUTHORITY ACTUAL / KISS V3.3
+# ERP MELI 2.0 — AUTHORITY ACTUAL / KISS V3.4
 
 **Fecha:** 2026-10-10  
-**Estado:** APROBADA PARA EJECUCIÓN POR MICROBLOQUES  
-**Base funcional GREEN verificada:** `81dd33c863bb1ec7eea1bb40cb51ad55167cbc69`  
+**Estado:** G4 SALES_AUDIT_TRUTH CERRADO / ejecución por microbloques  
 **Rama activa:** `impl/v3-b-sales-audit-20261010`  
-**Remote writes:** OFF  
-**REAL_MELI_HTTP normal:** `0`  
-**F6A Task 2:** BLOQUEADO hasta C0 real sanitizado.
+**Último GREEN funcional verificado:** `6b6093b65ad0ab65351140d79f8cfc78d1a56910`  
+**QA funcional:** `38093953630` — PHP 8.3/8.4/8.5 SUCCESS, PHPStan 0, PHPUnit 224/1571  
+**Remote Mercado Libre writes:** OFF  
+**REAL_MELI_HTTP normal:** `0`
 
-Esta es la autoridad activa de arquitectura/contratos. Git conserva la historia; el árbol actual conserva la verdad actual.
+Este archivo conserva sólo la autoridad útil vigente. Git conserva la historia.
 
 ---
 
-# 1. Orden de autoridad
+# 1. ORDEN DE AUTORIDAD
 
 Si hay contradicción:
 
 ```text
-1. código/schema real del branch activo
-2. tests/CI del mismo SHA
+1. código/schema del branch activo
+2. tests/CI del SHA relevante
 3. docs/CURRENT_CHECKPOINT.md
 4. este ERP2_AUTHORITY.md
 5. decisiones explícitas recientes del usuario
-6. README.md maestro
-7. handoffs/planes históricos
-8. inferencias
+6. README/handoffs/planes históricos
+7. inferencias
 ```
 
 Para contratos externos:
 
 ```text
-documentación oficial vigente
-+ evidencia API real controlada
-> nuestras suposiciones
+documentación oficial vigente + evidencia API real controlada > suposiciones
 ```
 
 Nunca convertir una inferencia en contrato.
 
 ---
 
-# 2. Leyes de oro
-
-Prioridad:
+# 2. LEYES DE EJECUCIÓN
 
 ```text
-Correcto
-→ Simple
-→ Estable
-→ Mantenible
-→ Eficiente
-→ Escalable
-```
-
-Toda pieza nueva o existente pasa por:
-
-```text
-DELETE → SIMPLIFY → REUSE → MERGE → EXTEND → ADD
+1 microblock at a time
+RED -> confirmar fallo previsto -> GREEN mínimo -> QA completa -> noise audit -> checkpoint -> STOP
+DELETE -> SIMPLIFY -> REUSE -> MERGE -> EXTEND -> ADD
+Correct -> Simple -> Stable -> Maintainable -> Efficient -> Scalable
 ```
 
 Reglas vinculantes:
 
 1. No persistir datos derivables sin necesidad real.
 2. No crear abstracción sin segundo consumidor real.
-3. No crear tabla sin query, integridad o lifecycle demostrado.
-4. No crear queue, scheduler, retry, repair o recovery engine por dominio.
-5. No convertir constantes técnicas en switches.
-6. No usar `float` para dinero exacto.
-7. No usar timezone del servidor como verdad de negocio.
-8. No afirmar cobertura que la fuente no demuestra.
-9. Remote writes nacen y permanecen apagados hasta F16 + autorización explícita.
-10. No mantener rutas `old`, `legacy`, `new`, `v2`, `final` como evolución normal.
-11. Cuando una implementación reemplaza otra, buscar referencias/tests/contratos y borrar lo superseded.
-12. Git conserva historia; README/Authority/checkpoint conservan sólo verdad útil vigente.
+3. No crear tabla sin query/integridad/lifecycle demostrado.
+4. No crear queue/scheduler/retry/repair/recovery engine por dominio.
+5. No usar `float` para dinero exacto.
+6. No usar timezone del servidor como verdad de negocio.
+7. No afirmar cobertura que la fuente no demuestra.
+8. Remote writes permanecen OFF hasta F16 + autorización explícita.
+9. No merge ni deploy sin autorización explícita.
+10. Git conserva historia; autoridad/checkpoint conservan verdad vigente.
 
 ---
 
-# 3. Budget arquitectónico
+# 3. BUDGET ARQUITECTÓNICO
 
-Presupuesto deliberadamente pequeño:
+Arquitectura deliberadamente pequeña:
 
 ```text
 1 PHP/Slim app
@@ -90,6 +75,10 @@ Presupuesto deliberadamente pequeño:
 1 MeliCooldownRepository
 1 api_usage_daily aggregate
 1 Debug DVR
+1 sales.audit Work type
+1 SalesAuditHandler
+1 SalesAuditRepository
+1 SalesAuditRepairHandler
 ```
 
 No crear sin evidencia nueva:
@@ -97,8 +86,7 @@ No crear sin evidencia nueva:
 ```text
 microservices
 brokers
-priority queues
-domain queues
+priority/domain queues
 domain schedulers
 generic retry/recovery engines
 repair engine
@@ -106,46 +94,24 @@ command/event bus
 financial ledger
 generic historical engine
 adaptive rate engine
-campaign engine
+SalesAuditStateMachine
+ConfirmRepository
+BaselineService
+FinalizerEngine
+StartAuditService
+generic transaction/lock manager
+extra audit tables/states
 ```
 
-KISS significa menor complejidad neta, no mínimo número de clases a cualquier costo.
+KISS = menor complejidad neta, no mínimo número de clases a cualquier costo.
 
 ---
 
-# 4. Método obligatorio
-
-```text
-problema real
-→ evidencia
-→ DELETE/SIMPLIFY/REUSE/MERGE check
-→ RED
-→ confirmar causa del RED
-→ GREEN mínimo
-→ QA completa
-→ noise audit
-→ checkpoint
-→ STOP o un solo microbloque siguiente
-```
-
-No confundir:
-
-```text
-código escrito
-≠ tests verdes
-≠ API real validada
-≠ producción validada
-```
-
-Crear checkpoint cada 1–2 microbloques cuando el contexto esté creciendo.
-
----
-
-# 5. Work
+# 4. WORK
 
 Tabla única: `work_items`.
 
-Estados permitidos:
+Estados:
 
 ```text
 pending
@@ -160,8 +126,6 @@ Orden:
 available_at, id
 ```
 
-Sin priority.
-
 Capacidades aceptadas:
 
 - active dedupe;
@@ -172,44 +136,28 @@ Capacidades aceptadas:
 - un solo runner;
 - terminal cleanup.
 
-## Retry
+`retryCurrentClaim` consume intento. Usos actuales: 5xx/transport y futuro Billing 206.
 
-`retryCurrentClaim` consume intento. Usos actuales/previstos:
+`deferCurrentClaim` no consume presupuesto neto. Usos: 429/cooldown y parent repair esperando child.
 
-- 5xx;
-- transport;
-- futuro Billing 206.
-
-Máximo automático pequeño/fijo. Al agotarse: `failed`.
-
-## Defer
-
-`deferCurrentClaim` no consume presupuesto neto del item.
-
-Usos:
-
-- 429;
-- cooldown;
-- parent REPAIR esperando child.
-
-## Crash
+Crash recovery:
 
 ```text
-running recuperado + attempt < cap → pending
-running recuperado + attempt >= cap → failed
+running + attempt < cap -> pending
+running + attempt >= cap -> failed
 ```
 
-## Retención
+Retención:
 
 ```text
-done/failed >30 días → purge
+done/failed >30d -> purge
 ```
 
-Work es ejecución, **no historial ni verdad durable de negocio**.
+Work es ejecución, no historial durable de negocio.
 
 ---
 
-# 6. Cron
+# 5. CRON / RUNTIME
 
 Sólo:
 
@@ -218,26 +166,24 @@ bin/work.php
 bin/cleanup.php
 ```
 
-Objetivo cuando Hosting esté certificado:
+Objetivo tras certificar Hosting:
 
 ```text
-work.php → cada minuto
-cleanup.php → diario
+work.php -> cada minuto
+cleanup.php -> diario
 ```
 
-Mantener un named lock global. `maxItems`/`maxSeconds` son constantes de código, no switches UI.
-
-No cron por Sales/Billing/Financial. No scheduler table.
+Mantener named lock global. No cron por Sales/Billing/Financial. No scheduler table.
 
 ---
 
-# 7. Mercado Libre core / OAuth / rate safety
+# 6. MERCADO LIBRE CORE / OAUTH / RATE SAFETY
 
-ERP2 usa una aplicación Mercado Libre dedicada, separada de ERP1.
+ERP2 usa aplicación Mercado Libre dedicada y separada de ERP1.
 
 No migrar refresh tokens de ERP1.
 
-Núcleo único:
+Core único:
 
 - `MeliClient`;
 - operation registry;
@@ -256,63 +202,33 @@ AUTH
 WRITE
 ```
 
-Unknown/missing classification:
+Unknown/missing classification -> BLOCK.
+
+429:
 
 ```text
-BLOCK
+register cooldown -> Work defer
 ```
 
-El método HTTP por sí solo no decide mutación.
+No consume retry budget. No retry inline. No workers paralelos.
 
-## 429
-
-```text
-register cooldown
-→ Work defer
-```
-
-No consume retry budget. No retry inline. No switch 429. No quota engine por account. No workers paralelos.
+Remote writes permanecen OFF. Antes de F16 no debe existir UI/POST que los habilite.
 
 ---
 
-# 8. Remote writes
+# 7. EXACTITUD DE DATOS
 
-Siempre OFF hasta F16 y autorización explícita.
+## JSON / números
 
-`meli_writes_enabled` puede permanecer como fuse interno, pero antes de F16 no debe existir UI/POST capaz de encenderlo.
+`orders.get` y futuro `billing.period.details` preservan JSON NUMBER cuando se requiere exactitud comercial.
 
-No habilitar por iniciativa del agente:
-
-- publicaciones;
-- precios;
-- inventario remoto;
-- mutaciones de órdenes;
-- otras escrituras Mercado Libre.
-
----
-
-# 9. Valores remotos exactos
-
-## JSON
-
-`orders.get` y futuro `billing.period.details` necesitan preservación lossless de JSON NUMBER cuando valores exactos se persisten.
-
-Patrón:
-
-```text
-json_validate
-→ scan lexical NUMBER fuera de strings
-→ preservar lexema
-→ json_decode nativo
-```
-
-`orders.search` usa decode nativo + `JSON_BIGINT_AS_STRING`; su contrato de auditoría necesita IDs grandes pero no dinero decimal exacto.
+`orders.search` usa decode nativo + `JSON_BIGINT_AS_STRING`; para Sales Audit importa ID exacto y fecha, no dinero decimal.
 
 ## Dinero
 
-Nunca `float` para dinero exacto. Persistencia comercial usa `DECIMAL` y overflow explícito.
+Persistencia comercial: `DECIMAL`, nunca `float`.
 
-## Fechas
+## Timestamps
 
 Timestamp remoto canónico requiere:
 
@@ -322,29 +238,27 @@ Z
 ±HH:MM
 ```
 
-Sin zona explícita: fail closed.
+Sin zona explícita -> fail closed.
 
-Persistir instantes en UTC.
-
-Business month nunca depende de timezone PHP/MariaDB/Hostinger.
+Persistir instantes en UTC. Business month no depende de PHP/MariaDB/Hostinger timezone.
 
 ---
 
-# 10. Sales time
+# 8. SALES TIME / SOURCE CONTRACT
 
-Fuente canónica actual:
+Fuente de membership mensual:
 
 ```text
 order.date_created
 ```
 
-Histórico soportado actualmente:
+Soporte histórico actual:
 
 ```text
-site_id=MCO → America/Bogota
+site_id=MCO -> America/Bogota
 ```
 
-Otro site sin contrato explícito: fail closed para certificación mensual.
+Otro site sin contrato explícito -> fail closed para certificación mensual.
 
 Mes canónico:
 
@@ -352,20 +266,24 @@ Mes canónico:
 [first local day 00:00, next local month 00:00)
 ```
 
-Search remoto usa guard-band UTC ±1h. Membership final se decide localmente desde `date_created` exacto.
+Search remoto usa guard-band UTC ±1h. Membership final se decide desde `date_created` exacto.
+
+Seller Orders Search:
+
+- horizonte aproximado ~12 meses;
+- como seller filtra canceladas;
+- no equivale al universo histórico absoluto.
+
+Por tanto `valid` significa consistente/verificado respecto de seller-search + contrato conocido, no snapshot absoluto de todo Mercado Libre.
 
 ---
 
-# 11. Sales Work
-
-Work types actuales/objetivo:
+# 9. SALES WORK TYPES
 
 ```text
 order.sync
 sales.audit
 ```
-
-`orders.reconcile` fue reemplazado y eliminado.
 
 No crear:
 
@@ -376,24 +294,27 @@ sales.audit.verify
 sales.audit.confirm
 ```
 
-El mismo `sales.audit` se enruta por el estado durable de `sales_audit_runs`.
+El mismo `sales.audit` se enruta según estado durable del run.
 
-Flujo objetivo:
+Flujo GREEN:
 
 ```text
-CAPTURE A
-→ VALIDATE
-→ REPAIR faltantes
-→ VERIFY local
-→ CONFIRM independiente B
-→ valid relativo a seller-search
+Capture A
+-> durable evidence A
+-> canonical fingerprint A
+-> compare local
+-> bounded one-child repair si falta una orden
+-> verify local
+-> independent Capture B
+-> compare A/B
+-> baseline lifecycle
 ```
 
 ---
 
-# 12. Sales Audit — datos durables
+# 10. SALES AUDIT — DATOS DURABLES
 
-## `sales_audit_runs`
+`sales_audit_runs` conserva:
 
 ```text
 id
@@ -421,81 +342,56 @@ attention
 unavailable
 ```
 
-No proliferar estados técnicos.
-
-## `sales_audit_orders`
-
-Contrato actual GREEN:
+`sales_audit_orders`:
 
 ```text
 audit_run_id
-capture_pass ENUM('A','B') NOT NULL DEFAULT 'A'
+capture_pass ENUM('A','B')
 external_order_id
 remote_date_created
-
 PRIMARY KEY(audit_run_id, capture_pass, external_order_id)
 ```
 
-No surrogate id, `in_period`, page table, repair table, confirm table ni history table.
-
-A y B conviven en la misma evidencia durable. Membership se deriva de `remote_date_created`.
-
-Baseline futuro: conservar el más reciente válido; evidencia superseded equivalente puede podarse por reemplazo, no por edad ciega. Si aparece diferencia, conservar baseline previo + run attention hasta resolver.
+No surrogate id, page/repair/confirm/history table, `in_period`, confirm_count/hash columns ni estados adicionales.
 
 ---
 
-# 13. Sales Audit — CAPTURE A
+# 11. CAPTURE A — GREEN
 
-CAPTURE A válido exige:
+Capture A exige:
 
 - run/company/account coherentes;
 - account conectado;
-- seller/source contract conocido;
-- `remote_total` estable;
-- offset coherente;
-- IDs exactos y únicos dentro de A;
-- `date_created` válido y zoned;
+- source/site conocido;
+- remote_total estable;
+- offset/paging coherente;
+- IDs exactos/únicos;
+- `date_created` zoned;
 - sin result/page malformed;
-- sin página vacía no terminal;
-- sin página corta no terminal;
-- observed count A coherente con remote total;
+- sin página vacía/corta no terminal;
+- observed count coherente;
 - source horizon soportado.
 
-Una página por Work.
+Una página por Work. Capture no encola `order.sync` directamente.
 
-CAPTURE no encola `order.sync` directamente.
-
-## Source horizon GREEN — K6a-1
-
-Seller Orders Search sólo soporta aproximadamente 12 meses.
-
-Si el período queda fuera de la cobertura soportada:
+Fuera de horizonte:
 
 ```text
-run → unavailable
-Work → done
-antes de OAuth
-antes de HTTP
+run -> unavailable
+Work -> done
+antes de OAuth/HTTP
 sin evidencia falsa
 ```
 
-Nunca `total=0 → completo` fuera del horizonte.
-
-## Short non-terminal GREEN — K6a-2
-
-Mientras no exista contrato oficial fuerte de página siempre llena:
+Short non-terminal:
 
 ```text
 count(results) < paging.limit
 AND offset + limit < total
-→ fail closed
+-> fail closed
 ```
 
-No inferir offsets faltantes. No pagination engine.
-
-## Canonical A fingerprint
-
-Se deriva de observaciones A cuyo `remote_date_created` cae en el mes canónico:
+Fingerprint A:
 
 ```text
 canonical_count
@@ -506,160 +402,269 @@ Guard-band queda fuera del set canónico.
 
 ---
 
-# 14. Sales Audit — REPAIR / VERIFY
+# 12. REPAIR / VERIFY — GREEN
 
-Post-CAPTURE A:
+Post Capture A:
 
 ```text
-canonical A missing existe
-→ repairing
-→ una continuación sales.audit
-
-no missing
-→ confirming
+missing canonical A -> repairing -> una continuación sales.audit
+sin missing         -> confirming
 ```
 
-REPAIR:
+Repair:
 
 - recalcula gap real;
-- obtiene un solo candidato determinista;
-- `ORDER BY external_order_id LIMIT 1`;
+- candidato determinista `ORDER BY external_order_id LIMIT 1`;
 - encola/reutiliza exactamente un `order.sync`;
-- parent se defer mientras child está pending/running;
+- parent se defer mientras child pending/running;
 - no procesa segundo candidato en el mismo paso.
 
 Child terminal + gap persistente:
 
 ```text
-NO recrear automáticamente
-→ run attention
-→ parent termina
+NO recrear child
+-> run attention
+-> parent termina
 ```
 
-VERIFY local:
+Sin gap:
 
 ```text
-no canonical A gap
-→ repairing → confirming
+repairing -> confirming
 ```
 
-sin estado `verifying`.
-
-Todos los queries de repair/verify están explícitamente anclados a `capture_pass='A'`, para impedir que evidencia B contamine reparación.
+Sin estado `verifying`. Repair/verify se ancla a `capture_pass='A'`.
 
 ---
 
-# 15. Sales Audit — primitives A/B GREEN
+# 13. CAPTURE B / CONFIRM — GREEN
 
-Contrato GREEN K6b-2:
-
-```text
-recordObservation(runId, orderId, dateCreated, capturePass='A')
-observationCount(runId, capturePass='A')
-canonicalFingerprint(runId, window, capturePass='A')
-```
+A/B comparten `sales_audit_orders`, separados por `capture_pass`.
 
 Reglas:
 
-- A es default para compatibilidad del CAPTURE existente;
-- B puede registrar el mismo order ID independientemente;
-- conteos A/B son independientes;
-- fingerprint A/B es independiente;
-- pass distinto de A/B falla cerrado;
-- `persistCanonicalFingerprint()` persiste A y reutiliza `canonicalFingerprint`;
-- no existe `ConfirmRepository` separado.
-
----
-
-# 16. Sales Audit — CONFIRM B runtime GREEN
-
-Primera certificación de mes cerrado:
-
-```text
-capture A
-→ repair
-→ verify local
-→ capture B independiente
-→ same canonical count/hash
-→ valid
-```
-
-Esto demuestra repetibilidad respecto de seller-search y su contrato conocido, **no snapshot absoluto de todo Mercado Libre**.
-
-Contrato GREEN actual K6b-3/K6b-4/K6b-5:
-
 1. B usa el mismo `sales.audit`.
-2. `SalesWorkProcessor` enruta `confirming` al mismo `SalesAuditHandler` con pass B.
-3. B persiste `capture_pass='B'` en la misma tabla.
-4. A permanece intacto durante B.
-5. B procesa una página por Work y reutiliza los mismos source-horizon / page-contract guards.
-6. El primer `remote_total` de B vive sólo en el payload de continuación; no se añadió columna durable.
-7. Terminal B exige `observationCount(runId,'B') === remote_total`.
-8. Terminal B deriva count/hash con `canonicalFingerprint(...,'B')`.
-9. B se compara directamente contra `canonical_count/set_hash` durable de A.
-10. mismatch A/B → `confirming -> attention` y Work `done` dentro de la misma transacción.
-11. equality A/B → `confirming -> valid`, fija `completed_at=UTC_TIMESTAMP(6)` y completa el Work en la misma transacción.
-12. Persistencia terminal B + transición del run + Work completion son atómicas.
-13. A y B permanecen durables y el fingerprint A no se sobrescribe.
-14. Terminal B no encola continuación ni `order.sync`.
+2. B procesa una página por Work.
+3. A permanece intacto durante B.
+4. El primer remote_total B vive en payload de continuación, no en columna nueva.
+5. Terminal B exige count observado == remote_total.
+6. Fingerprint B se compara con `canonical_count/set_hash` durable de A.
+7. A/B mismatch -> `attention` + Work `done` atómicamente.
+8. A/B equality -> `valid`, `completed_at`, Work `done` atómicamente.
+9. Terminal B no encola continuación ni `order.sync`.
 
-Rechazado sin nueva evidencia:
-
-```text
-second audit run
-A<->B relation table
-confirm repository
-confirm engine
-history table
-second queue
-new Work type
-new Work status
-confirm_count / confirm_hash columns
-```
+No second audit run, ConfirmRepository/Engine, relation/history table, second queue, Work type/status nuevo.
 
 ---
 
-# 17. Sales source semantics
+# 14. BASELINE LIFECYCLE — GREEN
 
-Seller Orders Search:
+No prior valid baseline:
 
-- horizonte aproximado 12 meses;
-- como seller filtra canceladas;
-- no equivale al universo histórico absoluto.
+```text
+current internally confirmed -> valid
+```
 
-Por tanto:
+Prior equivalent valid:
+
+```text
+current -> valid
+old equivalent run/evidence -> removed by replacement
+```
+
+Prior divergent valid:
+
+```text
+prior valid preserved
+current -> attention
+```
+
+Nunca borrar baseline válido por edad ni por un nuevo run `attention`.
+
+---
+
+# 15. ACTIVE-RUN GUARD — GREEN
+
+Una sola auditoría activa por:
+
+```text
+company_id
+account_id
+period_key
+contract_version
+```
+
+Estados activos:
+
+```text
+capturing
+repairing
+confirming
+```
+
+Terminales:
 
 ```text
 valid
+attention
+unavailable
 ```
 
-significa:
-
-> consistente/verificado respecto de seller-search y del contrato conocido de ese run.
-
-No significa:
-
-> garantía absoluta de todas las órdenes históricas posibles de Mercado Libre.
-
-Fuentes históricas alternativas futuras (ERP1, export oficial, import confiable) se tratan como contratos separados; no se mezclan silenciosamente dentro del seller-search normal.
+Guard final de concurrencia = generated `active_contract_version` + UNIQUE MariaDB. No SELECT-before-INSERT ni lock manager.
 
 ---
 
-# 18. Order Sync
+# 16. START AUDIT — GREEN
 
-`order.sync` mantiene hechos de orden individuales.
-
-Nueva respuesta API requiere core usable y timestamps zoned.
-
-Errores 404/permanentes no generan retry infinito.
-
-Cuando exact GET esperado por Sales Audit falla permanentemente y el gap persiste:
+Endpoint:
 
 ```text
-attention / unavailable según contrato final
+POST /sales/audits
 ```
 
-Nunca transformar fallo en período completo.
+Boundary:
+
+```text
+authenticated session
+selected company
+admin membership
+valid CSRF
+connected account in selected company
+UI YYYY-MM -> canonical YYYY-MM-01
+legacy YYYY-MM-01 accepted
+real MCO month/site validation
+only fully closed MCO months
+```
+
+HTTP:
+
+```text
+success -> 303 /sales
+duplicate active -> 409
+non-admin -> 403
+invalid CSRF -> 419
+invalid input/account/current/future -> 422
+```
+
+Success atomically:
+
+```text
+create capturing run
+-> enqueue initial sales.audit Work
+-> COMMIT
+```
+
+Current/future rejection ocurre antes de durable state.
+
+Admin UI usa `<input type="month">`, default/max = último mes cerrado MCO.
+
+---
+
+# 17. EXACT-ORDER 404 — GREEN
+
+Para `GET /orders/{order_id}`:
+
+```text
+HTTP 404
+-> Work failed
+-> last_error_code = meli_order_not_found
+-> no retry/defer
+-> no order persistence/mutation
+```
+
+Clasificación por status HTTP; no depende del cuerpo.
+
+```text
+401 -> refresh once -> 404
+```
+
+termina también `meli_order_not_found`, con exactamente tres requests físicos: order GET, OAuth POST, retried order GET.
+
+403/otros 4xx permanecen `meli_remote_permanent`. 429, 5xx, transport y malformed-200 conservan sus contratos previos.
+
+Cuando este child terminal pertenece a repair y el gap persiste:
+
+```text
+NO recrear child
+-> audit attention
+```
+
+Nunca convertir un 404 en período completo.
+
+---
+
+# 18. G4 ADVERSARIAL CLOSURE — PASS
+
+No se añadió mega-test redundante. La cobertura existente compone los invariantes críticos:
+
+```text
+SalesAuditCaptureHandlerTest
+- horizon -> unavailable antes de OAuth/HTTP
+- short non-terminal -> fail closed
+- offsetless date -> fail closed sin evidencia parcial
+- capture no fan-out a order.sync
+
+SalesAuditUnauthorizedTest
+- 401 refresh exactly once
+- second 401 terminal
+- OAuth 429 defer
+- post-refresh 5xx retry
+- 403 terminal
+
+SalesAuditTransientFailureTest
+- 429 defer sin burn
+- 5xx bounded retry
+- transport bounded retry
+
+SalesAuditRepairRuntimeTest / Repair* tests
+- one-child repair
+- terminal child + gap -> attention
+- no child recreation
+- repaired gap -> confirming
+
+SalesAuditConfirmValidTest
+- independent B equality -> valid
+- A preserved
+- no extra continuation/order.sync
+
+SalesAuditConfirmMismatchTest
+- independent B mismatch -> attention
+- A fingerprint preserved
+
+SalesAuditBaselineLifecycleTest
+- equivalent valid supersedes equivalent baseline
+- divergent internally confirmed run preserves prior baseline and ends attention
+
+SalesAuditActiveRunGuardTest
+- every active state blocks duplicate via DB UNIQUE
+- terminal allows replacement
+
+SalesAuditHttpStartRouteTest
+- auth/admin/CSRF/tenant/duplicate/current/future contracts
+
+SyncOrderHandlerRemoteFailureTest
+- exact 404 terminal
+- 401-refresh-404 terminal/no fourth request
+```
+
+Último GREEN funcional:
+
+```text
+6b6093b65ad0ab65351140d79f8cfc78d1a56910
+RUN 38093953630 — SUCCESS
+PHP 8.3 / 8.4 / 8.5 — SUCCESS
+PHPStan 0
+PHPUnit 224 tests / 1571 assertions
+REAL_MELI_HTTP=0
+```
+
+G4 no requiere nueva producción ni test duplicado sin nueva evidencia.
+
+---
+
+# 19. ORDER SYNC / COMMERCIAL FACTS
+
+`order.sync` mantiene hechos individuales de orden.
 
 Commercial fact probado pendiente de schema/persistencia:
 
@@ -671,53 +676,45 @@ order_items.sale_fee
 
 ---
 
-# 19. Webhook
+# 20. WEBHOOK
 
-Webhook es señal, no business history.
+Webhook = señal, no business history.
 
 Target:
 
 ```text
 validate topic/app
-→ resolve unique connected account
-→ extract order id
-→ enqueue order.sync
-→ ack rápido
+-> resolve unique connected account
+-> extract order id
+-> enqueue order.sync
+-> ack rápido
 ```
 
-`webhook_events` sigue candidato a DELETE sólo después de búsqueda repo-wide que demuestre ausencia de consumidor real.
+`webhook_events` sólo se elimina tras prueba repo-wide de ausencia de consumidor real. No raw webhook/archive por inercia.
 
-No guardar raw webhook. No archive table por inercia.
+Hardening separado pendiente:
+
+- seller multi-company scope;
+- explicit timestamp timezone;
+- retention.
 
 ---
 
-# 20. Debug DVR
+# 21. DEBUG DVR
 
-Se conserva porque tiene responsabilidad real:
-
-- sanitización;
-- cap de almacenamiento;
-- correlación;
-- gzip;
-- retention;
-- export;
-- manifest/checksums;
-- seguridad filesystem;
-- fail-safe.
+Se conserva por responsabilidades reales: sanitización, cap, correlación, gzip, retention, export, checksums, filesystem security y fail-safe.
 
 ```text
-DEBUG OFF → cero writes DVR
+DEBUG OFF -> cero DVR writes
 ```
 
-No fusionarlo en mega-clase sólo para reducir file count.
+No mezclar su cleanup con G4 Sales Audit.
 
 ---
 
-# 21. Billing
+# 22. BILLING — BLOQUEADO EN C0
 
-Billing es period-first.
-
-Tablas:
+Tablas pre-release:
 
 ```text
 billing_periods
@@ -730,13 +727,7 @@ Operación:
 billing.period.details
 ```
 
-Antes del handler real:
-
-```text
-C0 real sanitized MCO smoke
-```
-
-Debe demostrar:
+Antes de handler real se exige C0 real sanitizado MCO que demuestre:
 
 - primera página;
 - cursor siguiente;
@@ -747,39 +738,13 @@ Debe demostrar:
 
 No inferir terminal por short/empty/missing-last-id sin evidencia.
 
-Un futuro `billing.period.sync` procesa una sola página por Work.
-
-Billing 206:
-
-```text
-no canonical page commit
-no cursor advance
-no caught_up
-bounded retry
-then attention
-```
-
-```text
-caught_up != fiscal closed
-```
-
 F6A Task 2 permanece bloqueado hasta C0.
 
 ---
 
-# 22. Billing context
+# 23. FINANCIAL — NO INICIADO
 
-Strict allowlist JSON. Conservar sólo relaciones útiles de charge/bonus, discount, sales, shipping e items.
-
-Excluir PII, raw body, títulos/categorías y objetos desconocidos.
-
-No promover `order_id`/`shipping_id` a columnas hasta que una query F6B lo demuestre.
-
----
-
-# 23. Financial
-
-No table ni ledger inicialmente.
+No ledger/table inicialmente.
 
 Read model futuro:
 
@@ -788,40 +753,31 @@ Orders operational facts
 + Billing billed facts
 + pack relationships
 + shipping evidence
-→ reconciliation/read model
+-> reconciliation/read model
 ```
 
-Reglas:
+Reglas: no double-count, shared pack charge una vez, no asumir sum(details)=official net, separar billed/analytical/official values.
 
-- nunca doble contar mismo concepto entre fuentes;
-- shared pack charge una sola vez;
-- no asumir `sum(billing_details) = official net`;
-- separar billed facts, analytical value y official/reference value;
-- late adjustment se re-sincroniza/reconcilia;
-- no history table hasta demostrar mutación real del mismo detail.
+Antes de Financial: alinear `order_items.sale_fee`.
 
 ---
 
-# 24. Schema pre-release
+# 24. SCHEMA PRE-RELEASE
 
-ERP2 sigue pre-release.
-
-Mientras no exista instalación persistente real que deba preservarse:
+Mientras no exista instalación persistente real a preservar:
 
 ```text
 editar 004_sales.sql en sitio
 editar 005_billing.sql en sitio
 ```
 
-No crear 006/007/008 sólo para historia de desarrollo.
-
-Después del primer deploy real, migrations pasan a inmutables.
+No 006/007/008 sólo para historia. Después del primer deploy persistente, migrations pasan a inmutables.
 
 ---
 
-# 25. Cleanup
+# 25. CLEANUP / SWITCHES
 
-Un cleanup diario cubre sólo responsabilidades demostradas:
+Cleanup diario sólo para responsabilidades demostradas:
 
 ```text
 Debug retention
@@ -829,116 +785,90 @@ Work terminal >30d
 API usage >90d
 ```
 
-Sales Audit no se poda por edad ciega. Baseline válido superseded puede podarse por reemplazo cuando exista lifecycle confirmado.
+Sales Audit no se poda por edad ciega; baseline equivalente superseded se poda por replacement lifecycle.
 
-No archive tables sin necesidad real.
-
----
-
-# 26. Switches
-
-Visibles:
+Switches visibles:
 
 ```text
 AUTOMATION
 DEBUG
 ```
 
-`AUTOMATION OFF`:
-
-```text
-cron no procesa
-pending permanece
-webhook puede seguir encolando
-```
+`AUTOMATION OFF`: cron no procesa, pending permanece, webhook puede seguir encolando.
 
 Remote writes no es switch normal de usuario antes de F16.
 
-No feature-flag forest.
-
 ---
 
-# 27. Gates
+# 26. GATES ACTUALES
 
 | Gate | Estado |
 |---|---|
-| G1 REMOTE_TRUTH | PASS para boundary implementado + guards K6a |
+| G1 REMOTE_TRUTH | PASS para boundary implementado |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS para Sales actual |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — core A capture/repair/verify + guards + independent B traversal + mismatch→attention + equality→valid GREEN; lifecycle/start/404 gaps pendientes |
-| G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 |
+| G4 SALES_AUDIT_TRUTH | **PASS / CLOSED** |
+| G5 BILLING_CURSOR_TRUTH | BLOCKED ON C0 |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
 | G8 HOSTING_REALITY | NOT CERTIFIED |
 
-Siempre CI normal:
+CI normal:
 
 ```text
-PHPSTAN=0
-PHPUNIT=PASS
+PHPStan = 0
+PHPUnit = PASS
 REAL_MELI_HTTP=0
 ```
 
 salvo smoke explícitamente autorizado.
 
----
-
-# 28. Orden inmediato vigente
-
-Dominio activo: G4 Sales Audit.
-
-Cerrado y no reabrir sin nueva evidencia:
+External gates permanecen:
 
 ```text
-CAPTURE A
-canonical A fingerprint
-post-capture decision
-bounded one-child REPAIR
-local VERIFY
-seller-search horizon guard
-short non-terminal page guard
-A/B evidence identity
-A/B record/count/fingerprint primitives
-A-only repair isolation
-confirming dispatch through same sales.audit
-independent Capture B pagination
-B remote_total carried only in Work payload
-terminal B durable count/fingerprint
-A/B mismatch -> durable attention atomically
-A/B equality -> durable valid + completed_at atomically
-```
-
-Próximo comportamiento a abrir mediante RED:
-
-```text
-K6c-0 — baseline lifecycle
-```
-
-Regla vinculante ya congelada:
-
-> conservar el más reciente válido; evidencia superseded equivalente se elimina. Si aparece diferencia, conservar baseline anterior + run attention hasta resolver.
-
-El siguiente RED debe comenzar inspeccionando el lifecycle/start actual y demostrar como mínimo que un run nuevo que termina `attention` no destruye ni degrada el baseline `valid` anterior. Sólo un nuevo `valid` equivalente puede supersederlo. No crear history table/engine sin evidencia.
-
-No implementar todavía en el mismo salto:
-
-```text
-start UX / active-run guard
-exact order 404 final classification
-Billing Task 2
-Financial
+Issue #3 Hostinger/runtime/main protection
+Issue #5 dedicated Mercado Libre ERP2 app/OAuth reality
 ```
 
 ---
 
-# 29. Stop conditions
+# 27. ORDEN INMEDIATO VIGENTE
 
-No iniciar F6A Task 2 antes de C0.
+```text
+CLOSED:
+G4 Sales Audit Truth
 
-No merge.
-No deploy.
-No remote writes.
-No real ML batch salvo smoke sanitizado explícitamente autorizado.
-No borrar baseline válido previo por edad ni por un run `attention`.
+NEXT:
+small DOC-CLEAN / GitHub issue hygiene
+
+THEN:
+Billing C0 real sanitized MCO smoke
+-> Billing Task2
+-> sale_fee alignment
+-> Financial no-double-count
+```
+
+Hardening separado que NO se mezcla por inercia:
+
+```text
+Sales detail multi-account scope
+webhook seller multi-company scope
+webhook timestamp timezone
+webhook_events retention
+MariaDB session UTC
+Slim diagnostic noise
+```
+
+---
+
+# 28. STOP CONDITIONS
+
+No iniciar Billing Task2 antes de C0.
+
+No merge.  
+No deploy.  
+No remote writes.  
+No producción DB change.  
+No real Mercado Libre batch salvo smoke sanitizado explícitamente autorizado.
 
 Cada microbloque termina con QA/noise audit/checkpoint antes de continuar.
