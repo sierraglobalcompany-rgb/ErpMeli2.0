@@ -38,8 +38,9 @@ final class RuntimePreflight
      */
     public function inspect(AppConfig $config, PDO $pdo, string $projectRoot): array
     {
-        $phpStatus = version_compare(PHP_VERSION, '8.3.0', '>=')
-            && version_compare(PHP_VERSION, '8.6.0', '<')
+        $phpVersion = (string) phpversion();
+        $phpStatus = version_compare($phpVersion, '8.3.0', '>=')
+            && version_compare($phpVersion, '8.6.0', '<')
             ? 'PASS'
             : 'FAIL';
 
@@ -82,7 +83,7 @@ final class RuntimePreflight
             'overall_status' => $hardFailure ? 'FAIL' : 'PARTIAL',
             'php' => [
                 'status' => $phpStatus,
-                'version' => PHP_VERSION,
+                'version' => $phpVersion,
                 'sapi' => PHP_SAPI,
             ],
             'extensions' => [
