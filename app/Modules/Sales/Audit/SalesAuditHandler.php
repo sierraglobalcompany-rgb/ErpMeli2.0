@@ -427,6 +427,9 @@ final class SalesAuditHandler
             throw new RuntimeException('Sales audit paging offset overflowed.');
         }
         $candidateNextOffset = $offset + $limit;
+        if ($candidateNextOffset < $total && count($observations) < $limit) {
+            throw new RuntimeException('Sales audit returned a short non-terminal page.');
+        }
         $nextOffset = $candidateNextOffset < $total ? $candidateNextOffset : null;
 
         return [
