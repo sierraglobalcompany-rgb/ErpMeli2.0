@@ -171,22 +171,27 @@ final class SalesAuditHandler
                         }
                     }
 
-                    if ($page['next_offset'] !== null) {
-                        $this->work->enqueue(
-                            $companyId,
-                            $accountId,
-                            'company:' . $companyId . ':account:' . $accountId,
-                            'sales.audit',
-                            (string) $runId,
-                            'sales.audit:' . $runId . ':' . $page['next_offset'] . ':' . $limit,
-                            [
-                                'run_id' => $runId,
-                                'offset' => $page['next_offset'],
-                                'limit' => $limit,
-                            ],
-                            $now,
-                        );
+                    if ($page['next_offset'] === null) {
+                        if ($this->audit->observationCount($runId) !== $page['remote_total']) {
+                            throw new RuntimeException('Sales audit terminal capture evidence is incomplete.');
+                        }
+                        return;
                     }
+
+                    $this->work->enqueue(
+                        $companyId,
+                        $accountId,
+                        'company:' . $companyId . ':account:' . $accountId,
+                        'sales.audit',
+                        (string) $runId,
+                        'sales.audit:' . $runId . ':' . $page['next_offset'] . ':' . $limit,
+                        [
+                            'run_id' => $runId,
+                            'offset' => $page['next_offset'],
+                            'limit' => $limit,
+                        ],
+                        $now,
+                    );
                 },
             );
         } catch (RuntimeException) {
