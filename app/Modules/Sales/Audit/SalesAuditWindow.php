@@ -51,4 +51,20 @@ final class SalesAuditWindow
             $canonicalEndUtc->modify('+1 hour'),
         );
     }
+
+    public function isClosedAt(DateTimeImmutable $referenceNow): bool
+    {
+        return $this->periodKey <= self::lastClosedPeriodKey($referenceNow);
+    }
+
+    public static function lastClosedPeriodKey(DateTimeImmutable $referenceNow): string
+    {
+        $businessTimezone = new DateTimeZone(self::BUSINESS_TIMEZONE);
+        $businessMonthStart = $referenceNow
+            ->setTimezone($businessTimezone)
+            ->modify('first day of this month')
+            ->setTime(0, 0);
+
+        return $businessMonthStart->modify('-1 month')->format('Y-m') . '-01';
+    }
 }

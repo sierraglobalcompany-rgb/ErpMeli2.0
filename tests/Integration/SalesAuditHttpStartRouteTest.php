@@ -6,6 +6,7 @@ namespace Tests\Integration;
 
 use App\Bootstrap;
 use App\Core\Auth\PasswordService;
+use App\Modules\Sales\Audit\SalesAuditWindow;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
@@ -46,6 +47,7 @@ final class SalesAuditHttpStartRouteTest extends TestCase
         $csrfToken = $this->authenticate();
 
         $periodKey = (new DateTimeImmutable('now', new DateTimeZone('America/Bogota')))
+            ->modify('first day of this month')
             ->modify('+1 month')
             ->format('Y-m-01');
         $response = $this->startAudit($csrfToken, '10', $periodKey);
@@ -70,7 +72,9 @@ final class SalesAuditHttpStartRouteTest extends TestCase
         $this->seedCompanyUserAndAccount($pdo);
         $csrfToken = $this->authenticate();
 
-        $response = $this->startAudit($csrfToken, '10', '2026-10-01');
+        $periodKey = SalesAuditWindow::lastClosedPeriodKey(new DateTimeImmutable('now', new DateTimeZone('UTC')));
+        $formMonth = substr($periodKey, 0, 7);
+        $response = $this->startAudit($csrfToken, '10', $formMonth);
 
         self::assertSame(303, $response->getStatusCode());
         self::assertSame('/sales', $response->getHeaderLine('Location'));
@@ -81,7 +85,7 @@ final class SalesAuditHttpStartRouteTest extends TestCase
         self::assertIsArray($run);
         self::assertSame('1', (string) $run['company_id']);
         self::assertSame('10', (string) $run['account_id']);
-        self::assertSame('2026-10-01', $run['period_key']);
+        self::assertSame($periodKey, $run['period_key']);
         self::assertSame('seller-search-v1', $run['contract_version']);
         self::assertSame('capturing', $run['status']);
 
@@ -107,8 +111,9 @@ final class SalesAuditHttpStartRouteTest extends TestCase
         $this->seedCompanyUserAndAccount($pdo);
         $csrfToken = $this->authenticate();
 
-        self::assertSame(303, $this->startAudit($csrfToken, '10', '2026-10-01')->getStatusCode());
-        $response = $this->startAudit($csrfToken, '10', '2026-10-01');
+        $periodKey = SalesAuditWindow::lastClosedPeriodKey(new DateTimeImmutable('now', new DateTimeZone('UTC')));
+        self::assertSame(303, $this->startAudit($csrfToken, '10', $periodKey)->getStatusCode());
+        $response = $this->startAudit($csrfToken, '10', $periodKey);
 
         self::assertSame(409, $response->getStatusCode());
         self::assertStringContainsString('auditoría activa', (string) $response->getBody());
@@ -178,6 +183,14 @@ final class SalesAuditHttpStartRouteTest extends TestCase
         self::assertStringContainsString('action="/sales/audits"', $adminHtml);
         self::assertStringContainsString('Main Seller', $adminHtml);
         self::assertStringContainsString('name="csrf_token"', $adminHtml);
+        $lastClosedMonth = substr(
+            SalesAuditWindow::lastClosedPeriodKey(new DateTimeImmutable('now', new DateTimeZone('UTC'))),
+            0,
+            7,
+        );
+        self::assertStringContainsString('type="month" name="period_key"', $adminHtml);
+        self::assertStringContainsString('max="' . $lastClosedMonth . '"', $adminHtml);
+        self::assertStringContainsString('value="' . $lastClosedMonth . '"', $adminHtml);
 
         $_SESSION['user_id'] = 2;
         $memberResponse = Bootstrap::create()->handle(

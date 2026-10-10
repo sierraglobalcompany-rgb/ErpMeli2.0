@@ -26,6 +26,27 @@ final class SalesAuditFoundationTest extends TestCase
         self::assertSame('2026-11-01T06:00:00+00:00', $window->remoteToUtc->format(DATE_ATOM));
     }
 
+    public function testOnlyClosedMcoMonthsAreEligibleForHistoricalAudit(): void
+    {
+        $referenceNow = new DateTimeImmutable('2026-10-10T12:00:00-05:00');
+
+        self::assertTrue(SalesAuditWindow::forSitePeriod('MCO', '2026-09-01')->isClosedAt($referenceNow));
+        self::assertFalse(SalesAuditWindow::forSitePeriod('MCO', '2026-10-01')->isClosedAt($referenceNow));
+        self::assertFalse(SalesAuditWindow::forSitePeriod('MCO', '2026-11-01')->isClosedAt($referenceNow));
+        self::assertSame('2026-09-01', SalesAuditWindow::lastClosedPeriodKey($referenceNow));
+    }
+
+    public function testMcoEligibilityChangesAtBogotaMidnightRatherThanUtcMonthBoundary(): void
+    {
+        $october = SalesAuditWindow::forSitePeriod('MCO', '2026-10-01');
+
+        self::assertFalse($october->isClosedAt(new DateTimeImmutable('2026-11-01T04:30:00+00:00')));
+        self::assertTrue($october->isClosedAt(new DateTimeImmutable('2026-11-01T05:00:00+00:00')));
+        self::assertSame('2026-10-01', SalesAuditWindow::lastClosedPeriodKey(
+            new DateTimeImmutable('2026-11-01T05:00:00+00:00'),
+        ));
+    }
+
     public function testUnsupportedSiteFailsClosed(): void
     {
         $this->expectException(InvalidArgumentException::class);

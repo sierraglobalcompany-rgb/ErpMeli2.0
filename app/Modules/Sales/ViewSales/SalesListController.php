@@ -6,6 +6,7 @@ namespace App\Modules\Sales\ViewSales;
 
 use App\Core\Security\Csrf;
 use App\Modules\Sales\Audit\SalesAuditRepository;
+use App\Modules\Sales\Audit\SalesAuditWindow;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -45,6 +46,7 @@ final class SalesListController
         $canStartAudit = $this->authorizedCompanyId(adminOnly: true) !== null;
         $auditAccounts = [];
         $csrfToken = '';
+        $lastClosedPeriodKey = '';
         if ($canStartAudit) {
             $accounts = $this->pdo->prepare(
                 "SELECT id,external_user_id,nickname FROM meli_accounts "
@@ -53,6 +55,9 @@ final class SalesListController
             $accounts->execute(['company_id' => $companyId]);
             $auditAccounts = $accounts->fetchAll(PDO::FETCH_ASSOC);
             $csrfToken = (new Csrf())->token();
+            $lastClosedPeriodKey = SalesAuditWindow::lastClosedPeriodKey(
+                new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            );
         }
 
         ob_start();
@@ -79,26 +84,42 @@ final class SalesListController
         }
 
         $accountId = filter_var($body['account_id'] ?? null, FILTER_VALIDATE_INT);
-        $periodKey = is_string($body['period_key'] ?? null) ? trim($body['period_key']) : '';
+        $periodInput = is_string($body['period_key'] ?? null) ? trim($body['period_key']) : '';
+        $periodKey = preg_match('/^[0-9]{4}-[0-9]{2}$/D', $periodInput) === 1
+            ? $periodInput . '-01'
+            : $periodInput;
         if ($accountId === false || $accountId < 1 || preg_match('/^[0-9]{4}-[0-9]{2}-01$/D', $periodKey) !== 1) {
             return $response->withStatus(422);
         }
 
         $account = $this->pdo->prepare(
-            "SELECT 1 FROM meli_accounts "
+            "SELECT site_id FROM meli_accounts "
             . "WHERE id = :account_id AND company_id = :company_id AND status = 'connected' LIMIT 1"
         );
         $account->execute([
             'account_id' => $accountId,
             'company_id' => $companyId,
         ]);
-        if ($account->fetchColumn() === false) {
+        $siteId = $account->fetchColumn();
+        if (!is_string($siteId) || $siteId === '') {
+            return $response->withStatus(422);
+        }
+
+        $startedAt = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        try {
+            $window = SalesAuditWindow::forSitePeriod($siteId, $periodKey);
+            if (!$window->isClosedAt($startedAt)) {
+                $response->getBody()->write('Solo se pueden auditar meses cerrados.');
+                return $response
+                    ->withHeader('Content-Type', 'text/plain; charset=utf-8')
+                    ->withStatus(422);
+            }
+        } catch (InvalidArgumentException) {
             return $response->withStatus(422);
         }
 
         $audit = new SalesAuditRepository($this->pdo);
         $work = new WorkRepository($this->pdo);
-        $startedAt = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
         $this->pdo->beginTransaction();
         try {

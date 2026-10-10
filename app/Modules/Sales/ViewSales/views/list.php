@@ -6,6 +6,7 @@ declare(strict_types=1);
 /** @var bool $canStartAudit */
 /** @var list<array<string,mixed>> $auditAccounts */
 /** @var string $csrfToken */
+/** @var string $lastClosedPeriodKey */
 ?>
 <!doctype html>
 <html lang="es">
@@ -41,7 +42,7 @@ declare(strict_types=1);
                         </label>
                         <label>
                             Mes a auditar
-                            <input name="period_key" inputmode="numeric" pattern="[0-9]{4}-[0-9]{2}-01" placeholder="AAAA-MM-01" required>
+                            <input type="month" name="period_key" max="<?= htmlspecialchars(substr($lastClosedPeriodKey, 0, 7), ENT_QUOTES, 'UTF-8') ?>" value="<?= htmlspecialchars(substr($lastClosedPeriodKey, 0, 7), ENT_QUOTES, 'UTF-8') ?>" required>
                         </label>
                         <button type="submit">Iniciar auditoría</button>
                     </form>
