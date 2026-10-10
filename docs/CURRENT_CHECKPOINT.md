@@ -4,9 +4,9 @@
 **Date:** 2026-10-10  
 **Repo:** `sierraglobalcompany-rgb/ErpMeli2.0`  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**Last verified GREEN head:** `b88b8654f0cd16e6ba612084d1067cabc6948ee4`  
+**Last verified GREEN head:** `49ef2762990484b815a46ace42c9a34af8f104c1`<br>
 **Start Audit functional boundary:** `1b3df5b802359b358592154dddfc65424e6af96a` + `1906c89c386c708ae5ab598840be0ec03949ae89` + `2444909ceb376214f0a00b784de492550203c080`  
-**QA run:** `38089427123` — SUCCESS  
+**QA run:** `38091483115` — SUCCESS<br>
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
@@ -457,8 +457,8 @@ G1 REMOTE_TRUTH: PASS for implemented boundary
 G2 WORK_SAFETY: PASS
 G3 RATE_SAFETY: PASS for current Sales
 G4 SALES_AUDIT_TRUTH: IN PROGRESS
-   Capture A/repair/verify/Capture B/A-B/baseline/SAH-0/SAH-1/SAH-2/Start Audit GREEN
-   current/future semantics + exact-order 404 + final closure pending
+   Capture A/repair/verify/Capture B/A-B/baseline/SAH-0/SAH-1/SAH-2/Start Audit/current-future semantics GREEN
+   exact-order 404 + final closure pending
 G5 BILLING_CURSOR_TRUTH: BLOCKED ON C0
 G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
 G7 WRITE_FAIL_CLOSED: PASS
@@ -483,10 +483,11 @@ Historical draft PRs/issues remain tracking debt, not roadmap authority.
 Immediate order is now:
 
 ```text
+CLOSED: SAH-0 / SAH-1 audit hardening
 CLOSED: SAH-2 duplicate active-run guard
 CLOSED: Start Audit contract + UX/API
-NEXT: current/future period semantics
-THEN: exact-order 404 semantics/classification
+CLOSED: current/future period semantics
+NEXT: exact-order 404 semantics/classification
 THEN: G4 adversarial/noise/docs closure
 ```
 
@@ -512,38 +513,54 @@ MariaDB session UTC
 
 ---
 
-# 11. EXACT NEXT MICROBLOCK — CURRENT/FUTURE PERIOD SEMANTICS
+# 11. CURRENT/FUTURE PERIOD SEMANTICS — GREEN / CLOSED
 
-**STOP NOW.**
-
-Next microblock is:
+The start boundary accepts only a fully closed monthly period in `America/Bogota`:
 
 ```text
-current/future period semantics
+period_start < current MCO month start -> eligible
+current or future MCO month            -> HTTP 422
 ```
 
-Goal:
+The eligibility rule and latest selectable period come from `SalesAuditWindow`. The start controller uses the same rule before opening its persistence transaction. The admin form selects `YYYY-MM`, defaults to and caps at the last closed MCO month, and the controller converts that value once to canonical `YYYY-MM-01`. The stored `period_key` contract is unchanged.
 
-> Define and enforce the smallest deterministic policy for starting Sales Audit periods that are current or future, without altering historical-source truth, duplicate-run behavior, or exact-order repair semantics.
+The deterministic UTC/MCO boundary test proves October 2026 stays open at `2026-11-01T04:30:00Z` (`2026-10-31 23:30` in Bogotá) and closes at `2026-11-01T05:00:00Z`.
 
-When work resumes:
+Rejected current/future periods persist:
 
-1. verify repo/branch/head and this checkpoint;
-2. verify GREEN ancestor `b88b8654f0cd16e6ba612084d1067cabc6948ee4` and QA `38089427123`;
-3. inspect `SalesAuditWindow`, the new `POST /sales/audits` boundary, source historical horizon semantics, and existing tests;
-4. establish the real desired meaning of historical audit for closed/current/future months from existing project authority before choosing implementation;
-5. write one minimal RED proving the unresolved current/future behavior;
-6. confirm RED fails only for that missing semantic policy;
-7. DELETE -> SIMPLIFY -> REUSE -> MERGE -> EXTEND -> ADD;
-8. prefer enforcing the policy at the existing audit-window/start boundary; do not create a scheduler/service/state for it;
-9. preserve MCO `America/Bogota` month semantics and deterministic absolute time handling;
-10. do not alter SAH-2 active-run identity/UNIQUE;
-11. do not alter Start Audit auth/CSRF/transaction/Work contract unless the RED proves inseparability;
-12. do not mix exact-order 404, Billing, Financial, webhook hardening, DB UTC, docs cleanup, or Git hygiene;
-13. remote writes OFF; REAL_MELI_HTTP=0;
-14. full PHP 8.3/8.4/8.5 QA;
-15. noise audit;
-16. checkpoint;
-17. STOP.
+```text
+sales_audit_runs = 0
+sales.audit Work = 0
+```
 
-Do not merge/deploy or enable remote Mercado Libre writes without explicit user authorization.
+## TDD evidence
+
+```text
+BASE CHECKPOINT: 7011672b29e910728fc62cc293af9e98223b320e
+
+RED current-month commit: 90621ab3737e5a47dd676f9a1c8c4de3f3a563de
+Expected HTTP 422 / runs=0 / Work=0; observed HTTP 303 / runs=1 / Work=1.
+
+RED future-month commit: 710faf374c099ecd0ba74812dc9824a73e6bdf3f
+Expected HTTP 422 / runs=0 / Work=0; observed HTTP 303 / runs=1 / Work=1.
+
+FUNCTIONAL GREEN: 49ef2762990484b815a46ace42c9a34af8f104c1
+QA workflow: 38091483115 — SUCCESS
+PHP 8.3: job 114328646111 — SUCCESS
+PHP 8.4: job 114328646106 — SUCCESS
+PHP 8.5: job 114328646058 — SUCCESS
+PHPStan: 0 errors on all jobs
+PHPUnit: 222 tests / 1550 assertions on all jobs
+REAL_MELI_HTTP: 0
+Mercado Libre remote writes: OFF
+```
+
+The local Windows full-suite run also showed the existing `WorkCliEntrypointTest` POSIX environment-assignment failure. The canonical Ubuntu workflow passed all three PHP jobs. The local lint script could not run under PowerShell because `xargs` is unavailable.
+
+No schema, migration, Work type, lifecycle state, scheduler, or source-horizon changes were made.
+
+## Next frozen microblock
+
+```text
+exact-order 404 semantics/classification
+```
