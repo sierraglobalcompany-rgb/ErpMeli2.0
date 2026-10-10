@@ -30,13 +30,25 @@ final class SalesAuditRepairHandler
         try {
             $childWorkId = $this->enqueueNextMissingOrder($runId, $companyId, $accountId, $now);
         } catch (RuntimeException) {
-            $this->work->failCurrentClaim(
-                $workId,
-                $claimToken,
-                'sales_audit_repair_attention',
-                'Sales audit repair requires attention.',
-            );
-            return false;
+            try {
+                return $this->work->completeCurrentClaim(
+                    $workId,
+                    $claimToken,
+                    function (PDO $_pdo) use ($runId, $companyId, $accountId): void {
+                        if (!$this->audit->markRepairAttention($runId, $companyId, $accountId)) {
+                            throw new RuntimeException('Sales audit repair attention state could not be persisted.');
+                        }
+                    },
+                );
+            } catch (RuntimeException) {
+                $this->work->failCurrentClaim(
+                    $workId,
+                    $claimToken,
+                    'sales_audit_repair_attention',
+                    'Sales audit repair requires attention.',
+                );
+                return false;
+            }
         }
 
         if ($childWorkId === null) {

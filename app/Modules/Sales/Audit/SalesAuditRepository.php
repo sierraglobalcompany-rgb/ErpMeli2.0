@@ -307,6 +307,23 @@ final class SalesAuditRepository
         return $statement->rowCount() === 1;
     }
 
+    public function markRepairAttention(int $runId, int $companyId, int $accountId): bool
+    {
+        $statement = $this->pdo->prepare(
+            "UPDATE sales_audit_runs SET status = 'attention', updated_at = UTC_TIMESTAMP(6) "
+            . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+            . "AND status = 'repairing' AND contract_version = :contract_version"
+        );
+        $statement->execute([
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'contract_version' => self::CONTRACT_VERSION,
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
     public function nextRepairingMissingCanonicalOrderId(int $runId, int $companyId, int $accountId): ?string
     {
         $scope = $this->pdo->prepare(
