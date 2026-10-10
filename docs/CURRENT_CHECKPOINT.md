@@ -4,7 +4,7 @@
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
 **Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
-**Current verified functional SHA:** `305ba6fd7fe8df235c742433538ba52a6020b0b6`  
+**Current verified functional SHA:** `9c5791f09341fd384ae120719c00e5f04719492c`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
@@ -28,52 +28,55 @@ B3c2      stable-total page continuation
 B3c3      terminal traversal integrity by durable observed count
 B3d1      canonical local set fingerprint primitive
 B3d2      terminal CAPTURE fingerprint wiring
+B3e1      deterministic local missing-set primitive
 ```
 
-## B3d2 contract
+## B3e1 contract
 
-At terminal CAPTURE, the existing `SalesAuditHandler` now:
+`SalesAuditRepository::missingCanonicalOrderIds()` now:
 
-1. validates terminal durable observation count equals stable `remote_total`;
-2. inside the same existing Work completion transaction, calls `SalesAuditRepository::persistCanonicalFingerprint()`;
-3. persists `canonical_count` + `set_hash` before current Work can commit as done;
-4. derives canonical membership from persisted `remote_date_created`, so guard-band rows remain evidence but do not enter the canonical set;
-5. if fingerprint persistence fails, the terminal-page observation rolls back and current Work fails closed with `meli_sales_audit_contract`;
-6. leaves the run in `capturing`;
-7. adds no schema, status, Work type, engine, scheduler or service.
+1. requires the exact scoped `capturing` run;
+2. refuses to operate until `remote_total`, `canonical_count` and `set_hash` exist;
+3. derives the canonical MCO window from the run itself;
+4. considers only remote audit evidence whose `remote_date_created` belongs to the canonical month;
+5. considers a local order present only when the same external ID exists for the same company/account and local `orders.date_created` is inside the same canonical month;
+6. therefore a same-ID local row outside the month does not incorrectly satisfy the historical audit;
+7. guard-band remote observations outside the month are not repair candidates;
+8. returns only missing external IDs in deterministic ascending order;
+9. changes no Work, no run status and enqueues nothing;
+10. adds no table, column, class, engine or scheduler.
 
-## B3d2 evidence
+## B3e1 evidence
 
 RED commit:
 
 ```text
-5f123711c685ee60c09ba5ce0d0e191f80a8e124
+07059b6066b3b7b004d67dc3925502e94e2730d5
 ```
 
-RED run `38017725349`, job `114111642713`:
+RED run `38018068832`, job `114112708451`:
 
 ```text
 PHPSTAN=0
-TESTS=184
-FAILURES=2
-CAUSES=
-- terminal handler did not persist canonical fingerprint
-- occupied fingerprint did not fail/rollback terminal Work
+TESTS=186
+ERRORS=1
+FAILURES=1
+CAUSE=SalesAuditRepository::missingCanonicalOrderIds() did not exist
 ```
 
 GREEN functional commit:
 
 ```text
-305ba6fd7fe8df235c742433538ba52a6020b0b6
+9c5791f09341fd384ae120719c00e5f04719492c
 ```
 
-Fresh QA — run `38017833423`, job `114111967942`:
+Fresh QA — run `38018180908`, job `114113062510`:
 
 ```text
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=184/184 PASS
-ASSERTIONS=1232
+PHPUNIT=186/186 PASS
+ASSERTIONS=1242
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
@@ -88,12 +91,10 @@ REAL_MELI_HTTP=0
 - stable `remote_total` and coherent paging;
 - one-page continuation with atomic evidence/work/next-page write;
 - terminal durable observed count must equal stable remote total;
-- malformed, drifting or incomplete terminal pages fail closed;
-- canonical membership is derived locally from `remote_date_created`;
-- deterministic canonical count/hash is persisted atomically at terminal CAPTURE;
-- fingerprint failure cannot silently complete terminal Work;
-- run still remains `capturing` pending VALIDATE/REPAIR flow;
-- no `order.sync` during CAPTURE;
+- canonical fingerprint persists atomically at terminal CAPTURE;
+- deterministic missing-local diff exists and is month-scoped on both remote and local truth;
+- no repair Work has been enqueued yet;
+- run remains `capturing`;
 - 429 defer, 5xx/transport bounded retry, one OAuth refresh retry;
 - obsolete reconciler deleted.
 
@@ -104,7 +105,7 @@ REAL_MELI_HTTP=0
 | G1 REMOTE_TRUTH | PASS for implemented boundary |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for active Sales Audit path |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — CAPTURE + canonical fingerprint verified; local missing-set validation next |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — CAPTURE and local missing-set VALIDATE primitive verified; REPAIR transition/fan-out not yet implemented |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 real sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -112,23 +113,24 @@ REAL_MELI_HTTP=0
 
 ## Exact next microblock
 
-### B3e1 — derive deterministic local missing-set only
+### B3e2 — REPAIR transition contract only
+
+Before coding, inspect the existing run statuses and Work idempotency contract. Keep this block smaller than fan-out.
 
 Scope only:
 
-1. inspect current `orders` schema and Sales repository/query ownership before coding;
-2. RED: compare canonical remote audit IDs against local `orders` for the same company/account/month;
-3. RED: return only remote canonical IDs missing locally;
-4. RED: local orders outside the canonical month must not satisfy the audit set;
-5. RED: result order is deterministic;
-6. GREEN: smallest repository/query primitive; no Work enqueue;
-7. no `order.sync` fan-out, no run status transition, no second capture, no CONFIRM;
-8. full QA → checkpoint.
+1. RED: a fingerprinted `capturing` run with one or more missing canonical local IDs may transition atomically to `repairing`;
+2. RED: a run without a fingerprint or with no missing IDs must not be blindly moved to `repairing`;
+3. RED: wrong scope/status fails closed;
+4. GREEN: minimum repository transition primitive only;
+5. do not enqueue `order.sync` yet;
+6. no VERIFY, second capture or CONFIRM;
+7. full QA → checkpoint.
 
 ## Stop conditions
 
-- no REPAIR fan-out in B3e1;
-- no VERIFY/CONFIRM in B3e1;
+- no repair fan-out in B3e2;
+- no VERIFY/CONFIRM in B3e2;
 - no Billing handler / F6A Task2 before C0;
 - no merge;
 - no deploy;
