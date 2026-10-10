@@ -104,22 +104,8 @@ final class SalesAuditHandler
                 return $this->work->completeCurrentClaim(
                     $workId,
                     $claimToken,
-                    function (PDO $pdo) use ($runId, $companyId, $accountId, $runStatus): void {
-                        $statement = $pdo->prepare(
-                            "UPDATE sales_audit_runs SET status = 'unavailable', updated_at = UTC_TIMESTAMP(6) "
-                            . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
-                            . 'AND status = :run_status AND contract_version = :contract_version'
-                        );
-                        $statement->execute([
-                            'run_id' => $runId,
-                            'company_id' => $companyId,
-                            'account_id' => $accountId,
-                            'run_status' => $runStatus,
-                            'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
-                        ]);
-                        if ($statement->rowCount() !== 1) {
-                            throw new RuntimeException('Sales audit unavailable state could not be persisted.');
-                        }
+                    function (PDO $_pdo) use ($runId, $companyId, $accountId, $runStatus): void {
+                        $this->audit->markUnavailable($runId, $companyId, $accountId, $runStatus);
                     },
                 );
             } catch (RuntimeException) {
@@ -211,7 +197,7 @@ final class SalesAuditHandler
             return $this->work->completeCurrentClaim(
                 $workId,
                 $claimToken,
-                function (PDO $pdo) use (
+                function (PDO $_pdo) use (
                     $runId,
                     $companyId,
                     $accountId,
@@ -252,92 +238,7 @@ final class SalesAuditHandler
                                 throw new UnexpectedValueException('Sales audit terminal confirmation evidence is incomplete.');
                             }
 
-                            $fingerprint = $this->audit->canonicalFingerprint($runId, $window, 'B');
-                            $attention = $pdo->prepare(
-                                "UPDATE sales_audit_runs SET status = 'attention', updated_at = UTC_TIMESTAMP(6) "
-                                . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
-                                . "AND status = 'confirming' AND contract_version = :contract_version "
-                                . 'AND canonical_count IS NOT NULL AND set_hash IS NOT NULL '
-                                . 'AND (canonical_count <> :canonical_count OR set_hash <> :set_hash)'
-                            );
-                            $attention->execute([
-                                'run_id' => $runId,
-                                'company_id' => $companyId,
-                                'account_id' => $accountId,
-                                'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
-                                'canonical_count' => $fingerprint['canonical_count'],
-                                'set_hash' => $fingerprint['set_hash'],
-                            ]);
-                            if ($attention->rowCount() === 1) {
-                                return;
-                            }
-
-                            $baselineConflict = $pdo->prepare(
-                                'UPDATE sales_audit_runs current_run '
-                                . 'INNER JOIN sales_audit_runs baseline '
-                                . 'ON baseline.company_id = current_run.company_id '
-                                . 'AND baseline.account_id = current_run.account_id '
-                                . 'AND baseline.period_key = current_run.period_key '
-                                . 'AND baseline.contract_version = current_run.contract_version '
-                                . "AND baseline.status = 'valid' "
-                                . 'AND baseline.id <> current_run.id '
-                                . 'AND baseline.canonical_count IS NOT NULL AND baseline.set_hash IS NOT NULL '
-                                . 'AND (baseline.canonical_count <> current_run.canonical_count '
-                                . 'OR baseline.set_hash <> current_run.set_hash) '
-                                . "SET current_run.status = 'attention', current_run.updated_at = UTC_TIMESTAMP(6) "
-                                . 'WHERE current_run.id = :run_id '
-                                . 'AND current_run.company_id = :company_id '
-                                . 'AND current_run.account_id = :account_id '
-                                . "AND current_run.status = 'confirming' "
-                                . 'AND current_run.contract_version = :contract_version '
-                                . 'AND current_run.canonical_count = :canonical_count '
-                                . 'AND current_run.set_hash = :set_hash'
-                            );
-                            $baselineConflict->execute([
-                                'run_id' => $runId,
-                                'company_id' => $companyId,
-                                'account_id' => $accountId,
-                                'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
-                                'canonical_count' => $fingerprint['canonical_count'],
-                                'set_hash' => $fingerprint['set_hash'],
-                            ]);
-                            if ($baselineConflict->rowCount() === 1) {
-                                return;
-                            }
-
-                            $valid = $pdo->prepare(
-                                "UPDATE sales_audit_runs SET status = 'valid', completed_at = UTC_TIMESTAMP(6), "
-                                . 'updated_at = UTC_TIMESTAMP(6) '
-                                . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
-                                . "AND status = 'confirming' AND contract_version = :contract_version "
-                                . 'AND canonical_count = :canonical_count AND set_hash = :set_hash'
-                            );
-                            $valid->execute([
-                                'run_id' => $runId,
-                                'company_id' => $companyId,
-                                'account_id' => $accountId,
-                                'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
-                                'canonical_count' => $fingerprint['canonical_count'],
-                                'set_hash' => $fingerprint['set_hash'],
-                            ]);
-                            if ($valid->rowCount() !== 1) {
-                                throw new RuntimeException('Sales audit confirmation transition could not be persisted.');
-                            }
-
-                            $superseded = $pdo->prepare(
-                                'DELETE old_run FROM sales_audit_runs old_run '
-                                . 'INNER JOIN sales_audit_runs current_run '
-                                . 'ON current_run.id = :run_id '
-                                . 'AND current_run.company_id = old_run.company_id '
-                                . 'AND current_run.account_id = old_run.account_id '
-                                . 'AND current_run.period_key = old_run.period_key '
-                                . 'AND current_run.contract_version = old_run.contract_version '
-                                . 'AND current_run.canonical_count = old_run.canonical_count '
-                                . 'AND current_run.set_hash = old_run.set_hash '
-                                . 'WHERE old_run.id <> current_run.id '
-                                . "AND old_run.status = 'valid' AND current_run.status = 'valid'"
-                            );
-                            $superseded->execute(['run_id' => $runId]);
+                            $this->audit->finalizeConfirmation($runId, $companyId, $accountId, $window);
                             return;
                         }
 
