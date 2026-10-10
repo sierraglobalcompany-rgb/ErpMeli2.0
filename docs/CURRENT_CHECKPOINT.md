@@ -4,12 +4,12 @@
 **Date:** 2026-10-10  
 **Repo:** `sierraglobalcompany-rgb/ErpMeli2.0`  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**Previous checkpoint:** `a3d7e5846722ef4931b5ad346d4e2c2ffd590a1b`  
+**Previous checkpoint:** `b6d4c63561dd5fec824d13a9dcf589e5cef72d46`  
+**Previous checkpoint QA:** `38094978802` — SUCCESS  
 **Last verified functional GREEN:** `6b6093b65ad0ab65351140d79f8cfc78d1a56910`  
 **Functional QA:** `38093953630` — SUCCESS  
 **G4 authority closure:** `a2be85be9e1632979a38de1ca2c35666281133c4`  
 **G4 authority QA:** `38094348936` — SUCCESS  
-**G4 checkpoint QA:** `38094480858` — SUCCESS  
 **Remote Mercado Libre writes:** OFF  
 **REAL_MELI_HTTP normal:** `0`
 
@@ -48,7 +48,7 @@ Capture A
 -> baseline lifecycle
 ```
 
-Source contract:
+Core source contract:
 
 ```text
 source = seller Orders Search
@@ -59,6 +59,18 @@ outside horizon -> unavailable before OAuth/HTTP
 short non-terminal page -> fail closed
 valid = verified relative to seller-search contract, not absolute ML history
 ```
+
+Exact-order 404 is also closed:
+
+```text
+GET /orders/{id} -> 404
+=> Work failed
+=> meli_order_not_found
+=> no retry/defer
+=> no order persistence
+```
+
+`401 -> refresh once -> 404` ends the same way with no fourth request.
 
 Architecture remains deliberately small:
 
@@ -73,65 +85,11 @@ Work types: order.sync + sales.audit
 1 SalesAuditRepairHandler
 ```
 
-No second queue, domain scheduler, generic retry/repair/recovery engine, SalesAuditStateMachine, ConfirmRepository, BaselineService, FinalizerEngine, StartAuditService, extra audit table/state, or generic lock/transaction layer.
+No second queue, domain scheduler, generic retry/repair/recovery engine, state machine, extra audit table/state, or generic lock/transaction layer.
 
 ---
 
-# 3. SALES AUDIT INVARIANTS — GREEN
-
-Capture/source:
-
-- MCO canonical month uses `America/Bogota`; remote search uses UTC guard-band ±1h.
-- Guard-band evidence is durable; canonical membership derives from exact `date_created`.
-- Outside source horizon -> `unavailable` before token lookup/HTTP.
-- Short non-terminal page -> fail closed; no guessed pagination.
-- Offsetless/malformed remote timestamps -> fail closed with no partial evidence.
-- Capture never fans out directly to `order.sync`.
-
-Repair/verify:
-
-- gap recomputed from canonical A evidence;
-- exactly one deterministic missing-order child at a time;
-- parent defers while child pending/running;
-- terminal child + persistent gap -> audit `attention`, no recreation;
-- no gap -> `repairing -> confirming`;
-- repair/verify isolated to capture pass A.
-
-Confirm/baseline:
-
-- same `sales.audit` Work type;
-- independent durable B evidence;
-- A/B equality -> `valid` atomically with Work completion;
-- A/B mismatch -> `attention` atomically with Work completion;
-- no prior valid -> current confirmed becomes valid;
-- prior equivalent valid -> current valid, old equivalent run/evidence removed;
-- prior divergent valid -> prior valid preserved, current attention preserved.
-
-Start/concurrency:
-
-```text
-POST /sales/audits
-admin + tenant + CSRF + connected account
-fully closed MCO month only
-atomic run + initial sales.audit Work
-DB UNIQUE guards one active run per company/account/period/contract
-```
-
-Exact-order 404:
-
-```text
-GET /orders/{id} -> 404
-=> Work failed
-=> meli_order_not_found
-=> no retry/defer
-=> no order persistence
-```
-
-`401 -> refresh once -> 404` has the same terminal result and no fourth request. Persistent repair gap composes to audit `attention`.
-
----
-
-# 4. QA — LAST FUNCTIONAL + G4 CLOSURE
+# 3. G4 QA EVIDENCE
 
 Functional GREEN:
 
@@ -155,28 +113,16 @@ PHPUnit = 224 tests / 1571 assertions
 REAL_MELI_HTTP = 0
 ```
 
-G4 checkpoint:
-
-```text
-SHA a3d7e5846722ef4931b5ad346d4e2c2ffd590a1b
-RUN 38094480858 — SUCCESS
-PHP 8.3 / 8.4 / 8.5 — SUCCESS
-```
-
 Known Slim 404 diagnostic remains pre-existing passing-test noise and is not reopened here.
 
 ---
 
-# 5. DOC-CLEAN / GITHUB HYGIENE — CLOSED
+# 4. DOC-CLEAN / GITHUB HYGIENE — CLOSED
 
-Audit performed against live GitHub metadata after G4.
-
-## Issues
-
-Historical completed issues closed with an archival note:
+Historical completed issues archived/closed:
 
 ```text
-#4  F2 — KISS Work Engine
+#4  F2 Work Engine
 #6  F2 execution ledger
 #11 F4 Sales vertical slice plan
 ```
@@ -187,19 +133,6 @@ Only real external gates remain open:
 #3 External gate — Hostinger runtime + main protection
 #5 External gate — Dedicated Mercado Libre ERP2 app + production OAuth
 ```
-
-Both open issue bodies were rewritten to current truth; they no longer instruct continuation through obsolete stacked PRs.
-
-`main` was verified directly:
-
-```text
-HEAD = f10ed1f837ef49a588b62ed34c117f6636b3abd6
-protected = false
-```
-
-Issue #3 therefore remains open.
-
-## Pull requests
 
 Historical stacked Draft PRs archived/closed **without merge**:
 
@@ -213,23 +146,139 @@ Historical stacked Draft PRs archived/closed **without merge**:
 #15 F6A Billing Period-First
 ```
 
-REST verification after cleanup:
+Verified after cleanup:
 
 ```text
 OPEN_PRS = 0
 OPEN_ISSUES = #3, #5 only
+main HEAD = f10ed1f837ef49a588b62ed34c117f6636b3abd6
+main protected = false
 ```
 
-PR #14 special audit:
+Hygiene checkpoint:
 
-- its head diverged by four commits after the F6 fork;
-- all four were documentation-only governance changes in `AGENTS.md`/`README.md`;
-- the current active branch already contains those KISS/noise-reduction rules in newer/stronger form;
-- no functional F5 code was discarded.
+```text
+SHA b6d4c63561dd5fec824d13a9dcf589e5cef72d46
+RUN 38094978802 — SUCCESS
+PHP 8.3 / 8.4 / 8.5 — SUCCESS
+PHPStan = 0
+PHPUnit = 224 tests / 1571 assertions
+REAL_MELI_HTTP = 0
+```
 
-PR #15 archive note explicitly states that only its contract/schema foundation survives; Billing Task2 is still blocked on C0 real evidence.
+Future integration to `main` must use a fresh PR from the live certified branch after external gate #3 is satisfied. Do not resurrect historical stacked PRs by inertia.
 
-Future integration to `main` must use a **fresh PR from the live certified branch** after external gate #3 is satisfied. Do not resurrect the historical stacked PR chain by inertia.
+---
+
+# 5. BILLING C0 REAL MCO SMOKE — AUTHORIZED, EXTERNALLY BLOCKED
+
+User explicitly authorized continuing with the read-only Billing C0 smoke on 2026-10-10.
+
+Purpose remains:
+
+```text
+obtain sanitized real seller-MCO evidence for billing.period.details
+before implementing Billing Task2
+```
+
+C0 must prove from a real response sequence:
+
+```text
+first-page shape
+cursor / next-page behavior
+terminal signal
+real last_id shape
+HTTP 206 behavior if observed
+non-progress / repeated-cursor behavior if observed
+```
+
+Do not synthesize 206 or non-progress merely to satisfy the gate. If those cases are not observed in the authorized smoke window, record them as still unproven rather than infer behavior.
+
+## Official contract rechecked
+
+Current official Mercado Libre Billing documentation still supports:
+
+```text
+GET /billing/integration/periods/key/{KEY}/group/ML/details
+
+document_type = BILL | CREDIT_NOTE
+limit = 1000
+first from_id = 0
+next from_id = previous response last_id
+sort_by = ID
+order_by = ASC
+consume sequentially
+206 = incomplete data; wait and retry later
+```
+
+Billing is fiscal/financial reconciliation, not the operational sales source. Historical ingestion must remain period-first, not order-by-order.
+
+## Repo boundary verified
+
+Existing operation:
+
+```text
+billing.period.details
+method = GET
+classification = READ
+path = /billing/integration/periods/key/{period_key}/group/ML/details
+preserve_numbers = true
+```
+
+Existing CI/runtime safety:
+
+```text
+GitHub QA: APP_ENV=test + REAL_MELI_HTTP=0
+RemoteHostPolicy: api.mercadolibre.com blocked outside production
+```
+
+Therefore CI/fake transport cannot be accepted as C0 real evidence.
+
+## Exact external blocker
+
+Current ChatGPT execution environment has no usable authenticated Mercado Libre path for this seller:
+
+```text
+no access to ERP2 production/sandbox DB token state
+no Mercado Libre authenticated connector/plugin available here
+no existing real-HTTP smoke workflow in repo
+no prior sanitized real C0 artifact found on active branch
+```
+
+Important distinction:
+
+> This does **not** prove ERP2 credentials do not exist. It proves only that usable ERP2 OAuth/runtime credentials are not available to this execution environment.
+
+Issue #5 now contains the C0-specific blocker note.
+
+## Sanitization contract for the eventual real smoke
+
+Capture only facts required by C0, for example:
+
+```text
+HTTP status
+period key + document type
+result count
+response top-level field names/types
+last_id type/value pattern
+whether next request advanced
+how terminal completion was signaled
+whether 206 occurred
+whether repeated cursor/non-progress occurred
+```
+
+Never print/store:
+
+```text
+access token
+refresh token
+Client Secret
+full raw Billing payload
+buyer/seller PII
+unneeded order/item metadata
+```
+
+No Billing Task2 production/test/schema/config code has been started in this C0 attempt.
 
 ---
 
@@ -240,7 +289,7 @@ G1 REMOTE_TRUTH: PASS for implemented boundary
 G2 WORK_SAFETY: PASS
 G3 RATE_SAFETY: PASS for current Sales
 G4 SALES_AUDIT_TRUTH: PASS / CLOSED
-G5 BILLING_CURSOR_TRUTH: BLOCKED ON C0
+G5 BILLING_CURSOR_TRUTH: BLOCKED ON C0 REAL AUTHENTICATED ENVIRONMENT
 G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
 G7 WRITE_FAIL_CLOSED: PASS
 G8 HOSTING_REALITY: NOT CERTIFIED
@@ -250,37 +299,26 @@ External gates:
 
 ```text
 Issue #3 Hostinger/runtime/main protection
-Issue #5 dedicated Mercado Libre ERP2 app/OAuth reality
+Issue #5 dedicated Mercado Libre ERP2 app/OAuth reality + C0 authenticated-runtime access
 ```
 
 ---
 
 # 7. NEXT ORDER — FROZEN
 
-Next microblock only:
+Do **not** start Billing Task2 yet.
+
+Exact next action when an authenticated ERP2 MCO runtime is available:
 
 ```text
-Billing C0 real sanitized MCO smoke
+execute Billing C0 read-only smoke
+-> sanitize evidence
+-> verify first page + cursor progress + terminal signal + last_id shape
+-> record any actually observed 206/non-progress behavior
+-> accept/reject C0
 ```
 
-Purpose: obtain real read-only evidence for the current `billing.period.details` contract before implementing Billing Task2.
-
-C0 must prove from sanitized real MCO evidence:
-
-```text
-first-page shape
-cursor/next-page behavior
-terminal signal
-real last_id shape
-HTTP 206 behavior
-non-progress condition
-```
-
-Do **not** infer any of these from documentation, ERP1, mocks or short/empty pages.
-
-C0 is a real-HTTP smoke and therefore requires explicit authorization plus usable production/sandbox credentials/environment. It is read-only; remote writes remain OFF.
-
-Only after C0 evidence is accepted:
+Only after C0 is accepted:
 
 ```text
 Billing Task2
@@ -288,7 +326,7 @@ Billing Task2
 -> Financial no-double-count
 ```
 
-Separate hardening; do not mix by inertia:
+Separate hardening remains outside this block:
 
 ```text
 Sales detail multi-account scope
@@ -303,11 +341,12 @@ Slim diagnostic cleanup
 
 # 8. STOP
 
-DOC-CLEAN / GitHub issue hygiene is intentionally closed here.
+Billing C0 was **started as an evidence audit but could not execute the authenticated real request in this harness**.
 
-No production/test/schema/config code changed in this microblock.  
+No fake evidence accepted.  
+No Billing Task2 started.  
 No merge.  
 No deploy.  
-No production DB/OAuth change.  
+No production DB/OAuth mutation.  
 No remote Mercado Libre write.  
-Billing C0 was **not** started.
+Remote writes remain OFF.
