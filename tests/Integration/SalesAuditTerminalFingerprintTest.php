@@ -180,7 +180,7 @@ final class SalesAuditTerminalFingerprintTest extends TestCase
         );
     }
 
-    public function testFingerprintPersistenceFailureRollsBackTerminalObservationAndFailsWork(): void
+    public function testFingerprintPersistenceFailureRollsBackTerminalObservationAndFailsAsAuditState(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('sales-audit-terminal-fingerprint-rollback-secret');
@@ -200,7 +200,7 @@ final class SalesAuditTerminalFingerprintTest extends TestCase
             '200000000001',
             new DateTimeImmutable('2026-10-10T10:00:00+00:00'),
         ));
-        $audit->persistCanonicalFingerprint(
+        $fingerprint = $audit->persistCanonicalFingerprint(
             $runId,
             1,
             1,
@@ -248,10 +248,23 @@ final class SalesAuditTerminalFingerprintTest extends TestCase
         )->fetch(PDO::FETCH_ASSOC);
         self::assertIsArray($workRow);
         self::assertSame('failed', $workRow['status']);
-        self::assertSame('meli_sales_audit_contract', $workRow['last_error_code']);
         self::assertSame(
             1,
             (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id = ' . $runId)->fetchColumn(),
+            'Internal lifecycle failure must roll back the terminal observation.',
+        );
+
+        $runRow = $pdo->query(
+            'SELECT status,canonical_count,set_hash FROM sales_audit_runs WHERE id = ' . $runId
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($runRow);
+        self::assertSame('capturing', $runRow['status']);
+        self::assertSame((string) $fingerprint['canonical_count'], (string) $runRow['canonical_count']);
+        self::assertSame($fingerprint['set_hash'], $runRow['set_hash']);
+        self::assertSame(
+            'sales_audit_state',
+            $workRow['last_error_code'],
+            'Internal audit lifecycle failure must not be blamed on Mercado Libre contract data.',
         );
     }
 
