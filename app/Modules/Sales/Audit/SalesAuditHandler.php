@@ -267,8 +267,27 @@ final class SalesAuditHandler
                                 'canonical_count' => $fingerprint['canonical_count'],
                                 'set_hash' => $fingerprint['set_hash'],
                             ]);
-                            if ($attention->rowCount() !== 1) {
-                                throw new RuntimeException('Sales audit confirmation match transition is not implemented.');
+                            if ($attention->rowCount() === 1) {
+                                return;
+                            }
+
+                            $valid = $pdo->prepare(
+                                "UPDATE sales_audit_runs SET status = 'valid', completed_at = UTC_TIMESTAMP(6), "
+                                . 'updated_at = UTC_TIMESTAMP(6) '
+                                . 'WHERE id = :run_id AND company_id = :company_id AND account_id = :account_id '
+                                . "AND status = 'confirming' AND contract_version = :contract_version "
+                                . 'AND canonical_count = :canonical_count AND set_hash = :set_hash'
+                            );
+                            $valid->execute([
+                                'run_id' => $runId,
+                                'company_id' => $companyId,
+                                'account_id' => $accountId,
+                                'contract_version' => SalesAuditRepository::CONTRACT_VERSION,
+                                'canonical_count' => $fingerprint['canonical_count'],
+                                'set_hash' => $fingerprint['set_hash'],
+                            ]);
+                            if ($valid->rowCount() !== 1) {
+                                throw new RuntimeException('Sales audit confirmation transition could not be persisted.');
                             }
                             return;
                         }
