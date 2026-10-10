@@ -43,6 +43,7 @@ final class SalesSchemaTest extends TestCase
             'period_key',
             'contract_version',
             'status',
+            'active_contract_version',
             'remote_total',
             'canonical_count',
             'set_hash',
@@ -59,6 +60,7 @@ final class SalesSchemaTest extends TestCase
             "enum('capturing','repairing','confirming','valid','attention','unavailable')",
             strtolower((string) $runByName['status']['Type']),
         );
+        self::assertStringContainsString('GENERATED', strtoupper((string) $runByName['active_contract_version']['Extra']));
 
         $orderColumns = $pdo->query('SHOW COLUMNS FROM sales_audit_orders')->fetchAll();
         $orderNames = array_map(static fn (array $column): string => (string) $column['Field'], $orderColumns);
