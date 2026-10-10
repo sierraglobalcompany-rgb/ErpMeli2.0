@@ -3,7 +3,7 @@
 **Date:** 2026-10-10  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
-**Current implementation SHA:** `acb0bca2f0cfa0673e3cc5d17569f679fe308f3c`  
+**Current implementation SHA:** `d55ed5e9bd78c7a9e90c46f560295e395c75113d`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
 **V3-B plan:** `docs/superpowers/plans/2026-10-10-v3-b-sales-audit.md`  
 **Remote writes:** OFF  
@@ -11,60 +11,40 @@
 
 ## Current state
 
-V3-A remains closed and green. Before starting Sales Audit, the branch was audited against authority, code, diff and QA to detect gaps left by the previous chat blockage.
+V3-A remains closed and green. V3-B is being executed in deliberately small RED -> minimum GREEN -> full QA -> checkpoint blocks.
 
-One concrete gap was found and closed in B0: V3.2 required native `orders.search` decoding with `JSON_BIGINT_AS_STRING`, while the final V3-A `MeliClient` native branch did not include that flag. No other skipped A1-A8 task or final-contract regression was found in the audited owners.
+A post-blockage audit found one V3-A gap only: native `orders.search` decoding lacked `JSON_BIGINT_AS_STRING`. B0 closed it. No other skipped A1-A8 final-contract regression was found in the audited owners.
 
-V3-B is being executed in deliberately small RED -> minimum GREEN -> full QA -> checkpoint blocks.
+## B0 — bigint-safe seller search CLOSED
 
-## B0 — preentry audit gap CLOSED
+RED `6be2cb8060bbeb2cd3103722c4ea3b29d5c8d3e7` proved a JSON integer larger than `PHP_INT_MAX` became float/scientific notation.
 
-RED `6be2cb8060bbeb2cd3103722c4ea3b29d5c8d3e7` proved a literal JSON integer larger than `PHP_INT_MAX` became float/scientific notation in `orders.search`.
-
-GREEN `b05bb8bd3a4f0eb67dc821cd8878b84e4e89931f` changed only native decode to:
+GREEN `b05bb8bd3a4f0eb67dc821cd8878b84e4e89931f` changed native decode only to:
 
 ```text
 JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING
 ```
 
-Fresh QA — run `38012299105`, job `114094780325`:
+QA run `38012299105`: PHPStan 0, 160/160, 1058 assertions, 20 MB, REAL_MELI_HTTP=0.
 
-```text
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=160/160 PASS
-ASSERTIONS=1058
-MEMORY=20 MB
-REAL_MELI_HTTP=0
-```
+## B1 — durable audit schema CLOSED
 
-## B1 — durable Sales Audit schema CLOSED
+RED `e100e51af4fb4c9b7659be47b742c3f250e0236b`.
 
-RED `e100e51af4fb4c9b7659be47b742c3f250e0236b` failed only because the Sales Audit tables did not yet exist.
-
-GREEN `424111bfd3642e8de66c56ce805eba19e7707b82` edited `004_sales.sql` in place, because ERP2 remains pre-deploy, and added exactly:
+GREEN `424111bfd3642e8de66c56ce805eba19e7707b82` edited pre-release `004_sales.sql` in place and added exactly:
 
 ```text
 sales_audit_runs
 sales_audit_orders
 ```
 
-No surrogate audit-order id, `in_period`, page table, repair table, history table, raw JSON, new migration, handler or Work type was added.
+No surrogate audit-order id, `in_period`, page table, repair table, history table, raw JSON, new migration, handler or Work type.
 
-Fresh QA — run `38012530735`, job `114095498948`:
+QA run `38012530735`: PHPStan 0, 161/161, 1064 assertions, 20 MB.
 
-```text
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=161/161 PASS
-ASSERTIONS=1064
-MEMORY=20 MB
-REAL_MELI_HTTP=0
-```
+## B2 — temporal contract + durable run CLOSED
 
-## B2 — temporal contract + durable run creation CLOSED
-
-RED `2602ce1d88fe56e2ea1be16cdb161c8e8a323ded` failed only because `SalesAuditWindow` / `SalesAuditRepository` did not exist.
+RED `2602ce1d88fe56e2ea1be16cdb161c8e8a323ded`.
 
 GREEN:
 
@@ -73,155 +53,157 @@ f47e9fc1c8da4be1ee416d69189a41b6a31acbd4  SalesAuditWindow
 62954301183f487382d79ca119e965d2165c6229  SalesAuditRepository
 ```
 
-Historical certification is intentionally narrow:
+Historical support is intentionally narrow:
 
 ```text
-site_id=MCO -> America/Bogota
+MCO -> America/Bogota
 other site -> fail closed
 ```
 
-Canonical month:
-
-```text
-[first day 00:00 local, first day next month 00:00 local)
-```
-
-For `2026-10-01` MCO:
+Canonical MCO October 2026:
 
 ```text
 canonical UTC: 2026-10-01T05:00:00Z -> 2026-11-01T05:00:00Z
 remote guard:  2026-10-01T04:00:00Z -> 2026-11-01T06:00:00Z
 ```
 
-The repository resolves exact company/account scope, validates site/period, and creates a durable `capturing` run using fixed contract `seller-search-v1`.
+QA run `38012892267`: PHPStan 0, 166/166, 1089 assertions, 20 MB.
 
-Fresh QA — run `38012892267`, job `114096660065`:
+Checkpoint `9122700a86cecccb9a1a1cd85c9cbd7e56a870a8` was also green.
 
-```text
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=166/166 PASS
-ASSERTIONS=1089
-MEMORY=20 MB
-REAL_MELI_HTTP=0
-```
+## B3a — durable observation primitive CLOSED
 
-Checkpoint commit `9122700a86cecccb9a1a1cd85c9cbd7e56a870a8` was itself verified green with the same 166/166 tests and 1089 assertions.
+RED `12f19e0046f70265f88f6ff527f32977454f671a`.
 
-## B3a — durable observation persistence CLOSED
-
-RED commit:
+GREEN `acb0bca2f0cfa0673e3cc5d17569f679fe308f3c` added only:
 
 ```text
-12f19e0046f70265f88f6ff527f32977454f671a
-```
-
-RED result — run `38013290533`, job `114097932371`:
-
-```text
-PHPSTAN=0
-TESTS=167
-ERRORS=1
-CAUSE=SalesAuditRepository::recordObservation() did not exist
-```
-
-GREEN commit:
-
-```text
-acb0bca2f0cfa0673e3cc5d17569f679fe308f3c
-```
-
-Added one method to the existing `SalesAuditRepository` only:
-
-```text
-recordObservation(runId, externalOrderId, remoteDateCreated): bool
+SalesAuditRepository::recordObservation(...): bool
 ```
 
 Semantics:
 
-- first observation inserts `(audit_run_id, external_order_id, remote_date_created)`;
-- remote timestamp is normalized to UTC for persistence;
-- duplicate primary key MariaDB error `1062` returns `false`;
-- duplicate never overwrites the original `remote_date_created`;
-- any non-duplicate DB error propagates fail-closed, including invalid FK/run;
-- no `INSERT IGNORE`, so FK/data errors are not silently suppressed.
+- first observation inserts durable evidence;
+- timestamp persisted UTC;
+- only MariaDB duplicate key 1062 returns `false`;
+- duplicate never overwrites original evidence;
+- all other DB errors propagate fail-closed;
+- no `INSERT IGNORE`.
 
-Intentionally NOT added:
+QA run `38013378562`: PHPStan 0, 167/167, 1094 assertions, 22 MB.
+
+Checkpoint `46062cf7f60530e282e33a828e7d1f5cca47162d` was verified green.
+
+## B3b1 — one validated remote CAPTURE page CLOSED
+
+RED commit:
 
 ```text
-new class
-new table
-new migration
-HTTP
-Work wiring
-page state table
-order.sync enqueue
-capture validation/hash
+1693b5cdf5372e7da8ea58aa02c56aca3d78b54c
+```
+
+RED run `38013645299`, job `114099050592`:
+
+```text
+PHPSTAN=0
+TESTS=169
+ERRORS=2
+CAUSE=SalesAuditHandler did not exist
+```
+
+No unrelated regression appeared.
+
+GREEN commits:
+
+```text
+ae50fef1c2e472428a55bb1fdb5ed85ca91ff6dd  scoped capture context
+d55ed5e9bd78c7a9e90c46f560295e395c75113d  one-page SalesAuditHandler
+```
+
+B3b1 behavior now proven:
+
+- handler derives period/site/seller from the durable run + exact company/account scope;
+- run must remain `capturing`, fixed contract `seller-search-v1`, account connected;
+- remote window comes from `SalesAuditWindow`, never from Work payload dates;
+- calls existing `orders.search` once for the requested page;
+- requires every result to contain numeric order ID and explicitly zoned `date_created`;
+- preserves IDs larger than `PHP_INT_MAX` through the B0 bigint-safe boundary;
+- validates the entire page before persistence;
+- persists all observed guard-band facts, including observations outside the canonical month;
+- persistence and Work completion are one transaction through existing `completeCurrentClaim()`;
+- duplicate order ID inside the same run is detected and cannot overwrite prior evidence;
+- malformed page fails `meli_sales_audit_contract`;
+- malformed page leaves zero partial evidence from that page;
+- CAPTURE enqueues zero `order.sync`;
+- no next-page Work is created yet.
+
+Fresh GREEN QA — run `38013774324`, job `114099454094`:
+
+```text
+PHP=8.5.11
+PHPSTAN=0
+PHPUNIT=169/169 PASS
+ASSERTIONS=1115
+MEMORY=22 MB
+REAL_MELI_HTTP=0
+```
+
+Intentionally NOT wired yet:
+
+```text
+SalesWorkProcessor -> SalesAuditHandler
+429 defer path
+401 refresh+one retry path
+5xx/transport bounded retry path
+next-page continuation
+stable total validation
+hash
 REPAIR
 VERIFY
 CONFIRM
 ```
 
-Fresh B3a QA — run `38013378562`, job `114098221485`:
-
-```text
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=167/167 PASS
-ASSERTIONS=1094
-MEMORY=22 MB
-REAL_MELI_HTTP=0
-```
-
-## V3-A blockage audit result
-
-Verified after the previous blockage:
-
-- `MeliClient` classification remains fail-closed: only `READ|AUTH|WRITE`; unknown/missing blocked.
-- exact-money lossless path remains active only where required.
-- strict zoned remote timestamps and float-money rejection remain intact.
-- Work automatic attempt cap remains `5`.
-- 429/cooldown still uses non-penalizing defer.
-- 5xx/transport still use bounded retry.
-- crash recovery still fails terminal at cap.
-- admin settings cannot enable `meli_writes_enabled`.
-- settings fail-closed boolean and debug bounds remain restored.
-- Work cleanup removes only demonstrably old `done/failed` rows by `finished_at`.
-- API usage cleanup remains 90 days.
-- no new queue/scheduler/retry engine/maintenance engine appeared.
-
-Only the `orders.search` bigint decode gap was found; B0 closed it with RED/GREEN evidence.
+The old `ReconcileOrdersHandler` still exists only because the final `sales.audit` handler is not safe to activate until its remote failure semantics are proven. It will be removed in the swap block; it is not the target architecture.
 
 ## Current gate status
 
 | Gate | Status | Evidence / boundary |
 |---|---|---|
-| `G1 REMOTE_TRUTH` | PASS for implemented boundary | exact decimals, strict timestamps, bigint-safe search, MCO time contract |
-| `G2 WORK_SAFETY` | PASS | bounded retry/defer/recovery/retention |
-| `G3 RATE_SAFETY` | PASS for implemented Sales paths | cooldown defer + bounded transient retry |
-| `G4 SALES_AUDIT_TRUTH` | IN PROGRESS | schema + run + durable observation primitive green; remote capture not implemented |
+| `G1 REMOTE_TRUTH` | PASS for implemented boundary | exact numbers/timestamps, bigint-safe search, MCO month contract |
+| `G2 WORK_SAFETY` | PASS | bounded generic Work retry/defer/recovery/retention |
+| `G3 RATE_SAFETY` | PASS for existing active Sales paths | new SalesAuditHandler not activated yet |
+| `G4 SALES_AUDIT_TRUTH` | IN PROGRESS | durable run + evidence + atomic one-page capture green |
 | `G5 BILLING_CURSOR_TRUTH` | BLOCKED | C0 real sanitized MCO cursor smoke required |
 | `G6 FINANCIAL_NO_DOUBLE_COUNT` | NOT STARTED | later Financial block |
-| `G7 WRITE_FAIL_CLOSED` | PASS | semantic classification + fuse + no admin activation path |
-| `G8 HOSTING_REALITY` | NOT CERTIFIED | real Hostinger limits still pending |
+| `G7 WRITE_FAIL_CLOSED` | PASS | writes fuse OFF; no admin activation path |
+| `G8 HOSTING_REALITY` | NOT CERTIFIED | real Hostinger limits pending |
 
-## Exact next microblock
+## Exact next microblocks
 
-### V3-B3b — one remote CAPTURE page
+### V3-B3b2a — remote failure semantics only
 
-Scope only:
+No Work wiring yet.
 
-1. Add one-page `sales.audit` processing.
-2. Reuse `SalesAuditWindow` and existing `orders.search`.
-3. Require order ID and explicitly zoned `date_created` in every observed result.
-4. Persist observations through `recordObservation()`.
-5. A duplicate observation must remain detectable; never overwrite evidence.
-6. CAPTURE must not enqueue `order.sync`.
-7. Preserve existing 429 defer semantics.
-8. Preserve bounded 5xx/transport retry semantics.
-9. Do not implement multipage completion validation/hash yet.
-10. No REPAIR, VERIFY or CONFIRM.
-11. RED -> minimum GREEN -> full QA -> checkpoint.
+Prove directly on `SalesAuditHandler`:
+
+1. 429 / active cooldown -> `deferCurrentClaim()`, no attempt burn, no evidence.
+2. 401 -> existing OAuth refresh + one safe retry only.
+3. 5xx -> bounded `retryCurrentClaim()`.
+4. transport failure -> bounded `retryCurrentClaim()`.
+5. permanent non-401/5xx -> terminal fail.
+6. no replacement Work chain.
+7. RED -> minimum GREEN -> full QA -> checkpoint.
+
+### V3-B3b2b — final Work swap
+
+Only after B3b2a is green:
+
+1. wire `sales.audit` into `SalesWorkProcessor`;
+2. remove `orders.reconcile` dispatch;
+3. delete `ReconcileOrdersHandler` and superseded reconciliation tests;
+4. prove unsupported/malformed work remains terminal;
+5. still no next-page continuation, REPAIR, VERIFY or CONFIRM;
+6. full QA -> checkpoint.
 
 ## Stop conditions
 
