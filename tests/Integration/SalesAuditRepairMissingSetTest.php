@@ -25,7 +25,7 @@ final class SalesAuditRepairMissingSetTest extends TestCase
         $this->insertLocalOrder($pdo, '200000000002', '2026-11-01 05:00:00.000000');
         $this->insertLocalOrder($pdo, '400000000004', '2026-10-13 10:00:00.000000');
 
-        self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
+        self::assertSame('repairing', $audit->advanceCapturedRun($runId, 1, 1));
         self::assertSame(
             '200000000002',
             $audit->nextRepairingMissingCanonicalOrderId($runId, 1, 1),
@@ -43,7 +43,7 @@ final class SalesAuditRepairMissingSetTest extends TestCase
         $audit = new SalesAuditRepository($pdo);
         $runId = $this->seedFingerprintedRun($audit);
 
-        self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
+        self::assertSame('repairing', $audit->advanceCapturedRun($runId, 1, 1));
         $this->insertLocalOrder($pdo, '100000000001', '2026-10-10 10:00:00.000000');
         $this->insertLocalOrder($pdo, '200000000002', '2026-10-11 10:00:00.000000');
         $this->insertLocalOrder($pdo, '300000000003', '2026-10-12 10:00:00.000000');
@@ -68,7 +68,7 @@ final class SalesAuditRepairMissingSetTest extends TestCase
         $this->seedAccount($pdo);
         $audit = new SalesAuditRepository($pdo);
         $runId = $this->seedFingerprintedRun($audit);
-        self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
+        self::assertSame('repairing', $audit->advanceCapturedRun($runId, 1, 1));
 
         $this->expectException(RuntimeException::class);
         $audit->nextRepairingMissingCanonicalOrderId($runId, 1, 999);

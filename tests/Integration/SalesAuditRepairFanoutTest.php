@@ -172,7 +172,7 @@ final class SalesAuditRepairFanoutTest extends TestCase
             1,
             SalesAuditWindow::forSitePeriod('MCO', '2026-10-01'),
         );
-        self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
+        self::assertSame('repairing', $audit->advanceCapturedRun($runId, 1, 1));
 
         return $runId;
     }

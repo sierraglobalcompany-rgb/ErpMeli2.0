@@ -9,25 +9,26 @@ use App\Modules\Sales\Audit\SalesAuditWindow;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class SalesAuditRepairTransitionTest extends TestCase
 {
-    public function testFingerprintRunWithMissingCanonicalOrderTransitionsToRepairing(): void
+    public function testFingerprintRunWithMissingCanonicalOrderAdvancesToRepairing(): void
     {
         $pdo = TestDatabase::reset();
         $this->seedAccount($pdo);
         $audit = new SalesAuditRepository($pdo);
         $runId = $this->seedFingerprintedRun($audit);
 
-        self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
+        self::assertSame('repairing', $audit->advanceCapturedRun($runId, 1, 1));
         self::assertSame(
             'repairing',
             $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
         );
     }
 
-    public function testFingerprintRunWithoutMissingCanonicalOrderStaysCapturing(): void
+    public function testFingerprintRunWithoutMissingCanonicalOrderAdvancesToConfirming(): void
     {
         $pdo = TestDatabase::reset();
         $this->seedAccount($pdo);
@@ -35,14 +36,14 @@ final class SalesAuditRepairTransitionTest extends TestCase
         $runId = $this->seedFingerprintedRun($audit);
         $this->insertLocalOrder($pdo, '100000000001', '2026-10-10 10:00:00.000000');
 
-        self::assertFalse($audit->transitionToRepairingIfMissing($runId, 1, 1));
+        self::assertSame('confirming', $audit->advanceCapturedRun($runId, 1, 1));
         self::assertSame(
-            'capturing',
+            'confirming',
             $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
         );
     }
 
-    public function testRunWithoutFingerprintCannotTransitionToRepairing(): void
+    public function testRunWithoutFingerprintCannotAdvance(): void
     {
         $pdo = TestDatabase::reset();
         $this->seedAccount($pdo);
@@ -61,11 +62,8 @@ final class SalesAuditRepairTransitionTest extends TestCase
             new DateTimeImmutable('2026-10-10T10:00:00+00:00'),
         ));
 
-        self::assertFalse($audit->transitionToRepairingIfMissing($runId, 1, 1));
-        self::assertSame(
-            'capturing',
-            $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
-        );
+        $this->expectException(RuntimeException::class);
+        $audit->advanceCapturedRun($runId, 1, 1);
     }
 
     private function seedFingerprintedRun(SalesAuditRepository $audit): int

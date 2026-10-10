@@ -183,7 +183,8 @@ final class SalesAuditHandler
                             $window,
                         );
 
-                        if ($this->audit->transitionToRepairingIfMissing($runId, $companyId, $accountId)) {
+                        $nextStatus = $this->audit->advanceCapturedRun($runId, $companyId, $accountId);
+                        if ($nextStatus === 'repairing') {
                             $this->work->enqueue(
                                 $companyId,
                                 $accountId,
