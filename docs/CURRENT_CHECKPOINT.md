@@ -4,7 +4,7 @@
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
 **Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
-**Current verified functional SHA:** `6493b4fbe841177896f279e5acb8de53d6d1d265`  
+**Current verified functional SHA:** `c06c46906f87c884e7c5ab21356fd48ca7612779`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
@@ -30,60 +30,60 @@ B3d1      canonical local set fingerprint primitive
 B3d2      terminal CAPTURE fingerprint wiring
 B3e1      deterministic local missing-set primitive
 B3e2      guarded capturing → repairing transition
+B3e3a     repairing-phase missing-set read
 ```
 
-## B3e2 contract
+## B3e3a contract
 
-`SalesAuditRepository::transitionToRepairingIfMissing()` now:
+`SalesAuditRepository::repairingMissingCanonicalOrderIds()` now:
 
-1. requires the exact scoped connected `capturing` run;
-2. derives the canonical MCO month from the run;
-3. performs one atomic `UPDATE ... EXISTS`;
-4. requires `remote_total`, `canonical_count` and `set_hash` to exist;
-5. transitions only if at least one canonical remote audit ID is still missing from local `orders` for the same company/account/month;
-6. a fingerprinted run with no missing local IDs remains `capturing` and returns false;
-7. a run without fingerprint remains `capturing` and returns false;
-8. wrong scope/status fails closed through the existing scoped context contract;
-9. enqueues no Work and touches no handler;
-10. adds no table, column, class, engine or scheduler.
+1. requires the exact company/account/run scope in status `repairing`;
+2. requires the account to remain connected and `remote_total`, `canonical_count`, `set_hash` to exist;
+3. validates period/site/fingerprint before reading repair candidates;
+4. derives the canonical MCO month from the repairing run itself;
+5. returns only canonical remote audit IDs that are still missing from local `orders` for the same company/account/month;
+6. returns IDs deterministically in ascending order;
+7. a `capturing` run cannot use this repairing-phase read path;
+8. wrong scope/non-repairing status fails closed;
+9. `captureContext()` remains unchanged and capture-only;
+10. enqueues no Work and changes no status/schema.
 
-## B3e2 evidence
+## B3e3a evidence
 
 RED commit:
 
 ```text
-59a8da7f23db03e4565c341e0fc12b72fe8469f6
+9d72b466a02369d2852054364861553f68b03a18
 ```
 
-RED run `38018360173`, job `114113626109`:
+RED run `38018669116`, job `114114587125`:
 
 ```text
 PHPSTAN=0
-TESTS=189
-ERRORS=3
-CAUSE=SalesAuditRepository::transitionToRepairingIfMissing() did not exist
+TESTS=192
+ERRORS=1
+FAILURES=2
+CAUSE=SalesAuditRepository::repairingMissingCanonicalOrderIds() did not exist
 ```
 
 GREEN functional commit:
 
 ```text
-6493b4fbe841177896f279e5acb8de53d6d1d265
+c06c46906f87c884e7c5ab21356fd48ca7612779
 ```
 
-Fresh QA — run `38018470446`, job `114113966535`:
+Fresh QA — run `38018814214`, job `114115030412`:
 
 ```text
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=189/189 PASS
-ASSERTIONS=1254
+PHPUNIT=192/192 PASS
+ASSERTIONS=1272
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-## Repair fan-out audit
-
-Existing webhook/order-sync contract already defines the identity to reuse later:
+## Repair identity already fixed by existing product contract
 
 ```text
 type=order.sync
@@ -92,9 +92,7 @@ logical_identity=order.sync:<external_order_id>
 payload={order_id:<external_order_id>}
 ```
 
-`WorkRepository::enqueue()` already provides active-work dedupe through its logical identity hash/database unique key. No new repair queue or repair table is justified.
-
-Current phase gap: after B3e2 transitions a run to `repairing`, `missingCanonicalOrderIds()` deliberately cannot be reused because it is scoped through `captureContext()` and must not broaden that capture contract to repairing runs. The next block will close only this phase-specific read gap.
+`WorkRepository::enqueue()` already provides active-work dedupe through logical identity. No repair queue/table is justified.
 
 ## Gates
 
@@ -103,7 +101,7 @@ Current phase gap: after B3e2 transitions a run to `repairing`, `missingCanonica
 | G1 REMOTE_TRUTH | PASS for implemented boundary |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for active Sales Audit path |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — REPAIR transition verified; repairing-phase missing-set read next; fan-out not yet wired |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — REPAIR phase can now read missing IDs safely; bounded fan-out contract next |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 real sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -111,22 +109,24 @@ Current phase gap: after B3e2 transitions a run to `repairing`, `missingCanonica
 
 ## Exact next microblock
 
-### B3e3a — repairing-phase missing-set read only
+### B3e3b — bounded repair fan-out contract
+
+Before coding, search authority/plan/history for an already approved concrete fan-out bound. Do not invent a new number if one is already specified.
 
 Scope only:
 
-1. RED: a scoped `repairing` run returns the deterministic canonical IDs still missing locally;
-2. RED: a `capturing` run cannot use the repairing-phase read path;
-3. RED: wrong scope/non-repairing status fails closed;
-4. GREEN: smallest phase-specific repository read; do not broaden `captureContext()`;
-5. no `order.sync` enqueue yet;
-6. no handler wiring, no VERIFY, no second capture, no CONFIRM;
+1. establish the existing/approved bound if documented;
+2. RED: repairing-phase fan-out may enqueue only missing canonical IDs using the existing `order.sync` identity/payload contract;
+3. RED: active duplicate `order.sync:<id>` remains deduped by existing Work semantics;
+4. RED: a single fan-out action cannot enqueue more than the approved bound;
+5. GREEN: minimum reuse of existing WorkRepository; no repair table/queue/engine;
+6. no VERIFY, second capture or CONFIRM yet;
 7. full QA → checkpoint.
 
 ## Stop conditions
 
-- no repair fan-out in B3e3a;
-- no VERIFY/CONFIRM in B3e3a;
+- do not invent a numeric bound without repository authority/evidence;
+- no VERIFY/CONFIRM in B3e3b;
 - no Billing handler / F6A Task2 before C0;
 - no merge;
 - no deploy;
