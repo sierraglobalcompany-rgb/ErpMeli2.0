@@ -26,6 +26,7 @@ return [
         'classification' => 'READ',
         'official_doc_url' => 'https://developers.mercadolibre.com.co/gestiona-ventas',
         'verified_at' => '2026-10-09',
+        'preserve_numbers' => true,
     ],
     'orders.search' => [
         'method' => 'GET',
@@ -42,5 +43,6 @@ return [
         'classification' => 'READ',
         'official_doc_url' => 'https://developers.mercadolibre.com.co/provisiones',
         'verified_at' => '2026-10-09',
+        'preserve_numbers' => true,
     ],
 ];
