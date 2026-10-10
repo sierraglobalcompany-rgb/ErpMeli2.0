@@ -256,7 +256,7 @@ final class SyncOrderHandler
     /**
      * @param array<string,mixed> $data
      * @return array{
-     *   external_order_id:string,status:string,status_detail:?string,date_created:?string,date_closed:?string,
+     *   external_order_id:string,status:string,status_detail:?string,date_created:string,date_closed:?string,
      *   last_updated:string,total_amount:string,currency_id:string,buyer_id:?string,pack_id:?string,
      *   items:list<array{external_item_id:string,variation_id:?string,title:string,quantity:string,unit_price:string,currency_id:string,seller_sku:?string}>
      * }
@@ -266,6 +266,7 @@ final class SyncOrderHandler
         $externalOrderId = $this->scalarString($data['id'] ?? null);
         $status = $this->scalarString($data['status'] ?? null);
         $currencyId = $this->scalarString($data['currency_id'] ?? null);
+        $dateCreated = $this->requiredUtcTimestamp($data['date_created'] ?? null, 'date_created');
         $lastUpdated = $this->requiredUtcTimestamp($data['last_updated'] ?? null, 'last_updated');
 
         if ($externalOrderId !== $requestedOrderId || $status === '' || $currencyId === '') {
@@ -309,8 +310,8 @@ final class SyncOrderHandler
             'external_order_id' => $externalOrderId,
             'status' => mb_substr($status, 0, 40),
             'status_detail' => $this->nullableLimitedString($data['status_detail'] ?? null, 80),
-            'date_created' => $this->nullableUtcTimestamp($data['date_created'] ?? null),
-            'date_closed' => $this->nullableUtcTimestamp($data['date_closed'] ?? null),
+            'date_created' => $dateCreated,
+            'date_closed' => $this->nullableUtcTimestamp($data['date_closed'] ?? null, 'date_closed'),
             'last_updated' => $lastUpdated,
             'total_amount' => $this->decimal4($data['total_amount'] ?? null, 'total_amount'),
             'currency_id' => mb_substr($currencyId, 0, 8),
@@ -322,7 +323,7 @@ final class SyncOrderHandler
 
     /**
      * @param array{
-     *   external_order_id:string,status:string,status_detail:?string,date_created:?string,date_closed:?string,
+     *   external_order_id:string,status:string,status_detail:?string,date_created:string,date_closed:?string,
      *   last_updated:string,total_amount:string,currency_id:string,buyer_id:?string,pack_id:?string,
      *   items:list<array{external_item_id:string,variation_id:?string,title:string,quantity:string,unit_price:string,currency_id:string,seller_sku:?string}>
      * } $order
@@ -372,58 +373,68 @@ final class SyncOrderHandler
 
     private function decimal4(mixed $value, string $field): string
     {
-        if (is_string($value)) {
-            $raw = trim($value);
-            if (preg_match('/^([+-]?)(\d+)(?:\.(\d+))?$/D', $raw, $matches) === 1) {
-                $whole = ltrim($matches[2], '0');
-                $whole = $whole === '' ? '0' : $whole;
-                if (strlen($whole) > 14) {
-                    throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
-                }
-
-                $fraction = $matches[3] ?? '';
-                $fiveDigits = substr(str_pad($fraction, 5, '0'), 0, 5);
-                $scaled = ((int) $whole * 10_000) + (int) substr($fiveDigits, 0, 4);
-                if ((int) $fiveDigits[4] >= 5) {
-                    ++$scaled;
-                }
-
-                $sign = $matches[1] === '-' && $scaled !== 0 ? '-' : '';
-
-                return $sign
-                    . intdiv($scaled, 10_000)
-                    . '.'
-                    . str_pad((string) ($scaled % 10_000), 4, '0', STR_PAD_LEFT);
-            }
-
-            if (!is_numeric($raw)) {
-                throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
-            }
-
-            return number_format((float) $raw, 4, '.', '');
+        if (is_int($value)) {
+            $value = (string) $value;
         }
-
-        if (!is_int($value) && !is_float($value)) {
+        if (!is_string($value)) {
             throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
         }
 
-        return number_format((float) $value, 4, '.', '');
+        $raw = trim($value);
+        if (preg_match('/^([+-]?)(\d+)(?:\.(\d+))?$/D', $raw, $matches) !== 1) {
+            throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
+        }
+
+        $whole = ltrim($matches[2], '0');
+        $whole = $whole === '' ? '0' : $whole;
+        if (strlen($whole) > 14) {
+            throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
+        }
+
+        $fraction = $matches[3] ?? '';
+        $fiveDigits = substr(str_pad($fraction, 5, '0'), 0, 5);
+        $scaled = ((int) $whole * 10_000) + (int) substr($fiveDigits, 0, 4);
+        if ((int) $fiveDigits[4] >= 5) {
+            ++$scaled;
+        }
+        if (intdiv($scaled, 10_000) > 99_999_999_999_999) {
+            throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
+        }
+
+        $sign = $matches[1] === '-' && $scaled !== 0 ? '-' : '';
+
+        return $sign
+            . intdiv($scaled, 10_000)
+            . '.'
+            . str_pad((string) ($scaled % 10_000), 4, '0', STR_PAD_LEFT);
     }
 
     private function requiredUtcTimestamp(mixed $value, string $field): string
     {
-        $timestamp = $this->nullableUtcTimestamp($value);
-        if ($timestamp === null) {
+        if (!is_string($value) || trim($value) === '') {
             throw new RuntimeException('Mercado Libre order ' . $field . ' is missing.');
         }
 
-        return $timestamp;
+        return $this->parseUtcTimestamp($value, $field);
     }
 
-    private function nullableUtcTimestamp(mixed $value): ?string
+    private function nullableUtcTimestamp(mixed $value, string $field): ?string
     {
-        if (!is_string($value) || trim($value) === '') {
+        if ($value === null) {
             return null;
+        }
+        if (!is_string($value) || trim($value) === '') {
+            throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
+        }
+
+        return $this->parseUtcTimestamp($value, $field);
+    }
+
+    private function parseUtcTimestamp(string $value, string $field): string
+    {
+        $value = trim($value);
+        if (preg_match('/(?:Z|[+-][0-9]{2}:[0-9]{2})$/iD', $value) !== 1) {
+            throw new RuntimeException('Mercado Libre order ' . $field . ' has no explicit timezone.');
         }
 
         try {
@@ -431,7 +442,7 @@ final class SyncOrderHandler
                 ->setTimezone(new DateTimeZone('UTC'))
                 ->format('Y-m-d H:i:s.u');
         } catch (\Exception) {
-            return null;
+            throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
         }
     }
 }
