@@ -1,179 +1,208 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
 **Date:** 2026-10-10  
-**Branch:** `impl/v3-a-exact-boundary-20261009`  
-**Base product SHA:** `4d144b9744160c3b1ddfa542af74040b262dec42`  
-**V3-A implementation SHA:** `36cb45bd3bd200009e1b87c2462f326c246a9a84`  
+**Branch:** `impl/v3-b-sales-audit-20261010`  
+**Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
+**Current implementation SHA:** `424111bfd3642e8de66c56ce805eba19e7707b82`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
-**Plan executed:** `docs/superpowers/plans/2026-10-09-v3-a-exact-boundary-work-safety.md`  
+**V3-B plan:** `docs/superpowers/plans/2026-10-10-v3-b-sales-audit.md`  
 **Remote writes:** OFF  
 **Real Mercado Libre HTTP in QA:** OFF
 
 ## Current state
 
-V3-A — exact remote boundary + Work safety is closed at implementation SHA `36cb45bd3bd200009e1b87c2462f326c246a9a84`.
+V3-A remains closed and green. Before starting Sales Audit, the branch was audited against authority, code, diff and QA to detect gaps left by the previous chat blockage.
 
-The branch still starts from the clean product base rather than the old forensic V3 audit branch. No merge, deploy or remote write has been performed.
+One concrete gap was found and closed in B0: V3.2 required native `orders.search` decoding with `JSON_BIGINT_AS_STRING`, while the final V3-A `MeliClient` native branch did not include that flag. No other skipped A1-A8 task or final-contract regression was found in the audited owners.
 
-## Fresh full QA gate
+V3-B is now being executed in deliberately small blocks.
 
-GitHub Actions run `38011395248`, job `114091991102`, against implementation SHA `36cb45bd3bd200009e1b87c2462f326c246a9a84`:
+## B0 — preentry audit gap CLOSED
+
+RED commit:
+
+```text
+6be2cb8060bbeb2cd3103722c4ea3b29d5c8d3e7
+```
+
+The regression test sent a literal JSON integer larger than `PHP_INT_MAX` through `orders.search` and proved it became PHP float/scientific notation.
+
+GREEN commit:
+
+```text
+b05bb8bd3a4f0eb67dc821cd8878b84e4e89931f
+```
+
+Minimal fix:
+
+```text
+native json_decode -> JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING
+```
+
+No `LosslessJsonDecoder` was enabled for `orders.search`; exact-decimal lossless scanning remains reserved for operations such as `orders.get` and `billing.period.details`.
+
+Fresh B0 QA — GitHub Actions run `38012299105`, job `114094780325`:
 
 ```text
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=159/159 PASS
-ASSERTIONS=1057
+PHPUNIT=160/160 PASS
+ASSERTIONS=1058
 MEMORY=20 MB
 REAL_MELI_HTTP=0
 ```
 
-The earlier cleanup import warnings were removed before this final gate. The fresh final run reports `bin/cleanup.php` with no syntax warning.
+## B1 — durable Sales Audit schema CLOSED
 
-## V3-A completed scope
-
-### A1-A2 — exact JSON number boundary
-
-- RED proved that literal JSON NUMBER `90071992547409.1234` lost precision through native decode.
-- Added a small lexical `LosslessJsonDecoder`; it preserves NUMBER lexemes outside JSON strings and delegates structure parsing to native `json_decode`.
-- Lossless number preservation is enabled only for operations that require exact decimal payloads, including `orders.get` and `billing.period.details`.
-- No general JSON parser/AST was added.
-
-### A3 — strict remote scalar/date boundary
-
-- New order sync requires `date_created` and an explicit `Z`/offset.
-- Present-but-invalid nullable remote timestamps fail closed.
-- Exact money path rejects PHP `float`.
-- DECIMAL(18,4) overflow after rounding fails closed.
-- Existing handler helpers were hardened; no premature generic value-normalizer abstraction was added.
-
-### A4 — fail-closed operation classification
-
-Allowed registry classifications are exactly:
+RED commit:
 
 ```text
-READ
-AUTH
-WRITE
+e100e51af4fb4c9b7659be47b742c3f250e0236b
 ```
 
-Unknown or missing classification is blocked before transport. `WRITE` still requires the internal writes fuse to be enabled.
-
-### A5 — bounded Work retry
-
-- Fixed automatic attempt cap: `5`.
-- `retryCurrentClaim()` consumes the claim attempt and becomes terminal `failed` when the cap is exhausted.
-- `deferCurrentClaim()` requeues without consuming attempt budget.
-- Interrupted `running` work below cap returns to `pending`; at cap it becomes terminal `failed`.
-- No RetryEngine, policy table or configurable retry switch was added.
-
-### A6 — 429 semantics
-
-Current Sales handlers route Mercado Libre 429/cooldown to `deferCurrentClaim()`.
+Expected RED:
 
 ```text
-429/cooldown -> defer -> no attempt consumed
-5xx/transport -> retry -> attempt consumed
-```
-
-No inline retry loop or per-domain retry engine was added.
-
-### A7 — premature remote-write control removed
-
-- `meli_writes_enabled` remains in DB as an internal fail-closed fuse.
-- System UI no longer exposes the Mercado Libre write checkbox.
-- Admin settings POST can no longer set the write fuse to `1`.
-- Existing safe-setting invariants were preserved: allowed debug retention values, debug storage bounds, update-count guard and fail-closed boolean decoding.
-
-During A7 review an intermediate whole-file edit had accidentally weakened those invariants and used stale controller method names. The audit caught the regression before closure, restored the real pre-A7 contracts, then reapplied only the intended write-switch removal. Final A7 gate was green before A8 began.
-
-### A8 — bounded operational retention
-
-Existing owners and the existing daily cleanup were extended only:
-
-```text
-Debug retention              -> existing DebugMaintenance
-Work done/failed >30 days    -> WorkRepository::purgeTerminalBefore()
-API usage >90 days           -> ApiUsageRecorder::purgeBefore()
-```
-
-Rules proven by tests:
-
-- Work age is determined by `finished_at`.
-- Only `done`/`failed` with a demonstrably old `finished_at` are deleted.
-- `pending` and `running` are never removed by this purge.
-- terminal legacy rows with `finished_at IS NULL` are kept fail-safe.
-- cutoffs are strict `< cutoff`; exactly 30/90 days old remains.
-- `api_usage_daily` is purged by `usage_date`.
-- `bin/cleanup.php` uses one UTC `now` for the daily run.
-- no MaintenanceEngine, archive table, migration or new scheduler was added.
-
-## Macro gate status after V3-A
-
-| Gate | Status | Evidence / boundary |
-|---|---|---|
-| `G1 REMOTE_TRUTH` | PASS for V3-A boundary | literal JSON NUMBER lossless path, float rejection, required zoned `date_created` |
-| `G2 WORK_SAFETY` | PASS | cap 5, defer semantics, crash recovery, terminal retention |
-| `G3 RATE_SAFETY` | PASS for implemented Sales paths | 429/cooldown defers; 5xx/transport consume bounded retry |
-| `G4 SALES_AUDIT_TRUTH` | NOT STARTED | next implementation block is V3-B |
-| `G5 BILLING_CURSOR_TRUTH` | BLOCKED | requires C0 real sanitized MCO cursor smoke before Billing handler GREEN |
-| `G6 FINANCIAL_NO_DOUBLE_COUNT` | NOT STARTED | belongs to later Financial block |
-| `G7 WRITE_FAIL_CLOSED` | PASS | classification allowlist + internal fuse + no pre-F16 UI/admin write path |
-| `G8 HOSTING_REALITY` | NOT CERTIFIED | real Hostinger operational limits/gates remain outside V3-A |
-
-Always-on gate at this checkpoint:
-
-```text
+161 tests
+1 failure
+Missing sales audit table: sales_audit_runs
 PHPSTAN=0
-PHPUNIT=PASS
+```
+
+GREEN implementation commit:
+
+```text
+424111bfd3642e8de66c56ce805eba19e7707b82
+```
+
+Because ERP2 remains pre-deploy with no persistent installation to preserve, `004_sales.sql` was edited in place rather than creating migration `006` only to preserve development history.
+
+Added exactly two durable evidence tables.
+
+### `sales_audit_runs`
+
+```text
+id
+company_id
+account_id
+period_key
+contract_version
+status
+remote_total
+canonical_count
+set_hash
+started_at
+completed_at
+updated_at
+```
+
+Allowed statuses:
+
+```text
+capturing
+repairing
+confirming
+valid
+attention
+unavailable
+```
+
+The run is scoped to existing company/account ownership and indexed for account/period/status lookup.
+
+### `sales_audit_orders`
+
+```text
+audit_run_id
+external_order_id
+remote_date_created
+PRIMARY KEY(audit_run_id, external_order_id)
+```
+
+`audit_run_id` references the run with cascade delete.
+
+Intentionally NOT added:
+
+```text
+surrogate id on sales_audit_orders
+in_period
+page table
+repair table
+history table
+raw JSON
+snapshot JSON
+new migration file
+new handler
+new Work type
+```
+
+Fresh B1 QA — GitHub Actions run `38012530735`, job `114095498948`:
+
+```text
+PHP=8.5.11
+PHPSTAN=0
+PHPUNIT=161/161 PASS
+ASSERTIONS=1064
+MEMORY=20 MB
 REAL_MELI_HTTP=0
 ```
 
-## Architectural footprint added by V3-A
+## V3-A regression audit result
 
-Kept intentionally small:
+Audited after the previous blockage:
 
-- one focused `LosslessJsonDecoder`;
-- bounded/defer behavior inside the existing `WorkRepository`;
-- stricter validation inside existing Sales/Meli boundaries;
-- two retention methods on existing table owners;
-- wiring inside existing `bin/cleanup.php`;
-- focused regression/integration tests.
+- `MeliClient` classification remains fail-closed: only `READ|AUTH|WRITE`; unknown/missing blocked.
+- exact-money lossless path remains active only where required.
+- strict zoned remote timestamps and float-money rejection remain intact.
+- Work automatic attempt cap remains `5`.
+- 429/cooldown still uses non-penalizing defer.
+- 5xx/transport still use bounded retry.
+- crash recovery still fails terminal at cap.
+- admin settings cannot enable `meli_writes_enabled`.
+- settings fail-closed boolean and debug bounds remain restored.
+- Work cleanup removes only demonstrably old `done/failed` rows by `finished_at`.
+- API usage cleanup remains 90 days.
+- no new queue/scheduler/retry engine/maintenance engine appeared.
 
-Not added:
+Only the `orders.search` bigint decode gap above was found; B0 closed it with RED/GREEN evidence.
+
+## Current gate status
+
+| Gate | Status | Evidence / boundary |
+|---|---|---|
+| `G1 REMOTE_TRUTH` | PASS for implemented boundary | exact decimals, strict timestamps, bigint-safe native search decode |
+| `G2 WORK_SAFETY` | PASS | bounded retry/defer/recovery/retention |
+| `G3 RATE_SAFETY` | PASS for implemented Sales paths | cooldown defer + bounded transient retry |
+| `G4 SALES_AUDIT_TRUTH` | IN PROGRESS | B1 durable evidence schema green; capture behavior not implemented yet |
+| `G5 BILLING_CURSOR_TRUTH` | BLOCKED | C0 real sanitized MCO cursor smoke required |
+| `G6 FINANCIAL_NO_DOUBLE_COUNT` | NOT STARTED | later Financial block |
+| `G7 WRITE_FAIL_CLOSED` | PASS | semantic classification + fuse + no admin activation path |
+| `G8 HOSTING_REALITY` | NOT CERTIFIED | real Hostinger limits still pending |
+
+## Exact next microblock
 
 ```text
-new queue
-new scheduler
-retry engine
-maintenance engine
-money parser framework
-generic historical engine
-archive tables
-new migration for retention
-remote write engine
+V3-B2 — temporal contract + durable run creation
 ```
 
-## Next planned block — NOT STARTED
+Scope only:
 
-```text
-V3-B — Sales audit único
-```
+1. Historical certification supports `site_id=MCO` → `America/Bogota`.
+2. Unsupported site fails closed.
+3. Canonical month is local `[first day 00:00, next first day 00:00)`.
+4. Remote seller-search window is canonical UTC with ±1h guard-band.
+5. Create a durable `capturing` run for company/account/period.
+6. No multipage remote capture yet.
+7. No `order.sync` enqueue.
+8. No REPAIR, VERIFY or CONFIRM yet.
 
-Target authority remains:
+B2 must execute RED → minimum GREEN → full QA before B3.
 
-```text
-CAPTURE -> VALIDATE -> REPAIR -> VERIFY -> CONFIRM
-```
-
-Do not begin V3-B code from this checkpoint as part of the V3-A plan. Start it only as the next approved/executed block with its own RED -> GREEN -> QA -> checkpoint sequence.
-
-## Active blockers / stop conditions
+## Stop conditions
 
 - `F6A Task 2` remains blocked until C0.
-- Billing handler GREEN remains blocked until a real sanitized MCO cursor-terminal smoke proves the remote terminal signal.
-- No merge.
-- No deploy.
-- No real Mercado Libre HTTP except a separately authorized smoke.
-- No remote writes.
-- Do not enable `meli_writes_enabled` before F16.
+- no Billing handler.
+- no merge.
+- no deploy.
+- no real Mercado Libre HTTP except separately authorized smoke.
+- no remote writes.
+- do not enable `meli_writes_enabled` before F16.
