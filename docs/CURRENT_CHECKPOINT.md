@@ -32,61 +32,16 @@ STOP after checkpoint when context grows
 
 ---
 
-# 1. LAST FUNCTIONAL GREEN — K6b-3
+# 1. K6b-4 — TERMINAL B MISMATCH — CLOSED GREEN
 
-```text
-3240dfd23a9d5d79dcc1818004721fd23faad1ae
-feat(v3-k6b3): dispatch confirming through capture B
-```
-
-Fresh full QA:
-
-```text
-RUN=38070168398
-JOB=114265772278
-PHP=8.5.11
-PHPSTAN=0
-PHPUNIT=204/204 PASS
-ASSERTIONS=1400
-MEMORY=22 MB
-REAL_MELI_HTTP=0
-```
-
-K6b-3 runtime truth:
-
-```text
-confirming
--> same sales.audit Work type
--> same SalesAuditHandler
--> independent Capture B pages
--> B writes capture_pass='B'
--> A remains untouched
--> one page per Work
--> B remote_total travels only in continuation payload
--> terminal B deliberately fail-closed pending comparison semantics
-```
-
-No second run/table/queue/Work type/ConfirmRepository/ConfirmEngine exists.
-
----
-
-# 2. K6b-4 — TERMINAL B MISMATCH — RED CONFIRMED
-
-Initial RED commit:
-
-```text
-5b6bf514175c018c21fce8a0afec889ac7d9b9d3
-test(v3-k6b4): prove terminal capture B mismatch becomes attention
-```
-
-The first push had delayed Actions registration. The same RED was strengthened, not changed in intent, by pinning the exact canonical B hash:
+RED:
 
 ```text
 64c34b0e7281b9ff8aec50e28ccd83a1bcfe05ec
 test(v3-k6b4): pin terminal B canonical fingerprint mismatch
 ```
 
-CI evidence:
+RED QA:
 
 ```text
 RUN=38070935380
@@ -100,91 +55,113 @@ MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-Single intended failure:
+Single intended failure was current Work `failed` instead of expected `done` because terminal Capture B deliberately failed closed.
+
+Functional GREEN:
 
 ```text
-Tests\Integration\SalesAuditConfirmMismatchTest::
-testTerminalCaptureBMismatchCompletesWorkAndMovesRunToAttention
-
-Expected current Work status: done
-Actual current Work status:   failed
+3486ecc1783e40abf8321de5780535700253da2f
+feat(v3-k6b4): mark terminal capture B mismatch attention
 ```
 
-This matches the deliberate K6b-3 terminal boundary:
+Fresh full QA:
 
 ```text
-terminal B
--> SalesAuditHandler throws
-   "Sales audit confirmation terminal comparison is not implemented."
--> completeCurrentClaim callback rolls back terminal B page
--> current Work becomes failed
+RUN=38071706793
+JOB=114270259722
+PHP=8.5.11
+PHPSTAN=0
+PHPUNIT=205/205 PASS
+ASSERTIONS=1419
+MEMORY=22 MB
+REAL_MELI_HTTP=0
 ```
 
-No production code/schema changed in K6b-4 RED.
-
-Noise audit from checkpoint `e8e149a...` to RED `64c34b0...`:
+Noise audit from checkpoint `0673809...` to functional GREEN `3486ecc...`:
 
 ```text
-1 file added only
-tests/Integration/SalesAuditConfirmMismatchTest.php
-+180/-0
+1 existing production file only
+app/Modules/Sales/Audit/SalesAuditHandler.php
++25/-2
 
-no app code
 no schema
 no table
+no column
+no new class
 no Work type
 no Work status
 no queue
+no second run
+no ConfirmRepository/ConfirmEngine
 ```
 
 ---
 
-# 3. K6b-4 RED CONTRACT
+# 2. RUNTIME TRUTH NOW
 
-The test models a real accumulated Capture B traversal:
-
-```text
-A durable canonical set:
-{200000000099}
-
-B page 1 already durable:
-{200000000100}
-
-terminal B Work:
-offset=1
-limit=1
-remote_total=2
-
-terminal response adds:
-{200000000101}
-```
-
-Required GREEN behavior:
-
-1. terminal B must only be accepted when durable B observation count equals B traversal `remote_total`;
-2. derive canonical B fingerprint from existing `canonicalFingerprint(runId, window, 'B')`;
-3. compare B canonical count/hash against durable A `canonical_count/set_hash`;
-4. this RED intentionally has A/B mismatch;
-5. mismatch must transition durable run `confirming -> attention`;
-6. transition and current Work completion must be atomic;
-7. terminal B observations must remain durable after accepted mismatch;
-8. Capture A observations and durable A fingerprint must remain unchanged;
-9. no continuation Work and no `order.sync` fanout;
-10. no new table/column/state/Work type/queue/engine.
-
-The RED also pins the exact B canonical hash for:
+Sales Audit proven flow:
 
 ```text
-200000000100\n200000000101
+CAPTURE A
+-> durable A observations
+-> stable A remote_total
+-> canonical A fingerprint
+-> missing ? repairing : confirming
+-> bounded one-child REPAIR
+-> local VERIFY
+-> confirming
+-> independent Capture B traversal
+-> terminal B integrity check
+-> B canonical fingerprint
+-> A/B mismatch -> attention
 ```
 
-so GREEN must use the real canonical B set, not only a total-count comparison.
+Terminal Capture B mismatch contract now GREEN:
+
+```text
+terminal B
+-> require observationCount(runId,'B') == B traversal remote_total
+-> canonicalFingerprint(runId, window, 'B')
+-> compare against durable A canonical_count/set_hash
+-> mismatch -> confirming -> attention
+-> terminal B evidence remains durable
+-> A observations remain unchanged
+-> durable A fingerprint remains unchanged
+-> current sales.audit Work -> done
+-> no continuation
+-> no order.sync fanout
+```
+
+The comparison and `attention` update execute inside the existing `completeCurrentClaim` transaction, so terminal B evidence + run transition + Work completion commit atomically.
+
+No B fingerprint columns were added. B fingerprint remains derivable from `sales_audit_orders`.
 
 ---
 
-# 4. A/B PERSISTENCE CONTRACT ALREADY GREEN
+# 3. DELIBERATE FAIL-CLOSED BOUNDARY STILL OPEN
 
-Schema:
+A/B equality is intentionally **not implemented yet**.
+
+Current equality behavior:
+
+```text
+B count/hash == durable A count/hash
+-> mismatch UPDATE affects 0 rows
+-> handler throws
+-> completeCurrentClaim rolls back terminal page
+-> current Work fails closed
+-> NO false valid
+```
+
+This is temporary by design until K6b-5 proves `valid` with a RED.
+
+Do not patch around this boundary.
+
+---
+
+# 4. A/B EVIDENCE CONTRACT
+
+Schema remains:
 
 ```text
 sales_audit_orders
@@ -192,7 +169,7 @@ PRIMARY KEY(audit_run_id, capture_pass, external_order_id)
 capture_pass ENUM('A','B') NOT NULL DEFAULT 'A'
 ```
 
-Repository primitives:
+Repository primitives remain:
 
 ```text
 recordObservation(..., capturePass='A')
@@ -200,70 +177,59 @@ observationCount(..., capturePass='A')
 canonicalFingerprint(..., capturePass='A')
 ```
 
-`persistCanonicalFingerprint()` remains durable Capture A writer.
+Durable `sales_audit_runs.remote_total`, `canonical_count`, `set_hash` are Capture A evidence.
 
-Repair/missing/verify SQL remains explicitly A-only.
+Repair/missing/local verify SQL remains explicitly A-only.
 
-`sales_audit_runs.remote_total`, `canonical_count`, `set_hash` remain Capture A durable evidence.
+Capture B traversal uses the same `sales.audit`, `SalesAuditHandler`, OAuth/MeliClient/orders.search path and source guards.
+
+B `remote_total` is traversal execution state carried only in continuation Work payload.
 
 ---
 
-# 5. EXACT NEXT MICROBLOCK — K6b-4 GREEN ONLY
+# 5. DOCUMENTATION SYNC REQUIRED NEXT
+
+`README.md` and `docs/ERP2_AUTHORITY.md` were last synchronized before K6b-3/K6b-4 runtime closure.
+
+Before opening `valid`, perform one bounded documentation sync so living docs state:
+
+```text
+K6b-3 independent B traversal = GREEN
+K6b-4 terminal mismatch -> attention = GREEN
+A/B equality -> valid = still missing
+```
+
+This must be documentation-only. No production/schema/test changes.
+
+---
+
+# 6. EXACT NEXT MICROBLOCS
+
+## K6b-DOC — next
 
 When user says `continua`:
 
-1. fetch branch HEAD and this checkpoint;
-2. confirm RED SHA `64c34b0...` and run `38070935380`;
-3. inspect only `SalesAuditHandler` + `SalesAuditRepository` as needed;
-4. implement the minimum terminal-B mismatch path;
-5. preserve the existing transaction boundary of `completeCurrentClaim`;
-6. require `observationCount(runId,'B') === remote_total` before terminal comparison;
-7. derive B canonical fingerprint using existing primitive;
-8. compare against durable A fingerprint without adding B fingerprint columns;
-9. mismatch -> `attention` atomically with Work `done`;
-10. full QA;
-11. DELETE/SIMPLIFY/REUSE/MERGE noise audit;
-12. checkpoint and STOP.
+1. verify branch HEAD equals this checkpoint commit;
+2. update only `README.md` and `docs/ERP2_AUTHORITY.md` to current K6b-4 GREEN truth;
+3. remove obsolete statements that say terminal B is wholly unimplemented;
+4. preserve the explicit equality fail-closed boundary;
+5. audit diff as documentation-only;
+6. checkpoint and STOP.
 
-Preferred KISS direction:
+## K6b-5 — after K6b-DOC, not yet
+
+RED only:
 
 ```text
-reuse existing repository primitives
-+ one minimal durable A-fingerprint read / guarded transition primitive only if needed
-```
-
-Do not create a ConfirmRepository/ConfirmHandler/second run/table/history engine.
-
----
-
-# 6. NOT IN K6b-4 GREEN
-
-```text
-NO valid transition yet
-NO equality-success terminal behavior yet
-NO baseline lifecycle
-NO Sales Audit start UX/active-run guard
-NO exact order 404 final classification
-NO sale_fee alignment
-NO webhook cleanup
-NO Billing Task 2 before C0 sanitized smoke
-NO Financial
-NO merge
-NO deploy
-NO real Mercado Libre HTTP
-NO remote writes
-```
-
-After K6b-4 GREEN + checkpoint, the next expected microblock is:
-
-```text
-K6b-5 RED
--> terminal B equality
--> A count/hash == B count/hash
+terminal B equality
+-> B count/hash == A count/hash
+-> current Work done
 -> confirming -> valid atomically
+-> completed_at set
+-> A/B evidence preserved until baseline lifecycle is separately defined
 ```
 
-Do not implement K6b-5 inside K6b-4 unless a new RED proves combining them is materially smaller and clearer; default remains separate.
+Do not implement GREEN for `valid` in the same RED checkpoint unless explicitly resumed afterward.
 
 ---
 
@@ -274,7 +240,7 @@ Do not implement K6b-5 inside K6b-4 unless a new RED proves combining them is ma
 | G1 REMOTE_TRUTH | PASS for implemented boundary + K6a guards |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for current Sales paths |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — Capture A/repair/local verify/B traversal GREEN; terminal B mismatch RED confirmed; valid missing |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — A capture/repair/verify + B traversal + terminal mismatch attention GREEN; equality/valid missing |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -286,12 +252,12 @@ Do not implement K6b-5 inside K6b-4 unless a new RED proves combining them is ma
 
 ```text
 STOP now until explicit user continua
-NO K6b-4 production GREEN in this checkpoint
-NO valid
+NO valid yet
+NO baseline lifecycle
 NO Billing
 NO Financial
 NO merge
 NO deploy
-NO real ML HTTP
+NO real Mercado Libre HTTP
 NO remote writes
 ```
