@@ -15,7 +15,7 @@ use Tests\Support\TestDatabase;
 
 final class DebugSettingsControllerTest extends TestCase
 {
-    public function testAdminScreenShowsUsageHistoryAndClearAction(): void
+    public function testAdminScreenShowsUsageHistoryAndClearActionWithoutRemoteWritesControl(): void
     {
         $pdo = TestDatabase::reset();
         $this->seedAdmin($pdo);
@@ -46,8 +46,43 @@ final class DebugSettingsControllerTest extends TestCase
         self::assertStringContainsString('2026-10-08', $html);
         self::assertStringContainsString('/settings/system/debug/clear', $html);
         self::assertStringContainsString($csrf->token(), $html);
+        self::assertStringNotContainsString('name="meli_writes_enabled"', $html);
+        self::assertStringNotContainsString('Escrituras Mercado Libre', $html);
 
         $this->removeTree($root);
+    }
+
+    public function testSettingsPostCannotEnableRemoteWritesBeforeF16(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAdmin($pdo);
+        $_SESSION['user_id'] = 1;
+        $_SESSION['company_id'] = 1;
+
+        $csrf = new Csrf();
+        $settings = new SystemSettingsRepository($pdo);
+        $controller = new SystemSettingsController($pdo, $settings, $csrf);
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/settings/system')
+            ->withParsedBody([
+                'csrf_token' => $csrf->token(),
+                'automation_enabled' => '1',
+                'meli_writes_enabled' => '1',
+                'debug_enabled' => '1',
+                'debug_retention_days' => '14',
+                'debug_max_mb' => '200',
+            ]);
+
+        $response = $controller->update($request, (new ResponseFactory())->createResponse());
+        $updated = $settings->get();
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame('/settings/system', $response->getHeaderLine('Location'));
+        self::assertTrue($updated->automationEnabled);
+        self::assertFalse($updated->meliWritesEnabled);
+        self::assertTrue($updated->debugEnabled);
+        self::assertSame(14, $updated->debugRetentionDays);
+        self::assertSame(200, $updated->debugMaxMb);
     }
 
     public function testAdminClearRequiresCsrfAndDeletesOnlyRecognizedDebugFiles(): void
