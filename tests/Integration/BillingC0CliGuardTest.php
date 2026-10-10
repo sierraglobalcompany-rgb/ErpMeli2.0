@@ -32,19 +32,88 @@ final class BillingC0CliGuardTest extends TestCase
         self::assertSame('', $result['stdout']);
     }
 
+    public function testCliRequiresPositiveAccountIdBeforeDatabaseOrHttp(): void
+    {
+        $result = $this->runCli($this->realHttpEnvironment(), [
+            '--account-id=0',
+            '--period=2026-09-01',
+            '--document-type=BILL',
+            '--max-pages=5',
+        ]);
+
+        self::assertNotSame(0, $result['exit_code']);
+        self::assertStringContainsString('Billing C0 requires --account-id as a positive integer.', $result['stderr']);
+        self::assertSame('', $result['stdout']);
+    }
+
+    public function testCliRequiresCanonicalPeriodBeforeDatabaseOrHttp(): void
+    {
+        $result = $this->runCli($this->realHttpEnvironment(), [
+            '--account-id=1',
+            '--period=2026-09',
+            '--document-type=BILL',
+            '--max-pages=5',
+        ]);
+
+        self::assertNotSame(0, $result['exit_code']);
+        self::assertStringContainsString('Billing C0 requires --period=YYYY-MM-01.', $result['stderr']);
+        self::assertSame('', $result['stdout']);
+    }
+
+    public function testCliRequiresSupportedDocumentTypeBeforeDatabaseOrHttp(): void
+    {
+        $result = $this->runCli($this->realHttpEnvironment(), [
+            '--account-id=1',
+            '--period=2026-09-01',
+            '--document-type=INVOICE',
+            '--max-pages=5',
+        ]);
+
+        self::assertNotSame(0, $result['exit_code']);
+        self::assertStringContainsString('Billing C0 requires --document-type=BILL|CREDIT_NOTE.', $result['stderr']);
+        self::assertSame('', $result['stdout']);
+    }
+
+    public function testCliRequiresBoundedMaxPagesBeforeDatabaseOrHttp(): void
+    {
+        $result = $this->runCli($this->realHttpEnvironment(), [
+            '--account-id=1',
+            '--period=2026-09-01',
+            '--document-type=BILL',
+            '--max-pages=21',
+        ]);
+
+        self::assertNotSame(0, $result['exit_code']);
+        self::assertStringContainsString('Billing C0 requires --max-pages between 1 and 20.', $result['stderr']);
+        self::assertSame('', $result['stdout']);
+    }
+
+    /** @return array<string,string> */
+    private function realHttpEnvironment(): array
+    {
+        return [
+            'APP_ENV' => 'production',
+            'BILLING_C0_REAL_HTTP' => '1',
+        ];
+    }
+
     /**
      * @param array<string,string> $environment
+     * @param list<string>|null $arguments
      * @return array{exit_code:int,stdout:string,stderr:string}
      */
-    private function runCli(array $environment): array
+    private function runCli(array $environment, ?array $arguments = null): array
     {
         $root = dirname(__DIR__, 2);
         $command = [
             PHP_BINARY,
             $root . '/bin/billing-c0-smoke.php',
-            '--account-id=1',
-            '--period=2026-09-01',
-            '--document-type=BILL',
+            ...($arguments ?? [
+                '--account-id=1',
+                '--period=2026-09-01',
+                '--document-type=BILL',
+                '--max-pages=5',
+            ]),
         ];
 
         $descriptorSpec = [
