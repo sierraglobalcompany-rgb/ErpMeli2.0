@@ -315,6 +315,43 @@ final class SalesAuditRepository
         return $missing;
     }
 
+    public function transitionToRepairingIfMissing(int $runId, int $companyId, int $accountId): bool
+    {
+        $context = $this->captureContext($runId, $companyId, $accountId);
+        $window = SalesAuditWindow::forSitePeriod($context['site_id'], $context['period_key']);
+        $canonicalStart = $window->canonicalStartUtc->format('Y-m-d H:i:s.u');
+        $canonicalEnd = $window->canonicalEndUtc->format('Y-m-d H:i:s.u');
+
+        $statement = $this->pdo->prepare(
+            "UPDATE sales_audit_runs r SET r.status = 'repairing', r.updated_at = UTC_TIMESTAMP(6) "
+            . 'WHERE r.id = :run_id AND r.company_id = :company_id AND r.account_id = :account_id '
+            . "AND r.status = 'capturing' AND r.contract_version = :contract_version "
+            . 'AND r.remote_total IS NOT NULL AND r.canonical_count IS NOT NULL AND r.set_hash IS NOT NULL '
+            . 'AND EXISTS ('
+            . 'SELECT 1 FROM sales_audit_orders ao '
+            . 'WHERE ao.audit_run_id = r.id '
+            . 'AND ao.remote_date_created >= :remote_start AND ao.remote_date_created < :remote_end '
+            . 'AND NOT EXISTS ('
+            . 'SELECT 1 FROM orders o '
+            . 'WHERE o.company_id = r.company_id AND o.account_id = r.account_id '
+            . 'AND o.external_order_id = ao.external_order_id '
+            . 'AND o.date_created >= :local_start AND o.date_created < :local_end'
+            . '))'
+        );
+        $statement->execute([
+            'run_id' => $runId,
+            'company_id' => $companyId,
+            'account_id' => $accountId,
+            'contract_version' => self::CONTRACT_VERSION,
+            'remote_start' => $canonicalStart,
+            'remote_end' => $canonicalEnd,
+            'local_start' => $canonicalStart,
+            'local_end' => $canonicalEnd,
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
     public function observationCount(int $runId): int
     {
         if ($runId < 1) {
