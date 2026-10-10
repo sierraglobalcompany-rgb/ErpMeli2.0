@@ -97,20 +97,29 @@ final class SalesAuditRepository
     }
 
     /** @return array{period_key:string,site_id:string,seller_id:string} */
-    public function captureContext(int $runId, int $companyId, int $accountId): array
-    {
+    public function captureContext(
+        int $runId,
+        int $companyId,
+        int $accountId,
+        string $runStatus = 'capturing',
+    ): array {
+        if ($runStatus !== 'capturing' && $runStatus !== 'confirming') {
+            throw new InvalidArgumentException('Sales audit capture status is invalid.');
+        }
+
         $statement = $this->pdo->prepare(
             'SELECT r.period_key,a.site_id,a.external_user_id '
             . 'FROM sales_audit_runs r '
             . 'INNER JOIN meli_accounts a ON a.id = r.account_id AND a.company_id = r.company_id '
-            . "WHERE r.id = :run_id AND r.company_id = :company_id AND r.account_id = :account_id "
-            . "AND r.status = 'capturing' AND r.contract_version = :contract_version "
+            . 'WHERE r.id = :run_id AND r.company_id = :company_id AND r.account_id = :account_id '
+            . 'AND r.status = :run_status AND r.contract_version = :contract_version '
             . "AND a.status = 'connected' LIMIT 1"
         );
         $statement->execute([
             'run_id' => $runId,
             'company_id' => $companyId,
             'account_id' => $accountId,
+            'run_status' => $runStatus,
             'contract_version' => self::CONTRACT_VERSION,
         ]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
