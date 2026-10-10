@@ -7,8 +7,8 @@ namespace Tests\Integration;
 use App\Modules\Sales\Audit\SalesAuditRepository;
 use DateTimeImmutable;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class SalesAuditActiveRunGuardTest extends TestCase
@@ -40,8 +40,9 @@ final class SalesAuditActiveRunGuardTest extends TestCase
                     $startedAt->modify('+1 second'),
                 );
                 self::fail('Second active sales audit run was created for the same scope.');
-            } catch (RuntimeException $exception) {
-                self::assertSame('Active sales audit run already exists for this scope.', $exception->getMessage());
+            } catch (PDOException $exception) {
+                self::assertSame('23000', $exception->getCode());
+                self::assertSame(1062, (int) ($exception->errorInfo[1] ?? 0));
             }
         }
     }
