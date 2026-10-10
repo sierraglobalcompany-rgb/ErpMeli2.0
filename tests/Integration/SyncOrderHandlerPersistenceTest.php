@@ -110,6 +110,58 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
         self::assertSame('2.0000', $pdo->query('SELECT quantity FROM order_items')->fetchColumn());
     }
 
+    public function testDateCreatedWithoutExplicitZoneFailsClosedWithoutSalesWrite(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $valid = $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2);
+        $payload = json_decode($valid->body, true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($payload);
+        $payload['date_created'] = '2026-10-09T00:00:00.000';
+        $transport = new OrderQueueTransport([
+            new MeliTransportResponse(200, $valid->headers, json_encode($payload, JSON_THROW_ON_ERROR)),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+
+        self::assertFalse($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+        ));
+        self::assertSame('failed', $pdo->query('SELECT status FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame('meli_order_contract', $pdo->query('SELECT last_error_code FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+    }
+
+    public function testFloatAtExactMoneyBoundaryFailsClosedWithoutSalesWrite(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new OrderQueueTransport([$this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2)]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work, false);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+
+        self::assertFalse($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+        ));
+        self::assertSame('failed', $pdo->query('SELECT status FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame('meli_order_contract', $pdo->query('SELECT last_error_code FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+    }
+
     public function testStaleClaimCannotPersistFetchedOrder(): void
     {
         $pdo = TestDatabase::reset();
@@ -138,10 +190,18 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
         self::assertCount(1, $transport->requests, 'Remote GET may already have happened; stale ownership must block local persistence.');
     }
 
-    private function handler(PDO $pdo, TokenCipher $cipher, OrderQueueTransport $transport, WorkRepository $work): SyncOrderHandler
-    {
-        /** @var array<string,array<string,string>> $operations */
+    private function handler(
+        PDO $pdo,
+        TokenCipher $cipher,
+        OrderQueueTransport $transport,
+        WorkRepository $work,
+        bool $preserveNumbers = true,
+    ): SyncOrderHandler {
+        /** @var array<string,array<string,mixed>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
+        if (!$preserveNumbers) {
+            unset($operations['orders.get']['preserve_numbers']);
+        }
         $client = new MeliClient(
             $transport,
             new SystemSettingsRepository($pdo),
