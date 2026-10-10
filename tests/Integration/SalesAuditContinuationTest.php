@@ -164,7 +164,7 @@ final class SalesAuditContinuationTest extends TestCase
         );
     }
 
-    public function testTerminalPageWithCompleteDurableEvidenceCreatesNoContinuationAndKeepsRunCapturing(): void
+    public function testTerminalPageWithCompleteDurableEvidenceEnqueuesRepairContinuationWhenLocalOrdersAreMissing(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('sales-audit-terminal-complete-secret');
@@ -227,11 +227,11 @@ final class SalesAuditContinuationTest extends TestCase
             (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_orders WHERE audit_run_id = ' . $runId)->fetchColumn(),
         );
         self::assertSame(
-            0,
+            1,
             (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='sales.audit' AND status='pending'")->fetchColumn(),
         );
         self::assertSame(
-            'capturing',
+            'repairing',
             $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
         );
     }
