@@ -141,7 +141,7 @@ final class MeliClient
             } else {
                 $decoded = ($operation['preserve_numbers'] ?? false) === true
                     ? LosslessJsonDecoder::decodeObject($response->body)
-                    : json_decode($response->body, true, 512, JSON_THROW_ON_ERROR);
+                    : json_decode($response->body, true, 512, JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
                 if (!is_array($decoded)) {
                     throw new JsonException('Expected JSON object.');
                 }
