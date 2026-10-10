@@ -65,3 +65,36 @@ CREATE TABLE order_items (
         FOREIGN KEY (order_id) REFERENCES orders(id)
         ON DELETE CASCADE ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sales_audit_runs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    company_id BIGINT UNSIGNED NOT NULL,
+    account_id BIGINT UNSIGNED NOT NULL,
+    period_key DATE NOT NULL,
+    contract_version VARCHAR(32) NOT NULL,
+    status ENUM('capturing', 'repairing', 'confirming', 'valid', 'attention', 'unavailable') NOT NULL DEFAULT 'capturing',
+    remote_total BIGINT UNSIGNED NULL,
+    canonical_count BIGINT UNSIGNED NULL,
+    set_hash CHAR(64) NULL,
+    started_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    completed_at DATETIME(6) NULL,
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    KEY idx_sales_audit_runs_scope (company_id, account_id, period_key, status, id),
+    CONSTRAINT fk_sales_audit_runs_company
+        FOREIGN KEY (company_id) REFERENCES companies(id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT fk_sales_audit_runs_company_account
+        FOREIGN KEY (company_id, account_id) REFERENCES meli_accounts(company_id, id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sales_audit_orders (
+    audit_run_id BIGINT UNSIGNED NOT NULL,
+    external_order_id VARCHAR(32) NOT NULL,
+    remote_date_created DATETIME(6) NOT NULL,
+    PRIMARY KEY (audit_run_id, external_order_id),
+    CONSTRAINT fk_sales_audit_orders_run
+        FOREIGN KEY (audit_run_id) REFERENCES sales_audit_runs(id)
+        ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
