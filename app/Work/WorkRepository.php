@@ -14,6 +14,8 @@ use Throwable;
 
 final class WorkRepository
 {
+    private const MAX_AUTOMATIC_ATTEMPTS = 5;
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -229,9 +231,36 @@ final class WorkRepository
     ): bool {
         $statement = $this->pdo->prepare(
             "UPDATE work_items SET "
-            . "status = 'pending', available_at = :available_at, claim_token = NULL, claimed_at = NULL, "
-            . "finished_at = NULL, last_error_code = :error_code, last_error_safe = :safe_message, "
+            . "status = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", 'failed', 'pending'), "
+            . "available_at = :available_at, claim_token = NULL, claimed_at = NULL, "
+            . "finished_at = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", UTC_TIMESTAMP(6), NULL), "
+            . "last_error_code = :error_code, last_error_safe = :safe_message, "
             . "updated_at = UTC_TIMESTAMP(6) "
+            . "WHERE id = :id AND status = 'running' AND claim_token = :claim_token"
+        );
+        $statement->execute([
+            'available_at' => $availableAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u'),
+            'error_code' => $errorCode,
+            'safe_message' => $safeMessage,
+            'id' => $workId,
+            'claim_token' => $claimToken,
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
+    public function deferCurrentClaim(
+        int $workId,
+        string $claimToken,
+        DateTimeImmutable $availableAt,
+        string $errorCode,
+        string $safeMessage,
+    ): bool {
+        $statement = $this->pdo->prepare(
+            "UPDATE work_items SET "
+            . "status = 'pending', available_at = :available_at, attempts = IF(attempts > 0, attempts - 1, 0), "
+            . "claim_token = NULL, claimed_at = NULL, finished_at = NULL, "
+            . "last_error_code = :error_code, last_error_safe = :safe_message, updated_at = UTC_TIMESTAMP(6) "
             . "WHERE id = :id AND status = 'running' AND claim_token = :claim_token"
         );
         $statement->execute([
@@ -272,9 +301,14 @@ final class WorkRepository
     {
         $statement = $this->pdo->prepare(
             "UPDATE work_items SET "
-            . "status = 'pending', available_at = UTC_TIMESTAMP(6), claim_token = NULL, claimed_at = NULL, "
-            . "finished_at = NULL, updated_at = UTC_TIMESTAMP(6) "
-            . "WHERE status = 'running'"
+            . "status = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", 'failed', 'pending'), "
+            . "available_at = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", available_at, UTC_TIMESTAMP(6)), "
+            . "claim_token = NULL, claimed_at = NULL, "
+            . "finished_at = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", UTC_TIMESTAMP(6), NULL), "
+            . "last_error_code = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", 'work_attempts_exhausted', last_error_code), "
+            . "last_error_safe = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", "
+            . "'Work exhausted its automatic attempt limit after interruption.', last_error_safe), "
+            . "updated_at = UTC_TIMESTAMP(6) WHERE status = 'running'"
         );
         $statement->execute();
 
