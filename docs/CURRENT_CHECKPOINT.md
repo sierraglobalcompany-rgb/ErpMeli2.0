@@ -244,15 +244,75 @@ Known pre-existing CI noise: the intentional Slim 404 diagnostic from `Bootstrap
 
 ---
 
-# 6. GATES
+# 6. EXACT-ORDER 404 — GREEN / CLOSED
+
+Exact endpoint contract:
+
+```text
+GET /orders/{order_id} HTTP 404
+-> Work failed
+-> last_error_code = meli_order_not_found
+-> no retry / defer / order persistence
+```
+
+Classification uses the HTTP status alone; it does not require `errorCode=order_not_found`. The 404 path exits before order persistence. A 404 after the one allowed 401 token refresh has the same terminal result and issues exactly three physical requests: order GET, OAuth refresh POST, retried order GET.
+
+TDD evidence:
+
+```text
+BASE: 025dc620537ca445adac7f97bf7bef67b6ae462f
+RED direct: 0ea4e0aabb2ad0639f25c91385568c3d2402a053
+  testOrderNotFoundFailsTerminallyWithoutPersistingAnOrder
+  expected meli_order_not_found; observed meli_remote_permanent
+RED after refresh: ced22f341a8176c55042be2527061e2cff72411c
+  testOrderNotFoundAfterUnauthorizedRefreshFailsWithoutAnotherRetry
+  expected meli_order_not_found; observed meli_remote_permanent
+FUNCTIONAL GREEN: 6b6093b65ad0ab65351140d79f8cfc78d1a56910
+```
+
+Both tests verify terminal Work state and released claim. Direct 404 makes one order request and persists zero orders. The 401-refresh-404 test makes exactly three requests, records `refresh_version=1`, and persists zero orders. Its 404 body omits `errorCode`, proving status-based classification.
+
+Functional diff from BASE is limited to:
+
+```text
+app/Modules/Sales/SyncOrder/SyncOrderHandler.php
+tests/Integration/SyncOrderHandlerRemoteFailureTest.php
+```
+
+`SyncOrderHandler` classifies 404 in both the initial and post-refresh exception paths through one private helper. It adds no retry, state, type, service, schema, or configuration. 400/403/other 4xx retain `meli_remote_permanent`; 429, 5xx, transport failure, malformed 200, OAuth refresh, Work claim semantics, and Sales Audit lifecycle are unchanged. A terminal repair child with a remaining gap still moves the audit to `attention` without recreation (`SalesAuditRepairRuntimeTest::testTerminalRepairChildMovesRunToAttentionWithoutRecreation`).
+
+Canonical QA for FUNCTIONAL GREEN:
+
+```text
+RUN 38093953630 — SUCCESS
+PHP 8.3 job 114335875883 — SUCCESS
+PHP 8.4 job 114335875661 — SUCCESS
+PHP 8.5 job 114335875912 — SUCCESS
+PHPStan = 0 errors on all jobs
+PHPUnit = 224 tests / 1571 assertions on each job
+REAL_MELI_HTTP = 0
+```
+
+Targeted Windows tests against isolated MariaDB on port 3307:
+
+```text
+SyncOrderHandlerRemoteFailureTest.php = 7 tests / 62 assertions — PASS
+SalesAuditRepairRuntimeTest.php = 3 tests / 42 assertions — PASS
+```
+
+No schema/migration, `MeliClient`, `MeliApiException`, Sales Audit production code, or `meli_operations.php` changes. Remote Mercado Libre writes remained OFF.
+
+---
+
+# 7. GATES
 
 ```text
 G1 REMOTE_TRUTH: PASS for implemented boundary
 G2 WORK_SAFETY: PASS
 G3 RATE_SAFETY: PASS for current Sales
 G4 SALES_AUDIT_TRUTH: IN PROGRESS
-   GREEN: Capture A / repair / verify / Capture B / A-B / baseline / SAH-0 / SAH-1 / SAH-2 / Start Audit / current-future semantics
-   PENDING: exact-order 404 semantics/classification; final adversarial/noise/docs closure
+   GREEN: Capture A / repair / verify / Capture B / A-B / baseline / SAH-0 / SAH-1 / SAH-2 / Start Audit / current-future semantics / exact-order 404 semantics
+   PENDING: final adversarial/noise/docs closure
 G5 BILLING_CURSOR_TRUTH: BLOCKED ON C0
 G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
 G7 WRITE_FAIL_CLOSED: PASS
@@ -265,24 +325,13 @@ External gates remain Issue #3 Hostinger/runtime/main protection and Issue #5 de
 
 ---
 
-# 7. NEXT MICROBLOCK — FROZEN
+# 8. NEXT MICROBLOCK — FROZEN
 
 ```text
-exact-order 404 semantics/classification
+G4 final adversarial/noise/docs closure
 ```
 
-Known current behavior in `SyncOrderHandler`:
-
-```text
-orders.get 401 -> refresh token + one safe retry
-orders.get >=500 -> bounded retry
-other non-2xx, including 404 -> generic meli_remote_permanent
-same generic treatment can occur after the one 401 refresh retry
-```
-
-Existing Sales Audit repair behavior already fails closed: a terminal `order.sync` child is not recreated automatically and the audit moves to `attention` when the local gap remains.
-
-The next block must determine and implement the smallest explicit 404 contract without changing retry architecture or Sales Audit lifecycle. Likely change surface: `SyncOrderHandler` + focused tests; do not assume this until RED confirms it.
+Closed blocks now include current/future period semantics and exact-order 404 semantics/classification. G4 remains open only for its final adversarial/noise/docs closure.
 
 Do not mix into the next block:
 
@@ -299,11 +348,10 @@ Git/PR/issue hygiene
 Slim diagnostic cleanup
 ```
 
-After exact-order 404:
+After G4 final closure:
 
 ```text
-G4 final adversarial/noise/docs closure
--> small DOC-CLEAN / issue hygiene
+small DOC-CLEAN / issue hygiene
 -> Billing C0 real sanitized
 -> Billing Task2
 -> sale_fee alignment
@@ -312,6 +360,6 @@ G4 final adversarial/noise/docs closure
 
 ---
 
-# 8. STOP
+# 9. STOP
 
 Current state is intentionally paused. No merge, deploy, production write, remote Mercado Libre write, or next-block implementation has been authorized by this checkpoint.
