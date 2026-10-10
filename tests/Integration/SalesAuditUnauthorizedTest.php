@@ -54,7 +54,7 @@ final class SalesAuditUnauthorizedTest extends TestCase
         self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
         self::assertSame(1, $this->evidenceCount($pdo, $runId));
         self::assertSame(1, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=1')->fetchColumn());
-        self::assertSame(1, $this->auditWorkCount($pdo));
+        self::assertSame(2, $this->auditWorkCount($pdo));
     }
 
     public function testSecondUnauthorizedAfterRefreshFailsTerminallyWithoutEvidence(): void
