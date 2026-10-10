@@ -4,7 +4,7 @@
 **Branch:** `impl/v3-b-sales-audit-20261010`  
 **Authority:** `docs/ERP2_AUTHORITY.md`  
 **Base V3-A checkpoint:** `fdfd1aad0ac099bb824e3cd8563eef9d5b7dff10`  
-**Current verified functional SHA:** `c06c46906f87c884e7c5ab21356fd48ca7612779`  
+**Current verified functional SHA:** `320105388ded5af6672a58ba37ece7f33c17cf13`  
 **Remote writes:** OFF  
 **REAL_MELI_HTTP:** `0`
 
@@ -31,59 +31,59 @@ B3d2      terminal CAPTURE fingerprint wiring
 B3e1      deterministic local missing-set primitive
 B3e2      guarded capturing → repairing transition
 B3e3a     repairing-phase missing-set read
+B3e3b1    single deterministic repair candidate
 ```
 
-## B3e3a contract
+## B3e3b1 recovery audit
 
-`SalesAuditRepository::repairingMissingCanonicalOrderIds()` now:
-
-1. requires the exact company/account/run scope in status `repairing`;
-2. requires the account to remain connected and `remote_total`, `canonical_count`, `set_hash` to exist;
-3. validates period/site/fingerprint before reading repair candidates;
-4. derives the canonical MCO month from the repairing run itself;
-5. returns only canonical remote audit IDs that are still missing from local `orders` for the same company/account/month;
-6. returns IDs deterministically in ascending order;
-7. a `capturing` run cannot use this repairing-phase read path;
-8. wrong scope/non-repairing status fails closed;
-9. `captureContext()` remains unchanged and capture-only;
-10. enqueues no Work and changes no status/schema.
-
-## B3e3a evidence
+The previous chat stopped after code was already committed but before `CURRENT_CHECKPOINT.md` was updated. Branch audit showed exactly three commits after the B3e3a functional SHA: B3e3a checkpoint, B3e3b1 RED, B3e3b1 GREEN. No hidden later product commit exists.
 
 RED commit:
 
 ```text
-9d72b466a02369d2852054364861553f68b03a18
+4f2c3fb72ed8e4fbe8c2b2160fc7930cd29ed33c
 ```
 
-RED run `38018669116`, job `114114587125`:
+RED run:
 
 ```text
-PHPSTAN=0
-TESTS=192
-ERRORS=1
-FAILURES=2
-CAUSE=SalesAuditRepository::repairingMissingCanonicalOrderIds() did not exist
+RUN=38019043502
+STATUS=FAILURE as expected
+CAUSE=nextRepairingMissingCanonicalOrderId() did not yet exist
 ```
 
 GREEN functional commit:
 
 ```text
-c06c46906f87c884e7c5ab21356fd48ca7612779
+320105388ded5af6672a58ba37ece7f33c17cf13
 ```
 
-Fresh QA — run `38018814214`, job `114115030412`:
+Fresh QA:
 
 ```text
+RUN=38019232637
+JOB=114116291468
 PHP=8.5.11
 PHPSTAN=0
-PHPUNIT=192/192 PASS
-ASSERTIONS=1272
+PHPUNIT=194/194 PASS
+ASSERTIONS=1284
 MEMORY=22 MB
 REAL_MELI_HTTP=0
 ```
 
-## Repair identity already fixed by existing product contract
+## B3e3b1 contract
+
+`SalesAuditRepository::nextRepairingMissingCanonicalOrderId()` now:
+
+1. reuses the already verified repairing-phase missing-set derivation;
+2. returns only the first deterministic missing canonical order ID;
+3. returns null when no canonical order remains missing;
+4. adds no queue/table/status/engine;
+5. does not enqueue Work itself.
+
+Authority/plan audit found no approved numeric fan-out constant. They require only `REPAIR sólo faltantes y fan-out limitado`. Therefore no arbitrary batch size is introduced. The next block uses the structurally bounded one-candidate primitive and the existing Work dedupe contract.
+
+Existing repair identity remains:
 
 ```text
 type=order.sync
@@ -92,8 +92,6 @@ logical_identity=order.sync:<external_order_id>
 payload={order_id:<external_order_id>}
 ```
 
-`WorkRepository::enqueue()` already provides active-work dedupe through logical identity. No repair queue/table is justified.
-
 ## Gates
 
 | Gate | Status |
@@ -101,7 +99,7 @@ payload={order_id:<external_order_id>}
 | G1 REMOTE_TRUTH | PASS for implemented boundary |
 | G2 WORK_SAFETY | PASS |
 | G3 RATE_SAFETY | PASS for active Sales Audit path |
-| G4 SALES_AUDIT_TRUTH | IN PROGRESS — REPAIR phase can now read missing IDs safely; bounded fan-out contract next |
+| G4 SALES_AUDIT_TRUTH | IN PROGRESS — one bounded repair candidate proven; enqueue wiring next |
 | G5 BILLING_CURSOR_TRUTH | BLOCKED on C0 real sanitized MCO smoke |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED |
 | G7 WRITE_FAIL_CLOSED | PASS |
@@ -109,24 +107,22 @@ payload={order_id:<external_order_id>}
 
 ## Exact next microblock
 
-### B3e3b — bounded repair fan-out contract
-
-Before coding, search authority/plan/history for an already approved concrete fan-out bound. Do not invent a new number if one is already specified.
+### B3e3b2 — enqueue one repair candidate only
 
 Scope only:
 
-1. establish the existing/approved bound if documented;
-2. RED: repairing-phase fan-out may enqueue only missing canonical IDs using the existing `order.sync` identity/payload contract;
-3. RED: active duplicate `order.sync:<id>` remains deduped by existing Work semantics;
-4. RED: a single fan-out action cannot enqueue more than the approved bound;
-5. GREEN: minimum reuse of existing WorkRepository; no repair table/queue/engine;
+1. RED: for a scoped `repairing` run with missing canonical IDs, one repair action enqueues exactly one `order.sync` using the existing identity/payload contract;
+2. RED: the chosen ID must equal `nextRepairingMissingCanonicalOrderId()`;
+3. RED: an already-active `order.sync:<id>` must remain deduped by existing `WorkRepository::enqueue()` semantics;
+4. RED: no second missing ID may be enqueued in the same action;
+5. GREEN: minimum reuse of existing repository/WorkRepository; no repair queue/table/engine and no new numeric batch constant;
 6. no VERIFY, second capture or CONFIRM yet;
 7. full QA → checkpoint.
 
 ## Stop conditions
 
-- do not invent a numeric bound without repository authority/evidence;
-- no VERIFY/CONFIRM in B3e3b;
+- fan-out remains structurally bounded to one candidate per repair action;
+- no VERIFY/CONFIRM in B3e3b2;
 - no Billing handler / F6A Task2 before C0;
 - no merge;
 - no deploy;
