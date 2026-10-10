@@ -55,7 +55,7 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
         self::assertSame(1, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=' . $accountId)->fetchColumn());
     }
 
-    public function testRateLimitReturnsCurrentClaimToPendingAtRemoteRetryTime(): void
+    public function testRateLimitReturnsCurrentClaimToPendingWithoutConsumingAttempt(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('sales-failure-test-key');
@@ -67,6 +67,7 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
         $claim = $this->claim($work, $companyId, $accountId);
         $before = new DateTimeImmutable('now');
 
+        self::assertSame(1, $claim['attempts']);
         self::assertFalse($handler->syncCurrentClaim(
             $claim['id'],
             $claim['claim_token'],
@@ -76,16 +77,17 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
             new DateTimeImmutable('2026-10-09T01:20:00+00:00'),
         ));
 
-        $row = $pdo->query('SELECT status, available_at, claim_token, last_error_code FROM work_items WHERE id=' . $claim['id'])->fetch();
+        $row = $pdo->query('SELECT status, attempts, available_at, claim_token, last_error_code FROM work_items WHERE id=' . $claim['id'])->fetch();
         self::assertIsArray($row);
         self::assertSame('pending', $row['status']);
+        self::assertSame(0, (int) $row['attempts']);
         self::assertNull($row['claim_token']);
         self::assertSame('meli_rate_limited', $row['last_error_code']);
         self::assertGreaterThan($before, new DateTimeImmutable((string) $row['available_at']));
         self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
     }
 
-    public function testServerErrorSchedulesBoundedRetryInsteadOfFailingTerminally(): void
+    public function testServerErrorSchedulesBoundedRetryAndConsumesAttempt(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('sales-failure-test-key');
@@ -106,9 +108,10 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
             $now,
         ));
 
-        $row = $pdo->query('SELECT status, available_at, last_error_code FROM work_items WHERE id=' . $claim['id'])->fetch();
+        $row = $pdo->query('SELECT status, attempts, available_at, last_error_code FROM work_items WHERE id=' . $claim['id'])->fetch();
         self::assertIsArray($row);
         self::assertSame('pending', $row['status']);
+        self::assertSame(1, (int) $row['attempts']);
         self::assertSame('meli_remote_retry', $row['last_error_code']);
         self::assertSame('2026-10-09 01:20:30.000000', $row['available_at']);
     }
@@ -133,9 +136,10 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
             new DateTimeImmutable('2026-10-09T01:20:00+00:00'),
         ));
 
-        $row = $pdo->query('SELECT status, available_at, last_error_code FROM work_items WHERE id=' . $claim['id'])->fetch();
+        $row = $pdo->query('SELECT status, attempts, available_at, last_error_code FROM work_items WHERE id=' . $claim['id'])->fetch();
         self::assertIsArray($row);
         self::assertSame('pending', $row['status']);
+        self::assertSame(1, (int) $row['attempts']);
         self::assertSame('meli_remote_retry', $row['last_error_code']);
         self::assertSame('2026-10-09 01:20:30.000000', $row['available_at']);
     }
@@ -171,7 +175,7 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
     /** @return array{0:SyncOrderHandler,1:WorkRepository} */
     private function handler(PDO $pdo, TokenCipher $cipher, RemoteOutcomeTransport $transport, bool $withCooldown = false): array
     {
-        /** @var array<string,array<string,string>> $operations */
+        /** @var array<string,array<string,mixed>> $operations */
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
         $settings = new SystemSettingsRepository($pdo);
         $client = new MeliClient(
@@ -196,7 +200,7 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
         return [new SyncOrderHandler($work, $client, $tokens), $work];
     }
 
-    /** @return array{id:int,claim_token:string} */
+    /** @return array{id:int,claim_token:string,attempts:int} */
     private function claim(WorkRepository $work, int $companyId, int $accountId): array
     {
         $work->enqueue(
@@ -210,7 +214,11 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
         );
         $claim = $work->claimNext();
         self::assertIsArray($claim);
-        return ['id' => $claim['id'], 'claim_token' => $claim['claim_token']];
+        return [
+            'id' => $claim['id'],
+            'claim_token' => $claim['claim_token'],
+            'attempts' => $claim['attempts'],
+        ];
     }
 
     /** @return array{0:int,1:int} */
