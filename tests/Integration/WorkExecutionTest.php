@@ -22,7 +22,7 @@ final class WorkExecutionTest extends TestCase
         $this->seedSettingsActor($pdo);
         $config = TestDatabase::config();
         $settings = new SystemSettingsRepository($pdo);
-        $settings->updateOperationalToggles(false, false, false, 7, 100, 1);
+        $settings->updateOperationalToggles(false, false, 7, 100, 1);
         $repository = new WorkRepository($pdo);
         $runner = new WorkRunner(
             Connection::fromConfig($config),
@@ -49,7 +49,7 @@ final class WorkExecutionTest extends TestCase
         $this->seedSettingsActor($pdo);
         $config = TestDatabase::config();
         $settings = new SystemSettingsRepository($pdo);
-        $settings->updateOperationalToggles(true, false, false, 7, 100, 1);
+        $settings->updateOperationalToggles(true, false, 7, 100, 1);
         $repository = new WorkRepository($pdo);
         $lockName = $config->dbName . '.erp_meli2.runner.shared-entry-test';
 
