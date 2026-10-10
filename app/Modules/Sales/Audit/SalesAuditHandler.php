@@ -151,7 +151,7 @@ final class SalesAuditHandler
             return $this->work->completeCurrentClaim(
                 $workId,
                 $claimToken,
-                function () use ($runId, $companyId, $accountId, $limit, $page, $now): void {
+                function () use ($runId, $companyId, $accountId, $limit, $page, $now, $window): void {
                     if (!$this->audit->acceptRemoteTotal(
                         $runId,
                         $companyId,
@@ -175,6 +175,13 @@ final class SalesAuditHandler
                         if ($this->audit->observationCount($runId) !== $page['remote_total']) {
                             throw new RuntimeException('Sales audit terminal capture evidence is incomplete.');
                         }
+
+                        $this->audit->persistCanonicalFingerprint(
+                            $runId,
+                            $companyId,
+                            $accountId,
+                            $window,
+                        );
                         return;
                     }
 
