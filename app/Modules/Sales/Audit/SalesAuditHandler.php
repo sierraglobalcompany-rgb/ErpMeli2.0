@@ -76,13 +76,7 @@ final class SalesAuditHandler
         try {
             $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
         } catch (MeliRateLimitException $exception) {
-            $this->work->deferCurrentClaim(
-                $workId,
-                $claimToken,
-                $exception->retryAt,
-                'meli_rate_limited',
-                'Mercado Libre rate limited OAuth before sales audit capture.',
-            );
+            $this->deferRateLimit($workId, $claimToken, $exception, 'Mercado Libre rate limited OAuth before sales audit capture.');
             return false;
         } catch (RuntimeException) {
             $this->work->failCurrentClaim(
@@ -95,41 +89,47 @@ final class SalesAuditHandler
         }
 
         try {
-            $response = $this->client->request(
-                'orders.search',
+            $response = $this->requestSearch(
                 $accessToken,
-                scopeKey: 'company:' . $companyId . ':account:' . $accountId,
-                queryParams: [
-                    'seller' => $context['seller_id'],
-                    'order.date_created.from' => $window->remoteFromUtc->format(DATE_ATOM),
-                    'order.date_created.to' => $window->remoteToUtc->format(DATE_ATOM),
-                    'sort' => 'date_asc',
-                    'offset' => $offset,
-                    'limit' => $limit,
-                ],
+                $companyId,
+                $accountId,
+                $context,
+                $window,
+                $offset,
+                $limit,
             );
         } catch (MeliRateLimitException $exception) {
-            $this->work->deferCurrentClaim(
-                $workId,
-                $claimToken,
-                $exception->retryAt,
-                'meli_rate_limited',
-                'Mercado Libre rate limited the sales audit request.',
-            );
+            $this->deferRateLimit($workId, $claimToken, $exception, 'Mercado Libre rate limited the sales audit request.');
             return false;
         } catch (MeliApiException $exception) {
-            if ($exception->status >= 500) {
+            if ($exception->status === 401) {
+                $response = $this->retryAfterUnauthorized(
+                    $workId,
+                    $claimToken,
+                    $companyId,
+                    $accountId,
+                    $context,
+                    $window,
+                    $offset,
+                    $limit,
+                    $accessToken,
+                    $now,
+                );
+                if (!$response instanceof MeliClientResponse) {
+                    return false;
+                }
+            } elseif ($exception->status >= 500) {
                 $this->scheduleRemoteRetry($workId, $claimToken, $now);
                 return false;
+            } else {
+                $this->work->failCurrentClaim(
+                    $workId,
+                    $claimToken,
+                    'meli_remote_permanent',
+                    'Mercado Libre rejected the sales audit request.',
+                );
+                return false;
             }
-
-            $this->work->failCurrentClaim(
-                $workId,
-                $claimToken,
-                $exception->status === 401 ? 'meli_unauthorized' : 'meli_remote_permanent',
-                'Mercado Libre rejected the sales audit request.',
-            );
-            return false;
         } catch (RuntimeException) {
             $this->scheduleRemoteRetry($workId, $claimToken, $now);
             return false;
@@ -172,6 +172,101 @@ final class SalesAuditHandler
             );
             return false;
         }
+    }
+
+    /**
+     * @param array{period_key:string,site_id:string,seller_id:string} $context
+     */
+    private function requestSearch(
+        string $accessToken,
+        int $companyId,
+        int $accountId,
+        array $context,
+        SalesAuditWindow $window,
+        int $offset,
+        int $limit,
+    ): MeliClientResponse {
+        return $this->client->request(
+            'orders.search',
+            $accessToken,
+            scopeKey: 'company:' . $companyId . ':account:' . $accountId,
+            queryParams: [
+                'seller' => $context['seller_id'],
+                'order.date_created.from' => $window->remoteFromUtc->format(DATE_ATOM),
+                'order.date_created.to' => $window->remoteToUtc->format(DATE_ATOM),
+                'sort' => 'date_asc',
+                'offset' => $offset,
+                'limit' => $limit,
+            ],
+        );
+    }
+
+    /**
+     * @param array{period_key:string,site_id:string,seller_id:string} $context
+     */
+    private function retryAfterUnauthorized(
+        int $workId,
+        string $claimToken,
+        int $companyId,
+        int $accountId,
+        array $context,
+        SalesAuditWindow $window,
+        int $offset,
+        int $limit,
+        string $rejectedAccessToken,
+        DateTimeImmutable $now,
+    ): ?MeliClientResponse {
+        try {
+            $freshAccessToken = $this->tokens->refreshAfterUnauthorized($accountId, $rejectedAccessToken, $now);
+            return $this->requestSearch(
+                $freshAccessToken,
+                $companyId,
+                $accountId,
+                $context,
+                $window,
+                $offset,
+                $limit,
+            );
+        } catch (MeliRateLimitException $exception) {
+            $this->deferRateLimit(
+                $workId,
+                $claimToken,
+                $exception,
+                'Mercado Libre rate limited sales audit authorization recovery.',
+            );
+            return null;
+        } catch (MeliApiException $exception) {
+            if ($exception->status >= 500) {
+                $this->scheduleRemoteRetry($workId, $claimToken, $now);
+                return null;
+            }
+
+            $this->work->failCurrentClaim(
+                $workId,
+                $claimToken,
+                $exception->status === 401 ? 'meli_unauthorized' : 'meli_remote_permanent',
+                'Mercado Libre rejected sales audit after authorization recovery.',
+            );
+            return null;
+        } catch (RuntimeException) {
+            $this->scheduleRemoteRetry($workId, $claimToken, $now);
+            return null;
+        }
+    }
+
+    private function deferRateLimit(
+        int $workId,
+        string $claimToken,
+        MeliRateLimitException $exception,
+        string $message,
+    ): void {
+        $this->work->deferCurrentClaim(
+            $workId,
+            $claimToken,
+            $exception->retryAt,
+            'meli_rate_limited',
+            $message,
+        );
     }
 
     private function scheduleRemoteRetry(int $workId, string $claimToken, DateTimeImmutable $now): void
