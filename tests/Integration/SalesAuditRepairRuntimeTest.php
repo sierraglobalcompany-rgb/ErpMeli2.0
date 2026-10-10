@@ -141,6 +141,52 @@ final class SalesAuditRepairRuntimeTest extends TestCase
         self::assertSame([], $transport->requests);
     }
 
+    public function testRepairingRunWithNoMissingCanonicalOrdersTransitionsToConfirming(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo);
+
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $this->seedRepairingRun($audit);
+        foreach ([
+            ['100000000001', '2026-10-10 10:00:00.000000'],
+            ['200000000002', '2026-10-11 10:00:00.000000'],
+            ['300000000003', '2026-10-12 10:00:00.000000'],
+        ] as [$id, $date]) {
+            $this->insertLocalOrder($pdo, $id, $date);
+        }
+
+        $work = new WorkRepository($pdo);
+        $transport = new SalesAuditRepairRuntimeTransport();
+        $processor = $this->processor($pdo, $work, $audit, $transport);
+        $parentId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':repair',
+            ['run_id' => $runId],
+            new DateTimeImmutable('2026-10-10T00:00:00+00:00'),
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        self::assertSame($parentId, $claim['id']);
+
+        $processor($claim);
+
+        self::assertSame(
+            'confirming',
+            $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
+        );
+        self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id = ' . $parentId)->fetchColumn());
+        self::assertSame(
+            0,
+            (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn(),
+        );
+        self::assertSame([], $transport->requests);
+    }
+
     private function processor(
         PDO $pdo,
         WorkRepository $work,
@@ -201,6 +247,19 @@ final class SalesAuditRepairRuntimeTest extends TestCase
         self::assertTrue($audit->transitionToRepairingIfMissing($runId, 1, 1));
 
         return $runId;
+    }
+
+    private function insertLocalOrder(PDO $pdo, string $externalOrderId, string $dateCreated): void
+    {
+        $statement = $pdo->prepare(
+            'INSERT INTO orders '
+            . '(company_id,account_id,external_order_id,status,date_created,total_amount,currency_id) '
+            . "VALUES (1,1,:external_order_id,'paid',:date_created,'1000.0000','COP')"
+        );
+        $statement->execute([
+            'external_order_id' => $externalOrderId,
+            'date_created' => $dateCreated,
+        ]);
     }
 
     private function seedAccount(PDO $pdo): void
