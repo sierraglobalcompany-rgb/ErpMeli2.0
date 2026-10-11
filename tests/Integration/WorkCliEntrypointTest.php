@@ -31,21 +31,36 @@ final class WorkCliEntrypointTest extends TestCase
             'REAL_MELI_HTTP' => '0',
         ];
 
-        $prefix = '';
-        foreach ($env as $name => $value) {
-            $prefix .= $name . '=' . escapeshellarg($value) . ' ';
-        }
+        $processEnv = getenv();
+        self::assertIsArray($processEnv);
 
-        $output = [];
-        $exitCode = 1;
-        exec(
-            $prefix . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($path) . ' 2>&1',
-            $output,
-            $exitCode,
+        $process = proc_open(
+            [PHP_BINARY, $path],
+            [
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ],
+            $pipes,
+            dirname(__DIR__, 2),
+            array_replace($processEnv, $env),
         );
 
-        self::assertSame(0, $exitCode, implode("\n", $output));
-        self::assertSame('processed=0', trim(implode("\n", $output)));
+        self::assertIsResource($process);
+
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        $exitCode = proc_close($process);
+
+        self::assertSame(
+            0,
+            $exitCode,
+            trim((string) $stdout . PHP_EOL . (string) $stderr),
+        );
+        self::assertSame('processed=0', trim((string) $stdout));
     }
 
     public function testWorkEntrypointComposesUnifiedSalesProcessor(): void
