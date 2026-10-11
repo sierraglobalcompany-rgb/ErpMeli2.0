@@ -4,9 +4,9 @@
 **Date:** 2026-10-10  
 **Repo:** `sierraglobalcompany-rgb/ErpMeli2.0`  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**Previous checkpoint:** `0d3904a01502e5fba0720462e804a8c6eb4410a0`  
-**CLEAN-1 verified SHA:** `e5cc57d70ab485077cdb079a9cf9d1b0562020cd`  
-**Canonical QA:** `38100298528` — SUCCESS — PHP 8.3 / 8.4 / 8.5  
+**Previous checkpoint:** `cc453f17c56eb697d52fb2aae5a60d8f07630beb`  
+**CLEAN-2 verified SHA:** `357a112e949f383afa67d6802c5e3932f7b3478a`  
+**Canonical QA:** `38100764525` — SUCCESS — PHP 8.3 / 8.4 / 8.5  
 **PHPStan:** 0 errors  
 **PHPUnit:** 240 tests / 1674 assertions  
 **Normal CI `REAL_MELI_HTTP`:** `0`  
@@ -15,37 +15,24 @@
 
 ## 1. Authority map
 
-Use one responsibility per document:
-
 ```text
-AGENTS.md
-= engineering law / KISS / TDD / DELETE-first rules
-
-docs/CURRENT_CHECKPOINT.md
-= transient project state / SHAs / QA / gates / next microblock
-
-docs/ERP2_AUTHORITY.md
-= durable architecture + domain contracts
-
-README.md
-= lean entry index only
-
-Git
-= superseded history
+AGENTS.md = engineering law / KISS / TDD / DELETE-first
+docs/CURRENT_CHECKPOINT.md = transient state / SHAs / QA / gates / next block
+docs/ERP2_AUTHORITY.md = durable architecture + domain contracts
+README.md = lean entry index
+Git = superseded history
 ```
 
-For implemented truth:
+Implemented truth order:
 
 ```text
 active code/schema
-> tests/CI for the relevant SHA
+> tests/CI for relevant SHA
 > CURRENT_CHECKPOINT
 > ERP2_AUTHORITY
 > README/supporting evidence docs
 > history/inference
 ```
-
-A recent explicit user decision governs authorization/scope of the next action and must be reflected in checkpoint/authority when it changes durable truth.
 
 ---
 
@@ -56,70 +43,71 @@ G4 SALES_AUDIT_TRUTH = PASS / CLOSED
 Billing C0 tooling Cycles 1-5 = GREEN / CLOSED
 CLEAN-0 application QA noise = GREEN / CLOSED
 CLEAN-1 authority/documentation noise = GREEN / CLOSED
+CLEAN-2 semantic test naming = GREEN / CLOSED
 ```
 
-Current architecture remains deliberately small: one PHP/Slim app, one MariaDB, one Work table/runner, one MeliClient, existing OAuth/rate-safety core, Sales operational truth, Sales Audit and read-only Billing C0 tooling.
-
-No runtime behavior, schema, migration, Work type, queue, Sales logic, Billing domain logic, OAuth code, MeliClient code, transport or persistence changed in CLEAN-1.
+Architecture remains deliberately small: one PHP/Slim app, one MariaDB, one Work table/runner, one MeliClient, existing OAuth/rate-safety core, Sales operational truth, Sales Audit and read-only Billing C0 tooling.
 
 ---
 
-## 3. CLEAN-1 — CLOSED
+## 3. CLEAN-2 — CLOSED
 
 Base checkpoint:
 
 ```text
-0d3904a01502e5fba0720462e804a8c6eb4410a0
+cc453f17c56eb697d52fb2aae5a60d8f07630beb
 ```
 
-Documentation commits:
+Functional/test cleanup commit:
 
 ```text
-e1a9c9d928fe8c817653e26db848611102860eaf
-docs(clean): reduce authority and historical noise
-
-e5cc57d70ab485077cdb079a9cf9d1b0562020cd
-docs(clean): align supporting docs with current gates
+357a112e949f383afa67d6802c5e3932f7b3478a
+test(clean): rename historical F5 debug integration test
 ```
 
-Outcome:
+Repository-wide test-name audit found one unequivocal historical phase name:
 
 ```text
-README.md: ~1631 -> 85 lines
-ERP2_AUTHORITY.md: durable contracts only
-15 historical/premature docs removed
-retained docs/ surface reduced to 6 living files
-stale F0/F3 phase language removed from supporting docs
-G8 HOSTING_REALITY terminology aligned
-old F6 contract removed after preserving accepted external Billing facts
+tests/Integration/F5FinalAdversarialTest.php
+-> tests/Integration/DebugRuntimeIntegrationTest.php
 ```
 
-Removed material is still available through Git history and is no longer an authority source.
-
-Living `docs/` surface:
+The test is semantically a Debug runtime integration test covering:
 
 ```text
-CURRENT_CHECKPOINT.md
-ERP2_AUTHORITY.md
-meli-contracts-2026.md
-mercadolibre-app-erp2.md
-runtime-preflight.md
-hostinger-runtime-evidence.md
+DebugRecorder cap warning + settings cap alert
+real webhook HTTP route -> DebugRecorder when DEBUG enabled
 ```
 
-Canonical verification for CLEAN-1 functional/doc SHA `e5cc57d7...`:
+Only historical `F5` fixture labels/temporary identifiers were renamed to Debug-semantic equivalents. Assertions and behavior were preserved.
+
+Noise audit from `cc453f17...` to `357a112...`:
 
 ```text
-RUN:          38100298528 — SUCCESS
-PHP 8.3 job:  114354685825 — SUCCESS
-PHP 8.4 job:  114354685879 — SUCCESS
-PHP 8.5 job:  114354685902 — SUCCESS
+exactly 1 commit
+exactly 1 GitHub-recognized rename
+7 additions / 7 deletions
+no production file changes
+no schema/migration changes
+no runtime behavior changes
+no Billing/Sales/OAuth/MeliClient/Work changes
+```
+
+Recursive tree audit after the rename found no remaining `F5` path. No additional test filename justified a cosmetic rename.
+
+Canonical verification:
+
+```text
+RUN:          38100764525 — SUCCESS
+PHP 8.3 job:  114356049245 — SUCCESS
+PHP 8.4 job:  114356049356 — SUCCESS
+PHP 8.5 job:  114356049320 — SUCCESS
 PHPStan:      0 errors
 PHPUnit:      240/240 tests, 1674 assertions
 REAL_MELI_HTTP=0
 ```
 
-Known runner-only MariaDB `memory.pressure` / `io_uring` warnings remain infrastructure noise, not ERP application warnings.
+Known MariaDB runner-only `memory.pressure` / `io_uring` warnings remain infrastructure noise.
 
 ---
 
@@ -139,20 +127,9 @@ sort_by = ID
 order_by = ASC
 ```
 
-Current C0 tooling is read-only and sanitized. It does not persist Billing, refresh OAuth, persist api-usage/cooldown, or perform remote writes.
+C0 tooling remains read-only and sanitized. It does not persist Billing, refresh OAuth, persist api-usage/cooldown, or perform remote writes.
 
-Before durable Billing handler/schema finalization or Billing Task2, real sanitized seller-MCO evidence must observe:
-
-```text
-first-page shape
-last_id shape
-sequential cursor progress
-terminal signal
-HTTP 206 only if actually observed
-repeated/non-progress only if actually observed
-```
-
-Do not synthesize 206/non-progress/terminal semantics. Any existing pre-release Billing schema remains provisional until audited against accepted C0 evidence.
+Before durable Billing handler/schema finalization or Billing Task2, real sanitized seller-MCO evidence must establish first-page shape, `last_id`, cursor progress and terminal semantics. 206/non-progress behavior is accepted only if actually observed. Existing `005_billing.sql` remains provisional until audited against accepted C0 evidence.
 
 ---
 
@@ -169,7 +146,7 @@ G7 WRITE_FAIL_CLOSED: PASS
 G8 HOSTING_REALITY: NOT CERTIFIED
 ```
 
-External gates remain:
+External gates:
 
 ```text
 Issue #3 — Hostinger/runtime/main protection
@@ -181,29 +158,30 @@ Issue #5 — dedicated Mercado Libre ERP2 app/OAuth reality + authenticated real
 ## 6. Next microblock — frozen, not started
 
 ```text
-CLEAN-2 — semantic test naming / remove historical phase names where safe
+CLEAN-3 — audit small Routes/CompanyContext reuse cleanup; change only if net simplification is proven
 ```
 
 Scope guard:
 
 ```text
-rename only when semantics improve
-no behavior changes
-no broad refactor
-no schema/migration changes
+audit first; DELETE/SIMPLIFY before ADD
+no cleanup merely for style
+no broad Routes refactor
+no new service/helper/abstraction unless strictly reducing existing duplication
+no behavior/schema/migration changes
 no Billing Cycle 6 implementation
-full reference audit before renames
-fresh QA
+fresh QA if any code changes
 noise audit
 checkpoint
 STOP
 ```
 
+If the audit does not prove a small safe simplification, CLEAN-3 closes as no-op and the project advances to Billing C0 Cycle 6.
+
 Frozen order:
 
 ```text
-CLEAN-2 semantic naming
--> CLEAN-3 small Routes/CompanyContext reuse cleanup if still justified
+CLEAN-3 audit/reuse cleanup if justified
 -> Billing C0 Cycle 6 guarded CLI composition
 -> explicit authorization for real authenticated C0 seller-MCO execution
 -> sanitize + audit evidence
@@ -218,11 +196,11 @@ CLEAN-2 semantic naming
 
 ## 7. STOP
 
-CLEAN-1 is closed with canonical QA evidence.
+CLEAN-2 is closed with canonical QA evidence.
 
 **STOP HERE.**
 
-No CLEAN-2 started.  
+No CLEAN-3 started.  
 No Billing Cycle 6 started.  
 No Billing Task2 started.  
 No real Mercado Libre HTTP executed by C0 tooling.  
