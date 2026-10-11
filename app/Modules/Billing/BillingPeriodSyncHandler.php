@@ -15,6 +15,7 @@ use DateTimeZone;
 use PDO;
 use RuntimeException;
 use Throwable;
+use UnexpectedValueException;
 
 final class BillingPeriodSyncHandler
 {
@@ -92,26 +93,101 @@ final class BillingPeriodSyncHandler
             return false;
         }
 
-        if (!array_key_exists('results', $response->data) || !array_key_exists('last_id', $response->data)) {
+        try {
+            [$isEmptyPage, $nextCursor, $normalizedDetails] = $this->preparePage($response, $fromId);
+        } catch (RuntimeException) {
+            $this->work->failCurrentClaim(
+                $workId, $claimToken, 'meli_billing_contract',
+                'Mercado Libre returned an unusable billing period page.',
+            );
+            return false;
+        }
+
+        $lastSyncedAt = $now->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
+
+        try {
+            return $this->work->completeCurrentClaim(
+                $workId,
+                $claimToken,
+                function (PDO $pdo) use (
+                    $companyId,
+                    $accountId,
+                    $periodKey,
+                    $documentType,
+                    $fromId,
+                    $isEmptyPage,
+                    $nextCursor,
+                    $normalizedDetails,
+                    $lastSyncedAt,
+                    $scopeKey,
+                    $now,
+                ): void {
+                    $periodId = $this->lockPeriod($pdo, $companyId, $accountId, $periodKey, $documentType, $fromId);
+                    if (!$isEmptyPage) {
+                        $this->upsertDetails($pdo, $periodId, $normalizedDetails);
+                    }
+
+                    $state = $isEmptyPage ? 'caught_up' : 'pending';
+                    $update = $pdo->prepare(
+                        'UPDATE billing_periods SET cursor_last_id = :cursor_last_id, sync_state = :sync_state, '
+                        . 'partial_flag = 0, last_synced_at = :last_synced_at WHERE id = :id',
+                    );
+                    $update->execute([
+                        'cursor_last_id' => $nextCursor,
+                        'sync_state' => $state,
+                        'last_synced_at' => $lastSyncedAt,
+                        'id' => $periodId,
+                    ]);
+
+                    if ($isEmptyPage) {
+                        return;
+                    }
+
+                    $resourceKey = $periodKey . ':' . $documentType;
+                    $this->work->enqueue(
+                        $companyId,
+                        $accountId,
+                        $scopeKey,
+                        'billing.period.sync',
+                        $resourceKey,
+                        'billing.period.sync:' . $resourceKey . ':' . $nextCursor,
+                        [
+                            'period_key' => $periodKey,
+                            'document_type' => $documentType,
+                            'from_id' => $nextCursor,
+                        ],
+                        $now,
+                    );
+                },
+            );
+        } catch (UnexpectedValueException) {
+            $this->work->failCurrentClaim(
+                $workId, $claimToken, 'billing_cursor_conflict',
+                'Billing period cursor no longer matches this Work.',
+            );
+            return false;
+        }
+    }
+
+    /** @return array{bool,string,list<array<string,mixed>>} */
+    private function preparePage(MeliClientResponse $response, string $fromId): array
+    {
+        if (!array_key_exists('results', $response->data)) {
             throw new RuntimeException('Mercado Libre billing period response contract is invalid.');
         }
         $results = $response->data['results'];
-        $lastId = $response->data['last_id'];
         if (!is_array($results)) {
             throw new RuntimeException('Mercado Libre billing period response contract is invalid.');
         }
         $isEmptyPage = $results === [];
-        if ($isEmptyPage && $lastId !== null && !is_string($lastId) && !is_int($lastId)) {
-            throw new RuntimeException('Mercado Libre billing period response contract is invalid.');
-        }
-
         $nextCursor = $fromId;
-        if (!$isEmptyPage && (!is_string($lastId) && !is_int($lastId))) {
-            throw new RuntimeException('Mercado Libre billing period response contract is invalid.');
-        }
         if (!$isEmptyPage) {
-            $nextCursor = (string) $lastId;
-            if (trim($nextCursor) === '' || strlen($nextCursor) > 40 || $nextCursor === $fromId) {
+            $lastId = $response->data['last_id'] ?? null;
+            if (!is_string($lastId)) {
+                throw new RuntimeException('Mercado Libre billing period response contract is invalid.');
+            }
+            $nextCursor = trim($lastId);
+            if ($nextCursor === '' || strlen($nextCursor) > 40 || $nextCursor === $fromId) {
                 throw new RuntimeException('Mercado Libre billing period response contract is invalid.');
             }
         }
@@ -130,62 +206,7 @@ final class BillingPeriodSyncHandler
             }
         }
 
-        $lastSyncedAt = $now->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
-
-        return $this->work->completeCurrentClaim(
-            $workId,
-            $claimToken,
-            function (PDO $pdo) use (
-                $companyId,
-                $accountId,
-                $periodKey,
-                $documentType,
-                $fromId,
-                $isEmptyPage,
-                $nextCursor,
-                $normalizedDetails,
-                $lastSyncedAt,
-                $scopeKey,
-                $now,
-            ): void {
-                $periodId = $this->lockPeriod($pdo, $companyId, $accountId, $periodKey, $documentType, $fromId);
-                if (!$isEmptyPage) {
-                    $this->upsertDetails($pdo, $periodId, $normalizedDetails);
-                }
-
-                $state = $isEmptyPage ? 'caught_up' : 'pending';
-                $update = $pdo->prepare(
-                    'UPDATE billing_periods SET cursor_last_id = :cursor_last_id, sync_state = :sync_state, '
-                    . 'partial_flag = 0, last_synced_at = :last_synced_at WHERE id = :id',
-                );
-                $update->execute([
-                    'cursor_last_id' => $nextCursor,
-                    'sync_state' => $state,
-                    'last_synced_at' => $lastSyncedAt,
-                    'id' => $periodId,
-                ]);
-
-                if ($isEmptyPage) {
-                    return;
-                }
-
-                $resourceKey = $periodKey . ':' . $documentType;
-                $this->work->enqueue(
-                    $companyId,
-                    $accountId,
-                    $scopeKey,
-                    'billing.period.sync',
-                    $resourceKey,
-                    'billing.period.sync:' . $resourceKey . ':' . $nextCursor,
-                    [
-                        'period_key' => $periodKey,
-                        'document_type' => $documentType,
-                        'from_id' => $nextCursor,
-                    ],
-                    $now,
-                );
-            },
-        );
+        return [$isEmptyPage, $nextCursor, $normalizedDetails];
     }
 
     private function requestPage(
@@ -283,7 +304,7 @@ final class BillingPeriodSyncHandler
 
         if (!is_array($period)) {
             if ($fromId !== '0') {
-                throw new RuntimeException('Billing period cursor changed before page persistence.');
+                throw new UnexpectedValueException('Billing period cursor changed before page persistence.');
             }
 
             $insert = $pdo->prepare(
@@ -295,8 +316,11 @@ final class BillingPeriodSyncHandler
             $period = $select->fetch(PDO::FETCH_ASSOC);
         }
 
-        if (!is_array($period) || (string) $period['cursor_last_id'] !== $fromId) {
-            throw new RuntimeException('Billing period cursor changed before page persistence.');
+        if (!is_array($period)) {
+            throw new RuntimeException('Billing period could not be reloaded after creation.');
+        }
+        if ((string) $period['cursor_last_id'] !== $fromId) {
+            throw new UnexpectedValueException('Billing period cursor changed before page persistence.');
         }
 
         return (int) $period['id'];
