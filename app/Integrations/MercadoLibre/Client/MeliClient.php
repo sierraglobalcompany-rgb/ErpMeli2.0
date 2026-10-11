@@ -121,8 +121,6 @@ final class MeliClient
             throw new MeliRateLimitException($retryAt, $requestId);
         }
 
-        $this->cooldowns?->clear($cooldownKey);
-
         if ($response->status < 200 || $response->status >= 300) {
             $outcome = $response->status >= 500 ? 'server_error' : 'client_error';
             $this->recordUsage($scopeKey, $operationKey, $resourceCount, $outcome, $durationMs);
@@ -154,6 +152,7 @@ final class MeliClient
             throw new RuntimeException('Mercado Libre returned invalid JSON.', 0, $exception);
         }
 
+        $this->cooldowns?->clear($cooldownKey);
         $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'success', $durationMs);
         $this->recordDebugHttp($operationKey, $response->status, 'success', $durationMs, $requestId);
 
