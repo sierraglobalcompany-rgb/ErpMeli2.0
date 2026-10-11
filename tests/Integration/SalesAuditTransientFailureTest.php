@@ -53,10 +53,10 @@ final class SalesAuditTransientFailureTest extends TestCase
         self::assertSame(1, $this->auditWorkCount($pdo));
     }
 
-    public function testServerErrorSchedulesBoundedRetryAndConsumesAttempt(): void
+    public function testServerErrorPreservesRetryAfterAndConsumesAttempt(): void
     {
         [$pdo, $handler, $claim, $runId, $transport] = $this->fixture([
-            new MeliTransportResponse(503, [], '{"error":"service_unavailable"}'),
+            new MeliTransportResponse(503, ['retry-after' => '600'], '{"error":"service_unavailable"}'),
         ]);
         $now = new DateTimeImmutable('2026-10-10T02:00:00+00:00');
 
@@ -76,7 +76,7 @@ final class SalesAuditTransientFailureTest extends TestCase
         self::assertSame('pending', $row['status']);
         self::assertSame(1, (int) $row['attempts']);
         self::assertSame('meli_remote_retry', $row['last_error_code']);
-        self::assertSame('2026-10-10 02:00:30.000000', $row['available_at']);
+        self::assertSame('2026-10-10 02:10:00.000000', $row['available_at']);
         self::assertCount(1, $transport->requests);
         self::assertSame(0, $this->evidenceCount($pdo, $runId));
         self::assertSame(1, $this->auditWorkCount($pdo));

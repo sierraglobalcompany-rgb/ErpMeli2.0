@@ -152,13 +152,13 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
         self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
     }
 
-    public function testServerErrorSchedulesBoundedRetryAndConsumesAttempt(): void
+    public function testServerErrorPreservesRetryAfterAndConsumesAttempt(): void
     {
         $pdo = TestDatabase::reset();
         $cipher = new TokenCipher('sales-failure-test-key');
         [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
         $transport = new RemoteOutcomeTransport([
-            new MeliTransportResponse(503, [], '{"error":"service_unavailable"}'),
+            new MeliTransportResponse(503, ['retry-after' => '600'], '{"error":"service_unavailable"}'),
         ]);
         [$handler, $work] = $this->handler($pdo, $cipher, $transport);
         $claim = $this->claim($work, $companyId, $accountId);
@@ -178,7 +178,7 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
         self::assertSame('pending', $row['status']);
         self::assertSame(1, (int) $row['attempts']);
         self::assertSame('meli_remote_retry', $row['last_error_code']);
-        self::assertSame('2026-10-09 01:20:30.000000', $row['available_at']);
+        self::assertSame('2026-10-09 01:30:00.000000', $row['available_at']);
     }
 
     public function testTransportFailureSchedulesSameBoundedRetry(): void

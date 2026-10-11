@@ -125,11 +125,15 @@ final class MeliClient
             $outcome = $response->status >= 500 ? 'server_error' : 'client_error';
             $this->recordUsage($scopeKey, $operationKey, $resourceCount, $outcome, $durationMs);
             $this->recordDebugHttp($operationKey, $response->status, $outcome, $durationMs, $requestId);
+            $retryAfterSeconds = $classification === 'READ' && $response->status >= 500
+                ? $this->retryAfterSeconds($this->header($response->headers, 'retry-after'))
+                : null;
 
             throw new MeliApiException(
                 $response->status,
                 $requestId,
                 $this->safeRemoteErrorCode($response->body),
+                $retryAfterSeconds,
             );
         }
 
@@ -254,11 +258,44 @@ final class MeliClient
         }
 
         $trimmed = trim($header);
-        if ($trimmed === '' || !ctype_digit($trimmed)) {
+        if ($trimmed === '') {
             return null;
         }
 
-        return (int) $trimmed;
+        if (preg_match('/\A[0-9]+\z/D', $trimmed) === 1) {
+            $seconds = ltrim($trimmed, '0');
+            if ($seconds === '') {
+                return 0;
+            }
+
+            $maximum = (string) PHP_INT_MAX;
+            if (strlen($seconds) > strlen($maximum)
+                || (strlen($seconds) === strlen($maximum) && strcmp($seconds, $maximum) > 0)) {
+                return null;
+            }
+
+            return (int) $seconds;
+        }
+
+        if (preg_match(
+            '/\A(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), [0-9]{2} '
+            . '(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]{4} '
+            . '[0-9]{2}:[0-9]{2}:[0-9]{2} GMT\z/D',
+            $trimmed,
+        ) !== 1) {
+            return null;
+        }
+
+        $utc = new DateTimeZone('UTC');
+        $retryAt = DateTimeImmutable::createFromFormat('!D, d M Y H:i:s \\G\\M\\T', $trimmed, $utc);
+        $errors = DateTimeImmutable::getLastErrors();
+        if (!$retryAt instanceof DateTimeImmutable
+            || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))
+            || $retryAt->format('D, d M Y H:i:s \\G\\M\\T') !== $trimmed) {
+            return null;
+        }
+
+        return max(0, $retryAt->getTimestamp() - (new DateTimeImmutable('now', $utc))->getTimestamp());
     }
 
     private function fallbackRetryAt(?int $retryAfterSeconds): DateTimeImmutable

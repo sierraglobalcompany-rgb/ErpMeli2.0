@@ -19,6 +19,7 @@ use PDOException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Throwable;
 use Tests\Support\TestDatabase;
 
 final class MeliRateLimitTest extends TestCase
@@ -80,6 +81,122 @@ final class MeliRateLimitTest extends TestCase
         }
 
         self::assertCount(1, $transport->requests);
+    }
+
+    public function testRetryAfterFutureHttpDatePreservesRemoteWait(): void
+    {
+        $pdo = TestDatabase::reset();
+        $target = (new DateTimeImmutable('now UTC'))->modify('+1 hour');
+        $header = $target->format('D, d M Y H:i:s \\G\\M\\T');
+        $transport = new RateLimitQueueTransport([
+            new MeliTransportResponse(429, ['retry-after' => $header], '{}'),
+        ]);
+
+        try {
+            $this->client($pdo, $transport)->request('users.me', 'token');
+            self::fail('429 must produce a rate-limit exception.');
+        } catch (MeliRateLimitException $exception) {
+            self::assertGreaterThanOrEqual($target->getTimestamp(), $exception->retryAt->getTimestamp());
+            self::assertLessThanOrEqual($target->modify('+2 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
+        }
+    }
+
+    public function testRetryAfterPastHttpDatePreservesLocalFallback(): void
+    {
+        $pdo = TestDatabase::reset();
+        $before = new DateTimeImmutable('now UTC');
+        $header = $before->modify('-1 day')->format('D, d M Y H:i:s \\G\\M\\T');
+        $transport = new RateLimitQueueTransport([
+            new MeliTransportResponse(429, ['retry-after' => $header], '{}'),
+        ]);
+
+        try {
+            $this->client($pdo, $transport)->request('users.me', 'token');
+            self::fail('429 must produce a rate-limit exception.');
+        } catch (MeliRateLimitException $exception) {
+            $this->assertLocalFallback($exception, $before);
+        }
+    }
+
+    public function testRetryAfterZeroPreservesLocalFallback(): void
+    {
+        $pdo = TestDatabase::reset();
+        $before = new DateTimeImmutable('now UTC');
+        $transport = new RateLimitQueueTransport([
+            new MeliTransportResponse(429, ['retry-after' => '0'], '{}'),
+        ]);
+
+        try {
+            $this->client($pdo, $transport)->request('users.me', 'token');
+            self::fail('429 must produce a rate-limit exception.');
+        } catch (MeliRateLimitException $exception) {
+            $this->assertLocalFallback($exception, $before);
+        }
+    }
+
+    #[DataProvider('invalidRetryAfterHeaders')]
+    public function testInvalidRetryAfterPreservesLocalFallback(string $header): void
+    {
+        $pdo = TestDatabase::reset();
+        $before = new DateTimeImmutable('now UTC');
+        $transport = new RateLimitQueueTransport([
+            new MeliTransportResponse(429, ['retry-after' => $header], '{}'),
+        ]);
+
+        try {
+            $this->client($pdo, $transport)->request('users.me', 'token');
+            self::fail('429 must produce a rate-limit exception.');
+        } catch (MeliRateLimitException $exception) {
+            $this->assertLocalFallback($exception, $before);
+        } catch (Throwable $exception) {
+            self::fail('Invalid Retry-After must not throw ' . $exception::class . '.');
+        }
+    }
+
+    /** @return array<string,array{string}> */
+    public static function invalidRetryAfterHeaders(): array
+    {
+        return [
+            'garbage' => ['garbage'],
+            'relative date' => ['tomorrow'],
+            'invalid date' => ['Mon, 32 Oct 2026 20:00:00 GMT'],
+            '36 digit overflow' => ['999999999999999999999999999999999999'],
+        ];
+    }
+
+    public function testRetryAfterPreservesLargeValidDelay(): void
+    {
+        $pdo = TestDatabase::reset();
+        $before = new DateTimeImmutable('now UTC');
+        $transport = new RateLimitQueueTransport([
+            new MeliTransportResponse(429, ['retry-after' => '172800'], '{}'),
+        ]);
+
+        try {
+            $this->client($pdo, $transport)->request('users.me', 'token');
+            self::fail('429 must produce a rate-limit exception.');
+        } catch (MeliRateLimitException $exception) {
+            self::assertGreaterThanOrEqual($before->modify('+172800 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
+            self::assertLessThanOrEqual((new DateTimeImmutable('now UTC'))->modify('+172802 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
+        }
+    }
+
+    public function testValidRemoteRetryAfterDoesNotShortenSteppedLocalFallback(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedCooldown($pdo, (new DateTimeImmutable('-1 hour UTC'))->format('Y-m-d H:i:s.u'), 6);
+        $before = new DateTimeImmutable('now UTC');
+        $transport = new RateLimitQueueTransport([
+            new MeliTransportResponse(429, ['retry-after' => '20'], '{}'),
+        ]);
+
+        try {
+            $this->client($pdo, $transport)->request('users.me', 'token');
+            self::fail('429 must produce a rate-limit exception.');
+        } catch (MeliRateLimitException $exception) {
+            self::assertGreaterThanOrEqual($before->modify('+900 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
+            self::assertLessThanOrEqual((new DateTimeImmutable('now UTC'))->modify('+902 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
+        }
     }
 
     public function testCooldownIsFamilyScopedInsteadOfFreezingAllMercadoLibreTraffic(): void
@@ -384,6 +501,15 @@ PHP;
     {
         $statement = $pdo->prepare('INSERT INTO meli_cooldowns (cooldown_key, blocked_until, consecutive_429) VALUES (?, ?, ?)');
         $statement->execute(['app:users', $deadline, $count]);
+    }
+
+    private function assertLocalFallback(MeliRateLimitException $exception, DateTimeImmutable $before): void
+    {
+        self::assertGreaterThanOrEqual($before->modify('+15 seconds')->getTimestamp(), $exception->retryAt->getTimestamp());
+        self::assertLessThanOrEqual(
+            (new DateTimeImmutable('now UTC'))->modify('+17 seconds')->getTimestamp(),
+            $exception->retryAt->getTimestamp(),
+        );
     }
 
     private function client(PDO $pdo, RateLimitQueueTransport $transport): MeliClient

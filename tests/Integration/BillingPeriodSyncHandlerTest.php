@@ -264,6 +264,26 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         $this->assertNoCanonicalMutation($transport);
     }
 
+    public function testServerErrorPreservesRetryAfterInWorkRetry(): void
+    {
+        $transport = new BillingPeriodSyncFakeTransport([
+            new MeliTransportResponse(503, ['retry-after' => '600'], '{}'),
+        ]);
+        $claim = $this->processFailure($transport);
+        $this->assertRemoteRetry($claim['id'], 600);
+        $this->assertNoCanonicalMutation($transport);
+    }
+
+    public function testServerErrorInvalidRetryAfterKeepsLocalWorkRetry(): void
+    {
+        $transport = new BillingPeriodSyncFakeTransport([
+            new MeliTransportResponse(503, ['retry-after' => 'garbage'], '{}'),
+        ]);
+        $claim = $this->processFailure($transport);
+        $this->assertRemoteRetry($claim['id']);
+        $this->assertNoCanonicalMutation($transport);
+    }
+
     public function testTransportFailureSchedulesBoundedRetryWithoutCanonicalMutation(): void
     {
         $transport = new BillingPeriodSyncFakeTransport([new RuntimeException('Fake transport failed.')]);
@@ -533,14 +553,19 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         return $row;
     }
 
-    private function assertRemoteRetry(int $id): void
+    private function assertRemoteRetry(int $id, int $seconds = 30): void
     {
         $row = $this->workRow($id);
         self::assertSame('pending', $row['status']);
         self::assertSame(1, (int) $row['attempts']);
         self::assertNull($row['claim_token']);
         self::assertSame('meli_remote_retry', $row['last_error_code']);
-        self::assertSame('2026-10-11 00:00:30.000000', $row['available_at']);
+        self::assertSame(
+            $this->now->setTimezone(new DateTimeZone('UTC'))
+                ->modify('+' . $seconds . ' seconds')
+                ->format('Y-m-d H:i:s.u'),
+            $row['available_at'],
+        );
     }
 
     private function assertNoCanonicalMutation(BillingPeriodSyncFakeTransport $transport): void

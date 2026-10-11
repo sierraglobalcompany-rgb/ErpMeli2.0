@@ -91,7 +91,7 @@ final class SyncOrderHandler
             }
 
             if ($exception->status >= 500) {
-                $this->scheduleRemoteRetry($workId, $claimToken, $now);
+                $this->scheduleRemoteRetry($workId, $claimToken, $now, $exception->retryAfterSeconds);
                 return false;
             }
 
@@ -139,7 +139,7 @@ final class SyncOrderHandler
             }
 
             if ($exception->status >= 500) {
-                $this->scheduleRemoteRetry($workId, $claimToken, $now);
+                $this->scheduleRemoteRetry($workId, $claimToken, $now, $exception->retryAfterSeconds);
                 return false;
             }
 
@@ -261,12 +261,18 @@ final class SyncOrderHandler
         );
     }
 
-    private function scheduleRemoteRetry(int $workId, string $claimToken, DateTimeImmutable $now): void
+    private function scheduleRemoteRetry(
+        int $workId,
+        string $claimToken,
+        DateTimeImmutable $now,
+        ?int $retryAfterSeconds = null,
+    ): void
     {
+        $waitSeconds = max(self::REMOTE_RETRY_SECONDS, $retryAfterSeconds ?? 0);
         $this->work->retryCurrentClaim(
             $workId,
             $claimToken,
-            $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
+            $now->modify('+' . $waitSeconds . ' seconds'),
             'meli_remote_retry',
             'Mercado Libre order sync encountered a temporary remote failure.',
         );

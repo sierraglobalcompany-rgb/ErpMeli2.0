@@ -12,6 +12,7 @@ final class MeliApiException extends RuntimeException
         public readonly int $status,
         public readonly ?string $requestId,
         public readonly ?string $errorCode = null,
+        public readonly ?int $retryAfterSeconds = null,
     ) {
         parent::__construct('Mercado Libre request failed with HTTP ' . $status . '.');
     }

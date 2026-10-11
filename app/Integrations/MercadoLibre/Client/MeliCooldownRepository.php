@@ -40,11 +40,11 @@ final class MeliCooldownRepository
         }
 
         $jitterSeconds = random_int(0, 2);
-        $insertSeconds = ($retryAfterSeconds !== null && $retryAfterSeconds >= 0)
-            ? $retryAfterSeconds + $jitterSeconds
-            : 15 + $jitterSeconds;
-
-        $retryAfterParam = ($retryAfterSeconds !== null && $retryAfterSeconds >= 0)
+        $insertSeconds = max(
+            15 + $jitterSeconds,
+            $retryAfterSeconds !== null && $retryAfterSeconds >= 0 ? $retryAfterSeconds : 0,
+        );
+        $retryAfterParam = $retryAfterSeconds !== null && $retryAfterSeconds >= 0
             ? $retryAfterSeconds
             : null;
 
@@ -55,15 +55,17 @@ final class MeliCooldownRepository
             . 'blocked_until = GREATEST('
             . '    blocked_until, '
             . '    DATE_ADD(UTC_TIMESTAMP(6), INTERVAL ('
-            . '        CASE '
-            . '            WHEN :retry_after_seconds >= 0 THEN :retry_after_seconds_val '
-            . '            WHEN LEAST(consecutive_429 + 1, 65535) = 1 THEN 15 '
-            . '            WHEN LEAST(consecutive_429 + 1, 65535) = 2 THEN 30 '
-            . '            WHEN LEAST(consecutive_429 + 1, 65535) = 3 THEN 60 '
-            . '            WHEN LEAST(consecutive_429 + 1, 65535) = 4 THEN 120 '
-            . '            WHEN LEAST(consecutive_429 + 1, 65535) = 5 THEN 300 '
-            . '            ELSE 900 '
-            . '        END + :jitter_seconds'
+            . '        GREATEST('
+            . '            COALESCE(:retry_after_seconds_val, -1), '
+            . '            (CASE '
+            . '                WHEN LEAST(consecutive_429 + 1, 65535) = 1 THEN 15 '
+            . '                WHEN LEAST(consecutive_429 + 1, 65535) = 2 THEN 30 '
+            . '                WHEN LEAST(consecutive_429 + 1, 65535) = 3 THEN 60 '
+            . '                WHEN LEAST(consecutive_429 + 1, 65535) = 4 THEN 120 '
+            . '                WHEN LEAST(consecutive_429 + 1, 65535) = 5 THEN 300 '
+            . '                ELSE 900 '
+            . '            END + :jitter_seconds)'
+            . '        )'
             . '    ) SECOND)'
             . '), '
             . 'consecutive_429 = LEAST(consecutive_429 + 1, 65535), '
@@ -73,7 +75,6 @@ final class MeliCooldownRepository
         $statement->execute([
             'cooldown_key' => $cooldownKey,
             'insert_seconds' => $insertSeconds,
-            'retry_after_seconds' => $retryAfterParam,
             'retry_after_seconds_val' => $retryAfterParam,
             'jitter_seconds' => $jitterSeconds,
         ]);

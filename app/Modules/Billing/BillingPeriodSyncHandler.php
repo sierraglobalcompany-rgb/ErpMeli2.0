@@ -63,7 +63,7 @@ final class BillingPeriodSyncHandler
             return false;
         } catch (MeliApiException $exception) {
             if ($exception->status !== 401) {
-                $this->handleRemoteFailure($workId, $claimToken, $exception, $now);
+                $this->handleRemoteFailure($workId, $claimToken, $exception, $now, $exception->retryAfterSeconds);
                 return false;
             }
 
@@ -74,7 +74,13 @@ final class BillingPeriodSyncHandler
                 $this->deferRateLimit($workId, $claimToken, $recoveryException);
                 return false;
             } catch (MeliApiException $recoveryException) {
-                $this->handleRemoteFailure($workId, $claimToken, $recoveryException, $now);
+                $this->handleRemoteFailure(
+                    $workId,
+                    $claimToken,
+                    $recoveryException,
+                    $now,
+                    $recoveryException->retryAfterSeconds,
+                );
                 return false;
             } catch (RuntimeException) {
                 $this->scheduleRemoteRetry($workId, $claimToken, $now);
@@ -239,18 +245,30 @@ final class BillingPeriodSyncHandler
         );
     }
 
-    private function scheduleRemoteRetry(int $workId, string $claimToken, DateTimeImmutable $now): void
+    private function scheduleRemoteRetry(
+        int $workId,
+        string $claimToken,
+        DateTimeImmutable $now,
+        ?int $retryAfterSeconds = null,
+    ): void
     {
+        $waitSeconds = max(self::REMOTE_RETRY_SECONDS, $retryAfterSeconds ?? 0);
         $this->work->retryCurrentClaim(
-            $workId, $claimToken, $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
+            $workId, $claimToken, $now->modify('+' . $waitSeconds . ' seconds'),
             'meli_remote_retry', 'Mercado Libre billing period sync encountered a temporary remote failure.',
         );
     }
 
-    private function handleRemoteFailure(int $workId, string $claimToken, MeliApiException $exception, DateTimeImmutable $now): void
+    private function handleRemoteFailure(
+        int $workId,
+        string $claimToken,
+        MeliApiException $exception,
+        DateTimeImmutable $now,
+        ?int $retryAfterSeconds = null,
+    ): void
     {
         if ($exception->status >= 500) {
-            $this->scheduleRemoteRetry($workId, $claimToken, $now);
+            $this->scheduleRemoteRetry($workId, $claimToken, $now, $retryAfterSeconds);
             return;
         }
 
