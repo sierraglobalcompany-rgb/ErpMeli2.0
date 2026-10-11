@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Core\Config\AppConfig;
+use App\Core\Config\Environment;
+use App\Core\Database\Connection;
+use App\Integrations\MercadoLibre\Auth\TokenCipher;
+use App\Modules\Billing\C0\BillingC0Runtime;
+use DateTimeImmutable;
+use DateTimeZone;
+use Throwable;
+
 $appEnv = getenv('APP_ENV');
 if ($appEnv !== 'production') {
     fwrite(STDERR, "Billing C0 requires APP_ENV=production.\n");
@@ -48,5 +57,17 @@ if ($maxPagesValue === false) {
     exit(2);
 }
 
-fwrite(STDERR, "Billing C0 runtime is not configured yet.\n");
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+try {
+    $config = AppConfig::fromEnvironment(Environment::all());
+    $pdo = Connection::fromConfig($config);
+    $runtime = new BillingC0Runtime($pdo, new TokenCipher($config->appKey));
+    $runtime->resolve((int) $accountId, new DateTimeImmutable('now', new DateTimeZone('UTC')));
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Billing C0 blocked: ' . $exception->getMessage() . "\n");
+    exit(2);
+}
+
+fwrite(STDERR, "Billing C0 account/token ready; HTTP smoke is not configured yet.\n");
 exit(2);
