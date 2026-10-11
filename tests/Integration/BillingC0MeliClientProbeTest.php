@@ -10,6 +10,7 @@ use App\Integrations\MercadoLibre\Transport\MeliTransportResponse;
 use App\Modules\Billing\C0\BillingC0Probe;
 use App\Modules\Settings\SystemSettingsRepository;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class BillingC0MeliClientProbeTest extends TestCase
@@ -112,7 +113,10 @@ final class BillingC0SequenceTransport implements MeliTransport
         ];
 
         $response = array_shift($this->responses);
-        self::assertInstanceOf(MeliTransportResponse::class, $response);
+        if (!$response instanceof MeliTransportResponse) {
+            throw new RuntimeException('Billing C0 fake transport ran out of responses.');
+        }
+
         return $response;
     }
 }
