@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Billing\C0;
 
+use App\Integrations\MercadoLibre\Client\MeliClient;
 use App\Integrations\MercadoLibre\Client\MeliClientResponse;
 use Closure;
 use RuntimeException;
@@ -17,6 +18,29 @@ final class BillingC0Probe
     public function __construct(callable $fetchPage)
     {
         $this->fetchPage = Closure::fromCallable($fetchPage);
+    }
+
+    public static function forMeliClient(
+        MeliClient $client,
+        string $accessToken,
+        int $companyId,
+        int $accountId,
+        string $periodKey,
+        string $documentType,
+    ): self {
+        return new self(static fn (string $cursor): MeliClientResponse => $client->request(
+            'billing.period.details',
+            $accessToken,
+            scopeKey: 'company:' . $companyId . ':account:' . $accountId,
+            pathParams: ['period_key' => $periodKey],
+            queryParams: [
+                'document_type' => $documentType,
+                'limit' => 1000,
+                'from_id' => $cursor,
+                'sort_by' => 'ID',
+                'order_by' => 'ASC',
+            ],
+        ));
     }
 
     /**
