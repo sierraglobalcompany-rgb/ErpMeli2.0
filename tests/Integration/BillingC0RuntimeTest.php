@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use App\Integrations\MercadoLibre\Auth\TokenCipher;
+use App\Integrations\MercadoLibre\Transport\MeliTransport;
+use App\Integrations\MercadoLibre\Transport\MeliTransportResponse;
 use App\Modules\Billing\C0\BillingC0Runtime;
 use DateTimeImmutable;
 use PDO;
@@ -40,6 +42,60 @@ final class BillingC0RuntimeTest extends TestCase
             'access_token' => 'secret-access-token',
             'expires_at' => '2026-10-11 01:00:00.000000',
         ], $resolved);
+    }
+
+    public function testProbeComposesExistingMeliClientReadOnlyWithInjectedTransport(): void
+    {
+        $this->seedAccount('connected');
+        $this->seedToken('secret-access-token', '2026-10-11 01:00:00.000000');
+        $beforeToken = $this->tokenSnapshot();
+        $beforeStatus = $this->accountStatus();
+
+        $transport = new BillingC0RuntimeTransport([
+            new MeliTransportResponse(
+                200,
+                [],
+                '{"results":[],"last_id":null}',
+            ),
+        ]);
+        /** @var array<string,array{method:string,path:string,family:string,classification:string,official_doc_url:string,verified_at:string,preserve_numbers?:bool}> $operations */
+        $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
+
+        $runtime = new BillingC0Runtime($this->pdo, $this->cipher);
+        $evidence = $runtime->probe(
+            1,
+            new DateTimeImmutable('2026-10-10T19:00:00-05:00'),
+            $transport,
+            $operations,
+            '2026-09-01',
+            'BILL',
+            5,
+        );
+
+        self::assertSame('empty_results', $evidence['stop_reason']);
+        self::assertFalse($evidence['partial_observed']);
+        self::assertFalse($evidence['non_progress_observed']);
+        self::assertCount(1, $evidence['pages']);
+        self::assertSame('0', $evidence['pages'][0]['cursor_in']);
+        self::assertSame(0, $evidence['pages'][0]['results_count']);
+
+        self::assertCount(1, $transport->requests);
+        self::assertSame('GET', $transport->requests[0]['method']);
+        self::assertSame(
+            'https://api.mercadolibre.com/billing/integration/periods/key/2026-09-01/group/ML/details'
+            . '?document_type=BILL&limit=1000&from_id=0&sort_by=ID&order_by=ASC',
+            $transport->requests[0]['url'],
+        );
+        self::assertSame('Bearer secret-access-token', $transport->requests[0]['headers']['Authorization']);
+
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM api_usage_daily')->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM meli_cooldowns')->fetchColumn());
+        self::assertSame($beforeToken, $this->tokenSnapshot());
+        self::assertSame($beforeStatus, $this->accountStatus());
+
+        $serializedEvidence = json_encode($evidence, JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString('secret-access-token', $serializedEvidence);
+        self::assertStringNotContainsString('secret-refresh-token', $serializedEvidence);
     }
 
     public function testMissingAccountFailsClosed(): void
@@ -110,7 +166,7 @@ final class BillingC0RuntimeTest extends TestCase
         );
         $statement->execute([
             'access_token_cipher' => $this->cipher->encrypt($accessToken),
-            'refresh_token_cipher' => $this->cipher->encrypt('refresh-token-must-not-be-used'),
+            'refresh_token_cipher' => $this->cipher->encrypt('secret-refresh-token'),
             'expires_at' => $expiresAt,
         ]);
     }
@@ -135,5 +191,38 @@ final class BillingC0RuntimeTest extends TestCase
     private function accountStatus(): string
     {
         return (string) $this->pdo->query('SELECT status FROM meli_accounts WHERE id = 1')->fetchColumn();
+    }
+}
+
+final class BillingC0RuntimeTransport implements MeliTransport
+{
+    /** @var list<MeliTransportResponse> */
+    private array $responses;
+
+    /** @var list<array{method:string,url:string,headers:array<string,string>,body:?string}> */
+    public array $requests = [];
+
+    /** @param list<MeliTransportResponse> $responses */
+    public function __construct(array $responses)
+    {
+        $this->responses = $responses;
+    }
+
+    /** @param array<string,string> $headers */
+    public function send(string $method, string $url, array $headers, ?string $body): MeliTransportResponse
+    {
+        $this->requests[] = [
+            'method' => $method,
+            'url' => $url,
+            'headers' => $headers,
+            'body' => $body,
+        ];
+
+        $response = array_shift($this->responses);
+        if (!$response instanceof MeliTransportResponse) {
+            throw new RuntimeException('Billing C0 runtime fake transport ran out of responses.');
+        }
+
+        return $response;
     }
 }
