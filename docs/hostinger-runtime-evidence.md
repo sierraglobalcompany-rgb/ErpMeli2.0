@@ -1,74 +1,54 @@
 # Hostinger runtime evidence — ERP Meli 2.0
 
-**Cutoff:** 2026-10-08
+Este documento separa capacidades públicas de Hostinger de hechos específicos de la cuenta que todavía requieren hPanel/runtime real.
 
-This document separates public Hostinger capabilities from account-specific facts that still require hPanel/runtime evidence.
-
-## ERP2 deployment target confirmed by project owner
+## Target de despliegue
 
 ```text
 PUBLIC_URL=https://erpmeli.bodegadigitalmedellin.com/
 DOCUMENT_ROOT=/home/u390570745/domains/bodegadigitalmedellin.com/public_html/erpmeli2
 ```
 
-Project rule:
+Reglas:
 
-- the public URL is the subdomain above;
-- the physical folder name `erpmeli2` must not be exposed as a URL path requirement;
-- the web server must expose only the application's `public/` entry point or an equivalent safe document-root arrangement;
-- `storage/`, `.env`, Composer metadata and application source must not be directly web-accessible.
+- la URL pública es el subdominio anterior;
+- el folder físico `erpmeli2` no se expone como requisito de URL;
+- el servidor debe exponer sólo `public/` o una configuración equivalente segura;
+- `storage/`, `.env`, metadata Composer y source de aplicación no deben quedar accesibles directamente por web.
 
-The final hPanel configuration still needs to be verified on the real account before deployment is certified.
+La configuración real de hPanel debe verificarse antes de certificar G8.
 
-## Confirmed from current official Hostinger documentation
+## Capacidades públicas conocidas
 
-### PHP 8.5
+La documentación pública de Hostinger soporta PHP moderno hasta 8.5 en planes compatibles. El proyecto mantiene compatibilidad PHP 8.3 / 8.4 / 8.5, pero la versión web y CLI reales deben medirse en la cuenta ERP2.
 
-Hostinger currently allows PHP versions up to PHP 8.5 for supported web-hosting sites.
+Hostinger documenta límites de cron dependientes del plan. ERP2 requiere sólo dos entradas por diseño:
 
-Sources:
+```text
+bin/work.php
+bin/cleanup.php
+```
 
-- https://www.hostinger.com/support/1575755-how-to-change-the-php-version-of-your-hostinger-hosting-plan/
-- https://www.hostinger.com/support/4047803-how-to-change-the-php-version-for-subfolders-or-subdomains-in-hostinger/
+Las cuotas de CPU/RAM/disk/inodes/database también varían por plan y versión comercial; una tabla pública no constituye evidencia de la cuenta real.
 
-**Project consequence:** PHP 8.5 is a valid target, but it still must be enabled and verified for the actual ERP2 website and CLI/runtime used by cron.
+Fuentes públicas de referencia:
 
-### Cron capacity
+- `hostinger.com/support/1575755-how-to-change-the-php-version-of-your-hostinger-hosting-plan/`
+- `hostinger.com/support/4047803-how-to-change-the-php-version-for-subfolders-or-subdomains-in-hostinger/`
+- `hostinger.com/support/1583765-how-many-cron-jobs-can-you-set-up-in-hostinger/`
+- `hostinger.com/support/6976044-parameters-and-limits-of-hosting-plans-in-hostinger/`
+- `hostinger.com/support/10717644-new-web-and-cloud-hosting-limits-at-hostinger/`
+- `hostinger.com/support/1583210-what-is-the-inode-limit-and-what-happens-when-it-is-reached/`
 
-Hostinger currently documents:
+## Evidencia de cuenta requerida
 
-- Single hosting: maximum 2 cron jobs;
-- Premium and above: unlimited cron jobs.
-
-Source:
-
-- https://www.hostinger.com/support/1583765-how-many-cron-jobs-can-you-set-up-in-hostinger/
-
-**Project consequence:** ERP2 needs only two cron entries by default (`work` and `cleanup`), so even the documented Single limit is structurally sufficient. The actual account still needs its minimum supported interval confirmed.
-
-### Hosting quotas vary by plan/version
-
-Hostinger publishes CPU/RAM/disk/inode/database limits, but also documents multiple plan-limit versions based on purchase date. Therefore a public Business/Premium table is **not account-specific proof** of the ERP2 quotas.
-
-Sources:
-
-- https://www.hostinger.com/support/6976044-parameters-and-limits-of-hosting-plans-in-hostinger/
-- https://www.hostinger.com/support/10717644-new-web-and-cloud-hosting-limits-at-hostinger/
-- https://www.hostinger.com/support/1583210-what-is-the-inode-limit-and-what-happens-when-it-is-reached/
-
-**Project consequence:** do not freeze DB/storage/debug limits from a marketing/support table. Read the actual account values in hPanel.
-
-## Account-specific facts still required
-
-Run:
+Ejecutar en el runtime real:
 
 ```bash
 php bin/runtime-preflight.php
 ```
 
-on the real ERP2 Hostinger runtime and record its non-secret output.
-
-Then confirm in hPanel:
+Y confirmar en hPanel:
 
 ```text
 HOST_DISK_QUOTA
@@ -82,30 +62,26 @@ HTTPS_STATUS
 SUBDOMAIN_DOCUMENT_ROOT
 ```
 
-`SUBDOMAIN_DOCUMENT_ROOT` must be verified against the intended ERP2 deployment target above.
+`SUBDOMAIN_DOCUMENT_ROOT` debe corresponder al target ERP2 y mantener el source/storage fuera del web root efectivo.
 
-## Gate rule
-
-Public documentation proves platform capability, not the account-specific configuration.
-
-Therefore:
+## Gate G8 HOSTING_REALITY
 
 ```text
-official Hostinger docs + CI green != HOSTINGER_PREFLIGHT_PASS
+official Hostinger docs + CI green != G8 PASS
 ```
 
-F0 closes only after the actual runtime and hPanel values are recorded.
+G8 requiere evidencia del runtime y de la cuenta real. Hasta entonces permanece `NOT CERTIFIED` aunque GitHub Actions esté verde.
 
-## KISS consequence
+## Consecuencia KISS
 
-The architecture continues to assume only:
+El diseño sólo presupone:
 
 ```text
-2 cron jobs maximum needed by ERP2 V1
-1 MariaDB database
-PHP 8.5
-bounded filesystem storage
-1 dedicated HTTPS subdomain
+2 cron jobs
+1 MariaDB
+PHP compatible 8.3-8.5
+filesystem storage acotado
+1 subdominio HTTPS dedicado
 ```
 
-If the actual account cannot meet those minimal requirements, change the environment or deployment configuration before adding application complexity. Do not create application-side workarounds for hosting-plan constraints.
+Si la cuenta real no cumple esos mínimos, se corrige ambiente/configuración antes de agregar complejidad a la aplicación.
