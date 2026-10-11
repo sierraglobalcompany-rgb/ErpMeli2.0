@@ -7,6 +7,7 @@ namespace App\Integrations\MercadoLibre\Auth;
 use App\Integrations\MercadoLibre\Client\MeliApiException;
 use App\Integrations\MercadoLibre\Client\MeliClient;
 use App\Integrations\MercadoLibre\Client\MeliRateLimitException;
+use App\Integrations\MercadoLibre\Client\MeliResponseCleanupException;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
@@ -108,6 +109,7 @@ final class OAuthRefreshService
             'refresh_token' => $refreshToken,
         ], '', '&', PHP_QUERY_RFC3986);
 
+        $responseCleanupFailure = null;
         try {
             // A refresh token is one-use. This POST is intentionally dispatched once only.
             $response = $this->client->request(
@@ -118,6 +120,10 @@ final class OAuthRefreshService
                 scopeKey: 'account:' . $accountId,
                 resourceCount: 1,
             );
+        } catch (MeliResponseCleanupException $exception) {
+            // Keep the validated single-use token response so it can be persisted before surfacing SQL cleanup failure.
+            $response = $exception->response;
+            $responseCleanupFailure = $exception;
         } catch (MeliApiException $exception) {
             if ($exception->errorCode === 'invalid_grant') {
                 $this->setAccountStatus($accountId, 'reauth_required');
@@ -202,6 +208,10 @@ final class OAuthRefreshService
                 $this->pdo->rollBack();
             }
             throw $exception;
+        }
+
+        if ($responseCleanupFailure instanceof MeliResponseCleanupException) {
+            throw $responseCleanupFailure;
         }
 
         return $accessToken;

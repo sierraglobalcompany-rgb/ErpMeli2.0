@@ -12,6 +12,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
 use JsonException;
+use PDOException;
 use RuntimeException;
 use Throwable;
 
@@ -156,11 +157,17 @@ final class MeliClient
             throw new RuntimeException('Mercado Libre returned invalid JSON.', 0, $exception);
         }
 
-        $this->cooldowns?->clear($cooldownKey);
+        $clientResponse = new MeliClientResponse($response->status, $data, $requestId);
         $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'success', $durationMs);
         $this->recordDebugHttp($operationKey, $response->status, 'success', $durationMs, $requestId);
 
-        return new MeliClientResponse($response->status, $data, $requestId);
+        try {
+            $this->cooldowns?->clear($cooldownKey);
+        } catch (PDOException $exception) {
+            throw new MeliResponseCleanupException($clientResponse, $exception);
+        }
+
+        return $clientResponse;
     }
 
     /** @param array<string,string> $pathParams */

@@ -135,6 +135,94 @@ final class OAuthRefreshServiceTest extends TestCase
         self::assertSame(1, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=' . $accountId)->fetchColumn());
     }
 
+    public function testUnauthorizedRefreshUsesTokenRotatedBeforeLockWithoutPostingAgain(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('test-app-secret');
+        $accountId = $this->seedAccount(
+            $pdo,
+            $cipher,
+            'rejected-access',
+            'old-refresh-one-use',
+            '2026-10-08 17:59:00.000000',
+        );
+        $rotator = Connection::fromConfig(TestDatabase::config());
+        $update = $rotator->prepare(
+            'UPDATE meli_tokens SET access_token_cipher = :access_token_cipher, '
+            . 'refresh_token_cipher = :refresh_token_cipher, expires_at = :expires_at, '
+            . 'refresh_version = refresh_version + 1 WHERE account_id = :account_id'
+        );
+        $update->execute([
+            'access_token_cipher' => $cipher->encrypt('already-rotated-access'),
+            'refresh_token_cipher' => $cipher->encrypt('already-rotated-refresh'),
+            'expires_at' => '2026-10-09 00:00:00.000000',
+            'account_id' => $accountId,
+        ]);
+        $transport = new RefreshQueueTransport([]);
+        $lockConnection = Connection::fromConfig(TestDatabase::config());
+        $service = $this->service($pdo, $lockConnection, $transport, $cipher);
+
+        $token = $service->refreshAfterUnauthorized(
+            $accountId,
+            'rejected-access',
+            new DateTimeImmutable('2026-10-08T18:00:00+00:00'),
+        );
+
+        self::assertSame('already-rotated-access', $token);
+        self::assertCount(0, $transport->requests);
+        self::assertSame(1, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=' . $accountId)->fetchColumn());
+        $probe = Connection::fromConfig(TestDatabase::config());
+        self::assertTrue($this->acquireProbeLock($probe, $this->lockName($accountId)));
+        $this->releaseProbeLock($probe, $this->lockName($accountId));
+    }
+
+    public function testCooldownCleanupDatabaseFailureDoesNotLoseSuccessfulRefreshResponse(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('test-app-secret');
+        $accountId = $this->seedAccount(
+            $pdo,
+            $cipher,
+            'expired-access',
+            'single-use-refresh',
+            '2026-10-08 17:00:00.000000',
+        );
+        $pdo->exec(
+            "INSERT INTO meli_cooldowns(cooldown_key,blocked_until,consecutive_429) "
+            . "VALUES ('app:oauth','2000-01-01 00:00:00.000000',1)"
+        );
+        $pdo->exec(
+            "CREATE TRIGGER fail_expired_oauth_cooldown_delete BEFORE DELETE ON meli_cooldowns "
+            . "FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'simulated cooldown cleanup failure'"
+        );
+        $transport = new RefreshQueueTransport([
+            new MeliTransportResponse(200, [], '{"access_token":"fresh","refresh_token":"rotated","expires_in":3600}'),
+        ]);
+        $service = $this->service($pdo, Connection::fromConfig(TestDatabase::config()), $transport, $cipher);
+        $failure = null;
+
+        try {
+            $service->getValidAccessToken($accountId, new DateTimeImmutable('2026-10-08T18:00:00+00:00'));
+        } catch (PDOException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        $stored = $pdo->query('SELECT * FROM meli_tokens WHERE account_id=' . $accountId)->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($stored);
+        self::assertSame('fresh', $cipher->decrypt((string) $stored['access_token_cipher']));
+        self::assertSame('rotated', $cipher->decrypt((string) $stored['refresh_token_cipher']));
+        self::assertSame(1, (int) $stored['refresh_version']);
+        self::assertSame('connected', $pdo->query('SELECT status FROM meli_accounts WHERE id=' . $accountId)->fetchColumn());
+
+        $second = $this->service($pdo, Connection::fromConfig(TestDatabase::config()), $transport, $cipher);
+        self::assertSame(
+            'fresh',
+            $second->getValidAccessToken($accountId, new DateTimeImmutable('2026-10-08T18:00:00+00:00')),
+        );
+        self::assertCount(1, $transport->requests, 'A failed expired-cooldown cleanup must not lose or repeat a successful refresh.');
+    }
+
     public function testBusyAccountRefreshLockBlocksBeforeHttp(): void
     {
         $pdo = TestDatabase::reset();
