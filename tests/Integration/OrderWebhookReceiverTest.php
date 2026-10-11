@@ -76,6 +76,26 @@ final class OrderWebhookReceiverTest extends TestCase
         );
     }
 
+    public function testImpossibleZonedOptionalTimestampsBecomeNullWithoutRejectingWebhook(): void
+    {
+        $pdo = TestDatabase::reset();
+        [, , $sellerId] = $this->seedAccount($pdo);
+        $work = new WorkRepository($pdo);
+        $receiver = new OrderWebhookReceiver($pdo, $work, '987654321');
+        $payload = $this->payload($sellerId);
+        $payload['sent'] = '2026-02-30T10:00:00-05:00';
+        $payload['received'] = '2026-02-30T10:00:00.123+02:00';
+
+        self::assertTrue($receiver->receive($payload));
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM webhook_events')->fetchColumn());
+        self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn());
+        self::assertSame(
+            ['sent_at' => null, 'received_at' => null],
+            $pdo->query('SELECT sent_at,received_at FROM webhook_events')->fetch(),
+        );
+        self::assertSame('pending', $pdo->query("SELECT status FROM work_items WHERE type='order.sync'")->fetchColumn());
+    }
+
     public function testDuplicateNotificationDoesNotCreateDuplicateEventOrActiveWork(): void
     {
         $pdo = TestDatabase::reset();

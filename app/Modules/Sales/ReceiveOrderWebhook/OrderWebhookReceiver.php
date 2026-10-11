@@ -178,7 +178,13 @@ final class OrderWebhookReceiver
         }
 
         try {
-            return (new DateTimeImmutable($timestamp))
+            $parsed = new DateTimeImmutable($timestamp);
+            $errors = DateTimeImmutable::getLastErrors();
+            if (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+                return null;
+            }
+
+            return $parsed
                 ->setTimezone(new DateTimeZone('UTC'))
                 ->format('Y-m-d H:i:s.u');
         } catch (\Exception) {
