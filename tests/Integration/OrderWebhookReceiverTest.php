@@ -108,6 +108,66 @@ final class OrderWebhookReceiverTest extends TestCase
         self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type = 'order.sync'")->fetchColumn());
     }
 
+    public function testSameNotificationAfterCompletedSyncDoesNotCreateAnotherOrderSync(): void
+    {
+        $pdo = TestDatabase::reset();
+        [, , $sellerId] = $this->seedAccount($pdo);
+        $work = new WorkRepository($pdo);
+        $receiver = new OrderWebhookReceiver($pdo, $work, '987654321');
+        $payload = $this->payload($sellerId);
+
+        self::assertTrue($receiver->receive($payload));
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        self::assertSame('order.sync', $claim['type']);
+        self::assertTrue($work->completeCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            static function (\PDO $_pdo): void {},
+        ));
+        self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id = ' . $claim['id'])->fetchColumn());
+
+        self::assertTrue($receiver->receive($payload));
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM webhook_events')->fetchColumn());
+        self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn());
+        self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync' AND status='done'")->fetchColumn());
+        self::assertSame(0, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync' AND status='pending'")->fetchColumn());
+        self::assertSame(0, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync' AND status='running'")->fetchColumn());
+        self::assertNull($work->claimNext());
+    }
+
+    public function testNewNotificationForSameOrderAfterCompletedSyncCreatesNewOrderSync(): void
+    {
+        $pdo = TestDatabase::reset();
+        [, , $sellerId] = $this->seedAccount($pdo);
+        $work = new WorkRepository($pdo);
+        $receiver = new OrderWebhookReceiver($pdo, $work, '987654321');
+        $payload = $this->payload($sellerId);
+
+        self::assertTrue($receiver->receive($payload));
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        self::assertTrue($work->completeCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            static function (\PDO $_pdo): void {},
+        ));
+
+        $payload['_id'] = 'evt-order-2';
+        $payload['sent'] = '2026-10-09T01:05:00.000Z';
+        $payload['received'] = '2026-10-09T01:05:00.100Z';
+        self::assertTrue($receiver->receive($payload));
+        self::assertSame(2, (int) $pdo->query('SELECT COUNT(*) FROM webhook_events')->fetchColumn());
+        self::assertSame(2, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn());
+        self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id = ' . $claim['id'])->fetchColumn());
+        self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync' AND status='pending'")->fetchColumn());
+        $nextClaim = $work->claimNext();
+        self::assertIsArray($nextClaim);
+        self::assertNotSame($claim['id'], $nextClaim['id']);
+        self::assertSame('order.sync', $nextClaim['type']);
+        self::assertSame(['order_id' => '200000000001'], $nextClaim['payload']);
+    }
+
     #[DataProvider('ignoredPayloadProvider')]
     public function testUnknownOrUnsupportedNotificationIsSafelyIgnored(array $changes): void
     {

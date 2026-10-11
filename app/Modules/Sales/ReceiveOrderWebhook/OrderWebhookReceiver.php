@@ -82,6 +82,12 @@ final class OrderWebhookReceiver
                 'received_at' => $receivedAt,
             ]);
 
+            $eventInserted = $event->rowCount() === 1;
+            if (!$eventInserted) {
+                $this->pdo->commit();
+                return true;
+            }
+
             $scope = 'company:' . $account['company_id'] . ':account:' . $account['id'];
             $workId = $this->work->enqueue(
                 $account['company_id'],
