@@ -6,6 +6,8 @@ use App\Core\Config\AppConfig;
 use App\Core\Config\Environment;
 use App\Core\Database\Connection;
 use App\Integrations\MercadoLibre\Auth\TokenCipher;
+use App\Integrations\MercadoLibre\Transport\CurlMeliTransport;
+use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
 use App\Modules\Billing\C0\BillingC0Runtime;
 
 $appEnv = getenv('APP_ENV');
@@ -65,11 +67,22 @@ try {
     $config = AppConfig::fromEnvironment(Environment::all());
     $pdo = Connection::fromConfig($config);
     $runtime = new BillingC0Runtime($pdo, new TokenCipher($config->appKey));
-    $runtime->resolve((int) $accountId, new DateTimeImmutable('now', new DateTimeZone('UTC')));
+    /** @var array<string,array{method:string,path:string,family:string,classification?:string,official_doc_url:string,verified_at:string,preserve_numbers?:bool}> $operations */
+    $operations = require dirname(__DIR__) . '/config/meli_operations.php';
+    $evidence = $runtime->probe(
+        (int) $accountId,
+        new DateTimeImmutable('now', new DateTimeZone('UTC')),
+        new CurlMeliTransport(new RemoteHostPolicy(), $config->appEnv),
+        $operations,
+        (string) $period,
+        (string) $documentType,
+        (int) $maxPagesValue,
+    );
+
+    fwrite(STDOUT, json_encode($evidence, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n");
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Billing C0 blocked: ' . $exception->getMessage() . "\n");
     exit(2);
 }
 
-fwrite(STDERR, "Billing C0 account/token ready; HTTP smoke is not configured yet.\n");
-exit(2);
+exit(0);
