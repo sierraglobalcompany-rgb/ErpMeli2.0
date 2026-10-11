@@ -26,7 +26,7 @@ No usar planes, checkpoints o handoffs históricos como autoridad. Git conserva 
 | `AGENTS.md` | Leyes de ingeniería, reducción de ruido, TDD, KISS y límites no negociables. |
 | `docs/CURRENT_CHECKPOINT.md` | Verdad transitoria: branch/HEAD, último QA, trabajo cerrado, gate actual y siguiente microbloque. |
 | `docs/ERP2_AUTHORITY.md` | Contratos durables que deben sobrevivir a varios checkpoints. No debe contener changelog ni roadmap transitorio. |
-| `README.md` | Índice de entrada. No duplica contratos detallados ni historial. |
+| `README.md` | Producto, arquitectura permitida, roadmap maestro, fases, dependencias y guardrails operacionales. No es un changelog ni duplica el detalle transitorio del checkpoint. |
 
 ### Precedencia para saber qué existe hoy
 
@@ -45,7 +45,9 @@ Una decisión explícita reciente del usuario gobierna el alcance y la autorizac
 
 ERP2 reemplaza progresivamente ERP1, pero ERP1 es fuente de evidencia y aprendizaje, no blueprint arquitectónico.
 
-El núcleo actual mantiene una sola aplicación PHP/Slim, una MariaDB, un `Work` durable, un `WorkRunner`, un `MeliClient`, OAuth centralizado, rate safety, Sales operational truth, Sales Audit y tooling C0 de Billing. No se agregan queues, schedulers, engines, estados, tablas o capas por dominio sin evidencia real.
+El núcleo actual mantiene una sola aplicación PHP/Slim, una MariaDB, un `Work` durable, un `WorkRunner`, un `MeliClient`, OAuth centralizado, Sales operational truth, Sales Audit y Billing por periodos. La protección de consumo existente necesita correcciones: **G3 RATE_SAFETY está OPEN / NOT FULLY CERTIFIED**. No se agregan queues, schedulers, engines, estados, tablas o capas por dominio sin evidencia real.
+
+De ERP1 se recuperan invariantes, fixtures y criterios de aceptación útiles; no se trasladan sus motores ni su arquitectura por defecto. Cada cambio debe demostrar el problema y qué sustituye, elimina, simplifica o reúne, conforme a `AGENTS.md`.
 
 Reglas de seguridad permanentes durante esta etapa:
 
@@ -56,6 +58,38 @@ no merge sin autorización explícita
 no deploy sin autorización explícita
 no mutación de producción DB/OAuth sin autorización explícita
 ```
+
+## Roadmap maestro y dependencias
+
+El detalle verificable de estado, QA y gates vive en `docs/CURRENT_CHECKPOINT.md`. Esta secuencia define el alcance del producto; no autoriza iniciar la fase siguiente.
+
+| Fase | Alcance / dependencia |
+|---|---|
+| F0 Truth / Preflight | Verificar código, entorno y contratos antes de cada bloque. Hosting real se certifica en F14. |
+| F1 Foundation | Base de aplicación, configuración y MariaDB. |
+| F2 Work | Ejecución durable sobre F1; un solo Work y runner. |
+| F3 Mercado Libre Core | Cliente, OAuth y protección de consumo sobre F2; G3 sigue abierto. |
+| F4 Sales | Verdad operacional y Sales Audit sobre Work/core. |
+| F5 Debug / observabilidad | Diagnóstico reutilizando logging y core; no sustituye protección ni verdad de negocio. |
+| F6 Billing + Financial foundation | Billing periódico sobre Work/core; Financial local exige facts suficientes y fixtures sin doble conteo. |
+| F7 Catalog | Reutilizar core/Work; confirmar contratos y consumidores antes de ampliar capturas. |
+| F8 Inventory | Reutilizar facts y contratos de catálogo según necesidad demostrada. |
+| F9 ERP API | Exponer capacidades implementadas con autoridad de empresa/cuenta comprobada. |
+| F10 Invoicing Boundary | Separar el contrato de facturación de las verdades Sales/Billing. |
+| F11 Invoicing Provider | Depende del boundary y de un proveedor/contrato elegido explícitamente. |
+| F12 PostSale, si hace falta | Sólo con necesidad real y contratos confirmados. |
+| F13 Migration | Depende de cobertura y reglas de datos; rescatar de ERP1 lo útil, sin importar sobrearquitectura. |
+| F14 Shadow / external certification | Certificación READ-only de hosting, OAuth ERP2 y API real, con autorización separada. |
+| F15 Cutover | Depende de la certificación externa y autorización de transición. |
+| F16 Remote Writes | Requiere autorización explícita separada y gate de escrituras; hasta entonces OFF. |
+
+### Continuidad local después de R0
+
+R0 cerró la reconciliación documental local. **F6A-LOCAL-3A y F6A-LOCAL-3B están cerrados dentro de su cobertura local**, incluido el cursor opaco post-decoder y la durabilidad/replay de página. No significa Billing completo: el routing F6A-LOCAL-4 y los riesgos compartidos del core siguen pendientes. **Financial = NOT READY**.
+
+El siguiente microbloque es **MB-01 / API-SAFETY-1**. MB-01, MB-02 y MB-03 deben resolver cooldown/concurrencia, Retry-After y clasificación OAuth/infraestructura antes de ampliar consumo remoto Billing. No dependen de construir una pantalla ni de añadir otra cola o motor. Este cierre documental no los inicia.
+
+F1–F13 se desarrollan y prueban localmente con `REAL_MELI_HTTP=0`, transportes inyectados/fakes y MariaDB de pruebas. C0 real no es una puerta obligatoria para Billing local ya implementado: pertenece a F14, requiere autorización separada y conserva su contrato sin persistencia de negocio/uso/cooldown ni refresh OAuth. Ninguna fase declara inmunidad a 429 o baneos.
 
 ## Documentación de apoyo vigente
 
@@ -69,6 +103,8 @@ Estos documentos son evidencia o guías operativas específicas; no reemplazan c
 ## Forma de trabajo
 
 Cada cambio se ejecuta como microbloque:
+
+R0 es una reconciliación docs-only: inspeccionar, comprobar contradicciones, editar, validar, commit y STOP. Los cambios de comportamiento sí requieren RED → GREEN mínimo → QA antes de cerrar su checkpoint.
 
 ```text
 problema/evidencia
