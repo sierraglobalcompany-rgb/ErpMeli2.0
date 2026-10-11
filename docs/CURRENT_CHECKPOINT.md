@@ -8,23 +8,23 @@
 
 **Branch:** `impl/v3-b-sales-audit-20261010`
 
-**MB-02 implementation and QA SHA:** `737c99d53c0acf7eef27025ce4d792216ae926dd`
+**MB-03 implementation and functional QA SHA:** `9fc2be58f528c8309456d7c0ad33d8544459bbda`
 
-**Working tree before MB-02 and after functional QA:** CLEAN
+**Working tree before MB-03:** CLEAN
 
-**Last closed block / CURRENT:** MB-02 CLOSED — strict Retry-After parsing and conservative wait propagation
+**Last closed block / CURRENT:** MB-03 CLOSED — OAuth uncertainty, busy-lock deferral and infrastructure error separation
 
-**NEXT:** MB-03 / API-SAFETY-3
+**NEXT:** MB-08 / F6A-LOCAL-4 Billing routing
 
 **REAL_MELI_HTTP:** `0`
 
 **Remote Mercado Libre writes:** OFF
 
-This docs-only commit follows the implementation/QA SHA above. Its own SHA is discoverable from Git; it does not change runtime, schema, tests or dependencies. Verify actual HEAD and any later delta before continuing. QA used only injected transports/fakes and a temporary local MariaDB container; no real OAuth or Mercado Libre HTTP, push, merge or deploy was performed.
+This docs-only commit follows the implementation/functional QA SHA above. Its own SHA is discoverable from Git; it does not change runtime, schema, tests or dependencies. QA used only injected transports/fakes and a temporary local MariaDB 11.4 container on port 13341, removed after QA. `REAL_MELI_HTTP=0`; no real OAuth or Mercado Libre HTTP, remote writes, push, merge or deploy was performed. F14 external certification remains pending.
 
 ## 1. Local verification and QA
 
-The expected branch is active. The MB-02 implementation commit is `737c99d53c0acf7eef27025ce4d792216ae926dd` (`fix(meli): preserve Retry-After semantics`). QA ran on the same source tree committed by that SHA.
+The expected branch is active. The MB-03 implementation commit is `9fc2be58f528c8309456d7c0ad33d8544459bbda` (`fix(meli): harden OAuth refresh safety`). QA ran on the same source tree committed by that SHA.
 
 The prior MB-01 ancestry is:
 
@@ -35,17 +35,17 @@ The prior MB-01 ancestry is:
 
 The only commit between those SHAs is `ea86ba2b`, message `fix(meli): harden cooldown concurrency`. It changes `app/Integrations/MercadoLibre/Client/MeliClient.php`, `app/Integrations/MercadoLibre/Client/MeliCooldownRepository.php` and `tests/Integration/MeliRateLimitTest.php`.
 
-Fresh QA results for MB-02:
+Fresh QA results for MB-03:
 
 | Check | Result |
 |---|---|
 | `composer validate --strict` | PASS, exit 0 |
 | `php vendor/bin/phpstan analyse --no-progress` | PASS, 0 errors, exit 0 |
-| Focused MB-02 + MB-01 cooldown regressions | PASS, 65 tests / 627 assertions / 0 failures / 0 errors |
-| `php vendor/bin/phpunit` | PASS, 319 tests / 2336 assertions / 1 skipped / 0 failures / 0 errors, exit 0 |
+| Focused MB-03 + MB-02 + MB-01 OAuth and cooldown regressions | PASS, 72 tests / 741 assertions / 0 failures / 0 errors |
+| `php vendor/bin/phpunit` | PASS, 333 tests / 2458 assertions / 1 skipped / 0 failures / 0 errors, exit 0 |
 | Runtime | PHP 8.5.8; PHPUnit 12.5.38 |
 
-PHPUnit used the existing harness with a temporary local MariaDB 11.4 container on port 3308; the container was removed after QA. Injected transports/fakes and `REAL_MELI_HTTP=0` kept Mercado Libre HTTP off. The one skipped test concerns unavailable symlink creation on this platform; that filesystem case is not newly certified.
+PHPUnit used the existing harness with a temporary local MariaDB 11.4 container on port 13341; the container was removed after QA. Injected transports/fakes and `REAL_MELI_HTTP=0` kept Mercado Libre HTTP off. The one skipped test concerns unavailable symlink creation on this platform; that filesystem case is not newly certified.
 
 ## 2. Current implementation and Safety boundary
 
@@ -61,7 +61,7 @@ One PHP/Slim application, one MariaDB, one Work table/runner and one MeliClient.
 | R0 | CLOSED locally at `997c22f5`: local state and roadmap reconciliation. |
 | MB-01 / API-SAFETY-1 | CLOSED locally at `ea86ba2b`: atomic upsert with saturated counter, GREATEST monotonic deadline, effective retryAt reload, safe clear only for expired cooldowns, and cleanup deferred until post-2xx/JSON validation. |
 | MB-02 / API-SAFETY-2 | CLOSED locally at `737c99d5`: strict ASCII delay-seconds and IMF-fixdate parsing, overflow-safe invalid handling, MAX(local, remote, durable) 429 cooldown, and GET 5xx Work wait propagation. |
-| MB-03 / API-SAFETY-3 | PENDING: OAuth uncertain POST, busy lock, and SQL versus business error classification. |
+| MB-03 / API-SAFETY-3 | CLOSED locally at `9fc2be58`: typed busy-lock signal defers Work without consuming attempts; refresh 429 uses the existing effective cooldown; uncertain 5xx/transport outcomes mark the account `attention`; invalid_grant remains `reauth_required`; rotated-token reread and one-refresh/one-resource-retry 401 behavior remain intact; PDO failures escape OAuth, Billing, Sales and Audit business catches. |
 | F6A-LOCAL-4 | PENDING: minimal application Work routing; no HandlerRegistry, bus, domain queue or new runner. |
 | Financial | NOT STARTED / NOT READY; no ledger or formulas introduced. |
 
@@ -83,13 +83,23 @@ Verified local MB-02 properties:
 
 Evidence: `MeliClient::retryAfterSeconds/request`, `MeliCooldownRepository::register429`, `MeliApiException::$retryAfterSeconds`, the three affected read handlers, and focused integration tests.
 
+Verified local MB-03 properties:
+
+- A held per-account refresh lock emits one OAuth-specific busy signal; Billing, SyncOrder and Sales Audit defer the existing Work claim for 30 seconds with net attempts unchanged, no HTTP, and no account/token mutation.
+- OAuth refresh 429 still defers to the effective durable cooldown without changing account status or retrying inline. `invalid_grant` still requires reauthorization without a second refresh POST.
+- Refresh 5xx and ambiguous transport failures set the account to `attention`; subsequent Work stops before HTTP until the account is resolved. The lock-protected token reread still uses a token rotated by another process without a redundant refresh.
+- First resource 401 still allows one refresh and one resource retry; a second 401 ends without a second refresh or third resource request.
+- PDO failures escape before being mapped to OAuth attention or Sales Audit business outcomes; transactional Audit state writes keep rollback behavior.
+
+Evidence: `OAuthRefreshService`, Billing/SyncOrder/Sales Audit handlers, `SalesWorkProcessor`, `SalesAuditRepairHandler`, and focused tests in `OAuthRefreshServiceTest`, `SyncOrderHandlerTokenFailureTest`, `BillingPeriodSyncHandlerTest`, `SalesAuditTransientFailureTest`, `SalesAuditUnauthorizedTest`, `SalesWorkProcessorTest`, and `SalesAuditRepairFanoutTest`.
+
 ## 3. Current gates and priorities
 
 | Gate | Current verdict / limit |
 |---|---|
 | G1 REMOTE_TRUTH | Local implemented contracts evidenced; external READ-only certification remains F14. |
 | G2 WORK_SAFETY | Local supported-producer coverage GREEN; conditional malformed scalar payload robustness remains open. |
-| G3 RATE_SAFETY | OPEN / NOT FULL PASS. MB-01 cooldown safety and MB-02 Retry-After parsing/wait propagation are closed locally; MB-03 OAuth recovery remains open. |
+| G3 RATE_SAFETY | PASS LOCAL / core API safety closed locally through MB-03. This is local fake/injected-transport coverage; real provider quotas and external behavior remain pending F14. |
 | G4 SALES_AUDIT_TRUTH | CLOSED within local confirmation/repair coverage. |
 | G5 BILLING_CURSOR_TRUTH | PASS LOCAL THROUGH F6A-LOCAL-3B. Routing remains pending (F6A-LOCAL-4). |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED / NOT READY. |
@@ -108,14 +118,14 @@ Git = superseded history
 
 Current truth: local code/schema > same-SHA tests/QA > same-SHA evidence > checkpoint > durable authority > README/supporting documents > handoffs/audits > remote visibility > inference.
 
-README and ERP2_AUTHORITY are unchanged through MB-02.
+README and ERP2_AUTHORITY are unchanged through MB-03. AGENTS.md is unchanged.
 
 ## 5. NEXT and STOP
 
 ```text
-CURRENT = MB-02 CLOSED
-NEXT = MB-03 / API-SAFETY-3
+CURRENT = MB-03 CLOSED
+NEXT = MB-08 / F6A-LOCAL-4 Billing routing
 STOP
 ```
 
-Do not start MB-03, routing, Financial, sale_fee changes, or F14 here. No real Mercado Libre HTTP/OAuth, production mutation, remote writes, push, merge or deploy.
+Stop after this checkpoint. Do not start MB-04, MB-08, Billing routing, Financial, sale_fee changes, or F14 here. No real Mercado Libre HTTP/OAuth, production mutation, remote writes, push, merge or deploy. F14 external certification remains pending.
