@@ -31,7 +31,17 @@ final class BootstrapTest extends TestCase
     {
         $app = Bootstrap::create();
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/storage/debug/example.jsonl');
-        $response = $app->handle($request);
+        $previousErrorLog = ini_get('error_log');
+        $temporaryErrorLog = tempnam(sys_get_temp_dir(), 'erp2-bootstrap-');
+        self::assertIsString($temporaryErrorLog);
+
+        try {
+            ini_set('error_log', $temporaryErrorLog);
+            $response = $app->handle($request);
+        } finally {
+            ini_set('error_log', $previousErrorLog === false ? '' : $previousErrorLog);
+            @unlink($temporaryErrorLog);
+        }
 
         self::assertSame(404, $response->getStatusCode());
     }
