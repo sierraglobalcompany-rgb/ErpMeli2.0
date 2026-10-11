@@ -327,7 +327,7 @@ Cleanup diario sólo cubre responsabilidades demostradas: Debug retention, Work 
 
 ---
 
-## 10. Billing: contrato aceptado y hard gate C0
+## 10. Billing: contrato aceptado y desarrollo local
 
 Billing es conciliación fiscal/financiera; no es Sales operational truth.
 
@@ -344,31 +344,19 @@ Request contract actualmente aceptado:
 period_key = YYYY-MM-01
 document_type = BILL | CREDIT_NOTE
 limit = 1000
-from_id = cursor actual
+first from_id = 0
+next from_id = last_id anterior
 sort_by = ID
 order_by = ASC
 ```
 
-BILL y CREDIT_NOTE son streams separados. La paginación es secuencial y parte de `from_id=0`.
+BILL y CREDIT_NOTE son streams separados. La paginación es secuencial. Una página sin `results` es terminal; HTTP 206 significa incomplete y nunca `caught_up` ni completo.
 
 Existe tooling C0 read-only y sanitizado que valida guards de producción/opt-in/argumentos/cuenta/token y compone `BillingC0Probe` con el `MeliClient` existente. C0 no persiste Billing, no refresca OAuth, no persiste api usage/cooldown y no hace remote writes.
 
-### Hard gate
+El desarrollo durable de Billing y Billing Task2 se diseñan e implementan localmente usando documentación oficial aceptada, fixtures contractuales, el `MeliClient` existente, fake `MeliTransport` y MariaDB local. La falta de una canary real no bloquea trabajo local; no inventar semánticas externas que no estén documentadas ni sean seguras de inferir.
 
-Antes de diseñar/activar el handler durable de Billing, cerrar schema final o iniciar Billing Task2, se requiere evidencia real sanitizada de seller MCO que observe:
-
-```text
-first-page shape
-last_id shape
-sequential cursor progress
-terminal signal
-HTTP 206 sólo si realmente aparece
-repeated/non-progress sólo si realmente aparece
-```
-
-No sintetizar 206, non-progress ni señal terminal. La documentación oficial puede describir 206 como parcial/en proceso, pero las decisiones de lifecycle/persistencia del handler se congelan hasta que C0 real confirme la forma necesaria.
-
-Cualquier schema Billing pre-release existente es provisional y debe auditarse contra la evidencia C0 aceptada antes de continuar. No existe autoridad vigente para crear por inercia `billing.period.sync`, nuevas tablas, nuevos estados o un Billing-specific retry engine antes de ese gate.
+El C0 real de seller MCO es un smoke de sólo lectura de F14/preproducción. No refresca OAuth, no persiste Billing, uso API ni cooldown, y no hace remote writes. No es requisito previo para Billing Task2 local.
 
 ---
 

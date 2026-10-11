@@ -234,7 +234,7 @@ GREEN / CLOSED
 
 ---
 
-## 4. Billing C0 hard gate
+## 4. Billing local-first boundary
 
 Billing remains fiscal/financial reconciliation, not Sales operational truth.
 
@@ -245,27 +245,25 @@ GET /billing/integration/periods/key/{period_key}/group/ML/details
 period_key = YYYY-MM-01
 document_type = BILL | CREDIT_NOTE
 limit = 1000
-from_id = current cursor
+first from_id = 0
+next from_id = prior last_id
 sort_by = ID
 order_by = ASC
 ```
 
-Cycles 1-6 prove only the guarded tooling and synthetic/fake-transport behavior. They do NOT establish the real seller response contract.
+Cycles 1-6 prove the guarded tooling and fake-transport behavior. They do NOT establish the real seller response contract. Billing durable work proceeds locally using accepted official documentation, contractual fixtures, the existing MeliClient, fake MeliTransport and local MariaDB. Real seller evidence is not a hard gate for local Billing Task2.
 
-Before durable Billing handler/schema finalization or Billing Task2, real sanitized seller-MCO evidence must establish:
+Local pagination contract:
 
 ```text
-first-page top-level shape
-results structure needed by later Billing work
-last_id type/value behavior
-cursor progression
-empty-result semantics
-206 semantics if observed
-non-progress behavior if observed
-terminal condition
+first from_id = 0
+next from_id = prior last_id
+empty results = terminal
+HTTP 206 = incomplete; never caught_up
+BILL and CREDIT_NOTE = separate streams
 ```
 
-Do not invent semantics that are not observed. Existing `005_billing.sql` remains provisional until audited against accepted real C0 evidence.
+Real authenticated C0 seller-MCO evidence is deferred to F14/preproduction. C0 remains read-only, sanitized, and has no Billing persistence, OAuth refresh, usage/cooldown persistence or remote writes. Do not invent external semantics beyond documented and safely inferable behavior.
 
 ---
 
@@ -276,10 +274,10 @@ G1 REMOTE_TRUTH: PASS for implemented boundary
 G2 WORK_SAFETY: PASS
 G3 RATE_SAFETY: PASS for current Sales
 G4 SALES_AUDIT_TRUTH: PASS / CLOSED
-G5 BILLING_CURSOR_TRUTH: IN PROGRESS — Cycles 1-6 GREEN/CLOSED; real authenticated evidence missing
+G5 BILLING_CURSOR_TRUTH: IN PROGRESS LOCAL — no external blocker
 G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
 G7 WRITE_FAIL_CLOSED: PASS
-G8 HOSTING_REALITY: NOT CERTIFIED
+G8 HOSTING_REALITY: DEFERRED TO F14 / NOT CERTIFIED
 ```
 
 External gates:
@@ -291,43 +289,13 @@ Issue #5 — dedicated Mercado Libre ERP2 app/OAuth reality + authenticated real
 
 ---
 
-## 6. Next microblock — AUTHORIZATION REQUIRED, not started
+## 6. Next microblock — LOCAL-CORRECTNESS-1, not started
 
 ```text
-REAL AUTHENTICATED C0 SELLER-MCO EVIDENCE RUN
+LOCAL-CORRECTNESS-1 — DB SESSION UTC
 ```
 
-This next block is intentionally NOT authorized by Cycle 6 completion.
-
-Before any real HTTP, require explicit user authorization in the active conversation. Then re-verify:
-
-```text
-target account is the intended seller-MCO account
-account status = connected
-stored access token has >60 seconds validity
-no OAuth refresh is required or permitted
-APP_ENV=production
-BILLING_C0_REAL_HTTP=1
-REAL_MELI_HTTP=1 only for the explicitly authorized invocation
-bounded --max-pages
-read-only billing.period.details only
-sanitized structural output only
-no token/raw payload persistence or display
-no Billing persistence
-no remote Mercado Libre writes
-```
-
-After the authorized evidence run:
-
-```text
-sanitize + audit evidence
--> accept/reject cursor + terminal semantics
--> checkpoint
--> audit provisional 005_billing.sql against accepted evidence
--> Billing Task2
--> sale_fee alignment
--> Financial no-double-count
-```
+Real authenticated C0 seller-MCO evidence is deferred to F14/preproduction and is not required before local Billing Task2. Normal development and QA keep `REAL_MELI_HTTP=0`. Do not execute this or another microblock until G0 is reviewed and the next block is explicitly authorized.
 
 ---
 
@@ -338,7 +306,7 @@ Billing C0 Cycle 6 is closed with canonical remote QA evidence.
 **STOP HERE.**
 
 Real authenticated Billing C0 HTTP has NOT been executed.  
-Real seller-MCO C0 evidence has NOT been collected.  
+Real seller-MCO C0 evidence has NOT been collected; it is deferred to F14 and does not block local Billing Task2.
 Billing Task2 has NOT started.  
 No OAuth refresh.  
 No merge.  
@@ -346,3 +314,4 @@ No deploy.
 No production DB/OAuth mutation.  
 No remote Mercado Libre write.  
 Remote writes remain OFF.
+Normal development/QA uses `REAL_MELI_HTTP=0`.

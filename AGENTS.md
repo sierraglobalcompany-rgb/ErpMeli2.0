@@ -56,6 +56,9 @@ La escalabilidad futura no justifica complejidad presente sin evidencia.
 - No mezclar refactors no relacionados.
 - No usar float para dinero exacto.
 - Remote writes permanecen OFF hasta F16 y autorización explícita.
+- Desarrollo y QA normales usan `REAL_MELI_HTTP=0`; el comportamiento Mercado Libre se prueba localmente con el `MeliClient` existente, `MeliTransport` inyectado/fakes y MariaDB local.
+- Hostinger, OAuth real ERP2 y canaries Mercado Libre READ-only pertenecen a certificación de preproducción F14 y no bloquean desarrollo local de módulos.
+- Si una semántica externa no está documentada ni puede inferirse con seguridad, mantener fail-closed ese comportamiento específico en vez de inventarlo.
 
 ## Regla de eliminación
 
