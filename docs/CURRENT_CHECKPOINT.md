@@ -4,9 +4,10 @@
 **Date:** 2026-10-10  
 **Repo:** `sierraglobalcompany-rgb/ErpMeli2.0`  
 **Branch:** `impl/v3-b-sales-audit-20261010`  
-**Previous checkpoint:** `6e7c3d01dd73c54802797be7685ee0b7f0999557`  
-**Functional GREEN before this docs checkpoint:** `da91d6c43c561d96fb6525b0ac66952e31f656a7`  
-**Latest verified functional QA:** `38097632675` — SUCCESS  
+**Previous checkpoint:** `eb6f54e1a45b4b7357535be21968744329c9cdc9`  
+**Cycle 5 functional GREEN:** `7fa54adb74eb7ea23f214f6025bae7268e46cc5d`  
+**Latest verified functional/test SHA:** `ed571ae1fcd78f697fd91758cc2a3b273ee39847`  
+**Latest verified QA:** `38099137542` — SUCCESS — PHP 8.3 / 8.4 / 8.5  
 **Remote Mercado Libre writes:** OFF  
 **Normal CI `REAL_MELI_HTTP`:** `0`  
 **No merge / no deploy / no production DB or OAuth mutation performed.**
@@ -34,20 +35,29 @@ No merge, deploy, destructive cleanup, production DB/OAuth mutation, or remote M
 
 `G4 SALES_AUDIT_TRUTH` remains **PASS / CLOSED**.
 
-Stable Sales invariants:
+Sales Audit design is now intentionally KISS:
 
 ```text
-seller Orders Search
-monthly membership = order.date_created
-MCO timezone = America/Bogota
-historical audit = closed months only
-outside supported horizon -> unavailable before OAuth/HTTP
-short non-terminal page -> fail closed
-Capture A -> local compare -> bounded repair -> verify -> Capture B -> A/B compare -> baseline lifecycle
-exact GET /orders/{id} 404 -> terminal meli_order_not_found, no retry/defer/persistence
+SalesAuditHandler owns remote I/O + orchestration
+SalesAuditRepository owns durable lifecycle/fingerprint/baseline transitions
+SalesAuditRepairHandler remains the bounded repair responsibility
+one active run per company/account/period/contract enforced by existing sales_audit_runs schema
+no ConfirmRepository
+no BaselineService
+no state-machine engine
+no extra queue/runner
 ```
 
-Architecture remains KISS: one PHP/Slim app, one MariaDB, one Work table/runner/client; no speculative queue/service/state-machine proliferation.
+Important closed Sales fixes:
+
+```text
+remote contract errors -> meli_sales_audit_contract
+internal lifecycle/persistence errors -> sales_audit_state
+Capture A -> local compare -> bounded repair -> verify -> Capture B -> A/B compare -> baseline lifecycle
+exact GET /orders/{id} 404 -> terminal meli_order_not_found
+```
+
+Architecture remains: one PHP/Slim app, one MariaDB, one Work table/runner/client; no speculative service/state-machine proliferation.
 
 ---
 
@@ -76,7 +86,7 @@ Billing remains fiscal/financial reconciliation and period-first; it is not Sale
 
 ---
 
-# 4. BILLING C0 TOOLING — GREEN CYCLES
+# 4. BILLING C0 TOOLING — CYCLES 1-5 GREEN
 
 ## Cycle 1 — sanitized cursor probe
 
@@ -84,13 +94,6 @@ Billing remains fiscal/financial reconciliation and period-first; it is not Sale
 RED   793853b0f5641e78ebfef7526e404781467d7417
 GREEN df0637bcb87b1477833dd10618b1ec869cbfc206
 QA    38096002800 — SUCCESS — PHP 8.3/8.4/8.5
-```
-
-Files:
-
-```text
-app/Modules/Billing/C0/BillingC0Probe.php
-tests/Unit/BillingC0ProbeTest.php
 ```
 
 Contract:
@@ -128,7 +131,6 @@ RED   8177e6938db36d492a8f2cd6e8ed912b9eab98dc
 RED QA 38096506917 — FAILURE as intended
 GREEN ea0175a9d3f912ad5fda7090db589c055d5b6188
 QA    38096614606 — SUCCESS — PHP 8.3/8.4/8.5
-checkpoint 6e7c3d01dd73c54802797be7685ee0b7f0999557
 ```
 
 Validated before DB/HTTP:
@@ -140,144 +142,120 @@ Validated before DB/HTTP:
 --max-pages = required integer 1..20
 ```
 
-## Cycle 4 — DB/account/token read-only runtime wiring — GREEN / CLOSED
-
-### RED A — isolated runtime contract
+## Cycle 4 — DB/account/token read-only runtime
 
 ```text
-RED SHA: 28f6850c2fd9bf1e2f0810a41739d1b0b8c5964c
-RED QA:  38097322811 — FAILURE as intended on PHP 8.3/8.4/8.5
+runtime RED        28f6850c2fd9bf1e2f0810a41739d1b0b8c5964c
+runtime GREEN      6bfb916b57d7ee3fb74afe4253039f95d69dc8c3
+CLI wiring RED     ac652c16cc3ad85d3fc465601fa9fa5fe30fe5f3
+functional GREEN  da91d6c43c561d96fb6525b0ac66952e31f656a7
+QA                38097632675 — SUCCESS — PHP 8.3/8.4/8.5
+checkpoint        eb6f54e1a45b4b7357535be21968744329c9cdc9
 ```
 
-Only the new test was introduced; production had no `BillingC0Runtime`, so the missing runtime boundary was isolated before implementation.
-
-Runtime contract frozen:
+Runtime contract:
 
 ```text
 requested account must exist with token row
-account status must be connected
-stored access token is decrypted with existing TokenCipher
-stored token must remain valid for >60 seconds
+account status connected
+stored token decrypted with existing TokenCipher
+token valid >60 seconds
 expired/near-expiry token -> BLOCKED
-OAuth refresh is forbidden
+OAuth refresh forbidden
 no account/token mutation
 no secret output
+CLI still stopped before MeliClient/transport/HTTP
 ```
 
-### GREEN A — minimal read-only resolver
+## Cycle 5 — BillingC0Probe + existing MeliClient composition — GREEN / CLOSED
+
+### RED
 
 ```text
-GREEN SHA: 6bfb916b57d7ee3fb74afe4253039f95d69dc8c3
-QA:        38097412007 — SUCCESS
-PHP 8.3: job 114346081593 — SUCCESS
-PHP 8.4: job 114346081538 — SUCCESS
-PHP 8.5: job 114346081649 — SUCCESS
+RED SHA: 2402d36b0aa1b5ff9cea53aea1b197c18a1101cd
+RED QA:  38098928796 — FAILURE as intended on PHP 8.3/8.4/8.5
 ```
 
-Added:
+The RED required one minimal composition boundary on the existing `BillingC0Probe` and failed only because `BillingC0Probe::forMeliClient()` did not exist.
+
+### GREEN
 
 ```text
-app/Modules/Billing/C0/BillingC0Runtime.php
-tests/Integration/BillingC0RuntimeTest.php
+FUNCTIONAL GREEN SHA: 7fa54adb74eb7ea23f214f6025bae7268e46cc5d
+TEST-HELPER FIX SHA:  ed571ae1fcd78f697fd91758cc2a3b273ee39847
+QA:                   38099137542 — SUCCESS
+PHP 8.3:              job 114351224091 — SUCCESS
+PHP 8.4:              job 114351224036 — SUCCESS
+PHP 8.5:              job 114351223995 — SUCCESS
+PHPStan:              0 errors
+PHPUnit:              240/240 tests, 1673 assertions
+Memory:               22 MB
+REAL_MELI_HTTP:       0
 ```
 
-Implementation reuses:
+Implementation deliberately reuses only:
 
 ```text
-PDO existing connection semantics
-meli_accounts + meli_tokens existing schema
-TokenCipher
-60-second validity margin matching existing OAuth behavior
+BillingC0Probe
+MeliClient::request()
+existing billing.period.details operation
+existing sanitized probe output
 ```
 
-It does **not** call `OAuthRefreshService`, because that service may perform a refresh POST when the token is stale.
-
-### RED B — CLI runtime wiring
+Added factory behavior:
 
 ```text
-RED SHA: ac652c16cc3ad85d3fc465601fa9fa5fe30fe5f3
-RED QA:  38097515635 — FAILURE as intended on PHP 8.3/8.4/8.5
+operation = billing.period.details
+path period_key = requested canonical period
+query document_type = BILL | CREDIT_NOTE
+query limit = 1000
+query from_id = current probe cursor
+query sort_by = ID
+query order_by = ASC
+scope = company:{companyId}:account:{accountId}
 ```
 
-The new CLI integration test expected a valid stored token to reach a safe readiness boundary, while the pre-GREEN CLI still terminated at:
+Fake-transport proof covers:
 
 ```text
-Billing C0 runtime is not configured yet.
-```
-
-### FINAL GREEN — CLI DB/token runtime wired, still no HTTP
-
-```text
-FUNCTIONAL GREEN SHA: da91d6c43c561d96fb6525b0ac66952e31f656a7
-QA:                   38097632675 — SUCCESS
-PHP 8.3: job 114346744521 — SUCCESS
-PHP 8.4: job 114346744227 — SUCCESS
-PHP 8.5: job 114346744413 — SUCCESS
-```
-
-Final CLI sequence:
-
-```text
-1. APP_ENV production guard
-2. BILLING_C0_REAL_HTTP explicit opt-in guard
-3. validate account-id
-4. validate period
-5. validate document-type
-6. validate max-pages
-7. load existing app config / DB connection
-8. resolve exactly requested account + encrypted token read-only
-9. require connected account
-10. require stored access token valid >60 seconds
-11. decrypt access token with TokenCipher
-12. STOP before MeliClient/transport/HTTP
-```
-
-Current safe terminal message after a valid runtime resolution:
-
-```text
-Billing C0 account/token ready; HTTP smoke is not configured yet.
-```
-
-The CLI intentionally exits non-zero at that boundary because C0 HTTP execution is not wired yet.
-
-Security verified by tests:
-
-```text
-access token not printed
-refresh token not printed
-account status unchanged
-access_token_cipher unchanged
-refresh_token_cipher unchanged
-expires_at unchanged
-refresh_version unchanged
+exact URL/query on first and next page
+Bearer token reaches transport but never evidence output
+cursor progresses 0 -> returned last_id
+empty results terminates probe
+large numeric result ID is not exposed in evidence
+api_usage_daily remains untouched
+meli_cooldowns remains untouched
+no Billing persistence
 no OAuth refresh
-no Mercado Libre HTTP
+no remote write
 ```
 
-### Cycle 4 noise audit
+### Cycle 5 noise audit
 
 Base:
 
 ```text
-6e7c3d01dd73c54802797be7685ee0b7f0999557
+eb6f54e1a45b4b7357535be21968744329c9cdc9
 ```
 
-Functional GREEN:
+Verified SHA:
 
 ```text
-da91d6c43c561d96fb6525b0ac66952e31f656a7
+ed571ae1fcd78f697fd91758cc2a3b273ee39847
 ```
 
-Exactly four functional files changed:
+Exactly two files changed:
 
 ```text
-app/Modules/Billing/C0/BillingC0Runtime.php          added
-bin/billing-c0-smoke.php                            modified
-tests/Integration/BillingC0RuntimeTest.php          added
-tests/Integration/BillingC0CliRuntimeTest.php       added
+app/Modules/Billing/C0/BillingC0Probe.php             +24 / -0
+tests/Integration/BillingC0MeliClientProbeTest.php   added
 ```
 
-No schema, migration, MeliClient, Billing persistence, Work, queue, config, OAuth refresh service, or Sales changes.
+No schema, migration, Work, queue, Sales, OAuth, Billing persistence, CLI behavior, or real HTTP change.
+
+One intermediate GREEN QA failed only because the fake transport incorrectly called a PHPUnit assertion as an instance method. Production code was unchanged; the helper was corrected in `ed571ae1...`, after which the full matrix passed.
+
+Pre-existing lint noise remains intentionally deferred: `bin/billing-c0-smoke.php` has ineffective global `use DateTimeImmutable`, `DateTimeZone`, and `Throwable` imports. Do not mix that cleanup into functional Billing logic.
 
 ---
 
@@ -313,31 +291,31 @@ unneeded order/item metadata
 
 ---
 
-# 6. NEXT MICROBLOCK — CYCLE 5 FROZEN, NOT STARTED
+# 6. NEXT MICROBLOCK — CYCLE 6 FROZEN, NOT STARTED
 
 Next:
 
 ```text
-Billing C0 Cycle 5 — read-only MeliClient + BillingC0Probe wiring
+Billing C0 Cycle 6 — wire the guarded CLI to existing CurlMeliTransport + MeliClient + BillingC0Probe
 ```
 
 Goal:
 
-> Wire the existing valid account/token runtime into the existing `billing.period.details` MeliClient operation and `BillingC0Probe`, while preserving sanitization and bounded sequential cursor behavior.
+> Complete the CLI composition so that, only after all existing production/opt-in/account/token/argument guards pass, the CLI can run the existing sanitized probe through the existing read-only MeliClient operation.
 
-Required implementation discipline:
+Required discipline:
 
 ```text
-RED with fake transport first
-prove exact operation/query contract
-prove no token/payload leak
-prove no ApiUsageRecorder persistence
-prove no cooldown persistence
-prove no OAuth refresh
-prove no remote write operation
-prove max-pages bound
-prove 206/non-progress stop behavior through the composed CLI path
-GREEN + PHP 8.3/8.4/8.5 QA
+RED first with controlled/fake boundary
+reuse existing CurlMeliTransport / RemoteHostPolicy / MeliClient
+reuse BillingC0Runtime and BillingC0Probe::forMeliClient()
+no OAuth refresh
+no ApiUsageRecorder persistence
+no cooldown persistence
+no Billing persistence
+no new service/engine/handler
+sanitized JSON only
+PHP 8.3/8.4/8.5 GREEN
 noise audit
 checkpoint
 STOP
@@ -346,13 +324,12 @@ STOP
 Important separation:
 
 ```text
-Cycle 5 implementation/tests use fake transport only.
-Do NOT execute the real seller-MCO HTTP smoke merely as part of coding Cycle 5.
+Cycle 6 may wire the real transport class into the CLI,
+but normal CI remains REAL_MELI_HTTP=0 and must not contact Mercado Libre.
+Do NOT execute a real authenticated seller-MCO request merely as part of Cycle 6 coding/testing.
 ```
 
-The later **real C0 execution** remains a separate runtime action after Cycle 5 GREEN, using an authenticated ERP2 seller environment and emitting only sanitized evidence.
-
-Billing Task2 remains blocked until that real evidence is accepted.
+The later **real authenticated C0 execution** remains a separate explicitly authorized runtime action. Billing Task2 remains blocked until sanitized real evidence is captured and accepted.
 
 ---
 
@@ -363,7 +340,7 @@ G1 REMOTE_TRUTH: PASS for implemented boundary
 G2 WORK_SAFETY: PASS
 G3 RATE_SAFETY: PASS for current Sales
 G4 SALES_AUDIT_TRUTH: PASS / CLOSED
-G5 BILLING_CURSOR_TRUTH: IN PROGRESS — C0 TOOLING CYCLES 1-4 GREEN; REAL AUTHENTICATED EVIDENCE STILL MISSING
+G5 BILLING_CURSOR_TRUTH: IN PROGRESS — C0 TOOLING CYCLES 1-5 GREEN; REAL AUTHENTICATED EVIDENCE STILL MISSING
 G6 FINANCIAL_NO_DOUBLE_COUNT: NOT STARTED
 G7 WRITE_FAIL_CLOSED: PASS
 G8 HOSTING_REALITY: NOT CERTIFIED
@@ -379,8 +356,8 @@ Issue #5 dedicated Mercado Libre ERP2 app/OAuth reality + authenticated real C0 
 Future order:
 
 ```text
-Cycle 5 fake-tested MeliClient + probe composition
--> real authenticated C0 seller-MCO execution
+Cycle 6 guarded CLI composition
+-> explicit authorization for real authenticated C0 seller-MCO execution
 -> sanitize + audit evidence
 -> accept/reject C0
 -> only then Billing Task2
@@ -392,11 +369,11 @@ Cycle 5 fake-tested MeliClient + probe composition
 
 # 8. STOP
 
-Cycle 4 is closed GREEN with canonical QA evidence.
+Cycle 5 is closed GREEN with canonical QA evidence.
 
 **STOP HERE.**
 
-No Cycle 5 started.  
+No Cycle 6 started.  
 No Billing Task2 started.  
 No real Mercado Libre HTTP executed by C0 tooling.  
 No OAuth refresh.  
