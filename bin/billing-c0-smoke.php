@@ -19,6 +19,11 @@ if (getenv('BILLING_C0_REAL_HTTP') !== '1') {
     exit(2);
 }
 
+if (getenv('REAL_MELI_HTTP') !== '1') {
+    fwrite(STDERR, "Billing C0 requires REAL_MELI_HTTP=1.\n");
+    exit(2);
+}
+
 $options = getopt('', [
     'account-id:',
     'period:',
