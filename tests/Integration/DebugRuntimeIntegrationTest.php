@@ -16,7 +16,7 @@ use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Tests\Support\TestDatabase;
 
-final class F5FinalAdversarialTest extends TestCase
+final class DebugRuntimeIntegrationTest extends TestCase
 {
     public function testCapEmitsOneNormalWarningAndSettingsShowsCapAlert(): void
     {
@@ -69,7 +69,7 @@ final class F5FinalAdversarialTest extends TestCase
     public function testRealWebhookHttpRouteUsesDebugRecorderWhenEnabled(): void
     {
         $pdo = TestDatabase::reset();
-        $pdo->exec("INSERT INTO companies(name,slug) VALUES ('F5 Webhook Runtime','f5-webhook-runtime')");
+        $pdo->exec("INSERT INTO companies(name,slug) VALUES ('Debug Webhook Runtime','debug-webhook-runtime')");
         $companyId = (int) $pdo->lastInsertId();
         $account = $pdo->prepare(
             "INSERT INTO meli_accounts(company_id,external_user_id,site_id,status) VALUES (?, '700000099', 'MCO', 'connected')"
@@ -91,7 +91,7 @@ final class F5FinalAdversarialTest extends TestCase
 
         try {
             $payload = json_encode([
-                '_id' => 'evt-f5-runtime-debug-1',
+                '_id' => 'evt-debug-runtime-1',
                 'resource' => '/orders/200000000099',
                 'user_id' => 700000099,
                 'topic' => 'orders_v2',
@@ -114,7 +114,7 @@ final class F5FinalAdversarialTest extends TestCase
             self::assertGreaterThan(strlen($before), strlen($content));
             $appended = substr($content, strlen($before));
             self::assertStringContainsString('webhook.accepted', $appended);
-            self::assertStringContainsString('evt-f5-runtime-debug-1', $appended);
+            self::assertStringContainsString('evt-debug-runtime-1', $appended);
             self::assertStringContainsString('work:', $appended);
         } finally {
             $this->restoreClientId($previousClientId);
@@ -128,15 +128,15 @@ final class F5FinalAdversarialTest extends TestCase
 
     private function seedAdmin(\PDO $pdo): void
     {
-        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'F5 Admin','f5-admin')");
-        $pdo->exec("INSERT INTO users(id,email,password_hash,status) VALUES (1,'f5-admin@example.test','unused','active')");
+        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Debug Admin','debug-admin')");
+        $pdo->exec("INSERT INTO users(id,email,password_hash,status) VALUES (1,'debug-admin@example.test','unused','active')");
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin')");
     }
 
     /** @return array{0:string,1:string,2:string,3:string} */
     private function roots(string $suffix): array
     {
-        $root = sys_get_temp_dir() . '/erp-meli2-f5-final-' . $suffix . '-' . bin2hex(random_bytes(4));
+        $root = sys_get_temp_dir() . '/erp-meli2-debug-runtime-' . $suffix . '-' . bin2hex(random_bytes(4));
         $debugDir = $root . '/debug';
         $exportDir = $root . '/exports';
         $logsDir = $root . '/logs';
