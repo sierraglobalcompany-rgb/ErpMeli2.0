@@ -350,7 +350,7 @@ sort_by = ID
 order_by = ASC
 ```
 
-BILL y CREDIT_NOTE son streams separados. La paginación es secuencial. Una página sin `results` es terminal; HTTP 206 significa incomplete y nunca `caught_up` ni completo.
+BILL y CREDIT_NOTE son streams separados. La paginación es secuencial. Una página con `results` como array vacío es terminal; la ausencia de `results` es contrato inválido. HTTP 206 significa incomplete y nunca `caught_up` ni completo.
 
 Existe tooling C0 read-only y sanitizado que valida guards de producción/opt-in/argumentos/cuenta/token y compone `BillingC0Probe` con el `MeliClient` existente. C0 no persiste Billing, no refresca OAuth, no persiste api usage/cooldown y no hace remote writes.
 
