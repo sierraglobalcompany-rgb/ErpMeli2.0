@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Billing\C0;
 
 use App\Integrations\MercadoLibre\Auth\TokenCipher;
+use App\Integrations\MercadoLibre\Client\MeliClient;
+use App\Integrations\MercadoLibre\Transport\MeliTransport;
+use App\Modules\Settings\SystemSettingsRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
@@ -62,5 +65,56 @@ final class BillingC0Runtime
             'access_token' => $this->cipher->decrypt((string) $row['access_token_cipher']),
             'expires_at' => $expiresAt,
         ];
+    }
+
+    /**
+     * @param array<string,array{
+     *     method:string,
+     *     path:string,
+     *     family:string,
+     *     classification?:string,
+     *     official_doc_url:string,
+     *     verified_at:string,
+     *     preserve_numbers?:bool
+     * }> $operations
+     * @return array{
+     *   pages:list<array{
+     *     status:int,
+     *     cursor_in:string,
+     *     results_count:int,
+     *     top_level_keys:list<string>,
+     *     last_id_type:string,
+     *     last_id:int|string|null
+     *   }>,
+     *   stop_reason:string,
+     *   partial_observed:bool,
+     *   non_progress_observed:bool
+     * }
+     */
+    public function probe(
+        int $accountId,
+        DateTimeImmutable $now,
+        MeliTransport $transport,
+        array $operations,
+        string $periodKey,
+        string $documentType,
+        int $maxPages,
+    ): array {
+        $runtime = $this->resolve($accountId, $now);
+        $client = new MeliClient(
+            $transport,
+            new SystemSettingsRepository($this->pdo),
+            $operations,
+            'https://api.mercadolibre.com',
+        );
+
+        return BillingC0Probe::forMeliClient(
+            $client,
+            $runtime['access_token'],
+            $runtime['company_id'],
+            $runtime['account_id'],
+            $periodKey,
+            $documentType,
+        )->run($maxPages);
     }
 }
