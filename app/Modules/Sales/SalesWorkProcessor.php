@@ -11,6 +11,7 @@ use App\Modules\Sales\SyncOrder\OrderSyncWorkProcessor;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
+use PDOException;
 use RuntimeException;
 
 final class SalesWorkProcessor
@@ -69,6 +70,8 @@ final class SalesWorkProcessor
 
             try {
                 $runStatus = $this->audit->runStatus($runId, $companyId, $accountId);
+            } catch (PDOException $exception) {
+                throw $exception;
             } catch (RuntimeException) {
                 $this->work->failCurrentClaim(
                     $claim['id'],

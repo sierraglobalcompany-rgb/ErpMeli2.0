@@ -21,12 +21,121 @@ use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class SalesWorkProcessorTest extends TestCase
 {
+    public function testProcessorDoesNotTurnRunStatusDatabaseFailureIntoAuditScopeOutcome(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-processor-sql-failure-key');
+        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Sales','sales')");
+        $pdo->exec(
+            "INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,status) "
+            . "VALUES (1,1,'99887766','MCO','connected')"
+        );
+        $token = $pdo->prepare(
+            'INSERT INTO meli_tokens(account_id,access_token_cipher,refresh_token_cipher,expires_at,refresh_version) '
+            . 'VALUES (1,?,?,?,0)'
+        );
+        $token->execute([
+            $cipher->encrypt('valid-access'),
+            $cipher->encrypt('unused-refresh'),
+            '2030-01-01 00:00:00.000000',
+        ]);
+
+        $transport = new SalesAuditProcessorTransport();
+        /** @var array<string,array<string,mixed>> $operations */
+        $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
+        $client = new MeliClient(
+            $transport,
+            new SystemSettingsRepository($pdo),
+            $operations,
+            'https://api.mercadolibre.com',
+            minRequestIntervalMs: 0,
+        );
+        $work = new WorkRepository($pdo);
+        $audit = new SalesAuditRepository($pdo);
+        $processor = new SalesWorkProcessor(
+            new OrderSyncWorkProcessor(
+                new SyncOrderHandler(
+                    $work,
+                    $client,
+                    new OAuthRefreshService(
+                        $pdo,
+                        Connection::fromConfig(TestDatabase::config()),
+                        $client,
+                        $cipher,
+                        'client-id',
+                        'client-secret',
+                        'erp_meli2.test.sales.processor.oauth',
+                    ),
+                ),
+                $work,
+            ),
+            new SalesAuditHandler(
+                $work,
+                $audit,
+                $client,
+                new OAuthRefreshService(
+                    $pdo,
+                    Connection::fromConfig(TestDatabase::config()),
+                    $client,
+                    $cipher,
+                    'client-id',
+                    'client-secret',
+                    'erp_meli2.test.sales.processor.audit.oauth',
+                ),
+            ),
+            new SalesAuditRepairHandler($audit, $work),
+            $audit,
+            $work,
+        );
+
+        $runId = $audit->createCapturingRun(
+            1,
+            1,
+            '2026-10-01',
+            SalesAuditRepository::CONTRACT_VERSION,
+            new DateTimeImmutable('2026-10-10T01:00:00+00:00'),
+        );
+        $workId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':0:50',
+            ['run_id' => $runId, 'offset' => 0, 'limit' => 50],
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        $pdo->exec('DROP TABLE sales_audit_runs');
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+
+        $failure = null;
+        try {
+            $processor($claim);
+        } catch (PDOException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        self::assertCount(0, $transport->requests);
+        $row = $pdo->query(
+            'SELECT status,attempts,claim_token,last_error_code FROM work_items WHERE id=' . $workId
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('running', $row['status']);
+        self::assertSame(1, (int) $row['attempts']);
+        self::assertNotNull($row['claim_token']);
+        self::assertNull($row['last_error_code']);
+    }
+
     public function testProcessorDispatchesSalesAudit(): void
     {
         $pdo = TestDatabase::reset();

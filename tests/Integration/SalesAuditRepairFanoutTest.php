@@ -10,12 +10,61 @@ use App\Modules\Sales\Audit\SalesAuditWindow;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class SalesAuditRepairFanoutTest extends TestCase
 {
+    public function testRepairSqlFailureEscapesInsteadOfMarkingRepairAttention(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo);
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $this->seedRepairingRun($audit);
+        $work = new WorkRepository($pdo);
+        $workId = $work->enqueue(
+            1,
+            1,
+            'company:1:account:1',
+            'sales.audit',
+            (string) $runId,
+            'sales.audit:' . $runId . ':repair',
+            ['run_id' => $runId],
+            new DateTimeImmutable('2026-10-10T03:10:00+00:00'),
+        );
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        $handler = new SalesAuditRepairHandler($audit, $work);
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        $pdo->exec('DROP TABLE sales_audit_orders');
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+        $failure = null;
+
+        try {
+            $handler->processCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                $runId,
+                1,
+                1,
+                new DateTimeImmutable('2026-10-10T03:10:00+00:00'),
+            );
+        } catch (PDOException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        self::assertSame('repairing', $pdo->query('SELECT status FROM sales_audit_runs WHERE id=' . $runId)->fetchColumn());
+        $row = $pdo->query(
+            'SELECT status,last_error_code FROM work_items WHERE id=' . $workId
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('running', $row['status']);
+        self::assertNull($row['last_error_code']);
+    }
+
     public function testRepairActionEnqueuesExactlyOneDeterministicMissingOrder(): void
     {
         $pdo = TestDatabase::reset();

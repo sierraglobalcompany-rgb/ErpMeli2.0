@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Sales\Audit;
 
+use App\Integrations\MercadoLibre\Auth\OAuthRefreshBusyException;
 use App\Integrations\MercadoLibre\Auth\OAuthRefreshService;
 use App\Integrations\MercadoLibre\Client\MeliApiException;
 use App\Integrations\MercadoLibre\Client\MeliClient;
@@ -13,6 +14,7 @@ use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
+use PDOException;
 use RuntimeException;
 use UnexpectedValueException;
 
@@ -86,6 +88,8 @@ final class SalesAuditHandler
         try {
             $context = $this->audit->captureContext($runId, $companyId, $accountId, $runStatus);
             $window = SalesAuditWindow::forSitePeriod($context['site_id'], $context['period_key']);
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException|\InvalidArgumentException) {
             $this->work->failCurrentClaim(
                 $workId,
@@ -108,6 +112,8 @@ final class SalesAuditHandler
                         $this->audit->markUnavailable($runId, $companyId, $accountId, $runStatus);
                     },
                 );
+            } catch (PDOException $exception) {
+                throw $exception;
             } catch (RuntimeException) {
                 $this->work->failCurrentClaim(
                     $workId,
@@ -121,9 +127,14 @@ final class SalesAuditHandler
 
         try {
             $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
+        } catch (OAuthRefreshBusyException) {
+            $this->deferOAuthBusy($workId, $claimToken, $now);
+            return false;
         } catch (MeliRateLimitException $exception) {
             $this->deferRateLimit($workId, $claimToken, $exception, 'Mercado Libre rate limited OAuth before sales audit capture.');
             return false;
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             $this->work->failCurrentClaim(
                 $workId,
@@ -176,6 +187,8 @@ final class SalesAuditHandler
                 );
                 return false;
             }
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             $this->scheduleRemoteRetry($workId, $claimToken, $now);
             return false;
@@ -311,6 +324,8 @@ final class SalesAuditHandler
                 'Mercado Libre returned an incoherent sales audit page.',
             );
             return false;
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             $this->work->failCurrentClaim(
                 $workId,
@@ -375,6 +390,9 @@ final class SalesAuditHandler
                 $offset,
                 $limit,
             );
+        } catch (OAuthRefreshBusyException) {
+            $this->deferOAuthBusy($workId, $claimToken, $now);
+            return null;
         } catch (MeliRateLimitException $exception) {
             $this->deferRateLimit(
                 $workId,
@@ -396,6 +414,8 @@ final class SalesAuditHandler
                 'Mercado Libre rejected sales audit after authorization recovery.',
             );
             return null;
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             $this->scheduleRemoteRetry($workId, $claimToken, $now);
             return null;
@@ -414,6 +434,17 @@ final class SalesAuditHandler
             $exception->retryAt,
             'meli_rate_limited',
             $message,
+        );
+    }
+
+    private function deferOAuthBusy(int $workId, string $claimToken, DateTimeImmutable $now): void
+    {
+        $this->work->deferCurrentClaim(
+            $workId,
+            $claimToken,
+            $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
+            'meli_oauth_busy',
+            'Mercado Libre OAuth refresh is already in progress; Work was deferred.',
         );
     }
 

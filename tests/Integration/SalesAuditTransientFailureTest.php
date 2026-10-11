@@ -17,12 +17,157 @@ use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Tests\Support\TestDatabase;
 
 final class SalesAuditTransientFailureTest extends TestCase
 {
+    public function testOAuthPreflightDatabaseFailureEscapesWithoutBusinessMutationOrHttp(): void
+    {
+        [$pdo, $handler, $claim, , $transport] = $this->fixture([]);
+        $pdo->exec('DROP TABLE meli_tokens');
+        $failure = null;
+
+        try {
+            $handler->processCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                1,
+                1,
+                $claim['payload'],
+                new DateTimeImmutable('2026-10-10T02:00:00+00:00'),
+            );
+        } catch (PDOException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        self::assertCount(0, $transport->requests);
+        $row = $pdo->query(
+            'SELECT status,attempts,claim_token,last_error_code FROM work_items WHERE id=' . $claim['id']
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('running', $row['status']);
+        self::assertSame(1, (int) $row['attempts']);
+        self::assertNotNull($row['claim_token']);
+        self::assertNull($row['last_error_code']);
+        self::assertSame('connected', $pdo->query('SELECT status FROM meli_accounts WHERE id=1')->fetchColumn());
+    }
+
+    public function testBusyRefreshLockDefersAuditWorkWithoutAttemptOrAccountMutation(): void
+    {
+        [$pdo, $handler, $claim, , $transport] = $this->fixture([]);
+        $pdo->exec("UPDATE meli_tokens SET expires_at='2000-01-01 00:00:00.000000' WHERE account_id=1");
+        $lockOwner = Connection::fromConfig(TestDatabase::config());
+        $lockName = TestDatabase::config()->dbName . '.erp2.oauth.sales-audit-transient.1';
+        $lock = $lockOwner->prepare('SELECT GET_LOCK(:lock_name, 0)');
+        $lock->execute(['lock_name' => $lockName]);
+        self::assertSame(1, (int) $lock->fetchColumn());
+        $now = new DateTimeImmutable('2026-10-10T02:00:00+00:00');
+
+        try {
+            self::assertFalse($handler->processCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                1,
+                1,
+                $claim['payload'],
+                $now,
+            ));
+        } finally {
+            $release = $lockOwner->prepare('SELECT RELEASE_LOCK(:lock_name)');
+            $release->execute(['lock_name' => $lockName]);
+        }
+
+        $row = $pdo->query(
+            'SELECT status,attempts,available_at,last_error_code FROM work_items WHERE id=' . $claim['id']
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('pending', $row['status']);
+        self::assertSame(0, (int) $row['attempts']);
+        self::assertSame('meli_oauth_busy', $row['last_error_code']);
+        self::assertSame('2026-10-10 02:00:30.000000', $row['available_at']);
+        self::assertCount(0, $transport->requests);
+        self::assertSame('connected', $pdo->query('SELECT status FROM meli_accounts WHERE id=1')->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=1')->fetchColumn());
+    }
+
+    public function testCaptureScopeDatabaseFailureEscapesBeforeHttp(): void
+    {
+        [$pdo, $handler, $claim, , $transport] = $this->fixture([]);
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        $pdo->exec('DROP TABLE sales_audit_runs');
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+        $failure = null;
+
+        try {
+            $handler->processCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                1,
+                1,
+                $claim['payload'],
+                new DateTimeImmutable('2026-10-10T02:00:00+00:00'),
+            );
+        } catch (PDOException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        self::assertCount(0, $transport->requests);
+        $row = $pdo->query(
+            'SELECT status,last_error_code FROM work_items WHERE id=' . $claim['id']
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('running', $row['status']);
+        self::assertNull($row['last_error_code']);
+    }
+
+    public function testCaptureStateDatabaseFailureEscapesAfterRollback(): void
+    {
+        [$pdo, $handler, $claim, $runId, $transport] = $this->fixture([
+            new MeliTransportResponse(
+                200,
+                [],
+                '{"paging":{"total":1,"offset":0,"limit":50},"results":['
+                . '{"id":200000000099,"date_created":"2026-10-08T15:00:00-05:00"}'
+                . ']}',
+            ),
+        ]);
+        $pdo->exec('DROP TABLE sales_audit_orders');
+        $failure = null;
+
+        try {
+            $handler->processCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                1,
+                1,
+                $claim['payload'],
+                new DateTimeImmutable('2026-10-10T02:00:00+00:00'),
+            );
+        } catch (PDOException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        self::assertCount(1, $transport->requests);
+        $workRow = $pdo->query(
+            'SELECT status,last_error_code FROM work_items WHERE id=' . $claim['id']
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($workRow);
+        self::assertSame('running', $workRow['status']);
+        self::assertNull($workRow['last_error_code']);
+        $runRow = $pdo->query(
+            'SELECT status,remote_total FROM sales_audit_runs WHERE id=' . $runId
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($runRow);
+        self::assertSame('capturing', $runRow['status']);
+        self::assertNull($runRow['remote_total']);
+    }
+
     public function testRateLimitDefersSameClaimWithoutAttemptBurnOrEvidence(): void
     {
         [$pdo, $handler, $claim, $runId, $transport] = $this->fixture([

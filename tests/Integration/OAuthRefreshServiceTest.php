@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use App\Core\Database\Connection;
+use App\Integrations\MercadoLibre\Auth\OAuthRefreshBusyException;
 use App\Integrations\MercadoLibre\Auth\OAuthRefreshService;
 use App\Integrations\MercadoLibre\Auth\TokenCipher;
 use App\Integrations\MercadoLibre\Client\ApiUsageRecorder;
@@ -15,8 +16,10 @@ use App\Integrations\MercadoLibre\Transport\MeliTransportResponse;
 use App\Modules\Settings\SystemSettingsRepository;
 use DateTimeImmutable;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Throwable;
 use Tests\Support\TestDatabase;
 
 final class OAuthRefreshServiceTest extends TestCase
@@ -154,7 +157,7 @@ final class OAuthRefreshServiceTest extends TestCase
         try {
             $service->getValidAccessToken($accountId, new DateTimeImmutable('2026-10-08T18:00:00+00:00'));
             self::fail('A busy per-account refresh lock must stop before HTTP.');
-        } catch (RuntimeException $exception) {
+        } catch (OAuthRefreshBusyException $exception) {
             self::assertSame('Mercado Libre OAuth refresh is already in progress.', $exception->getMessage());
         }
 
@@ -193,6 +196,39 @@ final class OAuthRefreshServiceTest extends TestCase
         self::assertCount(1, $transport->requests);
         self::assertSame(
             'reauth_required',
+            $pdo->query('SELECT status FROM meli_accounts WHERE id=' . $accountId)->fetchColumn(),
+        );
+        self::assertSame(0, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=' . $accountId)->fetchColumn());
+    }
+
+    public function testRefreshPreflightDatabaseFailureEscapesWithoutAttentionOrHttp(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('test-app-secret');
+        $accountId = $this->seedAccount(
+            $pdo,
+            $cipher,
+            'expired-access',
+            'single-use-refresh',
+            '2026-10-08 17:00:00.000000',
+        );
+        $transport = new RefreshQueueTransport([
+            new MeliTransportResponse(200, [], '{"access_token":"fresh","refresh_token":"rotated","expires_in":3600}'),
+        ]);
+        $service = $this->service($pdo, Connection::fromConfig(TestDatabase::config()), $transport, $cipher);
+        $pdo->exec('DROP TABLE meli_cooldowns');
+        $failure = null;
+
+        try {
+            $service->getValidAccessToken($accountId, new DateTimeImmutable('2026-10-08T18:00:00+00:00'));
+        } catch (Throwable $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        self::assertCount(0, $transport->requests);
+        self::assertSame(
+            'connected',
             $pdo->query('SELECT status FROM meli_accounts WHERE id=' . $accountId)->fetchColumn(),
         );
         self::assertSame(0, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=' . $accountId)->fetchColumn());

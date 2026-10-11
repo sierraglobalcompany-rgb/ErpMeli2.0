@@ -17,6 +17,7 @@ use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -298,6 +299,82 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         $claim = $this->processFailure($transport);
         $this->assertRemoteRetry($claim['id']);
         $this->assertNoCanonicalMutation($transport);
+    }
+
+    public function testOAuthPreflightDatabaseFailureEscapesWithoutBusinessMutationOrHttp(): void
+    {
+        $work = new WorkRepository($this->pdo);
+        $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
+        $transport = new BillingPeriodSyncFakeTransport([]);
+        $this->pdo->exec('DROP TABLE meli_tokens');
+        $failure = null;
+
+        try {
+            $this->handler($work, $transport)->syncCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                $this->companyId,
+                $this->accountId,
+                '2026-09-01',
+                'BILL',
+                '0',
+                $this->now,
+            );
+        } catch (PDOException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        self::assertCount(0, $transport->requests);
+        self::assertSame('running', $this->workRow($claim['id'])['status']);
+        self::assertNull($this->workRow($claim['id'])['last_error_code']);
+        self::assertSame(
+            'connected',
+            $this->pdo->query('SELECT status FROM meli_accounts WHERE id=' . $this->accountId)->fetchColumn(),
+        );
+    }
+
+    public function testBusyRefreshLockDefersBillingWorkWithoutAttemptOrAccountMutation(): void
+    {
+        $work = new WorkRepository($this->pdo);
+        $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
+        $this->pdo->exec("UPDATE meli_tokens SET expires_at='2000-01-01 00:00:00.000000' WHERE account_id=" . $this->accountId);
+        $lockOwner = Connection::fromConfig(TestDatabase::config());
+        $lockName = TestDatabase::config()->dbName . '.erp_meli2.oauth.account.' . $this->accountId;
+        $lock = $lockOwner->prepare('SELECT GET_LOCK(:lock_name, 0)');
+        $lock->execute(['lock_name' => $lockName]);
+        self::assertSame(1, (int) $lock->fetchColumn());
+        $transport = new BillingPeriodSyncFakeTransport([]);
+
+        try {
+            self::assertFalse($this->handler($work, $transport)->syncCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                $this->companyId,
+                $this->accountId,
+                '2026-09-01',
+                'BILL',
+                '0',
+                $this->now,
+            ));
+        } finally {
+            $release = $lockOwner->prepare('SELECT RELEASE_LOCK(:lock_name)');
+            $release->execute(['lock_name' => $lockName]);
+        }
+
+        $row = $this->workRow($claim['id']);
+        self::assertSame('pending', $row['status']);
+        self::assertSame(0, (int) $row['attempts']);
+        self::assertSame('meli_oauth_busy', $row['last_error_code']);
+        self::assertSame(
+            $this->now->setTimezone(new DateTimeZone('UTC'))->modify('+30 seconds')->format('Y-m-d H:i:s.u'),
+            $row['available_at'],
+        );
+        self::assertCount(0, $transport->requests);
+        self::assertSame(
+            'connected',
+            $this->pdo->query('SELECT status FROM meli_accounts WHERE id=' . $this->accountId)->fetchColumn(),
+        );
     }
 
     public function testPartial206DefersWithoutPersistingOrAdvancingCursor(): void

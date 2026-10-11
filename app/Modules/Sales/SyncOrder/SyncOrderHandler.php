@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Sales\SyncOrder;
 
+use App\Integrations\MercadoLibre\Auth\OAuthRefreshBusyException;
 use App\Integrations\MercadoLibre\Auth\OAuthRefreshService;
 use App\Integrations\MercadoLibre\Client\MeliApiException;
 use App\Integrations\MercadoLibre\Client\MeliClient;
@@ -13,6 +14,7 @@ use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
+use PDOException;
 use RuntimeException;
 
 final class SyncOrderHandler
@@ -42,6 +44,9 @@ final class SyncOrderHandler
 
         try {
             $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
+        } catch (OAuthRefreshBusyException) {
+            $this->deferOAuthBusy($workId, $claimToken, $now);
+            return false;
         } catch (MeliRateLimitException $exception) {
             $this->work->deferCurrentClaim(
                 $workId,
@@ -51,6 +56,8 @@ final class SyncOrderHandler
                 'Mercado Libre rate limited OAuth before order sync.',
             );
             return false;
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             $this->work->failCurrentClaim(
                 $workId,
@@ -102,6 +109,8 @@ final class SyncOrderHandler
                 'Mercado Libre rejected the order request.',
             );
             return false;
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             // Transport failures and invalid HTTP JSON happen before an authoritative order contract exists.
             $this->scheduleRemoteRetry($workId, $claimToken, $now);
@@ -124,6 +133,9 @@ final class SyncOrderHandler
         try {
             $freshAccessToken = $this->tokens->refreshAfterUnauthorized($accountId, $rejectedAccessToken, $now);
             $response = $this->requestOrder($orderId, $freshAccessToken, $scopeKey);
+        } catch (OAuthRefreshBusyException) {
+            $this->deferOAuthBusy($workId, $claimToken, $now);
+            return false;
         } catch (MeliRateLimitException $exception) {
             $this->work->deferCurrentClaim(
                 $workId,
@@ -150,6 +162,8 @@ final class SyncOrderHandler
                 'Mercado Libre rejected the order request after token refresh.',
             );
             return false;
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             $this->scheduleRemoteRetry($workId, $claimToken, $now);
             return false;
@@ -275,6 +289,17 @@ final class SyncOrderHandler
             $now->modify('+' . $waitSeconds . ' seconds'),
             'meli_remote_retry',
             'Mercado Libre order sync encountered a temporary remote failure.',
+        );
+    }
+
+    private function deferOAuthBusy(int $workId, string $claimToken, DateTimeImmutable $now): void
+    {
+        $this->work->deferCurrentClaim(
+            $workId,
+            $claimToken,
+            $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
+            'meli_oauth_busy',
+            'Mercado Libre OAuth refresh is already in progress; Work was deferred.',
         );
     }
 

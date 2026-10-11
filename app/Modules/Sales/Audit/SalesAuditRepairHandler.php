@@ -7,6 +7,7 @@ namespace App\Modules\Sales\Audit;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use PDO;
+use PDOException;
 use RuntimeException;
 
 final class SalesAuditRepairHandler
@@ -30,6 +31,8 @@ final class SalesAuditRepairHandler
     ): bool {
         try {
             $childWorkId = $this->enqueueNextMissingOrder($runId, $companyId, $accountId, $now);
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             try {
                 return $this->work->completeCurrentClaim(
@@ -41,6 +44,8 @@ final class SalesAuditRepairHandler
                         }
                     },
                 );
+            } catch (PDOException $exception) {
+                throw $exception;
             } catch (RuntimeException) {
                 $this->work->failCurrentClaim(
                     $workId,
@@ -73,6 +78,8 @@ final class SalesAuditRepairHandler
                         );
                     },
                 );
+            } catch (PDOException $exception) {
+                throw $exception;
             } catch (RuntimeException) {
                 $this->work->failCurrentClaim(
                     $workId,

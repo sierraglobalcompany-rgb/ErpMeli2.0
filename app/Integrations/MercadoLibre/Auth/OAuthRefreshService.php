@@ -10,6 +10,7 @@ use App\Integrations\MercadoLibre\Client\MeliRateLimitException;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
+use PDOException;
 use RuntimeException;
 use Throwable;
 
@@ -84,7 +85,7 @@ final class OAuthRefreshService
     {
         $lockName = $this->lockName($accountId);
         if (!$this->acquireLock($lockName)) {
-            throw new RuntimeException('Mercado Libre OAuth refresh is already in progress.');
+            throw new OAuthRefreshBusyException('Mercado Libre OAuth refresh is already in progress.');
         }
 
         try {
@@ -123,9 +124,15 @@ final class OAuthRefreshService
                 throw new RuntimeException('Mercado Libre authorization must be renewed.', 0, $exception);
             }
 
+            if ($exception->status >= 500) {
+                $this->setAccountStatus($accountId, 'attention');
+            }
+
             throw $exception;
         } catch (MeliRateLimitException $exception) {
             // A definite 429 response is handled by the caller/cooldown policy; do not consume another POST here.
+            throw $exception;
+        } catch (PDOException $exception) {
             throw $exception;
         } catch (RuntimeException $exception) {
             // Network/transport or malformed-response outcomes can be ambiguous after a one-use refresh POST.

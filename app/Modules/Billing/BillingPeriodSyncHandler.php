@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Billing;
 
+use App\Integrations\MercadoLibre\Auth\OAuthRefreshBusyException;
 use App\Integrations\MercadoLibre\Auth\OAuthRefreshService;
 use App\Integrations\MercadoLibre\Client\MeliApiException;
 use App\Integrations\MercadoLibre\Client\MeliClient;
@@ -13,6 +14,7 @@ use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
+use PDOException;
 use RuntimeException;
 use Throwable;
 use UnexpectedValueException;
@@ -45,9 +47,14 @@ final class BillingPeriodSyncHandler
         $scopeKey = 'company:' . $companyId . ':account:' . $accountId;
         try {
             $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
+        } catch (OAuthRefreshBusyException) {
+            $this->deferOAuthBusy($workId, $claimToken, $now);
+            return false;
         } catch (MeliRateLimitException $exception) {
             $this->deferRateLimit($workId, $claimToken, $exception);
             return false;
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             $this->work->failCurrentClaim(
                 $workId, $claimToken, 'meli_oauth_attention',
@@ -70,6 +77,9 @@ final class BillingPeriodSyncHandler
             try {
                 $freshAccessToken = $this->tokens->refreshAfterUnauthorized($accountId, $accessToken, $now);
                 $response = $this->requestPage($freshAccessToken, $scopeKey, $periodKey, $documentType, $fromId);
+            } catch (OAuthRefreshBusyException) {
+                $this->deferOAuthBusy($workId, $claimToken, $now);
+                return false;
             } catch (MeliRateLimitException $recoveryException) {
                 $this->deferRateLimit($workId, $claimToken, $recoveryException);
                 return false;
@@ -82,10 +92,14 @@ final class BillingPeriodSyncHandler
                     $recoveryException->retryAfterSeconds,
                 );
                 return false;
+            } catch (PDOException $recoveryException) {
+                throw $recoveryException;
             } catch (RuntimeException) {
                 $this->scheduleRemoteRetry($workId, $claimToken, $now);
                 return false;
             }
+        } catch (PDOException $exception) {
+            throw $exception;
         } catch (RuntimeException) {
             $this->scheduleRemoteRetry($workId, $claimToken, $now);
             return false;
@@ -242,6 +256,17 @@ final class BillingPeriodSyncHandler
         $this->work->deferCurrentClaim(
             $workId, $claimToken, $exception->retryAt,
             'meli_rate_limited', 'Mercado Libre rate limited Billing authorization or request recovery.',
+        );
+    }
+
+    private function deferOAuthBusy(int $workId, string $claimToken, DateTimeImmutable $now): void
+    {
+        $this->work->deferCurrentClaim(
+            $workId,
+            $claimToken,
+            $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
+            'meli_oauth_busy',
+            'Mercado Libre OAuth refresh is already in progress; Work was deferred.',
         );
     }
 
