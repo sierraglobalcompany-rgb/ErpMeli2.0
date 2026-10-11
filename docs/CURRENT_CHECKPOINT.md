@@ -8,23 +8,25 @@
 
 **Branch:** `impl/v3-b-sales-audit-20261010`
 
-**HEAD verified before MB-01 / implementation and QA SHA:** `ea86ba2b8e9d3cae8b090dcfc128570f73a334d5`
+**MB-02 implementation and QA SHA:** `737c99d53c0acf7eef27025ce4d792216ae926dd`
 
-**Working tree before MB-01 and after QA:** CLEAN
+**Working tree before MB-02 and after functional QA:** CLEAN
 
-**Last closed block / CURRENT:** MB-01 CLOSED — cooldown concurrency, monotonic deadline and safe expiration clear
+**Last closed block / CURRENT:** MB-02 CLOSED — strict Retry-After parsing and conservative wait propagation
 
-**NEXT:** MB-02 / API-SAFETY-2
+**NEXT:** MB-03 / API-SAFETY-3
 
 **REAL_MELI_HTTP:** `0`
 
 **Remote Mercado Libre writes:** OFF
 
-This docs-only commit follows the implementation/QA SHA above. Its own SHA is discoverable from Git; it does not change runtime, schema, tests or dependencies. Verify actual HEAD and any later delta before continuing. No fetch, pull, push, merge, deploy, real OAuth or Mercado Libre HTTP was performed.
+This docs-only commit follows the implementation/QA SHA above. Its own SHA is discoverable from Git; it does not change runtime, schema, tests or dependencies. Verify actual HEAD and any later delta before continuing. QA used only injected transports/fakes and a temporary local MariaDB container; no real OAuth or Mercado Libre HTTP, push, merge or deploy was performed.
 
 ## 1. Local verification and QA
 
-The expected branch is active. Git verifies this ancestry:
+The expected branch is active. The MB-02 implementation commit is `737c99d53c0acf7eef27025ce4d792216ae926dd` (`fix(meli): preserve Retry-After semantics`). QA ran on the same source tree committed by that SHA.
+
+The prior MB-01 ancestry is:
 
 ```text
 997c22f5dcd2c054030ea0f88498a9052845ee25
@@ -33,16 +35,17 @@ The expected branch is active. Git verifies this ancestry:
 
 The only commit between those SHAs is `ea86ba2b`, message `fix(meli): harden cooldown concurrency`. It changes `app/Integrations/MercadoLibre/Client/MeliClient.php`, `app/Integrations/MercadoLibre/Client/MeliCooldownRepository.php` and `tests/Integration/MeliRateLimitTest.php`.
 
-Fresh QA ran on the exact SHA above; HEAD remained unchanged and working tree remained clean:
+Fresh QA results for MB-02:
 
 | Check | Result |
 |---|---|
 | `composer validate --strict` | PASS, exit 0 |
 | `php vendor/bin/phpstan analyse --no-progress` | PASS, 0 errors, exit 0 |
-| `php vendor/bin/phpunit` | PASS, 308 tests / 2276 assertions / 1 skipped / 0 failures / 0 errors, exit 0 |
+| Focused MB-02 + MB-01 cooldown regressions | PASS, 65 tests / 627 assertions / 0 failures / 0 errors |
+| `php vendor/bin/phpunit` | PASS, 319 tests / 2336 assertions / 1 skipped / 0 failures / 0 errors, exit 0 |
 | Runtime | PHP 8.5.8; PHPUnit 12.5.38 |
 
-PHPUnit used the existing test harness and a unique private local MariaDB database, removed after the run. Injected transports/fakes and the local/test HTTP host guard prevent live Mercado Libre access; REAL_MELI_HTTP stayed 0. The one skipped test concerns unavailable symlink creation on this platform; that filesystem case is not newly certified.
+PHPUnit used the existing harness with a temporary local MariaDB 11.4 container on port 3308; the container was removed after QA. Injected transports/fakes and `REAL_MELI_HTTP=0` kept Mercado Libre HTTP off. The one skipped test concerns unavailable symlink creation on this platform; that filesystem case is not newly certified.
 
 ## 2. Current implementation and Safety boundary
 
@@ -57,7 +60,7 @@ One PHP/Slim application, one MariaDB, one Work table/runner and one MeliClient.
 | F6A-LOCAL-3B | CLOSED locally at `6dbb6087`: post-decoder cursor contract durability. |
 | R0 | CLOSED locally at `997c22f5`: local state and roadmap reconciliation. |
 | MB-01 / API-SAFETY-1 | CLOSED locally at `ea86ba2b`: atomic upsert with saturated counter, GREATEST monotonic deadline, effective retryAt reload, safe clear only for expired cooldowns, and cleanup deferred until post-2xx/JSON validation. |
-| MB-02 / API-SAFETY-2 | PENDING: strict Retry-After parsing, HTTP-date support, integer overflow bounds, and effective propagation. |
+| MB-02 / API-SAFETY-2 | CLOSED locally at `737c99d5`: strict ASCII delay-seconds and IMF-fixdate parsing, overflow-safe invalid handling, MAX(local, remote, durable) 429 cooldown, and GET 5xx Work wait propagation. |
 | MB-03 / API-SAFETY-3 | PENDING: OAuth uncertain POST, busy lock, and SQL versus business error classification. |
 | F6A-LOCAL-4 | PENDING: minimal application Work routing; no HandlerRegistry, bus, domain queue or new runner. |
 | Financial | NOT STARTED / NOT READY; no ledger or formulas introduced. |
@@ -72,13 +75,21 @@ Verified local MB-01 properties:
 
 Evidence: `MeliCooldownRepository::register429/clear`, `MeliClient::request`, and focused tests in `tests/Integration/MeliRateLimitTest.php`.
 
+Verified local MB-02 properties:
+
+- `MeliClient` accepts exact ASCII delay-seconds and strict IMF-fixdate in UTC; past dates resolve to zero, while missing, relative, malformed, and nonrepresentable values preserve the local fallback.
+- A valid remote wait is not clamped; the 429 candidate is the greater of the existing local backoff and remote wait, then MB-01 preserves the greater durable deadline.
+- Read-operation 5xx exceptions retain the parsed wait and all three affected Work handlers schedule `max(30 seconds, remote wait)`. OAuth `AUTH` requests do not carry this read retry wait.
+
+Evidence: `MeliClient::retryAfterSeconds/request`, `MeliCooldownRepository::register429`, `MeliApiException::$retryAfterSeconds`, the three affected read handlers, and focused integration tests.
+
 ## 3. Current gates and priorities
 
 | Gate | Current verdict / limit |
 |---|---|
 | G1 REMOTE_TRUTH | Local implemented contracts evidenced; external READ-only certification remains F14. |
 | G2 WORK_SAFETY | Local supported-producer coverage GREEN; conditional malformed scalar payload robustness remains open. |
-| G3 RATE_SAFETY | OPEN / NOT FULL PASS. MB-01 resolved cooldown races, monotonic deadlines, and premature clearing; MB-02 (Retry-After parser/overflow) and MB-03 (OAuth recovery) remain open. |
+| G3 RATE_SAFETY | OPEN / NOT FULL PASS. MB-01 cooldown safety and MB-02 Retry-After parsing/wait propagation are closed locally; MB-03 OAuth recovery remains open. |
 | G4 SALES_AUDIT_TRUTH | CLOSED within local confirmation/repair coverage. |
 | G5 BILLING_CURSOR_TRUTH | PASS LOCAL THROUGH F6A-LOCAL-3B. Routing remains pending (F6A-LOCAL-4). |
 | G6 FINANCIAL_NO_DOUBLE_COUNT | NOT STARTED / NOT READY. |
@@ -97,14 +108,14 @@ Git = superseded history
 
 Current truth: local code/schema > same-SHA tests/QA > same-SHA evidence > checkpoint > durable authority > README/supporting documents > handoffs/audits > remote visibility > inference.
 
-README and ERP2_AUTHORITY are unchanged in MB-01.
+README and ERP2_AUTHORITY are unchanged through MB-02.
 
 ## 5. NEXT and STOP
 
 ```text
-CURRENT = MB-01 CLOSED
-NEXT = MB-02 / API-SAFETY-2
+CURRENT = MB-02 CLOSED
+NEXT = MB-03 / API-SAFETY-3
 STOP
 ```
 
-MB-02 addresses strict Retry-After parsing, HTTP-date support, and integer overflow bounds. Do not start routing, Financial, sale_fee changes, or F14 here. No real Mercado Libre HTTP/OAuth, production mutation, remote writes, push, merge or deploy.
+Do not start MB-03, routing, Financial, sale_fee changes, or F14 here. No real Mercado Libre HTTP/OAuth, production mutation, remote writes, push, merge or deploy.
