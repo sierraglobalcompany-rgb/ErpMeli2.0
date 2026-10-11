@@ -309,17 +309,7 @@ final class Routes
             ServerRequestInterface $request,
             ResponseInterface $response
         ) use ($config): ResponseInterface {
-            $pdo = Connection::fromConfig($config);
-            $root = dirname(__DIR__, 3);
-            $debugDirectory = $root . '/storage/debug';
-            $exportDirectory = $root . '/storage/exports';
-            $controller = new SystemSettingsController(
-                $pdo,
-                new SystemSettingsRepository($pdo),
-                new Csrf(),
-                new DebugMaintenance($debugDirectory, $exportDirectory),
-                new DebugExportService($debugDirectory, $exportDirectory),
-            );
+            $controller = self::systemSettingsController($config);
 
             return $request->getMethod() === 'POST'
                 ? $controller->update($request, $response)
@@ -330,17 +320,7 @@ final class Routes
             ServerRequestInterface $request,
             ResponseInterface $response
         ) use ($config): ResponseInterface {
-            $pdo = Connection::fromConfig($config);
-            $root = dirname(__DIR__, 3);
-            $debugDirectory = $root . '/storage/debug';
-            $exportDirectory = $root . '/storage/exports';
-            $controller = new SystemSettingsController(
-                $pdo,
-                new SystemSettingsRepository($pdo),
-                new Csrf(),
-                new DebugMaintenance($debugDirectory, $exportDirectory),
-                new DebugExportService($debugDirectory, $exportDirectory),
-            );
+            $controller = self::systemSettingsController($config);
 
             return $controller->clearDebug($request, $response);
         });
@@ -349,19 +329,25 @@ final class Routes
             ServerRequestInterface $request,
             ResponseInterface $response
         ) use ($config): ResponseInterface {
-            $pdo = Connection::fromConfig($config);
-            $root = dirname(__DIR__, 3);
-            $debugDirectory = $root . '/storage/debug';
-            $exportDirectory = $root . '/storage/exports';
-            $controller = new SystemSettingsController(
-                $pdo,
-                new SystemSettingsRepository($pdo),
-                new Csrf(),
-                new DebugMaintenance($debugDirectory, $exportDirectory),
-                new DebugExportService($debugDirectory, $exportDirectory),
-            );
+            $controller = self::systemSettingsController($config);
 
             return $controller->exportDebug($request, $response);
         });
+    }
+
+    private static function systemSettingsController(AppConfig $config): SystemSettingsController
+    {
+        $pdo = Connection::fromConfig($config);
+        $root = dirname(__DIR__, 3);
+        $debugDirectory = $root . '/storage/debug';
+        $exportDirectory = $root . '/storage/exports';
+
+        return new SystemSettingsController(
+            $pdo,
+            new SystemSettingsRepository($pdo),
+            new Csrf(),
+            new DebugMaintenance($debugDirectory, $exportDirectory),
+            new DebugExportService($debugDirectory, $exportDirectory),
+        );
     }
 }
