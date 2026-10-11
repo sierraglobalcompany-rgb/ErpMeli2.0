@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Billing;
 
 use App\Integrations\MercadoLibre\Auth\OAuthRefreshService;
+use App\Integrations\MercadoLibre\Client\MeliApiException;
 use App\Integrations\MercadoLibre\Client\MeliClient;
+use App\Integrations\MercadoLibre\Client\MeliClientResponse;
+use App\Integrations\MercadoLibre\Client\MeliRateLimitException;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -15,6 +18,8 @@ use Throwable;
 
 final class BillingPeriodSyncHandler
 {
+    private const REMOTE_RETRY_SECONDS = 30;
+
     public function __construct(
         private readonly WorkRepository $work,
         private readonly MeliClient $meliClient,
@@ -37,23 +42,54 @@ final class BillingPeriodSyncHandler
         $this->assertIdentity($workId, $claimToken, $companyId, $accountId, $periodKey, $documentType, $fromId);
 
         $scopeKey = 'company:' . $companyId . ':account:' . $accountId;
-        $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
-        $response = $this->meliClient->request(
-            'billing.period.details',
-            $accessToken,
-            scopeKey: $scopeKey,
-            pathParams: ['period_key' => $periodKey],
-            queryParams: [
-                'document_type' => $documentType,
-                'limit' => 1000,
-                'from_id' => $fromId,
-                'sort_by' => 'ID',
-                'order_by' => 'ASC',
-            ],
-        );
+        try {
+            $accessToken = $this->tokens->getValidAccessToken($accountId, $now);
+        } catch (MeliRateLimitException $exception) {
+            $this->deferRateLimit($workId, $claimToken, $exception);
+            return false;
+        } catch (RuntimeException) {
+            $this->work->failCurrentClaim(
+                $workId, $claimToken, 'meli_oauth_attention',
+                'Mercado Libre OAuth requires attention before billing period sync.',
+            );
+            return false;
+        }
+
+        try {
+            $response = $this->requestPage($accessToken, $scopeKey, $periodKey, $documentType, $fromId);
+        } catch (MeliRateLimitException $exception) {
+            $this->deferRateLimit($workId, $claimToken, $exception);
+            return false;
+        } catch (MeliApiException $exception) {
+            if ($exception->status !== 401) {
+                $this->handleRemoteFailure($workId, $claimToken, $exception, $now);
+                return false;
+            }
+
+            try {
+                $freshAccessToken = $this->tokens->refreshAfterUnauthorized($accountId, $accessToken, $now);
+                $response = $this->requestPage($freshAccessToken, $scopeKey, $periodKey, $documentType, $fromId);
+            } catch (MeliRateLimitException $recoveryException) {
+                $this->deferRateLimit($workId, $claimToken, $recoveryException);
+                return false;
+            } catch (MeliApiException $recoveryException) {
+                $this->handleRemoteFailure($workId, $claimToken, $recoveryException, $now);
+                return false;
+            } catch (RuntimeException) {
+                $this->scheduleRemoteRetry($workId, $claimToken, $now);
+                return false;
+            }
+        } catch (RuntimeException) {
+            $this->scheduleRemoteRetry($workId, $claimToken, $now);
+            return false;
+        }
 
         if ($response->status === 206) {
-            throw new RuntimeException('Mercado Libre billing period page is partial.');
+            $this->work->deferCurrentClaim(
+                $workId, $claimToken, $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
+                'meli_billing_partial', 'Mercado Libre billing period page is partial; retry later.',
+            );
+            return false;
         }
 
         if (!array_key_exists('results', $response->data) || !array_key_exists('last_id', $response->data)) {
@@ -149,6 +185,58 @@ final class BillingPeriodSyncHandler
                     $now,
                 );
             },
+        );
+    }
+
+    private function requestPage(
+        string $accessToken,
+        string $scopeKey,
+        string $periodKey,
+        string $documentType,
+        string $fromId,
+    ): MeliClientResponse {
+        return $this->meliClient->request(
+            'billing.period.details',
+            $accessToken,
+            scopeKey: $scopeKey,
+            pathParams: ['period_key' => $periodKey],
+            queryParams: [
+                'document_type' => $documentType,
+                'limit' => 1000,
+                'from_id' => $fromId,
+                'sort_by' => 'ID',
+                'order_by' => 'ASC',
+            ],
+        );
+    }
+
+    private function deferRateLimit(int $workId, string $claimToken, MeliRateLimitException $exception): void
+    {
+        $this->work->deferCurrentClaim(
+            $workId, $claimToken, $exception->retryAt,
+            'meli_rate_limited', 'Mercado Libre rate limited Billing authorization or request recovery.',
+        );
+    }
+
+    private function scheduleRemoteRetry(int $workId, string $claimToken, DateTimeImmutable $now): void
+    {
+        $this->work->retryCurrentClaim(
+            $workId, $claimToken, $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
+            'meli_remote_retry', 'Mercado Libre billing period sync encountered a temporary remote failure.',
+        );
+    }
+
+    private function handleRemoteFailure(int $workId, string $claimToken, MeliApiException $exception, DateTimeImmutable $now): void
+    {
+        if ($exception->status >= 500) {
+            $this->scheduleRemoteRetry($workId, $claimToken, $now);
+            return;
+        }
+
+        $this->work->failCurrentClaim(
+            $workId, $claimToken,
+            $exception->status === 401 ? 'meli_unauthorized' : 'meli_remote_permanent',
+            'Mercado Libre rejected the billing period request.',
         );
     }
 
