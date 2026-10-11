@@ -94,12 +94,18 @@ final class BillingSchemaTest extends TestCase
             'currency_id',
             'document_id',
             'marketplace',
+            'context_json',
             'remote_created_at',
             'created_at',
         ] as $name) {
             self::assertArrayHasKey($name, $byName);
         }
         self::assertStringStartsWith('decimal(', strtolower((string) $byName['detail_amount']['Type']));
+        self::assertSame('YES', strtoupper((string) $byName['context_json']['Null']));
+
+        $createSql = strtolower((string) $pdo->query('SHOW CREATE TABLE billing_details')->fetchColumn(1));
+        self::assertStringContainsString('context_json', $createSql);
+        self::assertStringContainsString('json_valid', $createSql);
 
         foreach ([
             'payload',

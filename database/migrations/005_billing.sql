@@ -32,6 +32,7 @@ CREATE TABLE billing_details (
     currency_id VARCHAR(8) NULL,
     document_id VARCHAR(40) NULL,
     marketplace VARCHAR(40) NULL,
+    context_json JSON NULL,
     remote_created_at DATETIME(6) NULL,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
