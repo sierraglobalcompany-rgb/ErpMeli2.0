@@ -19,11 +19,6 @@ if (getenv('BILLING_C0_REAL_HTTP') !== '1') {
     exit(2);
 }
 
-if (getenv('REAL_MELI_HTTP') !== '1') {
-    fwrite(STDERR, "Billing C0 requires REAL_MELI_HTTP=1.\n");
-    exit(2);
-}
-
 $options = getopt('', [
     'account-id:',
     'period:',
@@ -56,6 +51,11 @@ $maxPagesValue = is_string($maxPages)
     : false;
 if ($maxPagesValue === false) {
     fwrite(STDERR, "Billing C0 requires --max-pages between 1 and 20.\n");
+    exit(2);
+}
+
+if (getenv('REAL_MELI_HTTP') !== '1') {
+    fwrite(STDERR, "Billing C0 requires REAL_MELI_HTTP=1.\n");
     exit(2);
 }
 
