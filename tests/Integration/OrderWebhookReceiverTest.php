@@ -23,6 +23,11 @@ final class OrderWebhookReceiverTest extends TestCase
         self::assertTrue($accepted);
         self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM webhook_events')->fetchColumn());
         self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type = 'order.sync'")->fetchColumn());
+        $timestamps = $pdo->query('SELECT sent_at, received_at FROM webhook_events')->fetch();
+        self::assertSame(
+            ['sent_at' => '2026-10-09 01:00:00.000000', 'received_at' => '2026-10-09 01:00:00.100000'],
+            $timestamps,
+        );
 
         $work = $pdo->query("SELECT company_id, account_id, scope_key, resource_key, payload_json, status FROM work_items WHERE type = 'order.sync'")->fetch();
         self::assertIsArray($work);
@@ -32,6 +37,43 @@ final class OrderWebhookReceiverTest extends TestCase
         self::assertSame('200000000001', $work['resource_key']);
         self::assertSame(['order_id' => '200000000001'], json_decode((string) $work['payload_json'], true));
         self::assertSame('pending', $work['status']);
+    }
+
+    public function testOffsetlessWebhookTimestampsAreStoredAsNullWithoutRejectingNotification(): void
+    {
+        $pdo = TestDatabase::reset();
+        [, , $sellerId] = $this->seedAccount($pdo);
+        $receiver = new OrderWebhookReceiver($pdo, new WorkRepository($pdo), '987654321');
+        $payload = $this->payload($sellerId);
+        $payload['sent'] = '2026-10-09T01:00:00.000';
+        $payload['received'] = '2026-10-09T01:00:00.100';
+
+        self::assertTrue($receiver->receive($payload));
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM webhook_events')->fetchColumn());
+        self::assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type = 'order.sync'")->fetchColumn());
+
+        $timestamps = $pdo->query('SELECT sent_at, received_at FROM webhook_events')->fetch();
+
+        self::assertSame(['sent_at' => null, 'received_at' => null], $timestamps);
+    }
+
+    public function testExplicitOffsetWebhookTimestampsAreNormalizedToUtc(): void
+    {
+        $pdo = TestDatabase::reset();
+        [, , $sellerId] = $this->seedAccount($pdo);
+        $receiver = new OrderWebhookReceiver($pdo, new WorkRepository($pdo), '987654321');
+        $payload = $this->payload($sellerId);
+        $payload['sent'] = '2026-10-09T01:00:00.123-05:00';
+        $payload['received'] = '2026-10-09T08:00:00.456+02:00';
+
+        self::assertTrue($receiver->receive($payload));
+
+        $timestamps = $pdo->query('SELECT sent_at, received_at FROM webhook_events')->fetch();
+
+        self::assertSame(
+            ['sent_at' => '2026-10-09 06:00:00.123000', 'received_at' => '2026-10-09 06:00:00.456000'],
+            $timestamps,
+        );
     }
 
     public function testDuplicateNotificationDoesNotCreateDuplicateEventOrActiveWork(): void

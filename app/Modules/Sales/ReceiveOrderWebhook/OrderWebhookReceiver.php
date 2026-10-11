@@ -166,8 +166,13 @@ final class OrderWebhookReceiver
             return null;
         }
 
+        $timestamp = trim($value);
+        if (preg_match('/(?:Z|[+-]\d{2}:\d{2})$/D', $timestamp) !== 1) {
+            return null;
+        }
+
         try {
-            return (new DateTimeImmutable($value))
+            return (new DateTimeImmutable($timestamp))
                 ->setTimezone(new DateTimeZone('UTC'))
                 ->format('Y-m-d H:i:s.u');
         } catch (\Exception) {
