@@ -509,10 +509,16 @@ final class SalesAuditHandler
         }
 
         try {
-            return (new DateTimeImmutable($value))->setTimezone(new DateTimeZone('UTC'));
+            $parsed = new DateTimeImmutable($value);
+            $errors = DateTimeImmutable::getLastErrors();
         } catch (\Exception) {
             throw new RuntimeException('Sales audit date_created is invalid.');
         }
+        if (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+            throw new RuntimeException('Sales audit date_created is invalid.');
+        }
+
+        return $parsed->setTimezone(new DateTimeZone('UTC'));
     }
 
     private function nonNegativeInt(mixed $value): ?int

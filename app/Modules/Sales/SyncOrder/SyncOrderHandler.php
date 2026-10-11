@@ -457,11 +457,15 @@ final class SyncOrderHandler
         }
 
         try {
-            return (new DateTimeImmutable($value))
-                ->setTimezone(new DateTimeZone('UTC'))
-                ->format('Y-m-d H:i:s.u');
+            $parsed = new DateTimeImmutable($value);
+            $errors = DateTimeImmutable::getLastErrors();
         } catch (\Exception) {
             throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
         }
+        if (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+            throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
+        }
+
+        return $parsed->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
     }
 }

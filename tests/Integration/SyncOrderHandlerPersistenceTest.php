@@ -139,6 +139,37 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
         self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
     }
 
+    public function testImpossibleZonedDateCreatedFailsClosedWithoutSalesWrite(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $valid = $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2);
+        $payload = json_decode($valid->body, true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($payload);
+        $payload['date_created'] = '2026-02-30T10:00:00-05:00';
+        $transport = new OrderQueueTransport([
+            new MeliTransportResponse(200, $valid->headers, json_encode($payload, JSON_THROW_ON_ERROR)),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+
+        self::assertFalse($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+        ));
+        self::assertSame('failed', $pdo->query('SELECT status FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame('meli_order_contract', $pdo->query('SELECT last_error_code FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM order_items')->fetchColumn());
+        self::assertCount(1, $transport->requests);
+    }
+
     public function testFloatAtExactMoneyBoundaryFailsClosedWithoutSalesWrite(): void
     {
         $pdo = TestDatabase::reset();
