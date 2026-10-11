@@ -42,16 +42,13 @@ final class BillingC0CliRuntimeTest extends TestCase
         ]);
     }
 
-    public function testCliResolvesFreshStoredTokenReadOnlyAndStopsBeforeHttp(): void
+    public function testCliRequiresGlobalRealHttpOptInBeforeDatabaseOrHttp(): void
     {
         $before = $this->runtimeSnapshot();
         $result = $this->runCli();
 
         self::assertNotSame(0, $result['exit_code']);
-        self::assertStringContainsString(
-            'Billing C0 account/token ready; HTTP smoke is not configured yet.',
-            $result['stderr'],
-        );
+        self::assertStringContainsString('Billing C0 requires REAL_MELI_HTTP=1.', $result['stderr']);
         self::assertSame('', $result['stdout']);
         self::assertStringNotContainsString('secret-access-token', $result['stderr']);
         self::assertStringNotContainsString('secret-refresh-token', $result['stderr']);
