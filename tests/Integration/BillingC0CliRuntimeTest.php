@@ -57,6 +57,25 @@ final class BillingC0CliRuntimeTest extends TestCase
         self::assertSame($before, $this->runtimeSnapshot());
     }
 
+    public function testCliRealSmokeWiresExistingCurlTransportAndRuntimeProbe(): void
+    {
+        $script = file_get_contents(dirname(__DIR__, 2) . '/bin/billing-c0-smoke.php');
+        self::assertIsString($script);
+
+        self::assertStringContainsString(
+            'use App\\Integrations\\MercadoLibre\\Transport\\CurlMeliTransport;',
+            $script,
+        );
+        self::assertStringContainsString(
+            'use App\\Integrations\\MercadoLibre\\Transport\\RemoteHostPolicy;',
+            $script,
+        );
+        self::assertStringContainsString('new CurlMeliTransport(new RemoteHostPolicy(), $config->appEnv)', $script);
+        self::assertStringContainsString('$runtime->probe(', $script);
+        self::assertStringContainsString('JSON_THROW_ON_ERROR', $script);
+        self::assertStringNotContainsString('HTTP smoke is not configured yet', $script);
+    }
+
     /** @return array{exit_code:int,stdout:string,stderr:string} */
     private function runCli(): array
     {
