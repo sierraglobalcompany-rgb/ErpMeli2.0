@@ -7,9 +7,6 @@ use App\Core\Config\Environment;
 use App\Core\Database\Connection;
 use App\Integrations\MercadoLibre\Auth\TokenCipher;
 use App\Modules\Billing\C0\BillingC0Runtime;
-use DateTimeImmutable;
-use DateTimeZone;
-use Throwable;
 
 $appEnv = getenv('APP_ENV');
 if ($appEnv !== 'production') {
