@@ -12,6 +12,7 @@ use RuntimeException;
 final class SalesAuditRepairHandler
 {
     private const int REPAIR_WAIT_SECONDS = 30;
+    private const int CONFIRMATION_PAGE_LIMIT = 50;
 
     public function __construct(
         private readonly SalesAuditRepository $audit,
@@ -56,10 +57,20 @@ final class SalesAuditRepairHandler
                 return $this->work->completeCurrentClaim(
                     $workId,
                     $claimToken,
-                    function (PDO $_pdo) use ($runId, $companyId, $accountId): void {
+                    function (PDO $_pdo) use ($runId, $companyId, $accountId, $now): void {
                         if (!$this->audit->transitionToConfirmingIfRepaired($runId, $companyId, $accountId)) {
                             throw new RuntimeException('Sales audit repair verification did not confirm local coverage.');
                         }
+                        $this->work->enqueue(
+                            $companyId,
+                            $accountId,
+                            'company:' . $companyId . ':account:' . $accountId,
+                            'sales.audit',
+                            (string) $runId,
+                            'sales.audit:' . $runId . ':confirm:0:' . self::CONFIRMATION_PAGE_LIMIT,
+                            ['run_id' => $runId, 'offset' => 0, 'limit' => self::CONFIRMATION_PAGE_LIMIT],
+                            $now,
+                        );
                     },
                 );
             } catch (RuntimeException) {

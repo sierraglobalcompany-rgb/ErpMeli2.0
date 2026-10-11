@@ -265,6 +265,17 @@ final class SalesAuditHandler
                                 ['run_id' => $runId],
                                 $now,
                             );
+                        } elseif ($nextStatus === 'confirming') {
+                            $this->work->enqueue(
+                                $companyId,
+                                $accountId,
+                                'company:' . $companyId . ':account:' . $accountId,
+                                'sales.audit',
+                                (string) $runId,
+                                'sales.audit:' . $runId . ':confirm:0:' . $limit,
+                                ['run_id' => $runId, 'offset' => 0, 'limit' => $limit],
+                                $now,
+                            );
                         }
                         return;
                     }

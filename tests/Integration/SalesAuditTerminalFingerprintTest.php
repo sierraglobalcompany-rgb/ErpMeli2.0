@@ -169,10 +169,24 @@ final class SalesAuditTerminalFingerprintTest extends TestCase
             $pdo->query('SELECT status FROM sales_audit_runs WHERE id = ' . $runId)->fetchColumn(),
         );
         self::assertSame('done', $pdo->query('SELECT status FROM work_items WHERE id = ' . $workId)->fetchColumn());
+        $confirmations = $pdo->query(
+            "SELECT id,status,resource_key,payload_json FROM work_items WHERE type='sales.audit' AND status='pending'"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        self::assertCount(1, $confirmations, 'Terminal Capture A must enqueue the first Capture B page.');
+        self::assertSame('pending', $confirmations[0]['status']);
+        self::assertSame((string) $runId, $confirmations[0]['resource_key']);
         self::assertSame(
-            1,
+            ['run_id' => $runId, 'offset' => 0, 'limit' => 50],
+            json_decode((string) $confirmations[0]['payload_json'], true, 512, JSON_THROW_ON_ERROR),
+        );
+        self::assertSame(
+            ['id' => (int) $confirmations[0]['id'], 'status' => 'pending'],
+            $work->latestLogicalState('company:1:account:1', 'sales.audit', 'sales.audit:' . $runId . ':confirm:0:50'),
+        );
+        self::assertSame(
+            2,
             (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='sales.audit'")->fetchColumn(),
-            'No repair continuation is needed when local coverage is already complete.',
+            'Capture A is done and its first Capture B page is pending.',
         );
         self::assertSame(
             0,
