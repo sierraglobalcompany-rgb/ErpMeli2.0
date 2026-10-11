@@ -8,7 +8,7 @@
 
 **Branch:** `impl/v3-b-sales-audit-20261010`
 
-**MB-03 implementation and functional QA SHA:** `9fc2be58f528c8309456d7c0ad33d8544459bbda`
+**MB-03 implementation and functional QA SHA:** `97d132472a4ac2932c5d5743b17f56c9a6f2618c`
 
 **Working tree before MB-03:** CLEAN
 
@@ -24,7 +24,7 @@ This docs-only commit follows the implementation/functional QA SHA above. Its ow
 
 ## 1. Local verification and QA
 
-The expected branch is active. The MB-03 implementation commit is `9fc2be58f528c8309456d7c0ad33d8544459bbda` (`fix(meli): harden OAuth refresh safety`). QA ran on the same source tree committed by that SHA.
+The expected branch is active. The MB-03 implementation/functional QA commit is `97d132472a4ac2932c5d5743b17f56c9a6f2618c` (`fix(meli): preserve OAuth token after cleanup failure`). It includes the initial `fix(meli): harden OAuth refresh safety` commit. QA ran on the same source tree committed by this SHA.
 
 The prior MB-01 ancestry is:
 
@@ -41,8 +41,8 @@ Fresh QA results for MB-03:
 |---|---|
 | `composer validate --strict` | PASS, exit 0 |
 | `php vendor/bin/phpstan analyse --no-progress` | PASS, 0 errors, exit 0 |
-| Focused MB-03 + MB-02 + MB-01 OAuth and cooldown regressions | PASS, 72 tests / 741 assertions / 0 failures / 0 errors |
-| `php vendor/bin/phpunit` | PASS, 333 tests / 2458 assertions / 1 skipped / 0 failures / 0 errors, exit 0 |
+| Focused MB-03 + MB-02 + MB-01 OAuth and cooldown regressions | PASS, 74 tests / 753 assertions / 0 failures / 0 errors |
+| `php vendor/bin/phpunit` | PASS, 335 tests / 2470 assertions / 1 skipped / 0 failures / 0 errors, exit 0 |
 | Runtime | PHP 8.5.8; PHPUnit 12.5.38 |
 
 PHPUnit used the existing harness with a temporary local MariaDB 11.4 container on port 13341; the container was removed after QA. Injected transports/fakes and `REAL_MELI_HTTP=0` kept Mercado Libre HTTP off. The one skipped test concerns unavailable symlink creation on this platform; that filesystem case is not newly certified.
@@ -61,7 +61,7 @@ One PHP/Slim application, one MariaDB, one Work table/runner and one MeliClient.
 | R0 | CLOSED locally at `997c22f5`: local state and roadmap reconciliation. |
 | MB-01 / API-SAFETY-1 | CLOSED locally at `ea86ba2b`: atomic upsert with saturated counter, GREATEST monotonic deadline, effective retryAt reload, safe clear only for expired cooldowns, and cleanup deferred until post-2xx/JSON validation. |
 | MB-02 / API-SAFETY-2 | CLOSED locally at `737c99d5`: strict ASCII delay-seconds and IMF-fixdate parsing, overflow-safe invalid handling, MAX(local, remote, durable) 429 cooldown, and GET 5xx Work wait propagation. |
-| MB-03 / API-SAFETY-3 | CLOSED locally at `9fc2be58`: typed busy-lock signal defers Work without consuming attempts; refresh 429 uses the existing effective cooldown; uncertain 5xx/transport outcomes mark the account `attention`; invalid_grant remains `reauth_required`; rotated-token reread and one-refresh/one-resource-retry 401 behavior remain intact; PDO failures escape OAuth, Billing, Sales and Audit business catches. |
+| MB-03 / API-SAFETY-3 | CLOSED locally at `97d13247`: typed busy-lock signal defers Work without consuming attempts; refresh 429 uses the existing effective cooldown; uncertain 5xx/transport outcomes mark the account `attention`; invalid_grant remains `reauth_required`; the under-lock rotated-token reread and one-refresh/one-resource-retry 401 behavior remain intact; successful refresh tokens persist before a post-response cooldown-cleanup PDO failure escapes; PDO failures escape OAuth, Billing, Sales and Audit business catches. |
 | F6A-LOCAL-4 | PENDING: minimal application Work routing; no HandlerRegistry, bus, domain queue or new runner. |
 | Financial | NOT STARTED / NOT READY; no ledger or formulas introduced. |
 
@@ -88,10 +88,12 @@ Verified local MB-03 properties:
 - A held per-account refresh lock emits one OAuth-specific busy signal; Billing, SyncOrder and Sales Audit defer the existing Work claim for 30 seconds with net attempts unchanged, no HTTP, and no account/token mutation.
 - OAuth refresh 429 still defers to the effective durable cooldown without changing account status or retrying inline. `invalid_grant` still requires reauthorization without a second refresh POST.
 - Refresh 5xx and ambiguous transport failures set the account to `attention`; subsequent Work stops before HTTP until the account is resolved. The lock-protected token reread still uses a token rotated by another process without a redundant refresh.
+- If the remote refresh succeeded but expired-cooldown cleanup fails with PDO, the validated rotated token pair is persisted first; the SQL failure still escapes, and the next Work uses the fresh token without another refresh POST.
+- `refreshAfterUnauthorized()` acquires its account lock and rereads a rotated token written by another connection; it returns the new token with zero refresh HTTP.
 - First resource 401 still allows one refresh and one resource retry; a second 401 ends without a second refresh or third resource request.
 - PDO failures escape before being mapped to OAuth attention or Sales Audit business outcomes; transactional Audit state writes keep rollback behavior.
 
-Evidence: `OAuthRefreshService`, Billing/SyncOrder/Sales Audit handlers, `SalesWorkProcessor`, `SalesAuditRepairHandler`, and focused tests in `OAuthRefreshServiceTest`, `SyncOrderHandlerTokenFailureTest`, `BillingPeriodSyncHandlerTest`, `SalesAuditTransientFailureTest`, `SalesAuditUnauthorizedTest`, `SalesWorkProcessorTest`, and `SalesAuditRepairFanoutTest`.
+Evidence: `OAuthRefreshService`, `MeliClient`, Billing/SyncOrder/Sales Audit handlers, `SalesWorkProcessor`, `SalesAuditRepairHandler`, and focused tests in `OAuthRefreshServiceTest`, `SyncOrderHandlerTokenFailureTest`, `BillingPeriodSyncHandlerTest`, `SalesAuditTransientFailureTest`, `SalesAuditUnauthorizedTest`, `SalesWorkProcessorTest`, and `SalesAuditRepairFanoutTest`.
 
 ## 3. Current gates and priorities
 
