@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 /** @var list<array<string,mixed>> $orders */
+/** @var list<array<string,mixed>> $auditRuns */
+/** @var string $orderId */
 /** @var bool $canStartAudit */
 /** @var list<array<string,mixed>> $auditAccounts */
 /** @var string $csrfToken */
@@ -16,8 +18,17 @@ declare(strict_types=1);
     <title>Ventas</title>
 </head>
 <body>
+    <?php require dirname(__DIR__, 4) . '/Core/Http/views/navigation.php'; ?>
     <main>
         <h1>Ventas</h1>
+        <form method="get" action="/sales">
+            <label>ID exacto de venta <input name="order_id" inputmode="numeric" pattern="[0-9]{1,32}" value="<?= htmlspecialchars($orderId, ENT_QUOTES, 'UTF-8') ?>"></label>
+            <button type="submit">Buscar venta</button>
+            <a href="/sales">Ver ventas recientes</a>
+        </form>
+        <?php if ($orders === []): ?>
+            <p><?= $orderId === '' ? 'No hay ventas locales.' : 'No se encontró la venta en esta empresa.' ?></p>
+        <?php endif; ?>
 
         <?php if ($canStartAudit): ?>
             <section aria-labelledby="sales-audit-title">
@@ -49,6 +60,32 @@ declare(strict_types=1);
                 <?php endif; ?>
             </section>
         <?php endif; ?>
+
+        <section aria-labelledby="audit-results-title">
+            <h2 id="audit-results-title">Estado y resultados de auditoría (últimas 25)</h2>
+            <p>CAPTURING, REPAIRING y CONFIRMING indican auditoría pendiente o en curso.
+                VALID, ATTENTION y UNAVAILABLE son los estados finales registrados. Actualice la página para consultar cambios.</p>
+            <?php if ($auditRuns === []): ?>
+                <p>No hay auditorías para esta empresa.</p>
+            <?php else: ?>
+                <table>
+                    <thead><tr><th>Cuenta</th><th>Período</th><th>Estado</th><th>Inicio (UTC)</th><th>Fin (UTC)</th><th>Ventas locales</th><th>Ventas remotas</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($auditRuns as $run): ?>
+                        <tr>
+                            <td><?= htmlspecialchars((string) $run['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars((string) $run['period_key'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars(strtoupper((string) $run['status']), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars((string) $run['started_at'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars((string) ($run['completed_at'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars((string) ($run['canonical_count'] ?? 'Sin determinar'), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars((string) ($run['remote_total'] ?? 'Sin determinar'), ENT_QUOTES, 'UTF-8') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </section>
 
         <table>
             <thead>

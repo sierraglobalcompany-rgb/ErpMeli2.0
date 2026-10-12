@@ -12,6 +12,7 @@
 </head>
 <body>
 <main>
+    <p><a href="/sales">Volver a Ventas</a></p>
     <h1>Sistema</h1>
     <form method="post" action="/settings/system">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">

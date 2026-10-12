@@ -28,16 +28,32 @@ final class CompanyContext
 
     public function companyId(): int
     {
+        return $this->company()['id'];
+    }
+
+    /** @return array{id:int,name:string,role:string} */
+    public function company(): array
+    {
         $userId = $_SESSION['user_id'] ?? null;
         $companyId = $_SESSION['company_id'] ?? null;
-
         if (!is_int($userId) || !is_int($companyId)) {
             throw new DomainException('No active company.');
         }
+        return $this->membership($userId, $companyId);
+    }
 
-        $this->membership($userId, $companyId);
-
-        return $companyId;
+    /** @return list<array{id:int,name:string,role:string}> */
+    public function memberships(): array
+    {
+        $this->assertActiveUser();
+        $statement = $this->pdo->prepare(
+            'SELECT c.id,c.name,cu.role FROM company_users cu INNER JOIN companies c ON c.id = cu.company_id '
+            . 'WHERE cu.user_id = ? ORDER BY c.name,c.id'
+        );
+        $statement->execute([$_SESSION['user_id']]);
+        return array_map(static fn (array $row): array => [
+            'id'=>(int) $row['id'], 'name'=>(string) $row['name'], 'role'=>(string) $row['role'],
+        ], $statement->fetchAll(PDO::FETCH_ASSOC));
     }
 
     public function select(int $companyId): void
@@ -47,24 +63,26 @@ final class CompanyContext
             throw new DomainException('Authentication required.');
         }
 
-        $role = $this->membership($userId, $companyId);
+        $company = $this->membership($userId, $companyId);
         $_SESSION['company_id'] = $companyId;
-        $_SESSION['role'] = $role;
+        $_SESSION['role'] = $company['role'];
     }
 
-    private function membership(int $userId, int $companyId): string
+    /** @return array{id:int,name:string,role:string} */
+    private function membership(int $userId, int $companyId): array
     {
         $this->assertActiveUser();
         $stmt = $this->pdo->prepare(
-            'SELECT role FROM company_users WHERE user_id = ? AND company_id = ? LIMIT 1'
+            'SELECT c.id,c.name,cu.role FROM company_users cu INNER JOIN companies c ON c.id = cu.company_id '
+            . 'WHERE cu.user_id = ? AND cu.company_id = ? LIMIT 1'
         );
         $stmt->execute([$userId, $companyId]);
-        $role = $stmt->fetchColumn();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!is_string($role) || $role === '') {
+        if (!is_array($row) || !is_string($row['role']) || $row['role'] === '') {
             throw new DomainException('Company access denied.');
         }
 
-        return $role;
+        return ['id'=>(int) $row['id'], 'name'=>(string) $row['name'], 'role'=>$row['role']];
     }
 }

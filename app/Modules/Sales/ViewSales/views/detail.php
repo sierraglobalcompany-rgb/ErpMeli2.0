@@ -13,6 +13,7 @@ declare(strict_types=1);
     <title>Venta <?= htmlspecialchars((string) $order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></title>
 </head>
 <body>
+    <?php require dirname(__DIR__, 4) . '/Core/Http/views/navigation.php'; ?>
     <main>
         <p><a href="/sales">← Ventas</a></p>
         <h1>Venta <?= htmlspecialchars((string) $order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></h1>

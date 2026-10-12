@@ -19,6 +19,19 @@ final class SalesAuditRepository
     {
     }
 
+    /** @return list<array<string,mixed>> */
+    public function recentForCompany(int $companyId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT r.period_key,r.status,r.started_at,r.completed_at,r.remote_total,r.canonical_count,'
+            . 'a.external_user_id FROM sales_audit_runs r '
+            . 'INNER JOIN meli_accounts a ON a.id = r.account_id AND a.company_id = r.company_id '
+            . 'WHERE r.company_id = ? ORDER BY r.id DESC LIMIT 25'
+        );
+        $statement->execute([$companyId]);
+        return $statement->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function siteIdForScope(int $companyId, int $accountId): string
     {
         $statement = $this->pdo->prepare(

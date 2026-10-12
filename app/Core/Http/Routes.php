@@ -41,6 +41,18 @@ final class Routes
     /** @param App<ContainerInterface|null> $app */
     public static function register(App $app, AppConfig $config): void
     {
+        $app->get('/', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            try {
+                (new CompanyContext(Connection::fromConfig($config)))->companyId();
+            } catch (\DomainException) {
+                return $response->withStatus(403);
+            }
+            return $response->withHeader('Location', '/sales')->withStatus(303);
+        });
+
         $app->get('/health', static function (
             ServerRequestInterface $request,
             ResponseInterface $response
@@ -309,10 +321,10 @@ final class Routes
             ResponseInterface $response
         ): ResponseInterface {
             $token = (new Csrf())->token();
-            $html = '<form method="post" action="/login">'
+            $html = '<h1>Ingresar</h1><form method="post" action="/login">'
                 . '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">'
-                . '<input name="email" type="email" required>'
-                . '<input name="password" type="password" required>'
+                . '<label>Correo <input name="email" type="email" autocomplete="username" required></label>'
+                . '<label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>'
                 . '<button type="submit">Ingresar</button></form>';
             $response->getBody()->write($html);
             return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
@@ -336,7 +348,7 @@ final class Routes
                 return $response->withStatus(401);
             }
 
-            return $response->withHeader('Location', '/settings/system')->withStatus(303);
+            return $response->withHeader('Location', '/')->withStatus(303);
         });
 
         $app->post('/logout', static function (
@@ -353,6 +365,27 @@ final class Routes
 
             (new AuthService(Connection::fromConfig($config)))->logout();
             return $response->withHeader('Location', '/login')->withStatus(303);
+        });
+
+        $app->get('/company/select', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            $context = new CompanyContext(Connection::fromConfig($config));
+            try {
+                $company = $context->company();
+                $companies = $context->memberships();
+            } catch (\DomainException) {
+                return $response->withStatus(403);
+            }
+            if (count($companies) < 2) {
+                return $response->withHeader('Location', '/sales')->withStatus(303);
+            }
+            $csrfToken = (new Csrf())->token();
+            ob_start();
+            require __DIR__ . '/views/company-select.php';
+            $response->getBody()->write((string) ob_get_clean());
+            return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
         });
 
         $app->post('/company/select', static function (

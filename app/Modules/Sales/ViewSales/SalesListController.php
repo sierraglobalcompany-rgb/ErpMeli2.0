@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Sales\ViewSales;
 
 use App\Core\Security\Csrf;
+use App\Core\Tenancy\CompanyContext;
 use App\Modules\Sales\Audit\SalesAuditRepository;
 use App\Modules\Sales\Audit\SalesAuditWindow;
 use App\Work\WorkRepository;
@@ -27,25 +28,39 @@ final class SalesListController
 
     public function show(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $companyId = $this->authorizedCompanyId();
-        if ($companyId === null) {
+        $context = new CompanyContext($this->pdo);
+        try {
+            $company = $context->company();
+        } catch (\DomainException) {
             return $response->withStatus(403);
         }
+        $companyId = $company['id'];
 
+        $query = $request->getQueryParams();
+        $orderId = $query['order_id'] ?? '';
+        if (!is_string($orderId) || ($orderId !== '' && preg_match('/^[0-9]{1,32}$/D', $orderId) !== 1)) {
+            $response->getBody()->write('<p>ID de venta inválido.</p><a href="/sales">Volver a Ventas</a>');
+            return $response->withHeader('Content-Type', 'text/html; charset=utf-8')->withStatus(422);
+        }
+        $parameters = ['company_id' => $companyId];
+        if ($orderId !== '') {
+            $parameters['order_id'] = $orderId;
+        }
         $statement = $this->pdo->prepare(
             'SELECT o.external_order_id, o.status, o.total_amount, o.currency_id, o.date_created, '
             . 'a.external_user_id AS account_external_user_id '
             . 'FROM orders o '
             . 'INNER JOIN meli_accounts a ON a.company_id = o.company_id AND a.id = o.account_id '
             . 'WHERE o.company_id = :company_id '
+            . ($orderId === '' ? '' : 'AND o.external_order_id = :order_id ')
             . 'ORDER BY COALESCE(o.date_created, o.created_at) DESC, o.id DESC LIMIT 100'
         );
-        $statement->execute(['company_id' => $companyId]);
+        $statement->execute($parameters);
         $orders = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-        $canStartAudit = $this->authorizedCompanyId(adminOnly: true) !== null;
+        $auditRuns = (new SalesAuditRepository($this->pdo))->recentForCompany($companyId);
+        $canStartAudit = $company['role'] === 'admin';
         $auditAccounts = [];
-        $csrfToken = '';
         $lastClosedPeriodKey = '';
         if ($canStartAudit) {
             $accounts = $this->pdo->prepare(
@@ -54,12 +69,13 @@ final class SalesListController
             );
             $accounts->execute(['company_id' => $companyId]);
             $auditAccounts = $accounts->fetchAll(PDO::FETCH_ASSOC);
-            $csrfToken = (new Csrf())->token();
             $lastClosedPeriodKey = SalesAuditWindow::lastClosedPeriodKey(
                 new DateTimeImmutable('now', new DateTimeZone('UTC')),
             );
         }
 
+        $companies = $context->memberships();
+        $csrfToken = (new Csrf())->token();
         ob_start();
         require __DIR__ . '/views/list.php';
         $html = (string) ob_get_clean();
@@ -179,10 +195,13 @@ final class SalesListController
         ResponseInterface $response,
         string $externalOrderId,
     ): ResponseInterface {
-        $companyId = $this->authorizedCompanyId();
-        if ($companyId === null) {
+        $context = new CompanyContext($this->pdo);
+        try {
+            $company = $context->company();
+        } catch (\DomainException) {
             return $response->withStatus(403);
         }
+        $companyId = $company['id'];
         if (preg_match('/^[0-9]{1,32}$/D', $externalOrderId) !== 1) {
             return $response->withStatus(404);
         }
@@ -211,6 +230,8 @@ final class SalesListController
         $itemsStatement->execute(['order_id' => (int) $order['id']]);
         $items = $itemsStatement->fetchAll(PDO::FETCH_ASSOC);
 
+        $companies = $context->memberships();
+        $csrfToken = (new Csrf())->token();
         ob_start();
         require __DIR__ . '/views/detail.php';
         $html = (string) ob_get_clean();
@@ -221,24 +242,11 @@ final class SalesListController
 
     private function authorizedCompanyId(bool $adminOnly = false): ?int
     {
-        $userId = $_SESSION['user_id'] ?? null;
-        $companyId = $_SESSION['company_id'] ?? null;
-        if (!is_int($userId) || $userId < 1 || !is_int($companyId) || $companyId < 1) {
+        try {
+            $company = (new CompanyContext($this->pdo))->company();
+            return $adminOnly && $company['role'] !== 'admin' ? null : $company['id'];
+        } catch (\DomainException) {
             return null;
         }
-
-        $membership = $this->pdo->prepare(
-            'SELECT role FROM company_users WHERE user_id = :user_id AND company_id = :company_id LIMIT 1'
-        );
-        $membership->execute([
-            'user_id' => $userId,
-            'company_id' => $companyId,
-        ]);
-        $role = $membership->fetchColumn();
-        if (!is_string($role) || ($adminOnly && $role !== 'admin')) {
-            return null;
-        }
-
-        return $companyId;
     }
 }

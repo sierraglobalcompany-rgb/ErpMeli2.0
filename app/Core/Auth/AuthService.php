@@ -14,6 +14,44 @@ final class AuthService
     ) {
     }
 
+    public function bootstrapAdmin(string $companyName, string $slug, string $email, string $password): void
+    {
+        $companyName = trim($companyName);
+        $slug = trim($slug);
+        $email = mb_strtolower(trim($email));
+        if ($companyName === '' || mb_strlen($companyName) > 160
+            || preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/D', $slug) !== 1 || strlen($slug) > 120
+            || filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 191
+            || strlen($password) < 12 || strlen($password) > 72) {
+            throw new \InvalidArgumentException('Invalid bootstrap input: company, slug, email and password (12-72 bytes) required.');
+        }
+        $hash = $this->passwords->hash($password);
+        $this->pdo->beginTransaction();
+        try {
+            // Existing singleton serializes first-install authority without adding state.
+            if ($this->pdo->query('SELECT id FROM system_settings WHERE id = 1 FOR UPDATE')->fetchColumn() === false) {
+                throw new \DomainException('Run migrations before bootstrap.');
+            }
+            foreach (['companies', 'users', 'company_users'] as $table) {
+                if ((int) $this->pdo->query('SELECT COUNT(*) FROM ' . $table)->fetchColumn() !== 0) {
+                    throw new \DomainException('Installation already provisioned; bootstrap requires empty authority tables.');
+                }
+            }
+            $company = $this->pdo->prepare('INSERT INTO companies(name,slug) VALUES (?,?)');
+            $company->execute([$companyName, $slug]);
+            $companyId = (int) $this->pdo->lastInsertId();
+            $user = $this->pdo->prepare("INSERT INTO users(email,password_hash,status) VALUES (?,?,'active')");
+            $user->execute([$email, $hash]);
+            $userId = (int) $this->pdo->lastInsertId();
+            $membership = $this->pdo->prepare("INSERT INTO company_users(company_id,user_id,role) VALUES (?,?,'admin')");
+            $membership->execute([$companyId, $userId]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+    }
+
     public function login(string $email, string $password): bool
     {
         $stmt = $this->pdo->prepare(
