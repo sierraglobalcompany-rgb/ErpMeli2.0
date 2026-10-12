@@ -76,8 +76,8 @@ El detalle verificable de estado, QA y gates vive en `docs/CURRENT_CHECKPOINT.md
 | F8 Inventory | Reutilizar facts y contratos de catálogo según necesidad demostrada. |
 | F9 ERP API | Exponer capacidades implementadas con autoridad de empresa/cuenta comprobada. |
 | F10 Invoicing Boundary | Separar el contrato de facturación de las verdades Sales/Billing. |
-| F11 Invoicing Provider | Depende del boundary y de un proveedor/contrato elegido explícitamente. |
-| F12 PostSale, si hace falta | Sólo con necesidad real y contratos confirmados. |
+| F11 External Billing Bridge | Claves de servicio por empresa, fuentes Sales con readiness y recepción idempotente de PDF/XML; los packs quedan bloqueados hasta F14. |
+| F12 PostSale audit | Revisar cancelación posterior a factura y comportamiento de notas crédito antes de cualquier automatización legal. |
 | F13 Migration | Depende de cobertura y reglas de datos; rescatar de ERP1 lo útil, sin importar sobrearquitectura. |
 | F14 Shadow / external certification | Certificación READ-only de hosting, OAuth ERP2 y API real, con autorización separada. |
 | F15 Cutover | Depende de la certificación externa y autorización de transición. |
@@ -87,7 +87,7 @@ El detalle verificable de estado, QA y gates vive en `docs/CURRENT_CHECKPOINT.md
 
 R0, MB-01/02/03 de seguridad API y F6A-LOCAL-0..4 de Billing están cerrados localmente dentro de su cobertura. **MB-09 / F6B-FACTS está cerrado localmente**: `order_items.sale_fee` conserva el hecho nullable por ítem. **MB-10 / F6B-FINANCIAL también está cerrado localmente**: un read model de reconciliación separa hechos operativos, Billing y shipping; los hechos faltantes/conflictivos y los importes oficiales o seller shipping no disponibles permanecen explícitos como UNKNOWN/CONFLICT. No se añadió ledger, schema, ruta, Work ni HTTP. **G3, G5 y G6 = PASS LOCAL.**
 
-**F7 — Catalog, F8 — Inventory, F9 — ERP API y F10 — Invoicing Boundary están cerrados localmente.** El siguiente bloque es **F11 — Invoicing Provider**, que depende de un proveedor/contrato elegido explícitamente y del boundary basado sólo en hechos Sales demostrados. El estado y la evidencia de cierre viven en `docs/CURRENT_CHECKPOINT.md`; F14 de certificación externa sigue pendiente.
+**F7 — Catalog, F8 — Inventory, F9 — ERP API, F10 — Invoicing Boundary y F11 — External Billing Bridge están cerrados localmente.** El bridge usa claves machine-to-machine por empresa y conserva F10 como contrato por pedido. Un pedido sólo admite artefacto local si no tiene `pack_id`; los packs y billing-info esperan la certificación READ-only F14. La validez fiscal sigue bajo el ejecutor externo y no se infiere de `buyer_id`. El siguiente bloque es **F12 — PostSale audit**; no ejecuta notas crédito ni escrituras remotas. El estado y la evidencia de cierre viven en `docs/CURRENT_CHECKPOINT.md`.
 
 F1–F13 se desarrollan y prueban localmente con `REAL_MELI_HTTP=0`, transportes inyectados/fakes y MariaDB de pruebas. C0 real no es una puerta obligatoria para Billing local ya implementado: pertenece a F14, requiere autorización separada y conserva su contrato sin persistencia de negocio/uso/cooldown ni refresh OAuth. Ninguna fase declara inmunidad a 429 o baneos.
 

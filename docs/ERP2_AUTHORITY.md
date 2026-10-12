@@ -415,11 +415,48 @@ La cobertura local prueba no-double-count y shared pack charge una vez, separa h
 
 La identidad estable es `(company_id, account_id, external_order_id)`. `idempotencyKey` es SHA-256 determinista de esa tupla bajo el prefijo `invoicing.source-order:`; no depende del ID local autoincremental. F10 no persiste intents ni estado: sólo define la solicitud y su clave reproducible; no crea Work, tabla, provider port/adapter, status/error model ni llamada remota.
 
-Sales sólo demuestra un `buyer_id` opcional, no nombre, domicilio, identificación fiscal ni otros datos fiscales. F10 no define documento legal, impuestos, numeración ni payload fiscal. La solicitud no afirma ser suficiente para emitir; al elegir proveedor en F11, cualquier dato obligatorio ausente debe fallar cerrado hasta que exista una fuente/decisión autorizada. No acoplar Sales, Billing, Financial, Catalog ni ERP API al proveedor.
+Sales sólo demuestra un `buyer_id` opcional, no nombre, domicilio, identificación fiscal ni otros datos fiscales. F10 no define documento legal, impuestos, numeración ni payload fiscal. La solicitud no afirma ser suficiente para emitir; el ejecutor externo debe resolver sus datos fiscales y ERP2 conserva UNKNOWN hasta que exista una fuente/decisión autorizada. No acoplar Sales, Billing, Financial, Catalog ni ERP API al ejecutor.
 
 ---
 
-## 13. Schema pre-release
+## 13. External Billing Bridge (F11)
+
+F11 implementa una integración local para ejecutores externos Windows/otros servidores. No modifica `InvoiceRequest`: F10 sigue siendo un boundary cerrado por pedido y no tiene `pack_id` ni facts fiscales. No hay Alegra ni otro proveedor HTTP en este bloque.
+
+Credenciales machine-to-machine:
+
+- `invoicing_service_keys` vincula cada clave a una empresa; los clientes no eligen `company_id`.
+- Se genera un bearer aleatorio de 256 bits. MariaDB conserva sólo SHA-256, scopes `invoicing.read`/`invoicing.write` y estado activo/revocado. El comando `bin/invoicing-key.php issue COMPANY_ID [read|write|read,write]` muestra el secreto una vez; `revoke KEY_ID` lo revoca.
+- Un filtro `account_id` se acepta sólo si la cuenta pertenece a la empresa autenticada.
+
+API local:
+
+```text
+GET  /api/integrations/v1/invoicing/sources
+POST /api/integrations/v1/invoicing/sources/{external_order_id}/artifact
+```
+
+La exportación devuelve fechas Sales, estado/cancelación, importes y cantidades decimales exactos, moneda, items, buyer ID, cuenta, estado del artefacto y readiness. `buyer_id` nunca es identificación fiscal. Hoy `billing_data_status=UNKNOWN`: no existe una fuente local probada de datos fiscales; el ejecutor externo debe resolver sus requisitos fiscales. `invoice_eligible` significa que el pedido local puede entregarse al ejecutor y recibir su artefacto, no que ERP2 haya certificado datos fiscales o validez legal. No convertir UNKNOWN en cero ni en una afirmación fiscal.
+
+Readiness tiene una sola etiqueta por pedido:
+
+```text
+pack_id != null  -> PACK_MEMBERSHIP_UNVERIFIED, visible y no facturable
+pack_id == null + cancelado -> CANCELLED
+pack_id == null + facts Sales incompletos -> SOURCE_DATA_MISSING
+pack_id == null + facts Sales requeridos -> ORDER_READY
+BILLING_DATA_MISSING -> sólo ante un hecho local explícito; hoy billing permanece UNKNOWN
+```
+
+`GET /packs/{pack_id}` es la futura evidencia autoritativa de membership. F14 debe certificar los `orders[]`, interpretación seller/account, billing-info READ y persistencia de snapshot completo antes de admitir facturación por pack. Si `pack_id` es null, el facturador remoto futuro podrá usar el order ID como fallback `/packs/{order_id}` sólo conforme al contrato certificado; F11 no hace esa llamada.
+
+La recepción local acepta un PDF y XML opcional sólo para `ORDER_READY`; exige número, fecha ISO-8601 con offset, moneda y total exacto iguales a Sales. ERP calcula hashes y nombres/rutas, limita uploads a 20 MiB por archivo, guarda archivos fuera de acceso cliente y permite un artefacto por source. Mismo artefacto + mismos metadatos es idempotente; uno distinto para el mismo source devuelve conflicto. No es un gestor genérico de documentos.
+
+Alegra queda opcional y diferida como segundo ejecutor offline detrás del mismo boundary. F12 revisará cancelación posterior a factura/notas crédito sin decidir conducta legal en F11. F16, con autorización separada, será el gate de publicación fiscal remota. `REAL_MELI_HTTP=0`, `ALEGRA_REAL_HTTP=0` y remote writes OFF.
+
+---
+
+## 14. Schema pre-release
 
 Mientras no exista instalación persistente real que deba preservarse, los schemas pre-release se corrigen en sitio en los archivos de fase existentes; no crear migrations numeradas sólo para conservar historia.
 
@@ -427,7 +464,7 @@ Después del primer deploy persistente, migrations pasan a inmutables.
 
 ---
 
-## 14. Documentación de evidencia
+## 15. Documentación de evidencia
 
 Documentos de apoyo vigentes:
 

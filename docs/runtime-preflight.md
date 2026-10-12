@@ -19,7 +19,7 @@ El comando es **read-only**. No crea tablas, no modifica configuración y no lla
 - extensiones requeridas (`curl`, `json`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `session`, `sodium`);
 - conexión MariaDB y `SELECT VERSION()`;
 - `sql_mode` y timezone de la sesión;
-- escritura en `storage/logs`, `debug`, `cache`, `exports` y `tmp`;
+- escritura en `storage/logs`, `debug`, `cache`, `exports`, `invoices` y `tmp`;
 - espacio total/libre visible desde PHP;
 - HTTPS en `APP_URL` cuando `APP_ENV=production`.
 
