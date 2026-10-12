@@ -8,7 +8,7 @@
 
 **Branch:** `impl/v3-b-sales-audit-20261010`
 
-**MB-09 implementation and functional QA SHA:** `c30b7249ae602fbd35102df0120505d32e43756b`
+**MB-09 implementation and functional QA SHA:** `a21d4fa6a72b3f79b097c7b9ad297b35383afc9e`
 
 **Working tree before MB-09:** CLEAN
 
@@ -24,7 +24,7 @@ This docs-only commit follows the implementation and fact-proof QA SHA above; it
 
 ## 1. Local verification and QA
 
-The expected branch is active. The MB-09 functional commit is `3a7847ffd4b92eebaa5a07a3d593bff8f299f1aa` (`feat(sales): persist exact sale fee`); the test-only fact-proof commit is `c30b7249ae602fbd35102df0120505d32e43756b`. QA ran on the tree at the latter SHA.
+The expected branch is active. The MB-09 functional commit is `3a7847ffd4b92eebaa5a07a3d593bff8f299f1aa` (`feat(sales): persist exact sale fee`); the test-only fact-proof commit is `c30b7249ae602fbd35102df0120505d32e43756b`; final review fixes are `a21d4fa6a72b3f79b097c7b9ad297b35383afc9e` (`fix(sales): reject unrepresentable sale fees`). QA ran on the tree at the final SHA.
 
 The prior MB-01 ancestry is:
 
@@ -41,8 +41,8 @@ Fresh QA results for MB-09:
 |---|---|
 | `composer validate --strict` | PASS, exit 0 |
 | `php vendor/bin/phpstan analyse --no-progress` | PASS, 0 errors, exit 0 |
-| Focused MB-09A Sales persistence and MB-09B fact proof regressions | PASS, 70 tests / 558 assertions / 0 failures / 0 errors |
-| `php vendor/bin/phpunit` | PASS, 348 tests / 2600 assertions / 1 skipped / 0 failures / 0 errors, exit 0 |
+| Focused MB-09A Sales persistence and MB-09B fact proof regressions | PASS, 68 tests / 741 assertions / 0 failures / 0 errors |
+| `php vendor/bin/phpunit --colors=never` | PASS, 353 tests / 2664 assertions / 1 skipped / 0 failures / 0 errors, exit 0 |
 | Runtime | PHP 8.5.8; PHPUnit 12.5.38 |
 
 PHPUnit used a temporary local MariaDB 11.8.8 container on port 13342; the container and anonymous volume were removed after QA. Injected transports/fakes and `REAL_MELI_HTTP=0` kept Mercado Libre HTTP off. The one skipped test concerns unavailable symlink creation on this platform; that filesystem case is not newly certified.
@@ -107,7 +107,7 @@ Evidence: focused integration tests in `SalesWorkProcessorTest`, `SalesWorkPoiso
 
 Verified local MB-09 properties:
 
-- `order_items.sale_fee` stores the exact remote per-unit decimal through the existing `SyncOrderHandler::decimal4` path; missing and explicit `null` remain SQL `NULL`, true zero remains `0.0000`, and malformed values fail with the existing order-contract outcome. It is not multiplied by quantity; item/order currency remains unchanged and no additional HTTP call is made.
+- `order_items.sale_fee` stores the exact remote per-unit decimal through the existing `SyncOrderHandler::decimal4` path; missing and explicit `null` remain SQL `NULL`, true zero remains `0.0000`, and malformed or non-representable values fail with the existing order-contract outcome. Extra trailing zeros are accepted when the value is exact. It is not multiplied by quantity; item/order currency remains unchanged and no additional HTTP call is made.
 - The canonical facts support direct Billing order/pack identity and Billing-order-to-local-order-pack linkage. Contradictory Billing order IDs remain visible together, so ambiguity is detectable without choosing one.
 - `receiver_shipping_cost` is preserved as buyer-side evidence; zero is known zero, missing/null is unknown, and seller shipping cost remains unavailable. BILL/CREDIT_NOTE, detail type/subtype, associations, bonus reference, exact amount, currency and source timestamps remain inspectable. A shared pack charge stays one Billing fact; replay does not duplicate canonical details.
 - MB-09B adds test-only fixtures; there is no Financial read model, allocation, accounting sign rule, ledger, table, new HTTP operation or production state.
