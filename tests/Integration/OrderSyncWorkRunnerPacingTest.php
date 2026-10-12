@@ -133,6 +133,7 @@ final class TwoOrderTimedTransport implements MeliTransport
             'last_updated' => '2026-10-09T01:30:00.000Z',
             'total_amount' => 50000,
             'currency_id' => 'COP',
+            'seller' => ['id' => '700000010'],
             'buyer' => ['id' => 800000010],
             'order_items' => [[
                 'item' => ['id' => $itemId, 'title' => 'Producto'],

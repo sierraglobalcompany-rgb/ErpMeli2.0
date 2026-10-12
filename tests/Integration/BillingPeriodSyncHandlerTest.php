@@ -440,6 +440,26 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         );
     }
 
+
+    public function testPagePreservesLargeDecimalAndCurrencyWithExplicitCursorWithoutInlinePaging(): void
+    {
+        $work = new WorkRepository($this->pdo);
+        $period = $this->pdo->prepare("INSERT INTO billing_periods(company_id,account_id,period_key,document_type,cursor_last_id) VALUES (?,?,'2026-09-01','BILL','99')");
+        $period->execute([$this->companyId, $this->accountId]);
+        $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '99');
+        $transport = new BillingPeriodSyncFakeTransport([new MeliTransportResponse(200, [],
+            '{"results":[{"charge_info":{"detail_id":101,"detail_amount":90071992547409.1234,"detail_type":"CHARGE","detail_sub_type":"CV"},"currency_info":{"currency_id":"COP"}}],"last_id":101}')]);
+        self::assertTrue($this->handler($work, $transport)->syncCurrentClaim($claim['id'], $claim['claim_token'], $this->companyId, $this->accountId, '2026-09-01', 'BILL', '99', $this->now));
+        $detail = $this->pdo->query('SELECT detail_amount,currency_id FROM billing_details')->fetch(PDO::FETCH_ASSOC);
+        self::assertSame('90071992547409.1234', $detail['detail_amount']);
+        self::assertSame('COP', $detail['currency_id']);
+        self::assertSame('101', $this->pdo->query('SELECT cursor_last_id FROM billing_periods')->fetchColumn());
+        self::assertCount(1, $transport->requests);
+        self::assertStringContainsString('from_id=99', $transport->requests[0]['url']);
+        $next = $this->pdo->query("SELECT payload_json FROM work_items WHERE status='pending'")->fetchColumn();
+        self::assertSame('101', json_decode($next, true, 512, JSON_THROW_ON_ERROR)['from_id']);
+    }
+
     public function testPartial206DefersWithoutPersistingOrAdvancingCursor(): void
     {
         $work = new WorkRepository($this->pdo);

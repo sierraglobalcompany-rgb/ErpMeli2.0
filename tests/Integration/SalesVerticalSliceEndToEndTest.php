@@ -187,6 +187,7 @@ final class SalesSliceOrderTransport implements MeliTransport
             'last_updated' => '2026-10-09T02:05:00.000Z',
             'total_amount' => 76543,
             'currency_id' => 'COP',
+            'seller' => ['id' => '700000303'],
             'buyer' => ['id' => 800000303],
             'order_items' => [[
                 'item' => [

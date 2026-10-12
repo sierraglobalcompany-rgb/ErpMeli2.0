@@ -116,6 +116,7 @@ final class DecimalPrecisionTransport implements MeliTransport
   "last_updated": "2026-10-09T11:05:00.000Z",
   "total_amount": 90071992547409.1234,
   "currency_id": "COP",
+  "seller": {"id": "700000999"},
   "buyer": {"id": 800000999},
   "order_items": [{
     "item": {

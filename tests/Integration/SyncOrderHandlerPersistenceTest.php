@@ -568,6 +568,29 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
         return [$companyId, $accountId];
     }
 
+
+    #[DataProvider('sellerAdmissionCases')]
+    public function testRemoteSellerAndPartialResponseCannotBypassCurrentAccount(int $status, ?string $seller, ?string $missing, bool $expected): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('local-contract-fixture');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $valid = $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 1);
+        $data = json_decode($valid->body, true, 512, JSON_THROW_ON_ERROR);
+        if ($seller === null) { unset($data['seller']); } else { $data['seller'] = ['id' => $seller]; }
+        $transport = new OrderQueueTransport([new MeliTransportResponse($status, $missing === null ? [] : ['x-content-missing' => $missing], json_encode($data, JSON_THROW_ON_ERROR))]);
+        $work = new WorkRepository($pdo);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+        self::assertSame($expected, $this->handler($pdo, $cipher, $transport, $work)->syncCurrentClaim($claim['id'], $claim['claim_token'], $companyId, $accountId, '200000000001', new DateTimeImmutable('2026-10-09T00:10:00Z')));
+        self::assertSame($expected ? 1 : 0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertCount(1, $transport->requests);
+    }
+
+    public static function sellerAdmissionCases(): array
+    {
+        return ['matching seller' => [200, '700000001', null, true], 'missing seller' => [206, null, 'seller', false], 'partial buyer' => [206, '700000001', 'buyer', false], 'partial shipping' => [206, '700000001', 'shipping', false], 'seller mismatch' => [200, '999', null, false], 'header partial 200' => [200, '700000001', 'buyer', false]];
+    }
+
     private function orderResponse(
         string $lastUpdated,
         string $status,
@@ -599,6 +622,7 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
             'last_updated' => $lastUpdated,
             'total_amount' => 150000.5,
             'currency_id' => 'COP',
+            'seller' => ['id' => '700000001'],
             'buyer' => ['id' => 800000001],
             'pack_id' => 300000000001,
             'order_items' => [$item],

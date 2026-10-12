@@ -157,7 +157,7 @@ final class MeliClient
             throw new RuntimeException('Mercado Libre returned invalid JSON.', 0, $exception);
         }
 
-        $clientResponse = new MeliClientResponse($response->status, $data, $requestId);
+        $clientResponse = new MeliClientResponse($response->status, $data, $requestId, $this->header($response->headers, 'x-content-missing'));
         $this->recordUsage($scopeKey, $operationKey, $resourceCount, 'success', $durationMs);
         $this->recordDebugHttp($operationKey, $response->status, 'success', $durationMs, $requestId);
 
@@ -173,16 +173,26 @@ final class MeliClient
     /** @param array<string,string> $pathParams */
     private function resolvePath(string $path, array $pathParams): string
     {
-        if ($path === '/orders/{order_id}') {
-            $orderId = $pathParams['order_id'] ?? null;
-            if (!is_string($orderId) || preg_match('/^[0-9]{1,32}$/D', $orderId) !== 1) {
-                throw new InvalidArgumentException('Invalid Mercado Libre order_id path parameter.');
+        if ($path === '/orders/{order_id}' || $path === '/packs/{pack_id}') {
+            $key = $path === '/orders/{order_id}' ? 'order_id' : 'pack_id';
+            $id = $pathParams[$key] ?? null;
+            if (!is_string($id) || preg_match('/^[0-9]{1,32}$/D', $id) !== 1) {
+                throw new InvalidArgumentException('Invalid Mercado Libre ' . $key . ' path parameter.');
             }
             if (count($pathParams) !== 1) {
                 throw new InvalidArgumentException('Unexpected Mercado Libre path parameters.');
             }
+            return str_replace('{' . $key . '}', $id, $path);
+        }
 
-            return '/orders/' . $orderId;
+        if ($path === '/orders/billing-info/{site_id}/{billing_info_id}') {
+            $site = $pathParams['site_id'] ?? null;
+            $id = $pathParams['billing_info_id'] ?? null;
+            if (!is_string($site) || preg_match('/^M[A-Z]{2}$/D', $site) !== 1
+                || !is_string($id) || preg_match('/^[0-9]{1,32}$/D', $id) !== 1 || count($pathParams) !== 2) {
+                throw new InvalidArgumentException('Invalid Mercado Libre billing-info path parameters.');
+            }
+            return '/orders/billing-info/' . $site . '/' . $id;
         }
 
         if ($path === '/billing/integration/periods/key/{period_key}/group/ML/details') {

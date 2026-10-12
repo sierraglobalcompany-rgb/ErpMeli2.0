@@ -520,7 +520,7 @@ final class BillingRoutingProcessorTransport implements MeliTransport
         if (str_ends_with($url, '/orders/200000000101')) {
             return new MeliTransportResponse(200, [], '{"id":200000000101,"status":"paid",'
                 . '"date_created":"2026-10-09T01:00:00.000Z","last_updated":"2026-10-09T01:30:00.000Z",'
-                . '"total_amount":50000,"currency_id":"COP","buyer":{"id":800000101},'
+                . '"total_amount":50000,"currency_id":"COP","seller":{"id":"99887766"},"buyer":{"id":800000101},'
                 . '"order_items":[{"item":{"id":"MCO101010101","title":"Producto"},"quantity":1,'
                 . '"unit_price":50000,"currency_id":"COP"}]}');
         }

@@ -213,66 +213,80 @@ final class SyncOrderHandler
             return false;
         }
 
-        return $this->work->completeCurrentClaim(
-            $workId,
-            $claimToken,
-            function (PDO $pdo) use ($companyId, $accountId, $order): void {
-                $existing = $pdo->prepare(
-                    'SELECT id, last_updated FROM orders '
-                    . 'WHERE company_id = :company_id AND account_id = :account_id AND external_order_id = :external_order_id '
-                    . 'FOR UPDATE'
-                );
-                $existing->execute([
-                    'company_id' => $companyId,
-                    'account_id' => $accountId,
-                    'external_order_id' => $order['external_order_id'],
-                ]);
-                $row = $existing->fetch(PDO::FETCH_ASSOC);
-
-                if (is_array($row) && $this->isStrictlyNewerLocal((string) ($row['last_updated'] ?? ''), $order['last_updated'])) {
-                    return;
-                }
-
-                if (is_array($row)) {
-                    $localOrderId = (int) $row['id'];
-                    $update = $pdo->prepare(
-                        'UPDATE orders SET '
-                        . 'status = :status, status_detail = :status_detail, date_created = :date_created, '
-                        . 'date_closed = :date_closed, last_updated = :last_updated, total_amount = :total_amount, '
-                        . 'currency_id = :currency_id, buyer_id = :buyer_id, pack_id = :pack_id, '
-                        . 'updated_at = UTC_TIMESTAMP(6) WHERE id = :id'
+        try {
+            return $this->work->completeCurrentClaim(
+                $workId,
+                $claimToken,
+                function (PDO $pdo) use ($companyId, $accountId, $order, $response, $orderId): void {
+                    $accountStatement = $pdo->prepare("SELECT external_user_id FROM meli_accounts WHERE id = :account AND company_id = :company AND status = 'connected' FOR UPDATE");
+                    $accountStatement->execute(['account' => $accountId, 'company' => $companyId]);
+                    $sellerId = $accountStatement->fetchColumn();
+                    if (!is_string($sellerId) || !$response->orderReadState($orderId, $sellerId)['admitted']) {
+                        throw new RuntimeException('Mercado Libre order authority or completeness unverified.');
+                    }
+                    $existing = $pdo->prepare(
+                        'SELECT id, last_updated FROM orders '
+                        . 'WHERE company_id = :company_id AND account_id = :account_id AND external_order_id = :external_order_id '
+                        . 'FOR UPDATE'
                     );
-                    $update->execute($this->orderParams($order) + ['id' => $localOrderId]);
-
-                    $deleteItems = $pdo->prepare('DELETE FROM order_items WHERE order_id = :order_id');
-                    $deleteItems->execute(['order_id' => $localOrderId]);
-                } else {
-                    $insert = $pdo->prepare(
-                        'INSERT INTO orders '
-                        . '(company_id, account_id, external_order_id, status, status_detail, date_created, date_closed, '
-                        . 'last_updated, total_amount, currency_id, buyer_id, pack_id) '
-                        . 'VALUES (:company_id, :account_id, :external_order_id, :status, :status_detail, :date_created, :date_closed, '
-                        . ':last_updated, :total_amount, :currency_id, :buyer_id, :pack_id)'
-                    );
-                    $insert->execute([
+                    $existing->execute([
                         'company_id' => $companyId,
                         'account_id' => $accountId,
-                    ] + $this->orderParams($order) + [
                         'external_order_id' => $order['external_order_id'],
                     ]);
-                    $localOrderId = (int) $pdo->lastInsertId();
-                }
+                    $row = $existing->fetch(PDO::FETCH_ASSOC);
 
-                $insertItem = $pdo->prepare(
-                    'INSERT INTO order_items '
-                    . '(order_id, external_item_id, variation_id, title, quantity, unit_price, sale_fee, currency_id, seller_sku) '
-                    . 'VALUES (:order_id, :external_item_id, :variation_id, :title, :quantity, :unit_price, :sale_fee, :currency_id, :seller_sku)'
-                );
-                foreach ($order['items'] as $item) {
-                    $insertItem->execute(['order_id' => $localOrderId] + $item);
-                }
-            },
-        );
+                    if (is_array($row) && $this->isStrictlyNewerLocal((string) ($row['last_updated'] ?? ''), $order['last_updated'])) {
+                        return;
+                    }
+
+                    if (is_array($row)) {
+                        $localOrderId = (int) $row['id'];
+                        $update = $pdo->prepare(
+                            'UPDATE orders SET '
+                            . 'status = :status, status_detail = :status_detail, date_created = :date_created, '
+                            . 'date_closed = :date_closed, last_updated = :last_updated, total_amount = :total_amount, '
+                            . 'currency_id = :currency_id, buyer_id = :buyer_id, pack_id = :pack_id, '
+                            . 'updated_at = UTC_TIMESTAMP(6) WHERE id = :id'
+                        );
+                        $update->execute($this->orderParams($order) + ['id' => $localOrderId]);
+
+                        $deleteItems = $pdo->prepare('DELETE FROM order_items WHERE order_id = :order_id');
+                        $deleteItems->execute(['order_id' => $localOrderId]);
+                    } else {
+                        $insert = $pdo->prepare(
+                            'INSERT INTO orders '
+                            . '(company_id, account_id, external_order_id, status, status_detail, date_created, date_closed, '
+                            . 'last_updated, total_amount, currency_id, buyer_id, pack_id) '
+                            . 'VALUES (:company_id, :account_id, :external_order_id, :status, :status_detail, :date_created, :date_closed, '
+                            . ':last_updated, :total_amount, :currency_id, :buyer_id, :pack_id)'
+                        );
+                        $insert->execute([
+                            'company_id' => $companyId,
+                            'account_id' => $accountId,
+                        ] + $this->orderParams($order) + [
+                            'external_order_id' => $order['external_order_id'],
+                        ]);
+                        $localOrderId = (int) $pdo->lastInsertId();
+                    }
+
+                    $insertItem = $pdo->prepare(
+                        'INSERT INTO order_items '
+                        . '(order_id, external_item_id, variation_id, title, quantity, unit_price, sale_fee, currency_id, seller_sku) '
+                        . 'VALUES (:order_id, :external_item_id, :variation_id, :title, :quantity, :unit_price, :sale_fee, :currency_id, :seller_sku)'
+                    );
+                    foreach ($order['items'] as $item) {
+                        $insertItem->execute(['order_id' => $localOrderId] + $item);
+                    }
+                },
+            );
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() !== 'Mercado Libre order authority or completeness unverified.') {
+                throw $exception;
+            }
+            $this->work->failCurrentClaim($workId, $claimToken, 'meli_order_contract', 'Mercado Libre order authority or completeness unverified.');
+            return false;
+        }
     }
 
     private function scheduleRemoteRetry(

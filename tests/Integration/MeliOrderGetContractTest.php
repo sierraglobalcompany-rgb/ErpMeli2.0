@@ -52,6 +52,31 @@ final class MeliOrderGetContractTest extends TestCase
         self::assertSame('Bearer sales-access-token', $transport->requests[0]['headers']['Authorization']);
     }
 
+
+    public function testPackAndBillingInfoOperationsResolveStrictPathsAndPreservePartialMetadata(): void
+    {
+        $pdo = TestDatabase::reset();
+        $transport = new SalesOrderRecordingTransport(new MeliTransportResponse(206, ['X-Content-Missing' => 'seller,buyer'], '{"id":50}'));
+        $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
+        $client = new MeliClient($transport, new SystemSettingsRepository($pdo), $operations, 'https://api.mercadolibre.com', minRequestIntervalMs: 0);
+        $response = $client->request('packs.get', pathParams: ['pack_id' => '50']);
+        self::assertSame(206, $response->status);
+        self::assertSame('seller,buyer', $response->contentMissing);
+        self::assertSame('50', $response->data['id']);
+        $client->request('orders.billing_info', pathParams: ['site_id' => 'MCO', 'billing_info_id' => '300']);
+        self::assertSame('https://api.mercadolibre.com/packs/50', $transport->requests[0]['url']);
+        self::assertSame('https://api.mercadolibre.com/orders/billing-info/MCO/300', $transport->requests[1]['url']);
+        self::assertSame(['GET', 'GET'], array_column($transport->requests, 'method'));
+        foreach ([['packs.get', ['pack_id' => '../50']], ['orders.billing_info', ['site_id' => '../MCO', 'billing_info_id' => '300']], ['orders.billing_info', ['site_id' => 'MCO', 'billing_info_id' => '3/0']], ['packs.get', ['pack_id' => '50', 'extra' => '1']]] as [$operation, $params]) {
+            try {
+                $client->request($operation, pathParams: $params);
+                self::fail('An invalid path must not cross transport.');
+            } catch (\InvalidArgumentException) {
+                self::assertCount(2, $transport->requests);
+            }
+        }
+    }
+
     public function testOrderIdPathParameterRejectsNonNumericInputBeforeTransport(): void
     {
         $pdo = TestDatabase::reset();
@@ -86,6 +111,8 @@ final class SalesOrderRecordingTransport implements MeliTransport
     /** @var list<array{method:string,url:string,headers:array<string,string>,body:?string}> */
     public array $requests = [];
 
+    public function __construct(private readonly ?MeliTransportResponse $response = null) {}
+
     /** @param array<string,string> $headers */
     public function send(string $method, string $url, array $headers, ?string $body): MeliTransportResponse
     {
@@ -96,6 +123,6 @@ final class SalesOrderRecordingTransport implements MeliTransport
             'body' => $body,
         ];
 
-        return new MeliTransportResponse(200, [], '{"id":200000000001}');
+        return $this->response ?? new MeliTransportResponse(200, [], '{"id":200000000001}');
     }
 }

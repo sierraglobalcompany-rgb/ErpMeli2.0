@@ -220,6 +220,7 @@ final class DebugCorrelationTransport implements MeliTransport
             'last_updated' => '2026-10-09T03:05:00.000Z',
             'total_amount' => 40400,
             'currency_id' => 'COP',
+            'seller' => ['id' => '700000404'],
             'buyer' => ['id' => 800000404],
             'order_items' => [[
                 'item' => [

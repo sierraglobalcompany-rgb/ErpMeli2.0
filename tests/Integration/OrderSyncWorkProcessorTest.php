@@ -120,6 +120,7 @@ final class OneOrderTransport implements MeliTransport
             'last_updated' => '2026-10-09T01:30:00.000Z',
             'total_amount' => 50000,
             'currency_id' => 'COP',
+            'seller' => ['id' => '700000005'],
             'buyer' => ['id' => 800000004],
             'order_items' => [[
                 'item' => ['id' => 'MCO444444444', 'title' => 'Producto'],

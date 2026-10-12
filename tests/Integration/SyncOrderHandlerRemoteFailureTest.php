@@ -355,6 +355,7 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
             'last_updated' => '2026-10-09T01:15:00.000Z',
             'total_amount' => 100000,
             'currency_id' => 'COP',
+            'seller' => ['id' => '700000002'],
             'buyer' => ['id' => 800000002],
             'order_items' => [[
                 'item' => ['id' => 'MCO999999999', 'title' => 'Producto'],
