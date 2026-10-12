@@ -73,6 +73,12 @@ extra audit tables/states
 
 KISS significa menor complejidad neta, no mínimo número de clases a cualquier costo.
 
+Catálogo e inventario local:
+
+- `products` owns company-scoped product identity; inventory references `products.id` instead of copying product or company metadata.
+- F8 stores one current, non-negative integer quantity per product. Inventory reads and writes verify the owning company through `products.company_id`; setting quantity replaces the current value.
+- No account scope, remote quantity, warehouse, reservation, or movement history is part of this contract without a demonstrated consumer.
+
 ---
 
 ## 3. Work y runtime

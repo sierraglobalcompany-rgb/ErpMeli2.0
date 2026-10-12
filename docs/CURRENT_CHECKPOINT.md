@@ -14,17 +14,23 @@
 
 **MB-10 base SHA:** `b2415df01b848425e8a2121d3e307d1e83af9e3d`
 
-**Last closed block / CURRENT:** F7 CLOSED LOCAL — Catalog
+**Last closed block / CURRENT:** F8 CLOSED LOCAL — Inventory
 
-**NEXT:** F8 — Inventory
+**NEXT:** F9 — ERP API
 
 **F7 functional SHA:** `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`
+
+**F7 closure documentation SHA:** `a2f3188dd72b5202850c72ab6cc9459c2f51b986`
+
+**F8 functional SHA:** `e639e0c5066cc648efea4bc0062ad64de0eae590`
 
 **REAL_MELI_HTTP:** `0`
 
 **Remote Mercado Libre writes:** OFF
 
 MB-11 closes cleanup and documentation at code SHA `a9e45a67d548c603bb9003a3684211505da1424f`. Fresh global QA used isolated local MariaDB 10.11.19 on port 13342 with `DB_NAME=erp_meli2_test`; fresh migrations and connectivity passed. Composer passed, PHPStan reported 0 errors, and PHPUnit passed with 355 tests / 2731 assertions / 1 skipped / 0 failures / 0 errors. The temporary database container was removed. `REAL_MELI_HTTP=0`, remote writes OFF, F14 pending, and F16 remains unauthorized; no real OAuth/Mercado Libre HTTP, production mutation, push, merge or deploy occurred.
+
+F7 closed locally in documentation commit `a2f3188dd72b5202850c72ab6cc9459c2f51b986` over functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`. F8 added one company-safe current-stock row per Catalog product at functional SHA `e639e0c5066cc648efea4bc0062ad64de0eae590`. On that SHA, the focal test passed (6 tests / 11 assertions), Composer validation passed, PHPStan reported 0 errors, and PHPUnit passed (368 tests / 2753 assertions / 1 skipped / 0 failures / 0 errors) using local MariaDB 10.11.19 on port 13342. The temporary database container was removed; `REAL_MELI_HTTP=0` and remote writes stayed OFF.
 
 MB-11A PASS: read-only cleanup audit found existing owners for Debug, terminal Work and API usage retention; no Sales Audit blind age-prune. MB-11B PASS: README G3 drift fixed in `53883b758b007c48eff7af612cd8b79940dff8ab`. MB-11C PASS: unused `AppLogger::retentionCutoff()` and its isolated test removed in `a9e45a67d548c603bb9003a3684211505da1424f`.
 
@@ -157,14 +163,14 @@ Git = superseded history
 
 Current truth: local code/schema > same-SHA tests/QA > same-SHA evidence > checkpoint > durable authority > README/supporting documents > handoffs/audits > remote visibility > inference.
 
-README now agrees with the local G3 verdict, F7 closure, and F8 as next. ERP2_AUTHORITY durable contracts did not need an MB-11 change. AGENTS.md is unchanged.
+README now agrees with the local G3 verdict, F8 closure, and F9 as next. ERP2_AUTHORITY records the local Catalog/Inventory boundary. AGENTS.md is unchanged.
 
 ## 5. NEXT and STOP
 
 ```text
-CURRENT = F7 CLOSED LOCAL — Catalog
-NEXT = F8 — Inventory
+CURRENT = F8 CLOSED LOCAL — Inventory
+NEXT = F9 — ERP API
 STOP
 ```
 
-F7 — Catalog closed locally at functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`: one company-scoped local product identity with create/read and unique internal SKU. Listing mapping, variants, stock, pricing, and remote operations are outside F7. F8 — Inventory is next and has not started. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.
+F7 — Catalog is closed locally at functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`. F8 — Inventory is closed locally at functional SHA `e639e0c5066cc648efea4bc0062ad64de0eae590`: one local current-stock row per product, exact non-negative integer quantity, company isolation through Catalog identity, and deterministic local set/read. No account scope, listing relation, warehouse, reservation, movement history, or remote synchronization was added. F9 — ERP API is next and has not started. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.

@@ -87,7 +87,7 @@ El detalle verificable de estado, QA y gates vive en `docs/CURRENT_CHECKPOINT.md
 
 R0, MB-01/02/03 de seguridad API y F6A-LOCAL-0..4 de Billing están cerrados localmente dentro de su cobertura. **MB-09 / F6B-FACTS está cerrado localmente**: `order_items.sale_fee` conserva el hecho nullable por ítem. **MB-10 / F6B-FINANCIAL también está cerrado localmente**: un read model de reconciliación separa hechos operativos, Billing y shipping; los hechos faltantes/conflictivos y los importes oficiales o seller shipping no disponibles permanecen explícitos como UNKNOWN/CONFLICT. No se añadió ledger, schema, ruta, Work ni HTTP. **G3, G5 y G6 = PASS LOCAL.**
 
-**F7 — Catalog está cerrado localmente.** El siguiente bloque es **F8 — Inventory**. El estado y la evidencia de cierre viven en `docs/CURRENT_CHECKPOINT.md`; F14 de certificación externa sigue pendiente.
+**F7 — Catalog y F8 — Inventory están cerrados localmente.** El siguiente bloque es **F9 — ERP API**. El estado y la evidencia de cierre viven en `docs/CURRENT_CHECKPOINT.md`; F14 de certificación externa sigue pendiente.
 
 F1–F13 se desarrollan y prueban localmente con `REAL_MELI_HTTP=0`, transportes inyectados/fakes y MariaDB de pruebas. C0 real no es una puerta obligatoria para Billing local ya implementado: pertenece a F14, requiere autorización separada y conserva su contrato sin persistencia de negocio/uso/cooldown ni refresh OAuth. Ninguna fase declara inmunidad a 429 o baneos.
 
