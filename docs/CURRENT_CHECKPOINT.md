@@ -14,9 +14,13 @@
 
 **MB-10 base SHA:** `b2415df01b848425e8a2121d3e307d1e83af9e3d`
 
-**Last closed block / CURRENT:** F9 CLOSED LOCAL — ERP API
+**F10 functional SHA:** `4ac7ea64cedd7121eec6c8563ee90c91aa1f146e`
 
-**NEXT:** F10 — Invoicing Boundary
+**Last closed block / CURRENT:** F10 CLOSED LOCAL — Invoicing Boundary
+
+**NEXT:** F11 — Invoicing Provider
+
+**F10 QA:** focal 9 tests / 26 assertions; full PHPUnit 388 tests / 2830 assertions / 1 skipped / 0 failures / 0 errors; PHPStan 0 errors; Composer validation PASS.
 
 **F7 functional SHA:** `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`
 
@@ -35,6 +39,8 @@ MB-11 closes cleanup and documentation at code SHA `a9e45a67d548c603bb9003a36842
 F7 closed locally in documentation commit `a2f3188dd72b5202850c72ab6cc9459c2f51b986` over functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`. F8 added one company-safe current-stock row per Catalog product at functional SHA `e639e0c5066cc648efea4bc0062ad64de0eae590`. On that SHA, the focal test passed (6 tests / 11 assertions), Composer validation passed, PHPStan reported 0 errors, and PHPUnit passed (368 tests / 2753 assertions / 1 skipped / 0 failures / 0 errors) using local MariaDB 10.11.19 on port 13342. The temporary database container was removed; `REAL_MELI_HTTP=0` and remote writes stayed OFF.
 
 F9 exposed only local Catalog and Inventory operations at functional SHA `08c09b0e40d4ba06d9f57f555d95917f395abad5`. The focal HTTP suite passed (11 tests / 51 assertions); Composer validation passed; PHPStan reported 0 errors; full PHPUnit passed (379 tests / 2804 assertions / 1 skipped / 0 failures / 0 errors) using local MariaDB 10.11.19 on port 13342 with `REAL_MELI_HTTP=0`. G3 and G6 remain PASS LOCAL; remote writes remain OFF. F9 uses the existing Slim router, session/CSRF and Catalog/Inventory repositories; no remote operation or schema change was added.
+
+F10 closed locally at functional SHA `4ac7ea64cedd7121eec6c8563ee90c91aa1f146e`. `App\Modules\Invoicing\InvoiceRequest` is an immutable provider-neutral request over existing Sales facts: company/account/external-order identity, source total and currency, exact line quantities/prices/currencies, and nullable `buyer_id`. Its deterministic SHA-256 idempotency key includes company, account and source-order identity. No local intent persistence, Work, provider adapter, fiscal fields, remote call or source-domain change was added. Focal QA passed (9 tests / 26 assertions); Composer passed; PHPStan reported 0 errors; full PHPUnit passed (388 tests / 2830 assertions / 1 skipped / 0 failures / 0 errors) using temporary local MariaDB 10.11.19 on port 13342. `REAL_MELI_HTTP=0`, remote writes OFF, F14 pending and F16 unauthorized.
 
 MB-11A PASS: read-only cleanup audit found existing owners for Debug, terminal Work and API usage retention; no Sales Audit blind age-prune. MB-11B PASS: README G3 drift fixed in `53883b758b007c48eff7af612cd8b79940dff8ab`. MB-11C PASS: unused `AppLogger::retentionCutoff()` and its isolated test removed in `a9e45a67d548c603bb9003a3684211505da1424f`.
 
@@ -167,14 +173,14 @@ Git = superseded history
 
 Current truth: local code/schema > same-SHA tests/QA > same-SHA evidence > checkpoint > durable authority > README/supporting documents > handoffs/audits > remote visibility > inference.
 
-README now agrees with the local G3 verdict, F9 closure, and F10 as next. ERP2_AUTHORITY records the local Catalog/Inventory and F9 API boundaries. AGENTS.md is unchanged.
+README now agrees with the local G3 verdict and F10 closure, with F11 next. ERP2_AUTHORITY records the local Catalog/Inventory, F9 API and F10 invoicing boundaries. AGENTS.md is unchanged.
 
 ## 5. NEXT and STOP
 
 ```text
-CURRENT = F9 CLOSED LOCAL — ERP API
-NEXT = F10 — Invoicing Boundary
+CURRENT = F10 CLOSED LOCAL — Invoicing Boundary
+NEXT = F11 — Invoicing Provider
 STOP
 ```
 
-F7 — Catalog is closed locally at functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`. F8 — Inventory is closed locally at functional SHA `e639e0c5066cc648efea4bc0062ad64de0eae590`: one local current-stock row per product, exact non-negative integer quantity, company isolation through Catalog identity, and deterministic local set/read. F9 — ERP API is closed locally at functional SHA `08c09b0e40d4ba06d9f57f555d95917f395abad5`: `POST /api/products`, `GET /api/products/{product_id}`, `GET /api/products/{product_id}/inventory`, and `PUT /api/products/{product_id}/inventory`. Company authority comes from the authenticated selected-company session and membership; mutations require the existing CSRF token in `X-CSRF-Token`; foreign product IDs return 404; missing inventory remains `null`, not zero. No account scope, broad CRUD, remote operation, or schema change was added. F10 — Invoicing Boundary is next and has not started. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.
+F7 — Catalog is closed locally at functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`. F8 — Inventory is closed locally at functional SHA `e639e0c5066cc648efea4bc0062ad64de0eae590`: one local current-stock row per product, exact non-negative integer quantity, company isolation through Catalog identity, and deterministic local set/read. F9 — ERP API is closed locally at functional SHA `08c09b0e40d4ba06d9f57f555d95917f395abad5`: `POST /api/products`, `GET /api/products/{product_id}`, `GET /api/products/{product_id}/inventory`, and `PUT /api/products/{product_id}/inventory`. Company authority comes from the authenticated selected-company session and membership; mutations require the existing CSRF token in `X-CSRF-Token`; foreign product IDs return 404; missing inventory remains `null`, not zero. No account scope, broad CRUD, remote operation, or schema change was added. F10 — Invoicing Boundary is closed locally; F11 — Invoicing Provider is next and requires an explicitly chosen provider/contract. The F10 request carries only proven Sales facts and cannot claim fiscal issuance; provider-required facts absent from Sales must fail closed. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.

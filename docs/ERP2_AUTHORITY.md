@@ -409,7 +409,17 @@ La cobertura local prueba no-double-count y shared pack charge una vez, separa h
 
 ---
 
-## 12. Schema pre-release
+## 12. Invoicing boundary
+
+`App\Modules\Invoicing\InvoiceRequest` es el contrato inmutable y provider-neutral entre los hechos locales de Sales y una futura integración. Sólo transporta company/account/source-order identity, `total_amount` y moneda fuente, hechos existentes por línea (identidad externa, título, cantidad, precio unitario y moneda), y el `buyer_id` nullable existente. Los decimales permanecen strings con la precisión durable de Sales; el total fuente no se recalcula desde líneas ni se combina con Billing o Financial.
+
+La identidad estable es `(company_id, account_id, external_order_id)`. `idempotencyKey` es SHA-256 determinista de esa tupla bajo el prefijo `invoicing.source-order:`; no depende del ID local autoincremental. F10 no persiste intents ni estado: sólo define la solicitud y su clave reproducible; no crea Work, tabla, provider port/adapter, status/error model ni llamada remota.
+
+Sales sólo demuestra un `buyer_id` opcional, no nombre, domicilio, identificación fiscal ni otros datos fiscales. F10 no define documento legal, impuestos, numeración ni payload fiscal. La solicitud no afirma ser suficiente para emitir; al elegir proveedor en F11, cualquier dato obligatorio ausente debe fallar cerrado hasta que exista una fuente/decisión autorizada. No acoplar Sales, Billing, Financial, Catalog ni ERP API al proveedor.
+
+---
+
+## 13. Schema pre-release
 
 Mientras no exista instalación persistente real que deba preservarse, los schemas pre-release se corrigen en sitio en los archivos de fase existentes; no crear migrations numeradas sólo para conservar historia.
 
@@ -417,7 +427,7 @@ Después del primer deploy persistente, migrations pasan a inmutables.
 
 ---
 
-## 13. Documentación de evidencia
+## 14. Documentación de evidencia
 
 Documentos de apoyo vigentes:
 
