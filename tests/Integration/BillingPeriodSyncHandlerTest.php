@@ -167,6 +167,69 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         )->fetchColumn());
     }
 
+    public function testValidPageReplayUpsertsOneDurableBillingFactWithItsContext(): void
+    {
+        $detail = '{"charge_info":{"detail_id":"FACT-101","detail_associated_id":"FACT-BASE",'
+            . '"detail_amount":"12.3456","detail_type":"CHARGE","detail_sub_type":"CV",'
+            . '"creation_date_time":"2026-09-12T15:12:02.123-05:00","debited_from_operation":"sale_fee",'
+            . '"status":"released","charge_bonified_id":"FACT-BONUS"},'
+            . '"currency_info":{"currency_id":"COP"},"document_info":{"document_id":"DOC-101"},'
+            . '"marketplace_info":{"marketplace":"MCO"},'
+            . '"sales_info":[{"order_id":"200000000101","sale_date_time":"2026-08-01T10:00:00-05:00"}],'
+            . '"shipping_info":{"pack_id":"PACK-SHARED","receiver_shipping_cost":"15.2300"},'
+            . '"items_info":[{"item_id":"MCO101","order_id":"200000000101","item_amount":"1"}]}';
+        $response = static fn (string $lastId): MeliTransportResponse => new MeliTransportResponse(
+            200,
+            [],
+            '{"results":[' . $detail . '],"last_id":"' . $lastId . '"}',
+        );
+        $work = new WorkRepository($this->pdo);
+        $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
+        $transport = new BillingPeriodSyncFakeTransport([$response('101'), $response('102')]);
+        $handler = $this->handler($work, $transport);
+
+        self::assertTrue($handler->syncCurrentClaim(
+            $claim['id'], $claim['claim_token'], $this->companyId, $this->accountId,
+            '2026-09-01', 'BILL', '0', $this->now,
+        ));
+        $continuation = $work->claimNext();
+        self::assertIsArray($continuation);
+        self::assertSame(['period_key' => '2026-09-01', 'document_type' => 'BILL', 'from_id' => '101'], $continuation['payload']);
+        self::assertTrue($handler->syncCurrentClaim(
+            $continuation['id'], $continuation['claim_token'], $this->companyId, $this->accountId,
+            '2026-09-01', 'BILL', '101', $this->now->modify('+1 second'),
+        ));
+
+        $stored = $this->pdo->query(
+            'SELECT bp.document_type, bd.external_detail_id, bd.associated_detail_id, bd.detail_type, '
+            . 'bd.detail_sub_type, bd.detail_amount, bd.currency_id, bd.document_id, bd.marketplace, '
+            . 'bd.context_json, bd.remote_created_at '
+            . 'FROM billing_details bd JOIN billing_periods bp ON bp.id = bd.billing_period_id',
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($stored);
+        self::assertSame('BILL', $stored['document_type']);
+        self::assertSame('FACT-101', $stored['external_detail_id']);
+        self::assertSame('FACT-BASE', $stored['associated_detail_id']);
+        self::assertSame('CHARGE', $stored['detail_type']);
+        self::assertSame('CV', $stored['detail_sub_type']);
+        self::assertSame('12.3456', $stored['detail_amount']);
+        self::assertSame('COP', $stored['currency_id']);
+        self::assertSame('DOC-101', $stored['document_id']);
+        self::assertSame('MCO', $stored['marketplace']);
+        self::assertSame('2026-09-12 20:12:02.123000', $stored['remote_created_at']);
+        $context = json_decode((string) $stored['context_json'], true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('FACT-BONUS', $context['charge']['charge_bonified_id']);
+        self::assertSame('200000000101', $context['sales'][0]['order_id']);
+        self::assertSame('PACK-SHARED', $context['shipping']['pack_id']);
+        self::assertSame('15.2300', $context['shipping']['receiver_shipping_cost']);
+        self::assertSame('MCO101', $context['items'][0]['item_id']);
+        self::assertArrayNotHasKey('seller_shipping_cost', $context['shipping']);
+        self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_details')->fetchColumn());
+        self::assertCount(2, $transport->requests);
+        self::assertStringContainsString('from_id=0', $transport->requests[0]['url']);
+        self::assertStringContainsString('from_id=101', $transport->requests[1]['url']);
+    }
+
     public function testEmptyPageMarksPeriodCaughtUpWithoutContinuation(): void
     {
         $work = new WorkRepository($this->pdo);

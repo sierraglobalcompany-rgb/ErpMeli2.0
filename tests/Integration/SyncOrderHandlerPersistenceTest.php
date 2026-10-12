@@ -132,6 +132,7 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
             'missing key remains NULL' => [null, null],
             'explicit null remains NULL' => ['null', null],
             'numeric zero remains zero' => ['0', '0.0000'],
+            'extra trailing zero remains exactly representable' => ['12.34000', '12.3400'],
         ];
     }
 
@@ -161,6 +162,76 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
         self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
         self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM order_items')->fetchColumn());
         self::assertCount(1, $transport->requests);
+    }
+
+    #[DataProvider('unrepresentableSaleFeeCases')]
+    public function testSaleFeeThatWouldRequireRoundingFailsWithoutCanonicalWrite(string $saleFeeJson): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new OrderQueueTransport([
+            $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2, $saleFeeJson),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+
+        self::assertFalse($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+        ));
+
+        self::assertSame('failed', $pdo->query('SELECT status FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame('meli_order_contract', $pdo->query('SELECT last_error_code FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM order_items')->fetchColumn());
+        self::assertCount(1, $transport->requests);
+    }
+
+    public static function unrepresentableSaleFeeCases(): array
+    {
+        return [
+            'fifth decimal would be rounded' => ['1.23456'],
+            'nonzero fee would round to zero' => ['0.00001'],
+        ];
+    }
+
+    public function testUnrepresentableSaleFeeUpdateLeavesPreviousCanonicalOrderUnchanged(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new OrderQueueTransport([
+            $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2, '12.3400'),
+            $this->orderResponse('2026-10-09T00:10:00.000Z', 'paid', 2, '12.34567'),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+
+        $firstClaim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+        self::assertTrue($handler->syncCurrentClaim(
+            $firstClaim['id'], $firstClaim['claim_token'], $companyId, $accountId,
+            '200000000001', new DateTimeImmutable('2026-10-09T00:11:00+00:00'),
+        ));
+
+        $secondClaim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+        self::assertFalse($handler->syncCurrentClaim(
+            $secondClaim['id'], $secondClaim['claim_token'], $companyId, $accountId,
+            '200000000001', new DateTimeImmutable('2026-10-09T00:12:00+00:00'),
+        ));
+
+        self::assertSame('failed', $pdo->query('SELECT status FROM work_items WHERE id=' . $secondClaim['id'])->fetchColumn());
+        self::assertSame('meli_order_contract', $pdo->query('SELECT last_error_code FROM work_items WHERE id=' . $secondClaim['id'])->fetchColumn());
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM order_items')->fetchColumn());
+        self::assertSame('2026-10-09 00:05:00.000000', $pdo->query('SELECT last_updated FROM orders')->fetchColumn());
+        self::assertSame('12.3400', $pdo->query('SELECT sale_fee FROM order_items')->fetchColumn());
+        self::assertCount(2, $transport->requests);
     }
 
     public function testSaleFeePersistenceDatabaseFailureEscapesAndRollsBackCanonicalOrder(): void

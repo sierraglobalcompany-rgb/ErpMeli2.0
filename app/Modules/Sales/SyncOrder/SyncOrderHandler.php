@@ -351,7 +351,7 @@ final class SyncOrderHandler
                 'unit_price' => $this->decimal4($rawItem['unit_price'] ?? null, 'unit_price'),
                 'sale_fee' => ($rawItem['sale_fee'] ?? null) === null
                     ? null
-                    : $this->decimal4($rawItem['sale_fee'], 'sale_fee'),
+                    : $this->decimal4($rawItem['sale_fee'], 'sale_fee', requireExactScale: true),
                 'currency_id' => mb_substr($itemCurrency, 0, 8),
                 'seller_sku' => $this->nullableLimitedString($itemData['seller_sku'] ?? null, 120),
             ];
@@ -424,7 +424,7 @@ final class SyncOrderHandler
         return $string === null ? null : mb_substr($string, 0, $maxLength);
     }
 
-    private function decimal4(mixed $value, string $field): string
+    private function decimal4(mixed $value, string $field, bool $requireExactScale = false): string
     {
         if (is_int($value)) {
             $value = (string) $value;
@@ -445,6 +445,9 @@ final class SyncOrderHandler
         }
 
         $fraction = $matches[3] ?? '';
+        if ($requireExactScale && strlen($fraction) > 4 && trim(substr($fraction, 4), '0') !== '') {
+            throw new RuntimeException('Mercado Libre order ' . $field . ' is invalid.');
+        }
         $fiveDigits = substr(str_pad($fraction, 5, '0'), 0, 5);
         $scaled = ((int) $whole * 10_000) + (int) substr($fiveDigits, 0, 4);
         if ((int) $fiveDigits[4] >= 5) {

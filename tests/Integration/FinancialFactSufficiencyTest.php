@@ -319,7 +319,19 @@ final class FinancialFactSufficiencyTest extends TestCase
         );
         $statement->execute(['billing_period_id' => $periodId] + $normalized);
 
-        return $normalized;
+        $stored = $this->pdo->prepare(
+            'SELECT external_detail_id, associated_detail_id, detail_type, detail_sub_type, detail_amount, '
+            . 'currency_id, document_id, marketplace, context_json, remote_created_at '
+            . 'FROM billing_details WHERE billing_period_id = :billing_period_id AND external_detail_id = :external_detail_id',
+        );
+        $stored->execute([
+            'billing_period_id' => $periodId,
+            'external_detail_id' => $normalized['external_detail_id'],
+        ]);
+        $row = $stored->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+
+        return $row;
     }
 
     /**
