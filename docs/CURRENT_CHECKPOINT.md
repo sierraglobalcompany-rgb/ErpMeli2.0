@@ -14,9 +14,11 @@
 
 **MB-10 base SHA:** `b2415df01b848425e8a2121d3e307d1e83af9e3d`
 
-**Last closed block / CURRENT:** MB-11 CLOSED — Cleanup + documentation
+**Last closed block / CURRENT:** F7 CLOSED LOCAL — Catalog
 
-**NEXT:** F7 — Catalog
+**NEXT:** F8 — Inventory
+
+**F7 functional SHA:** `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`
 
 **REAL_MELI_HTTP:** `0`
 
@@ -155,14 +157,14 @@ Git = superseded history
 
 Current truth: local code/schema > same-SHA tests/QA > same-SHA evidence > checkpoint > durable authority > README/supporting documents > handoffs/audits > remote visibility > inference.
 
-README now agrees with the local G3 verdict and points to F7 as next. ERP2_AUTHORITY durable contracts did not need an MB-11 change. AGENTS.md is unchanged.
+README now agrees with the local G3 verdict, F7 closure, and F8 as next. ERP2_AUTHORITY durable contracts did not need an MB-11 change. AGENTS.md is unchanged.
 
 ## 5. NEXT and STOP
 
 ```text
-CURRENT = MB-11 CLOSED — Cleanup + documentation
-NEXT = F7 — Catalog
+CURRENT = F7 CLOSED LOCAL — Catalog
+NEXT = F8 — Inventory
 STOP
 ```
 
-Stop after this checkpoint. F7 — Catalog is next and has not been started here. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.
+F7 — Catalog closed locally at functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`: one company-scoped local product identity with create/read and unique internal SKU. Listing mapping, variants, stock, pricing, and remote operations are outside F7. F8 — Inventory is next and has not started. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.
