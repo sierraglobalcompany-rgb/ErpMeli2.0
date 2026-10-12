@@ -85,9 +85,9 @@ El detalle verificable de estado, QA y gates vive en `docs/CURRENT_CHECKPOINT.md
 
 ### Continuidad local después de R0
 
-R0 cerró la reconciliación documental local. **F6A-LOCAL-3A y F6A-LOCAL-3B están cerrados dentro de su cobertura local**, incluido el cursor opaco post-decoder y la durabilidad/replay de página. No significa Billing completo: el routing F6A-LOCAL-4 y los riesgos compartidos del core siguen pendientes. **Financial = NOT READY**.
+R0, MB-01/02/03 de seguridad API y F6A-LOCAL-0..4 de Billing están cerrados localmente dentro de su cobertura. **MB-09 / F6B-FACTS también está cerrado localmente**: `order_items.sale_fee` queda alineado como hecho nullable por ítem y las fixtures prueban que los hechos actuales bastan para MB-10 o permanecen explícitamente desconocidos/conflictivos. **G3 y G5 = PASS LOCAL; G6 = READY FOR MB-10 / NOT PASS.** Financial todavía no tiene read model, fórmulas ni ledger.
 
-El siguiente microbloque es **MB-01 / API-SAFETY-1**. MB-01, MB-02 y MB-03 deben resolver cooldown/concurrencia, Retry-After y clasificación OAuth/infraestructura antes de ampliar consumo remoto Billing. No dependen de construir una pantalla ni de añadir otra cola o motor. Este cierre documental no los inicia.
+El siguiente microbloque es **MB-10 / F6B-FINANCIAL**. Este estado registra la secuencia; no inicia MB-10 ni certifica comportamiento Financial.
 
 F1–F13 se desarrollan y prueban localmente con `REAL_MELI_HTTP=0`, transportes inyectados/fakes y MariaDB de pruebas. C0 real no es una puerta obligatoria para Billing local ya implementado: pertenece a F14, requiere autorización separada y conserva su contrato sin persistencia de negocio/uso/cooldown ni refresh OAuth. Ninguna fase declara inmunidad a 429 o baneos.
 

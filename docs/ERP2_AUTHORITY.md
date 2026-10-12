@@ -364,6 +364,12 @@ El C0 real de seller MCO es un smoke de sólo lectura de F14/preproducción. No 
 
 Financial no está iniciado. No crear ledger/table inicialmente.
 
+Hecho fuente previo a Financial:
+
+- `order_items.sale_fee` conserva el decimal nullable por ítem recibido en `orders.get`, normalizado por el contrato decimal existente de Sales y en la moneda del ítem.
+- La clave ausente o un valor `null` permanece SQL `NULL` y nunca significa cero; el cero remoto se conserva como `0.0000`.
+- Es un hecho por unidad: no multiplicarlo por `quantity`, convertirlo en tarifa total del pedido ni inferir signos o significado contable desde Billing.
+
 Modelo futuro esperado:
 
 ```text
