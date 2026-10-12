@@ -1,19 +1,20 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=MLSIM-0 CLOSED — minimal local ML simulator design**
+**CURRENT=MLSIM-1 CLOSED — representative local HTTP simulator**
 
 | Field | Value |
 |---|---|
 | Date | 2026-10-12 |
 | Branch | impl/v3-b-sales-audit-20261010 |
-| HEAD before | 7e09bd80e171763eadd4e08e316794d6c3e24706 — exact MLSIM-0 anchor, clean tree |
-| Functional SHA | 1ee9da64ea6d23b0f97424d72f1398dd37a8a416 |
+| HEAD before | 268de288d6d5ea05a8e2bc85cd2efecfd0fbf197 — exact V2 anchor, clean tree |
+| Functional SHA | 3e45c756b35093f19d69cc428bcc7849e9146e43 |
 | LC-P0-1 | CLOSED — partial Sales Audit/Billing fail-closed |
 | LC-P0-2 | CLOSED — stale repair claim creates no child |
 | LC-P0-3 | CLOSED — disabled session loses authority immediately |
 | LOCAL_PRODUCT_READY | NO — P1 operator/bootstrap gaps remain |
-| NEXT | MLSIM-1 — implement minimal simulator; NOT_STARTED |
-| LC2 | PENDING AFTER MLSIM-1 |
+| NEXT | LC2 — P1 operator completeness; NOT_STARTED |
+| LC3 | PENDING — full local E2E + composition-root gate |
+| LC4 | PENDING — noise/call-budget/restart/recovery |
 | F13 | CLOSED LOCAL |
 | F14 | LOCAL CONTRACT READY |
 | F14 LIVE | DEFERRED |
@@ -21,17 +22,15 @@
 | F15 | PAUSED |
 | F16 | UNAUTHORIZED |
 
-## MLSIM-0 design receipt
+## MLSIM-1 V2 receipt
 
-[Minimal local ML simulator design](MLSIM_0_LOCAL_MELI_SIMULATOR_DESIGN.md) contains current seam/fake inventory, exact seven-operation registry/callers, endpoint/scenario decisions, counter semantics, process/port/Windows cleanup contract, call formulas, file budget, five-task RED→GREEN plan and adversarial questions for another AI. No external review was sent.
+[Simulator design + implementation receipt](MLSIM_0_LOCAL_MELI_SIMULATOR_DESIGN.md) records the optimized V2 authority, four tasks, exact8 scenario/3 operation scope, request budgets, process/counter/Windows guards, QA and limits. V2 supersedes the51-result sample; Audit repair is1 result /search A +order +search B=3GET.
 
-Decision: MLSIM_NEEDED=YES / HTTP_LAYER_NEEDED=YES / OAUTH_HTTP_SIM_NEEDED=NO. Three GET resources only: orders.get, orders.search, billing.period.details. OAuth stays fake-only; packs.get/orders.billing_info CONTRACT_ONLY without business E2E consumer. Financial simulator calls must be0.
-
-MLSIM-1 planned budget: three new test files / one PHPUnit test class / zero production classes/files/config/dependencies/schema/queues/workers. Reuse current MeliClient injected base URL/transport and Curl loopback; temporary request JSONL counter, no control HTTP endpoints or simulator DB. Production CLI/callback hardcoded URL wiring is not claimed covered by this seam.
-
-MLSIM-0 changed only this checkpoint and the one design document. No simulator implementation, tests run, DB/server start, SSH/Hostinger/ERP1 runtime/real ML/OAuth/Alegra/DIAN/deploy/remote writes, push or merge. Documentary diff/consistency/tree validation only; last fresh functional baseline remains475 tests/3372 assertions/one skip/zero failures/errors from LC1.
-
-No P1/P2 or LC2 implementation. LOCAL_PRODUCT_READY remainsNO; F14LIVE deferred/F15paused/F16unauthorized. One docs design/checkpoint commit only.
+- Exactly3 new files under tests,1 TestCase;0 production files/classes/dependencies/tables/migrations/Work types/queues/workers/schedulers/services. No DB of simulator, separate repo or mandatory Docker. Server is ephemeral PHP -S127.0.0.1/test, no proxy/fallback/OAuth endpoints; packs/billing-info contract-only.
+- Counter JSONL captures every HTTP arrival of a valid run, unexpected/excess included; exact action asserts. HappyOrder1, orderpartial1/JSONinvalid1 extra0; Audit3/partial1 extra0; Billing2 pages+terminal3, sameWork; partial1;4291/inline0/cooldownfollowup0; disabled/stale/Financial0. Eligibility changes only DB available_at, no Work sleep/polling.
+- MLSIM focal17/288; neighbors189/1927; fresh full492/3660/one existing skip/zero failures/errors, exit0. PHPStan/Composer PASS; syntax165/diff PASS. Existing curl_close() PHP8.5 deprecation exposed by real loopback transport remains visible (one distinct deprecation); no production fix or suppression.
+- Owned processes/temp directories cleaned, disposable MariaDB stopped. RealML/OAuth/SSH/Hostinger/ERP1/Alegra/DIAN/deploy/remote writes0. No source entrypoint/provider/browser OAuth certification; no P1/LC2 implemented.
+- One functional commit `3e45c756b35093f19d69cc428bcc7849e9146e43` plus one documentary closure commit. Local evidence storage/exports/mlsim1, no upload/push/merge. LOCAL_PRODUCT_READY remainsNO.
 
 ## LC1 receipt
 
@@ -45,4 +44,4 @@ No P1/P2 or LC2 implementation. LOCAL_PRODUCT_READY remainsNO; F14LIVE deferred/
 
 [LC0 audit + LC1 P0 closure](LC0_LOCAL_COMPLETENESS_AUDIT.md) owns historical matrix/evidence and remaining P1/P2. [ERP2 authority](ERP2_AUTHORITY.md) owns durable session/completeness/claim contracts. Local evidence under storage/exports/lc1; no upload.
 
-STOP — MLSIM-0 design complete; MLSIM-1, LC2, F14 live, F15 and F16 not executed.
+STOP — MLSIM-1 V2 complete; LC2, F14 live, F15 and F16 not executed.

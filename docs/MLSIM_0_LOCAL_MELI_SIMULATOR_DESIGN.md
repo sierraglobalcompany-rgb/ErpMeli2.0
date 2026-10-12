@@ -2,6 +2,34 @@
 
 Fecha: 2026-10-12. Checkout auditado: `7e09bd80e171763eadd4e08e316794d6c3e24706`, rama `impl/v3-b-sales-audit-20261010`, CLEAN. Functional baseline `1ee9da64ea6d23b0f97424d72f1398dd37a8a416`: 475 tests / 3372 assertions / 1 skipped / 0 failures/errors. No se ejecutó nuevamente QA funcional por un diseño exclusivamente documental.
 
+## MLSIM-1 V2 — recibo actual de cierre
+
+Autoridad de implementación: `ERP_MELI_2_0_MLSIM_1_IMPLEMENTATION_PLAN_V2_OPTIMIZADO_2026-10-12.md`, solicitud explícita del usuario. Sustituye el plan MLSIM-0 de cinco tareas y el sample51 por cuatro tareas / AUDIT_REPAIR_1. HEAD before268de288d6d5ea05a8e2bc85cd2efecfd0fbf197, clean. Functional SHA `3e45c756b35093f19d69cc428bcc7849e9146e43`.
+
+Implementado: tests/Support/MeliSim/router.php, scenarios.json y tests/Integration/MeliHttpSimulationTest.php. Tres archivos nuevos, una clase PHPUnit; producción files/classes/dependencies/tables/migrations/Work types/queues/workers/schedulers/services=0. Router no carga ERP, DB, credenciales reales ni transport saliente. APP_ENV=test, bind127.0.0.1, trace absoluto bajo temp propio, fixed allowlist8 escenarios/3READ operations. No proxy/fallback/static file serving. Host no literal rechazado antes de conexión.
+
+RED observado: Task1 cuatro fallos de ausencia router; Task2 tres casos incompletos (cinco mensajes contando teardown); Task3 cinco casos de scripts ausentes (diez mensajes contando teardown). El primer arranque Windows requirió SystemRoot/WINDIR existentes, preservados en el env mínimo del child sin heredar DB/ML secrets. Task4 zero invariants son regresiones LC1/Financial ya correctas: pasaron directamente; no se fabricó RED ni se modificó owner para provocar fallo. Logs conservados localmente.
+
+| Caso | GET loopback exactos | Adicionales |
+|---|---:|---|
+| Order happy/exact | 1 | 0 |
+| Order partial header | 1 | 0 |
+| Order invalid JSON | 1 | 0 |
+| Audit repair N1 | 3 | Secuencia search/order/search; VALID |
+| Audit partial206 | 1 | 0 authority/child/extra |
+| Billing2 páginas + terminal | 3 | mismo Work; from_id0/101/102; exact money/COP |
+| Billing partial header | 1 | 0 facts/cursor/caught_up/extra |
+| Billing429 | 1 | Retry-After60 a cooldown; retry inline0, followup0 |
+| Disabled session | 0 |403;0 Work |
+| Stale repair claim | 0 |0 child/parent/audit mutation |
+| Financial read | 0 |KNOWN exact local fee + UNKNOWN billing,0 Work |
+
+Dos GET adicionales y un POST local pertenecen exclusivamente a pruebas negativas unexpected/excess del harness; POST/oauth/token se rechaza como UNKNOWN, no es OAuth simulator. No calls ML reales. Counter JSONL ordenado registra antes de response; unexpected/excess hacen fallar caso normal. Header/body/Authorization values no se vuelcan al trace, sólo presence. Body literal cruza cURL preservando90071992547409.1234/IDs>2^53/null.
+
+QA: MLSIM17 tests/288 assertions; neighbors189/1927; full492/3660/1skip/0failures/0errors, exit0. PHPStan/strict Composer PASS, syntax165 PASS, diff check PASS. **Una deprecación existente** expuesta por Curl real en PHP8.5: app/Integrations/MercadoLibre/Transport/CurlMeliTransport.php llama curl_close(), sin efecto desde8.0 y deprecated8.5. No se suprimió ni corrigió código productivo; PHPUnit exit0 y cero errores/fallos, pero reporta esa advertencia. Skip existente de symlink Windows. No limpieza/reenqueue business con sleep/polling: sólo available_at en DB test; espera corta exclusiva del startup TCP. Procesos propios terminados, dirs propios borrados, DB local detenida.
+
+MLSIM does not certify Mercado Libre. MLSIM-1 does not certify production bin/work.php wiring. MLSIM-1 does not certify real browser OAuth/callback. packs.get and billing-info remain contract/fake-only. Sales Audit large/multi-page behavior remains fake-tested; HTTP volumetric verification is deferred unless LC3/LC4 shows value. No LOCAL_PRODUCT_READY claim: P1 sigue pendiente. No LC2/F14live/F15/F16/deploy/push/merge.
+
 ## 1. Decisión y puerta KISS
 
 **MLSIM_NEEDED=YES; HTTP_LAYER_NEEDED=YES; OAUTH_HTTP_SIM_NEEDED=NO.**
@@ -85,7 +113,7 @@ Seleccionar una secuencia finita por escenario al arrancar. Respuestas se toman 
 |---|---|---|
 | ORDER_HAPPY_EXACT | HTTP order | 1 GET200, ID grande como lexema, total/unit_price exactos, sale_fee nullable; persist/update/idempotency por replay test separado |
 | ORDER_PARTIAL_HEADER | HTTP order | 1 GET200 con X-Content-Missing mixto; no canonical write ni extra call |
-| AUDIT_REPAIR_51 | HTTP search/order | N=51 L=50 M=1: A0,A50,order_missing,B0,B50; exactamente5 GET, VALID sólo tras B; cuerpo explícito por página |
+| AUDIT_REPAIR_1 | HTTP search/order | N=1 L=50 M=1: A0,order_missing,B0; exactamente3 GET, VALID sólo tras B; cuerpo explícito por página |
 | AUDIT_PARTIAL_206 | HTTP search | Un206 terminal aparente; LC1 contrato failed, evidencia/run intactos, ningún child |
 | BILLING_TWO_PAGES | HTTP details | from0→101→102→empty: tres claims/GET, misma row; BILL/CREDIT_NOTE como variantes explícitas del mismo recurso, facts/amount/currency strings |
 | BILLING_PARTIAL_HEADER | HTTP details | Un200 + X-Content-Missing: results; same Work defer, facts/cursor/caught_up intactos |
@@ -101,7 +129,7 @@ Seleccionar una secuencia finita por escenario al arrancar. Respuestas se toman 
 
 Happy Billing de una página se obtiene ejecutando sólo el primer claim de TWO_PAGES, no escenario duplicado; terminal vacío es el último step. Si se necesita stream de una página no vacía + terminal, se omite segundo step no vacío en fixture pequeña, sin parser nuevo. BILL/CREDIT_NOTE se parametriza expected query, no documento fiscal del cliente. No thresholds reales de cuota.
 
-Cantidad inicial: ocho scripts HTTP y variantes BILL/CREDIT_NOTE, no más de tres operaciones. Cap explícito≤8 llegadas por caso inicial (audit5, Billing3, demás1); fixture contiene expected_call_count exacto. Más llamadas no son una respuesta alternativa aceptable.
+Cantidad inicial: ocho scripts HTTP y variantes BILL/CREDIT_NOTE, no más de tres operaciones. Cap explícito≤8 llegadas por caso inicial (audit3, Billing3, demás1); fixture contiene expected_call_count exacto. Más llamadas no son una respuesta alternativa aceptable.
 
 ## 7. Contador de requests — contrato
 
@@ -144,7 +172,7 @@ Sin HTTP health/stats endpoints. Seguridad router fail-closed si APP_ENV distint
 | Flujo | MLSIM-1 local contract / contador | LC2/LC3 pendientes |
 |---|---|---|
 | A Sales | Fixture webhook POST a Bootstrap in-process → order.sync → WorkExecution/handler con Curl loopback → canonical → GET Sales UI tenant. HTTP order1, duplicate webhook0 adicionales | Una futura prueba browser/socket contra ERP completo; no claim de wiring PHP-Slim por socket sólo por in-process |
-| B Sales Audit | POST audit existente con csrf/admin → fixed manual claims A/repair/B → search/order loopback → VALID en DB. Muestra51/limit50/missing1 permite5 GET | Resultado visible de auditoría NO implementado; P1 LC2. No inventarlo en simulador |
+| B Sales Audit | POST audit existente con csrf/admin → fixed manual claims A/repair/B → search/order loopback → VALID en DB. Muestra1/limit50/missing1 permite3 GET | Resultado visible de auditoría NO implementado; P1 LC2. No inventarlo en simulador |
 | C Billing | Test encola explícito con WorkRepository, tres claims sobre la misma row, cursor/amount/terminal.3 GET | Producer/formulario Billing y manual CLI son P1; no usar bin/work automático como sustituto |
 | D Financial | Tras A/C, forOrder PDO-only → KNOWN/UNKNOWN/CONFLICT según facts. Snapshot trace before/after, delta0 | Surface operador P1; NO dependency simulator/client en modelo |
 | E OAuth | Fake-only Flow/Connect/Refresh actuales; no HTTP sim | Grant/UI real externo; success callback full socket no cubierto |
@@ -154,7 +182,7 @@ No webhook push daemon: payload propio de test va a ERP; MLSIM sólo responde. N
 
 ## 11. Modelos exactos de llamadas
 
-Sales Audit estable: `P=max(1,ceil(N/L))`; N incluye todas las observaciones del conjunto de ventana remota, guard bands incluidas. `M` sólo los pedidos faltantes de la ventana canónica reparables. CapturaA=P GET search; reparación=M GET order; confirmB=P GET search. `GET=2P+M`. N0 aún1 request por pass. Guard bands no se convierten automáticamente en órdenes a reparar. Ejemplo del producer actual: N51/L50/M1→2+1+2=5. SalesListController fija AUDIT_PAGE_LIMIT=50; no inventar limit2 en POST ni modificar su payload para afirmar wiring del producer. La fixture51 es la menor que ejercita dos páginas por pass desde ese producer, con50 órdenes canónicas preexistentes y una reparación. Ninguna página search requiere GET vacío adicional después de alcanzar paging.total.
+Sales Audit estable: `P=max(1,ceil(N/L))`; N incluye todas las observaciones del conjunto de ventana remota, guard bands incluidas. `M` sólo los pedidos faltantes de la ventana canónica reparables. CapturaA=P GET search; reparación=M GET order; confirmB=P GET search. `GET=2P+M`. N0 aún1 request por pass. Guard bands no se convierten automáticamente en órdenes a reparar. Ejemplo MLSIM-1 V2: N1/L50/M1→1+1+1=3. SalesListController fija AUDIT_PAGE_LIMIT=50. No fixture51 ni repetición HTTP multi-page: los fakes existentes cubren ese comportamiento y cualquier verificación volumétrica HTTP posterior requiere valor demostrado en LC3/LC4. Ninguna página search requiere GET vacío adicional después de alcanzar paging.total.
 
 Cambios de total/set o respuestas parciales deben detener contrato y **no** conservar fórmula happy como éxito. Script no genera volúmenes ilimitados ni búsqueda de un sample perfecto. Número de claims debe ser finito explícito, incluidas etapas repair wait; no ejecutar untilVALID forever. Reclamaciones de repair wait pueden sumar claims locales sin GET; no confundir claim count y remote count.
 
@@ -166,7 +194,7 @@ Billing: `K` páginas no vacías → `K+1` GET incluido vacío terminal. Normal 
 
 **Producción MLSIM-1: 0 archivos, 0 clases, 0 config keys, 0 operaciones nuevas.** Reusar `MeliClient::__construct($transport,...,$baseUrl,...)`, `CurlMeliTransport(...,'test')`, registro y handlers; el test compone por constructor. Intervalo0 de test ya soportado; pacing2s sigue fake/timed tests.
 
-Layout propuesto, **no creado**:
+Layout implementado por MLSIM-1 V2:
 
 | Archivo futuro | Responsabilidad | Clases nuevas |
 |---|---|---:|
@@ -180,17 +208,16 @@ Total3 archivos /1 clase de test; no Scenario/Server/Factory/FakeProvider class.
 
 Si LC3 demuestra una necesidad real de `bin/work.php` o callback browser conectados al simulator, evaluar aparte seam acotado en `AppConfig::fromEnvironment`, `Environment::all` y los `new MeliClient` de `bin/work.php`/`Routes`; authorize URL del Flow ya tiene constructor inyectable pero Routes fija valor. Sólo local/test, destino127.0.0.1 validado y producción ignorar/rechazar selector. No añadir esas piezas en MLSIM-1 ni prometerlas aquí; repetir puerta KISS y RED específico antes. Preferir test composition sobre config global.
 
-## 13. Plan MLSIM-1 — cinco tareas RED → GREEN
+## 13. Plan MLSIM-1 V2 — cuatro tareas RED → GREEN
 
 | Task | RED test | GREEN mínimo | Production files | Test files | Counter assertion | STOP condition |
 |---|---|---|---|---|---|---|
-| 1 lifecycle/counter | Test no router, unique run, count0 startup, unknown path contado y fallo; production-env router rechazado | Router sin business logic, temp JSONL, proc_open PHP server/teardown; skeletonscenario | 0 | Tres propuestos | Startup0; request inesperado1 matched=false; sum totals consistente | Bind ajeno, cleanup inseguro, puerto/process no identificado; no agregar servicio |
-| 2 HTTP order exact | Curl + registry + real handler no puede completar sin fixture; assert numeric lexemes/tenant + webhook duplicate | ORDER_HAPPY_EXACT literal, composición existente, UI read in-process | 0 | Mismos3; reutilizar patrón SalesVerticalSlice | orders.get1; repeat webhook0 nuevos | Necesidad de nueva tabla, transport o producción arbitrary URL |
-| 3 partial/429/JSON wiring | Header real no alcanza guard sin server; LC1 owner checks, unexpected additional request | ORDER_PARTIAL_HEADER, AUDIT_PARTIAL_206, BILLING_PARTIAL_HEADER, FIRST_CALL_429, INVALID_JSON | 0 | Mismos3; regresión fake sigue intacta | Cada input1 GET; extras0; cooldown follow-up0 | No modificar refresh/retry/pacing para hacerlo pasar; no scripts interminables |
-| 4 finite Audit/Billing E2E | Script esperado5 audit requests (N51/L50/M1 del producer actual) /3 Billing sobre una row y fails si order/date/cursor equivocado | AUDIT_REPAIR_51 y BILLING_TWO_PAGES literal, fixed claims y test eligible timestamps | 0 | Mismos3 | 2P+M=5; K+1=3; oneWork Billing | Necesidad de UI/productor P1, loops hasta terminal o simulador dueño del cursor |
-| 5 guards/cross-QA/docs | Server activo, disabled/stale/Financial no deben añadir requests; contract-only no endpoints; cleanup validado en failure | Reusar LC1/Financial assertions y test lifecycle; focal + full suite local, docs/checkpoint | 0 | Mismos3; existentes sólo si repetición se reemplaza con valor concreto | disabled0/stale0/Financial0; sin AUTH HTTP, no unexpectedcalls | Tests reales detectan newarchitecture/PII/outbound no-loopback; STOP después QA, no LC2 |
+| 1 lifecycle/counter | Router inexistente, non-test, unexpected/excess y cleanup | Router loopback, JSONL temporal, PHP process owner; host literal guard | 0 | Exactamente3 permitidos | Readiness0, unknown/excess registrados y fallan | Bind/cleanup inseguro, proxy o necesidad de producción |
+| 2 Orders | Falta body/scenarios para exact/partial/invalidJSON | Literal response y composición actual | 0 | Mismos3 | Happy1 GET; negativos1 y extras0 | Float loss o nueva operación/transport |
+| 3 Audit/Billing/429 | Scenarios faltantes y presupuestos específicos | Audit N1 + reparación + B, Billing2 páginas/terminal, guards | 0 | Mismos3 | Audit3; Billing3; partial1;4291 y followup0 | Cambio productivo, sleeps de Work o widening de escenario |
+| 4 zeros/QA/closure | Regresiones de autoridad/Financial y scope exacto | Nuevos asserts del mismo TestCase, focal/neighbors/full QA y docs | 0 | Mismos3 | disabled0/stale0/Financial0;8 escenarios/3 operaciones | Cambio producción, no pasar QA o iniciar LC2 |
 
-La tarea1 es una prueba de harness, no endpoint de negocio UNKNOWN añadido al registro. Requests de test al simulator son loopback local, no REAL_MELI_HTTP. No ejecutar tareas ahora. No implementar producción frente a un test RED que depende de UI P1 ausente; clasificar esa dependencia y detener ese caso.
+La tarea1 es una prueba de harness, no endpoint de negocio UNKNOWN añadido al registro. Requests de test al simulator son loopback local, no REAL_MELI_HTTP. Las cuatro tareas fueron ejecutadas bajo V2; no autoriza ampliar alcance. No implementar producción frente a un test RED que depende de UI P1 ausente; clasificar esa dependencia y detener ese caso.
 
 ## 14. Capas y QA futura
 
@@ -243,11 +270,11 @@ Entregar hallazgos como: severidad, evidencia código, reproducción/falso posit
 
 ## 17. Cierre MLSIM-0
 
-Design-only: producción/test/config/schema changes0; simulator implementado0; SSH/Hostinger/ERP1runtime/MLreal/OAuthreal/Alegra/DIAN/deploy/remote writes0. QA documental: diff check, trazabilidad de inventory/registry y tree. LC1 baseline se conserva; no arrancar DB/server por este diseño.
+MLSIM-0 fue design-only. MLSIM-1 V2 añadió exclusivamente los tres archivos tests indicados, reutilizó MariaDB desechable y PHP loopback para QA, sin cambio productivo/config/schema/registry. SSH/Hostinger/ERP1runtime/MLreal/OAuthreal/Alegra/DIAN/deploy/remote writes0. Ver recibo actual superior; no extender implementación.
 
-CURRENT=MLSIM-0 CLOSED — minimal local ML simulator design. LOCAL_PRODUCT_READY=NO. NEXT=MLSIM-1 implement minimal simulator, NOT_STARTED. LC2=PENDING AFTER MLSIM-1. F14LIVE=DEFERRED; F15=PAUSED; F16=UNAUTHORIZED.
+CURRENT=MLSIM-1 CLOSED — representative local HTTP simulator. LOCAL_PRODUCT_READY=NO. NEXT=LC2 P1 operator completeness, NOT_STARTED. LC3/LC4=PENDING; F14LIVE=DEFERRED; F15=PAUSED; F16=UNAUTHORIZED.
 
-STOP — diseño solamente.
+STOP — MLSIM-1 V2 solamente; LC2 no ejecutado.
 
 ## Anexo — todos los fake transports actuales
 
