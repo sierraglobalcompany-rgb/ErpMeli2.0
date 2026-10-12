@@ -1,17 +1,28 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**F13 CLOSED LOCAL — explicit mapping complete; Catalog rehearsal PASS**
+**F14 BLOCKED — real company/account and valid existing READ credential context unavailable**
 
 | Field | Value |
 |---|---|
 | Date | 2026-10-12 |
 | Branch | `impl/v3-b-sales-audit-20261010` |
-| V4 preflight HEAD | `bbe28e8a68fa45d90721175c6b701fca1d79ce91` — exact anchor, clean tree, no drift |
-| Functional SHA | `e226263b9e3f842e5dbce0af15a83308465aab06` |
-| CURRENT | F13 CLOSED LOCAL — explicit mapping complete |
-| NEXT | F14 — External READ certification |
-| F14 | PENDING — not executed |
+| F14 preflight HEAD | `e6da42159f88ddcab8fd56f98c44de97110d8138` — exact anchor, clean tree |
+| F13 functional SHA | `e226263b9e3f842e5dbce0af15a83308465aab06` |
+| F13 | CLOSED LOCAL — unchanged |
+| CURRENT | F14 BLOCKED — live credential/account context unavailable |
+| NEXT | F14 — configured real account context, offline contract gaps, then authorized minimum GET certification |
+| Live READ authorization | EXPLICIT GET ONLY — persists; no repeat approval needed for the same scope |
+| F15 | NOT_STARTED |
 | F16 | UNAUTHORIZED |
+
+## F14 blocked checkpoint
+
+- [F14 report and registry](F14_READ_CERTIFICATION.md): ORDER_READ, PACK_READ, BILLING_INFO_READ and existing Billing period details are required; Shipment/fiscal-document-list NOT_NEEDED.
+- No real ERP2 DB/account/OAuth context is configured in the accessible runtime. F13's REAUTHORIZE_NEW actions do not establish connected actual target rows. No test/seed/disposable identity was used as live authority; no ERP1 credentials were reused.
+- Existing OAuth consumers may refresh with POST; the current GET-only authorization forbids that path. No token was read, logged, renewed or requested in chat. No production bootstrap/worker or remote script was run.
+- Live API counters total=GET=POST=PUT=PATCH=DELETE=non_GET=writes=0. No Mercado Libre payload/PII/token export; Alegra/DIAN=0. No F15/F16, push, merge or deploy.
+- Fresh local regression QA PASS: 79 focal tests/744 assertions; full 412 tests/2,998 assertions/one existing skip/zero failures or errors; PHPStan, Composer, syntax 162 files and diff check PASS. These results do not certify F14 live contracts.
+- Unblock with the location/association of an existing configured certification runtime and valid credential via secure configuration; never paste secrets. F14 remains uncertified, including seller/206, pack ownership and billing-info contracts.
 
 ## F13 closure
 
