@@ -1,14 +1,35 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**STOP AFTER THIS CHECKPOINT**
+**F13 PARTIAL — STOP UNTIL A VERIFIED ERP1 DATA SOURCE IS AVAILABLE**
 
 | Field | Value |
 |---|---|
-| Date | 2026-10-11 |
+| Date | 2026-10-12 |
 | Branch | `impl/v3-b-sales-audit-20261010` |
 | F12 implementation SHA | `1da47d4e65873daeb9dd324c72d01b85bc5d9b3e` |
-| CURRENT | F12 CLOSED LOCAL — PostSale audit |
-| NEXT | F13 — Migration |
+| F13 preflight HEAD | `b0e69f9da2c6f9d02d2d31977fa1edde95d5267d` |
+| CURRENT | F13 PARTIAL LOCAL — structural migration audit; no verified real ERP1 data source |
+| NEXT | F13 — repeat data-quality/mapping rehearsal against an authorized ERP1 data snapshot |
+
+## F13 partial result
+
+- ERP1 code/schema were identified locally; the inspectable snapshot is ERP1 2.35.1 pre-HF1. A local RC1 browser test database has no representative order/catalog/payment/claim/invoice facts and is not a real migration source.
+- ERP1 companies have nullable NIT; ERP2 companies have no NIT key. Legacy internal product company ownership is nullable. No real rows exist to prove company/SKU identity, so no entity qualifies for `MIGRATE`.
+- The complete category matrix and inspected row counts/source identity are in [F13_MIGRATION_REHEARSAL.md](F13_MIGRATION_REHEARSAL.md). No importer, schema, HTTP call, or production write was made.
+- Do not start F14 until F13 can be resumed against an authorized ERP1 data snapshot. F14 remains pending; F16 remains unauthorized.
+
+### F13 local QA
+
+| Check | Result |
+|---|---|
+| Composer | PASS — `composer validate --strict` |
+| PHPStan | PASS — 0 errors |
+| PHPUnit | PASS — 405 tests / 2976 assertions / 1 skipped / 0 failures / 0 errors |
+| Skip | Existing `DebugMaintenanceTest::testMaintenanceNeverFollowsSymlinkOutsideManagedRoots`; symlink creation unavailable on this platform |
+| PHP syntax | PASS — 161 files (`app/`, `public/`, `bin/`, `tests/`) |
+| `git diff --check` | PASS |
+
+QA used `REAL_MELI_HTTP=0`, `ALEGRA_REAL_HTTP=0`, `DIAN_HTTP=0` and only disposable local ERP2 `erp_meli2_test` on port 3307. No external HTTP or production write occurred.
 
 ## F12 closed contract
 
