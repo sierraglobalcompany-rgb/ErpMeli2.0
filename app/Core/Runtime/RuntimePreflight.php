@@ -56,7 +56,7 @@ final class RuntimePreflight
         $timeZone = (string) $pdo->query('SELECT @@SESSION.time_zone')->fetchColumn();
 
         $unwritable = [];
-        foreach (['logs', 'debug', 'cache', 'exports', 'tmp'] as $directory) {
+        foreach (['logs', 'debug', 'cache', 'exports', 'invoices', 'tmp'] as $directory) {
             $path = $projectRoot . '/storage/' . $directory;
             if (!is_dir($path) || !is_writable($path)) {
                 $unwritable[] = 'storage/' . $directory;

@@ -22,6 +22,7 @@ use App\Integrations\MercadoLibre\Client\MeliCooldownRepository;
 use App\Integrations\MercadoLibre\Transport\CurlMeliTransport;
 use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
 use App\Modules\Api\ErpApiController;
+use App\Modules\Invoicing\InvoicingBridgeController;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Sales\ViewSales\SalesListController;
 use App\Modules\Settings\SystemSettingsController;
@@ -116,6 +117,25 @@ final class Routes
                 $request,
                 $response,
                 (string) ($args['product_id'] ?? ''),
+            );
+        });
+
+        $app->get('/api/integrations/v1/invoicing/sources', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return self::invoicingBridgeController($config)->listSources($request, $response);
+        });
+
+        $app->post('/api/integrations/v1/invoicing/sources/{order_id:[0-9]+}/artifact', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::invoicingBridgeController($config)->acceptArtifact(
+                $request,
+                $response,
+                (string) ($args['order_id'] ?? ''),
             );
         });
 
@@ -396,5 +416,15 @@ final class Routes
     private static function erpApiController(AppConfig $config): ErpApiController
     {
         return new ErpApiController(Connection::fromConfig($config));
+    }
+
+    private static function invoicingBridgeController(AppConfig $config): InvoicingBridgeController
+    {
+        $root = dirname(__DIR__, 3);
+        $storageDirectory = $config->appEnv === 'test'
+            ? sys_get_temp_dir() . '/erp-meli2-invoicing-test'
+            : $root . '/storage/invoices';
+
+        return new InvoicingBridgeController(Connection::fromConfig($config), $storageDirectory);
     }
 }

@@ -10,5 +10,7 @@
 !/storage/cache/.gitkeep
 /storage/exports/*
 !/storage/exports/.gitkeep
+/storage/invoices/*
+!/storage/invoices/.gitkeep
 /storage/tmp/*
 !/storage/tmp/.gitkeep
