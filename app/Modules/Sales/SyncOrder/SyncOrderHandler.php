@@ -265,8 +265,8 @@ final class SyncOrderHandler
 
                 $insertItem = $pdo->prepare(
                     'INSERT INTO order_items '
-                    . '(order_id, external_item_id, variation_id, title, quantity, unit_price, currency_id, seller_sku) '
-                    . 'VALUES (:order_id, :external_item_id, :variation_id, :title, :quantity, :unit_price, :currency_id, :seller_sku)'
+                    . '(order_id, external_item_id, variation_id, title, quantity, unit_price, sale_fee, currency_id, seller_sku) '
+                    . 'VALUES (:order_id, :external_item_id, :variation_id, :title, :quantity, :unit_price, :sale_fee, :currency_id, :seller_sku)'
                 );
                 foreach ($order['items'] as $item) {
                     $insertItem->execute(['order_id' => $localOrderId] + $item);
@@ -308,7 +308,7 @@ final class SyncOrderHandler
      * @return array{
      *   external_order_id:string,status:string,status_detail:?string,date_created:string,date_closed:?string,
      *   last_updated:string,total_amount:string,currency_id:string,buyer_id:?string,pack_id:?string,
-     *   items:list<array{external_item_id:string,variation_id:?string,title:string,quantity:string,unit_price:string,currency_id:string,seller_sku:?string}>
+     *   items:list<array{external_item_id:string,variation_id:?string,title:string,quantity:string,unit_price:string,sale_fee:?string,currency_id:string,seller_sku:?string}>
      * }
      */
     private function normalizeOrder(array $data, string $requestedOrderId): array
@@ -349,6 +349,9 @@ final class SyncOrderHandler
                 'title' => mb_substr($title, 0, 255),
                 'quantity' => $this->decimal4($rawItem['quantity'] ?? null, 'quantity'),
                 'unit_price' => $this->decimal4($rawItem['unit_price'] ?? null, 'unit_price'),
+                'sale_fee' => ($rawItem['sale_fee'] ?? null) === null
+                    ? null
+                    : $this->decimal4($rawItem['sale_fee'], 'sale_fee'),
                 'currency_id' => mb_substr($itemCurrency, 0, 8),
                 'seller_sku' => $this->nullableLimitedString($itemData['seller_sku'] ?? null, 120),
             ];
@@ -375,7 +378,7 @@ final class SyncOrderHandler
      * @param array{
      *   external_order_id:string,status:string,status_detail:?string,date_created:string,date_closed:?string,
      *   last_updated:string,total_amount:string,currency_id:string,buyer_id:?string,pack_id:?string,
-     *   items:list<array{external_item_id:string,variation_id:?string,title:string,quantity:string,unit_price:string,currency_id:string,seller_sku:?string}>
+     *   items:list<array{external_item_id:string,variation_id:?string,title:string,quantity:string,unit_price:string,sale_fee:?string,currency_id:string,seller_sku:?string}>
      * } $order
      * @return array<string,string|null>
      */

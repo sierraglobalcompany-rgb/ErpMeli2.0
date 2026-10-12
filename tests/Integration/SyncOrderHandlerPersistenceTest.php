@@ -15,6 +15,8 @@ use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
 use DateTimeImmutable;
 use PDO;
+use PDOException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestDatabase;
 
@@ -62,6 +64,205 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
         self::assertSame('COP', $items[0]['currency_id']);
         self::assertSame('SKU-ERP2', $items[0]['seller_sku']);
         self::assertCount(1, $transport->requests);
+    }
+
+    public function testSaleFeePersistsExactRemotePerUnitValueWithoutMultiplyingQuantity(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new OrderQueueTransport([
+            $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 3, '90071992547409.1234'),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+
+        self::assertTrue($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+        ));
+
+        $item = $pdo->query(
+            'SELECT oi.sale_fee, oi.quantity, oi.currency_id AS item_currency_id, o.currency_id AS order_currency_id '
+            . 'FROM order_items oi JOIN orders o ON o.id = oi.order_id',
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($item);
+        self::assertSame('90071992547409.1234', $item['sale_fee']);
+        self::assertSame('3.0000', $item['quantity']);
+        self::assertSame('COP', $item['item_currency_id']);
+        self::assertSame('COP', $item['order_currency_id']);
+        self::assertCount(1, $transport->requests);
+        self::assertSame('https://api.mercadolibre.com/orders/200000000001', $transport->requests[0]['url']);
+    }
+
+    #[DataProvider('optionalSaleFeeCases')]
+    public function testMissingNullAndTrueZeroSaleFeeRemainDistinct(?string $saleFeeJson, ?string $expected): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new OrderQueueTransport([
+            $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2, $saleFeeJson),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+
+        self::assertTrue($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+        ));
+
+        self::assertSame($expected, $pdo->query('SELECT sale_fee FROM order_items')->fetchColumn());
+        self::assertCount(1, $transport->requests);
+    }
+
+    public static function optionalSaleFeeCases(): array
+    {
+        return [
+            'missing key remains NULL' => [null, null],
+            'explicit null remains NULL' => ['null', null],
+            'numeric zero remains zero' => ['0', '0.0000'],
+        ];
+    }
+
+    public function testMalformedSaleFeeUsesExistingOrderContractFailure(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new OrderQueueTransport([
+            $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2, '1e2'),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+
+        self::assertFalse($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+        ));
+
+        self::assertSame('failed', $pdo->query('SELECT status FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame('meli_order_contract', $pdo->query('SELECT last_error_code FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM order_items')->fetchColumn());
+        self::assertCount(1, $transport->requests);
+    }
+
+    public function testSaleFeePersistenceDatabaseFailureEscapesAndRollsBackCanonicalOrder(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new OrderQueueTransport([
+            $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 3, '12.3400'),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+        $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+        $pdo->exec(
+            "CREATE TRIGGER fail_order_item_insert BEFORE INSERT ON order_items "
+            . "FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'simulated item insert failure'",
+        );
+
+        $failure = null;
+        try {
+            $handler->syncCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                $companyId,
+                $accountId,
+                '200000000001',
+                new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+            );
+        } catch (PDOException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(PDOException::class, $failure);
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM order_items')->fetchColumn());
+        $row = $pdo->query(
+            'SELECT status, attempts, claim_token, last_error_code FROM work_items WHERE id=' . $claim['id'],
+        )->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('running', $row['status']);
+        self::assertSame(1, (int) $row['attempts']);
+        self::assertNotNull($row['claim_token']);
+        self::assertNull($row['last_error_code']);
+        self::assertCount(1, $transport->requests);
+    }
+
+    public function testSaleFeeReplayKeepsOneItemWithSameExactValue(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $response = $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2, '12.3400');
+        $transport = new OrderQueueTransport([$response, $response]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+
+        foreach (range(1, 2) as $_) {
+            $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+            self::assertTrue($handler->syncCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                $companyId,
+                $accountId,
+                '200000000001',
+                new DateTimeImmutable('2026-10-09T00:10:00+00:00'),
+            ));
+        }
+
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM order_items')->fetchColumn());
+        self::assertSame('12.3400', $pdo->query('SELECT sale_fee FROM order_items')->fetchColumn());
+        self::assertCount(2, $transport->requests);
+    }
+
+    public function testUpdatedSyncReplacesCurrentSaleFeeWithoutAddingItemHistory(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-sync-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new OrderQueueTransport([
+            $this->orderResponse('2026-10-09T00:05:00.000Z', 'paid', 2, '10.0000'),
+            $this->orderResponse('2026-10-09T00:10:00.000Z', 'paid', 2, '11.2500'),
+        ]);
+        $work = new WorkRepository($pdo);
+        $handler = $this->handler($pdo, $cipher, $transport, $work);
+
+        foreach (range(1, 2) as $_) {
+            $claim = $this->claimOrder($work, $companyId, $accountId, '200000000001');
+            self::assertTrue($handler->syncCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                $companyId,
+                $accountId,
+                '200000000001',
+                new DateTimeImmutable('2026-10-09T00:11:00+00:00'),
+            ));
+        }
+
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM order_items')->fetchColumn());
+        self::assertSame('11.2500', $pdo->query('SELECT sale_fee FROM order_items')->fetchColumn());
+        self::assertCount(2, $transport->requests);
     }
 
     public function testRepeatedAuthoritativeResponseIsIdempotent(): void
@@ -296,9 +497,29 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
         return [$companyId, $accountId];
     }
 
-    private function orderResponse(string $lastUpdated, string $status, int $quantity): MeliTransportResponse
+    private function orderResponse(
+        string $lastUpdated,
+        string $status,
+        int $quantity,
+        ?string $saleFeeJson = null,
+    ): MeliTransportResponse
     {
-        return new MeliTransportResponse(200, ['x-request-id' => 'order-test'], json_encode([
+        $item = [
+            'item' => [
+                'id' => 'MCO123456789',
+                'variation_id' => 987654321,
+                'title' => 'Producto prueba',
+                'seller_sku' => 'SKU-ERP2',
+            ],
+            'quantity' => $quantity,
+            'unit_price' => 75000.25,
+            'currency_id' => 'COP',
+        ];
+        if ($saleFeeJson !== null) {
+            $item['sale_fee'] = '__SALE_FEE_JSON__';
+        }
+
+        $body = json_encode([
             'id' => 200000000001,
             'status' => $status,
             'status_detail' => null,
@@ -309,18 +530,13 @@ final class SyncOrderHandlerPersistenceTest extends TestCase
             'currency_id' => 'COP',
             'buyer' => ['id' => 800000001],
             'pack_id' => 300000000001,
-            'order_items' => [[
-                'item' => [
-                    'id' => 'MCO123456789',
-                    'variation_id' => 987654321,
-                    'title' => 'Producto prueba',
-                    'seller_sku' => 'SKU-ERP2',
-                ],
-                'quantity' => $quantity,
-                'unit_price' => 75000.25,
-                'currency_id' => 'COP',
-            ]],
-        ], JSON_THROW_ON_ERROR));
+            'order_items' => [$item],
+        ], JSON_THROW_ON_ERROR);
+        if ($saleFeeJson !== null) {
+            $body = str_replace('"sale_fee":"__SALE_FEE_JSON__"', '"sale_fee":' . $saleFeeJson, $body);
+        }
+
+        return new MeliTransportResponse(200, ['x-request-id' => 'order-test'], $body);
     }
 }
 

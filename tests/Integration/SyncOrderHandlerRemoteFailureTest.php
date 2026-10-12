@@ -120,6 +120,39 @@ final class SyncOrderHandlerRemoteFailureTest extends TestCase
         self::assertSame(1, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=' . $accountId)->fetchColumn());
     }
 
+    public function testSecondUnauthorizedAfterRefreshFailsWithoutAnotherRefreshOrOrderGet(): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('sales-failure-test-key');
+        [$companyId, $accountId] = $this->seedAccountAndToken($pdo, $cipher);
+        $transport = new RemoteOutcomeTransport([
+            new MeliTransportResponse(401, ['x-request-id' => 'order-401'], '{"error":"unauthorized"}'),
+            new MeliTransportResponse(200, [], '{"access_token":"new-access","refresh_token":"new-refresh","expires_in":21600}'),
+            new MeliTransportResponse(401, ['x-request-id' => 'order-401-retry'], '{"error":"unauthorized"}'),
+        ]);
+        [$handler, $work] = $this->handler($pdo, $cipher, $transport);
+        $claim = $this->claim($work, $companyId, $accountId);
+
+        self::assertFalse($handler->syncCurrentClaim(
+            $claim['id'],
+            $claim['claim_token'],
+            $companyId,
+            $accountId,
+            '200000000001',
+            new DateTimeImmutable('2026-10-09T01:20:00+00:00'),
+        ));
+
+        self::assertCount(3, $transport->requests);
+        self::assertSame('https://api.mercadolibre.com/orders/200000000001', $transport->requests[0]['url']);
+        self::assertSame('https://api.mercadolibre.com/oauth/token', $transport->requests[1]['url']);
+        self::assertSame('https://api.mercadolibre.com/orders/200000000001', $transport->requests[2]['url']);
+        self::assertSame('Bearer new-access', $transport->requests[2]['headers']['Authorization']);
+        self::assertSame('failed', $pdo->query('SELECT status FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame('meli_unauthorized', $pdo->query('SELECT last_error_code FROM work_items WHERE id=' . $claim['id'])->fetchColumn());
+        self::assertSame(1, (int) $pdo->query('SELECT refresh_version FROM meli_tokens WHERE account_id=' . $accountId)->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+    }
+
     public function testRateLimitReturnsCurrentClaimToPendingWithoutConsumingAttempt(): void
     {
         $pdo = TestDatabase::reset();

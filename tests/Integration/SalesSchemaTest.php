@@ -155,4 +155,15 @@ final class SalesSchemaTest extends TestCase
             self::assertArrayNotHasKey($forbidden, $byName);
         }
     }
+
+    public function testOrderItemsStoreSaleFeeAsNullableExactDecimal(): void
+    {
+        $pdo = TestDatabase::reset();
+        $column = $pdo->query("SHOW COLUMNS FROM order_items WHERE Field = 'sale_fee'")->fetch();
+
+        self::assertIsArray($column, 'order_items must store the sale_fee source fact.');
+        self::assertSame('decimal(18,4)', strtolower((string) $column['Type']));
+        self::assertSame('YES', strtoupper((string) $column['Null']));
+        self::assertNull($column['Default']);
+    }
 }

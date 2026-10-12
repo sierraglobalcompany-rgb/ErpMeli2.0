@@ -54,6 +54,7 @@ CREATE TABLE order_items (
     title VARCHAR(255) NOT NULL,
     quantity DECIMAL(14,4) NOT NULL,
     unit_price DECIMAL(18,4) NOT NULL,
+    sale_fee DECIMAL(18,4) NULL,
     currency_id VARCHAR(8) NOT NULL,
     seller_sku VARCHAR(120) NULL,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
