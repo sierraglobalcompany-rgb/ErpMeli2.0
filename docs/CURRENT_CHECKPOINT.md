@@ -1,5 +1,25 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
+**F15 STAGE0 BLOCKED — DEDICATED_ERP2_MELI_APP_NOT_CONFIGURED**
+
+- Authorized Stage 0 started from exact `6fd1a7af57a04be5d993e3542d1f164ea8d91601`, branch `impl/v3-b-sales-audit-20261010`, clean tree. No functional changes, deploy, push or merge.
+- Existing SSH alias `liquidapro-hostinger` verified locally against its existing known host key; interactive authentication completed, SSH exit 0. Read-only ERP2 inventory captured at `2026-10-12T16:18:18+00:00`.
+- Exact target realpath: `/home/u390570745/domains/bodegadigitalmedellin.com/public_html/erpmeli2`. Nonempty placeholder only (`default.php`); no ERP2 composer/autoload/index/route markers. This proves the filesystem path, not the HTTPS document-root binding or an installed ERP2 release.
+- HTTPS HEAD returned 200, advertised PHP 8.3.35; CLI PHP 8.3.35 and all ten Composer-required extensions present. Version meets current Composer `>=8.3 <8.6`; PHP 8.5 itself is not established. HTTPS 200 is not an ERP2 smoke PASS. Callback reachability and Composer executable not established.
+- No target `.env`, `config.env` or `shared/config.env`; no dedicated app credentials or APP_KEY in those locations. DB configuration/access mechanism unknown, not proof that a hosting database does not exist. No DB connection attempted. Dedicated app absent from examined ERP2 configuration, not a claim about the user's DevCenter inventory.
+- Mandatory blocker: `DEDICATED_ERP2_MELI_APP_NOT_CONFIGURED`. Stop before deployment, database/company/account mutation or OAuth. Target nonempty: backup remains NOT_STARTED; mandatory before any subsequent mutation. No backup claimed.
+- DevCenter prerequisite: a dedicated ERP2 Mercado Libre application for Colombia/MCO, business unit Mercado Libre, callback `https://erpmeli.bodegadigitalmedellin.com/oauth/mercadolibre/callback`, authorization-code flow with PKCE S256. Required functional access: Users READ; sales/orders/packs/buyer billing-info READ; billing/invoices reports READ. Scope `read`, and `offline_access` for the initial token pair required by the current connect service; no `write` or Mercado Pago scopes. Exact DevCenter permission labels must be verified against the current UI, not invented. No secrets in chat.
+- Existing local routes verified: `/oauth/mercadolibre/connect` requires an authenticated company admin; `/oauth/mercadolibre/callback` checks session-bound state/PKCE. The connect service already performs a single users/me GET after the code exchange: count it inside the total <=8 budget on resume. Current generic connect does not enforce the Stage 0 seller allowlist before persistence; establish a safe existing operational guard or STOP before authorization. No production coding attempted.
+- OAuth code exchange/refresh=0; all Mercado Libre GET and other methods=0; automatic retries=0; Financial HTTP/Work=0. No ERP1 execution/config/credentials/tokens used. No raw payload, PII or secrets emitted.
+- No cron/Work/background enabled by this run. Pre-existing host cron/background state remains UNVERIFIED; do not claim a complete runtime OFF audit. No company/account created, Work growth not measured.
+- Frozen release QA remains 453 tests / 3171 assertions / one skip / zero failures or errors. No new destructive QA: functional HEAD unchanged. Inventory PHP syntax and PowerShell parser PASS.
+- Local sanitized evidence: `storage/exports/f15/stage0/inventory-output.txt`, `ssh-exit-code.txt`, `transcript.txt`, collector and validated interactive wrapper. Outputs remain ignored/untracked, no upload.
+- CURRENT=F15 STAGE0 BLOCKED; F14=LOCAL CONTRACT READY / LIVE PENDING; NEXT=configure dedicated ERP2 app securely and resume authorized Stage 0 after remaining target/runtime prerequisites. F15 Stage 1 NOT_STARTED; F16 UNAUTHORIZED.
+
+STOP — no calibration or later stage executed.
+
+## Previous completed checkpoint
+
 **KISS-S1 CLOSED — Billing same-Work pagination**
 
 | Field | Value |
