@@ -106,7 +106,7 @@ final class BillingPeriodSyncHandler
             return false;
         }
 
-        if ($response->status === 206) {
+        if ($response->status === 206 || trim($response->contentMissing ?? '') !== '') {
             $this->work->deferCurrentClaim(
                 $workId, $claimToken, $now->modify('+' . self::REMOTE_RETRY_SECONDS . ' seconds'),
                 'meli_billing_partial', 'Mercado Libre billing period page is partial; retry later.',

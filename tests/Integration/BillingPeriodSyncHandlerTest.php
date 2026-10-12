@@ -497,6 +497,35 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         self::assertCount(1, $transport->requests);
     }
 
+    #[DataProvider('partialHeaders')]
+    public function testDeclaredPartial200DefersSameWorkWithoutFactsOrCursor(string $marker): void
+    {
+        $work = new WorkRepository($this->pdo);
+        $this->pdo->exec("INSERT INTO billing_periods(company_id,account_id,period_key,document_type,cursor_last_id) VALUES ({$this->companyId},{$this->accountId},'2026-09-01','BILL','99')");
+        $before = $this->pdo->query('SELECT * FROM billing_periods')->fetchAll(PDO::FETCH_ASSOC);
+        $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '99');
+        $transport = new BillingPeriodSyncFakeTransport([new MeliTransportResponse(200,
+            ['X-Content-Missing' => $marker], '{"results":[],"last_id":"100"}')]);
+        self::assertFalse($this->handler($work, $transport)->syncCurrentClaim($claim['id'], $claim['claim_token'],
+            $this->companyId, $this->accountId, '2026-09-01', 'BILL', '99', $this->now));
+        self::assertSame($before, $this->pdo->query('SELECT * FROM billing_periods')->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_details')->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
+        $row = $this->workRow($claim['id']);
+        self::assertSame('pending', $row['status']);
+        self::assertSame('meli_billing_partial', $row['last_error_code']);
+        self::assertSame(0, (int) $row['attempts']);
+        self::assertNull($row['claim_token']);
+        self::assertCount(1, $transport->requests);
+    }
+
+    /** @return iterable<string,array{string}> */
+    public static function partialHeaders(): iterable
+    {
+        yield 'results' => ['results'];
+        yield 'last_id' => ['last_id'];
+    }
+
     #[DataProvider('invalidSuccessfulPages')]
     public function testInvalidSuccessfulPageFailsCurrentClaimWithoutCanonicalMutation(string $body): void
     {

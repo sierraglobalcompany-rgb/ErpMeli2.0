@@ -17,6 +17,55 @@ use Tests\Support\TestDatabase;
 
 final class SalesAuditRepairFanoutTest extends TestCase
 {
+    public function testStaleRepairClaimCannotEnqueueOrMutateParentOrAudit(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo);
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $this->seedRepairingRun($audit);
+        $work = new WorkRepository($pdo);
+        $now = new DateTimeImmutable('2026-10-10T03:10:00Z');
+        $id = $work->enqueue(1, 1, 'company:1:account:1', 'sales.audit', (string) $runId, 'stale-repair', ['run_id' => $runId], $now);
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        $beforeWork = $pdo->query('SELECT * FROM work_items')->fetchAll(PDO::FETCH_ASSOC);
+        $beforeRun = $pdo->query('SELECT * FROM sales_audit_runs')->fetchAll(PDO::FETCH_ASSOC);
+        $beforeEvidence = $pdo->query('SELECT * FROM sales_audit_orders')->fetchAll(PDO::FETCH_ASSOC);
+        self::assertFalse((new SalesAuditRepairHandler($audit, $work))->processCurrentClaim($id, str_repeat('0', 32), $runId, 1, 1, $now));
+        self::assertSame($beforeWork, $pdo->query('SELECT * FROM work_items')->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame($beforeRun, $pdo->query('SELECT * FROM sales_audit_runs')->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame($beforeEvidence, $pdo->query('SELECT * FROM sales_audit_orders')->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame(0, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn());
+    }
+
+    public function testRepairParentTransitionFailureRollsBackChildAndAudit(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAccount($pdo);
+        $audit = new SalesAuditRepository($pdo);
+        $runId = $this->seedRepairingRun($audit);
+        $work = new WorkRepository($pdo);
+        $now = new DateTimeImmutable('2026-10-10T03:10:00Z');
+        $id = $work->enqueue(1, 1, 'company:1:account:1', 'sales.audit', (string) $runId, 'rollback-repair', ['run_id' => $runId], $now);
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        $beforeWork = $pdo->query('SELECT * FROM work_items')->fetchAll(PDO::FETCH_ASSOC);
+        $beforeRun = $pdo->query('SELECT * FROM sales_audit_runs')->fetchAll(PDO::FETCH_ASSOC);
+        $pdo->exec("CREATE TRIGGER test_repair_transition BEFORE UPDATE ON work_items FOR EACH ROW BEGIN IF OLD.status='running' AND NEW.status='pending' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='repair transition failure'; END IF; END");
+        try {
+            (new SalesAuditRepairHandler($audit, $work))->processCurrentClaim($id, $claim['claim_token'], $runId, 1, 1, $now);
+            self::fail('Parent transition must fail.');
+        } catch (PDOException $e) {
+            self::assertStringContainsString('repair transition failure', $e->getMessage());
+        } finally {
+            $pdo->exec('DROP TRIGGER test_repair_transition');
+        }
+        self::assertSame($beforeWork, $pdo->query('SELECT * FROM work_items')->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame($beforeRun, $pdo->query('SELECT * FROM sales_audit_runs')->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame(0, (int) $pdo->query("SELECT COUNT(*) FROM work_items WHERE type='order.sync'")->fetchColumn());
+        self::assertFalse($pdo->inTransaction());
+    }
+
     public function testRepairSqlFailureEscapesInsteadOfMarkingRepairAttention(): void
     {
         $pdo = TestDatabase::reset();

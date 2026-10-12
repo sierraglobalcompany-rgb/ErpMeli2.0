@@ -11,6 +11,27 @@ use Tests\Support\TestDatabase;
 
 final class WorkStaleClaimTest extends TestCase
 {
+    public function testCallbackCannotClaimDeferWithoutActuallyTransitioningParent(): void
+    {
+        $pdo = TestDatabase::reset();
+        $work = new WorkRepository($pdo);
+        $id = $work->enqueue(null, null, 'test:callback', 'test', null, 'callback', [], new \DateTimeImmutable('2000-01-01Z'));
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        $before = $pdo->query('SELECT * FROM work_items')->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $work->completeCurrentClaim($id, $claim['claim_token'], static function (PDO $connection): bool {
+                $connection->exec("UPDATE work_items SET payload_json='{\"invalid\":true}'");
+                return true;
+            });
+            self::fail('Unperformed defer must not commit.');
+        } catch (\RuntimeException $e) {
+            self::assertSame('Current work claim changed before completion.', $e->getMessage());
+        }
+        self::assertSame($before, $pdo->query('SELECT * FROM work_items')->fetchAll(PDO::FETCH_ASSOC));
+        self::assertFalse($pdo->inTransaction());
+    }
+
     public function testOldClaimCannotPersistAfterWorkIsReclaimed(): void
     {
         $pdo = TestDatabase::reset();

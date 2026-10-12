@@ -13,6 +13,19 @@ final class CompanyContext
     {
     }
 
+    public function assertActiveUser(): void
+    {
+        $userId = $_SESSION['user_id'] ?? null;
+        if (!is_int($userId) || $userId < 1) {
+            throw new DomainException('Authentication required.');
+        }
+        $statement = $this->pdo->prepare("SELECT 1 FROM users WHERE id = ? AND status = 'active'");
+        $statement->execute([$userId]);
+        if ($statement->fetchColumn() === false) {
+            throw new DomainException('Active user required.');
+        }
+    }
+
     public function companyId(): int
     {
         $userId = $_SESSION['user_id'] ?? null;
@@ -41,6 +54,7 @@ final class CompanyContext
 
     private function membership(int $userId, int $companyId): string
     {
+        $this->assertActiveUser();
         $stmt = $this->pdo->prepare(
             'SELECT role FROM company_users WHERE user_id = ? AND company_id = ? LIMIT 1'
         );

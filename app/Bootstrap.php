@@ -6,7 +6,10 @@ namespace App;
 
 use App\Core\Config\AppConfig;
 use App\Core\Config\Environment;
+use App\Core\Database\Connection;
 use App\Core\Http\Routes;
+use App\Core\Tenancy\CompanyContext;
+use DomainException;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -40,6 +43,28 @@ final class Bootstrap
         // this guard first. 64 KiB is an ERP2 implementation safety limit, not a
         // claimed Mercado Libre contractual limit.
         self::addMercadoLibreWebhookBodyGuard($app, $app->getResponseFactory());
+
+        $responseFactory = $app->getResponseFactory();
+        $app->add(static function (ServerRequestInterface $request, RequestHandlerInterface $handler) use ($config, $responseFactory): ResponseInterface {
+            $path = $request->getUri()->getPath();
+            foreach (['/sales', '/api/products', '/settings/system', '/oauth/mercadolibre', '/company/select'] as $prefix) {
+                if (($path === $prefix || str_starts_with($path, $prefix . '/')) && is_int($_SESSION['user_id'] ?? null)) {
+                    try {
+                        (new CompanyContext(Connection::fromConfig($config)))->assertActiveUser();
+                    } catch (DomainException) {
+                        unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+                        $response = $responseFactory->createResponse(403);
+                        if (str_starts_with($path, '/api/products')) {
+                            $response->getBody()->write('{"error":"forbidden"}');
+                            $response = $response->withHeader('Content-Type', 'application/json; charset=utf-8');
+                        }
+                        return $response;
+                    }
+                    break;
+                }
+            }
+            return $handler->handle($request);
+        });
 
         $app->addRoutingMiddleware();
         $app->addErrorMiddleware(false, true, true);

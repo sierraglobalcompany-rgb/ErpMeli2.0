@@ -30,74 +30,61 @@ final class SalesAuditRepairHandler
         DateTimeImmutable $now,
     ): bool {
         try {
-            $childWorkId = $this->enqueueNextMissingOrder($runId, $companyId, $accountId, $now);
-        } catch (PDOException $exception) {
-            throw $exception;
-        } catch (RuntimeException) {
-            try {
-                return $this->work->completeCurrentClaim(
-                    $workId,
-                    $claimToken,
-                    function (PDO $_pdo) use ($runId, $companyId, $accountId): void {
+            return $this->work->completeCurrentClaim(
+                $workId,
+                $claimToken,
+                function (PDO $_pdo) use ($workId, $claimToken, $runId, $companyId, $accountId, $now): ?bool {
+                    try {
+                        $childWorkId = $this->enqueueNextMissingOrder($runId, $companyId, $accountId, $now);
+                    } catch (PDOException $exception) {
+                        throw $exception;
+                    } catch (RuntimeException) {
                         if (!$this->audit->markRepairAttention($runId, $companyId, $accountId)) {
                             throw new RuntimeException('Sales audit repair attention state could not be persisted.');
                         }
-                    },
-                );
-            } catch (PDOException $exception) {
-                throw $exception;
-            } catch (RuntimeException) {
-                $this->work->failCurrentClaim(
-                    $workId,
-                    $claimToken,
-                    'sales_audit_repair_attention',
-                    'Sales audit repair requires attention.',
-                );
-                return false;
-            }
-        }
+                        return null;
+                    }
 
-        if ($childWorkId === null) {
-            try {
-                return $this->work->completeCurrentClaim(
-                    $workId,
-                    $claimToken,
-                    function (PDO $_pdo) use ($runId, $companyId, $accountId, $now): void {
-                        if (!$this->audit->transitionToConfirmingIfRepaired($runId, $companyId, $accountId)) {
-                            throw new RuntimeException('Sales audit repair verification did not confirm local coverage.');
+                    if ($childWorkId !== null) {
+                        if (!$this->work->deferCurrentClaim(
+                            $workId,
+                            $claimToken,
+                            $now->modify('+' . self::REPAIR_WAIT_SECONDS . ' seconds'),
+                            'sales_audit_repair_wait',
+                            'Sales audit repair is waiting for the current order sync.',
+                        )) {
+                            throw new RuntimeException('Sales audit repair claim changed before defer.');
                         }
-                        $this->work->enqueue(
-                            $companyId,
-                            $accountId,
-                            'company:' . $companyId . ':account:' . $accountId,
-                            'sales.audit',
-                            (string) $runId,
-                            'sales.audit:' . $runId . ':confirm:0:' . self::CONFIRMATION_PAGE_LIMIT,
-                            ['run_id' => $runId, 'offset' => 0, 'limit' => self::CONFIRMATION_PAGE_LIMIT],
-                            $now,
-                        );
-                    },
-                );
-            } catch (PDOException $exception) {
-                throw $exception;
-            } catch (RuntimeException) {
-                $this->work->failCurrentClaim(
-                    $workId,
-                    $claimToken,
-                    'sales_audit_repair_attention',
-                    'Sales audit repair verification requires attention.',
-                );
-                return false;
-            }
-        }
+                        return true;
+                    }
 
-        return $this->work->deferCurrentClaim(
-            $workId,
-            $claimToken,
-            $now->modify('+' . self::REPAIR_WAIT_SECONDS . ' seconds'),
-            'sales_audit_repair_wait',
-            'Sales audit repair is waiting for the current order sync.',
-        );
+                    if (!$this->audit->transitionToConfirmingIfRepaired($runId, $companyId, $accountId)) {
+                        throw new RuntimeException('Sales audit repair verification did not confirm local coverage.');
+                    }
+                    $this->work->enqueue(
+                        $companyId,
+                        $accountId,
+                        'company:' . $companyId . ':account:' . $accountId,
+                        'sales.audit',
+                        (string) $runId,
+                        'sales.audit:' . $runId . ':confirm:0:' . self::CONFIRMATION_PAGE_LIMIT,
+                        ['run_id' => $runId, 'offset' => 0, 'limit' => self::CONFIRMATION_PAGE_LIMIT],
+                        $now,
+                    );
+                    return null;
+                },
+            );
+        } catch (PDOException $exception) {
+            throw $exception;
+        } catch (RuntimeException) {
+            $this->work->failCurrentClaim(
+                $workId,
+                $claimToken,
+                'sales_audit_repair_attention',
+                'Sales audit repair requires attention.',
+            );
+            return false;
+        }
     }
 
     public function enqueueNextMissingOrder(

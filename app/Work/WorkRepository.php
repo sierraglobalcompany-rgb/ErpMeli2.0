@@ -202,7 +202,8 @@ final class WorkRepository
     /**
      * Persist business effects and finish the current claim atomically; optionally defer the same Work for continuation.
      *
-     * @param callable(PDO): void $persist
+     * A callback may return true after deferring the current claim itself; that transition is verified before commit.
+     * @param callable(PDO): mixed $persist
      */
     public function completeCurrentClaim(int $workId, string $claimToken, callable $persist, ?DateTimeImmutable $continueAt = null): bool
     {
@@ -224,9 +225,13 @@ final class WorkRepository
                 return false;
             }
 
-            $persist($this->pdo);
+            $deferredByCallback = $persist($this->pdo) === true;
 
-            if ($continueAt !== null) {
+            if ($deferredByCallback) {
+                $deferred = $this->pdo->prepare("SELECT id FROM work_items WHERE id = :id AND status = 'pending' AND claim_token IS NULL AND claimed_at IS NULL");
+                $deferred->execute(['id' => $workId]);
+                $transitioned = $deferred->fetchColumn() !== false;
+            } elseif ($continueAt !== null) {
                 $transitioned = $this->deferCurrentClaim($workId, $claimToken, $continueAt, null, null);
             } else {
                 $complete = $this->pdo->prepare(

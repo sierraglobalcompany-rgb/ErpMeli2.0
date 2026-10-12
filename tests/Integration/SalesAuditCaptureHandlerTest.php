@@ -16,10 +16,54 @@ use App\Work\WorkRepository;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\TestDatabase;
 
 final class SalesAuditCaptureHandlerTest extends TestCase
 {
+    #[DataProvider('partialPages')]
+    public function testPartialPageCannotAdvanceEitherCapturePass(int $status, array $headers, string $pass): void
+    {
+        $pdo = TestDatabase::reset();
+        $cipher = new TokenCipher('partial-audit-test');
+        $this->seedAccountAndToken($pdo, $cipher);
+        $audit = new SalesAuditRepository($pdo);
+        $now = new DateTimeImmutable('2026-10-10T02:00:00Z');
+        $runId = $audit->createCapturingRun(1, 1, '2026-10-01', SalesAuditRepository::CONTRACT_VERSION, $now);
+        if ($pass === 'B') {
+            $audit->acceptRemoteTotal($runId, 1, 1, 0);
+            $audit->persistCanonicalFingerprint($runId, 1, 1, \App\Modules\Sales\Audit\SalesAuditWindow::forSitePeriod('MCO', '2026-10-01'));
+            self::assertSame('confirming', $audit->advanceCapturedRun($runId, 1, 1));
+        }
+        $before = $pdo->query('SELECT * FROM sales_audit_runs')->fetchAll(PDO::FETCH_ASSOC);
+        $work = new WorkRepository($pdo);
+        $id = $work->enqueue(1, 1, 'company:1:account:1', 'sales.audit', (string) $runId, 'partial:' . $pass,
+            ['run_id' => $runId, 'offset' => 0, 'limit' => 50], $now);
+        $claim = $work->claimNext();
+        self::assertIsArray($claim);
+        $transport = new SalesAuditCaptureTransport(new MeliTransportResponse($status, $headers,
+            '{"paging":{"total":0,"offset":0,"limit":50},"results":[]}'));
+        self::assertFalse($this->handler($pdo, $work, $audit, $transport, $cipher)->processCurrentClaim(
+            $id, $claim['claim_token'], 1, 1, $claim['payload'], $now, $pass));
+        self::assertSame($before, $pdo->query('SELECT * FROM sales_audit_runs')->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM sales_audit_orders')->fetchColumn());
+        self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
+        self::assertSame('failed', $pdo->query('SELECT status FROM work_items')->fetchColumn());
+        self::assertSame('meli_sales_audit_contract', $pdo->query('SELECT last_error_code FROM work_items')->fetchColumn());
+        self::assertCount(1, $transport->requests);
+    }
+
+    /** @return iterable<string,array{int,array<string,string>,string}> */
+    public static function partialPages(): iterable
+    {
+        foreach (['A', 'B'] as $pass) {
+            yield '206 ' . $pass => [206, [], $pass];
+            yield 'missing results ' . $pass => [200, ['X-Content-Missing' => 'results'], $pass];
+            yield 'missing paging ' . $pass => [200, ['x-content-missing' => 'paging'], $pass];
+        }
+    }
+
     public function testOnePagePersistsObservedEvidenceAndNeverEnqueuesOrderSync(): void
     {
         $pdo = TestDatabase::reset();

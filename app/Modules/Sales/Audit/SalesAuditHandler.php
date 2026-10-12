@@ -477,6 +477,9 @@ final class SalesAuditHandler
         int $requestedOffset,
         int $requestedLimit,
     ): array {
+        if ($response->status !== 200 || trim($response->contentMissing ?? '') !== '') {
+            throw new RuntimeException('Sales audit page is incomplete.');
+        }
         $results = $response->data['results'] ?? null;
         $paging = $response->data['paging'] ?? null;
         if (!is_array($results) || !is_array($paging)) {
