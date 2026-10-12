@@ -92,6 +92,54 @@ ERP API local (F9):
 
 ---
 
+### Primera instalación y autoridad del operador
+
+Con una DB MariaDB local vacía ya provisionada y las variables existentes `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` configuradas, la ruta soportada es:
+
+```text
+php bin/bootstrap-admin.php "Primera Empresa" "primera-empresa" "admin@example.test"
+```
+
+El comando ejecuta el Migrator actual antes de provisionar; `php bin/migrate.php` también puede ejecutarse previamente. No requiere SQL manual de empresa/usuario/membresía ni OAuth. Contraseña explícita por `ERP_BOOTSTRAP_PASSWORD`, nunca argv, output, hash impreso o password predeterminado. La contraseña debe tener 12–72 bytes; no se recorta.
+
+Ejemplo PowerShell local con entrada oculta, sin guardar la contraseña en historial:
+
+```powershell
+$env:APP_ENV = 'local'
+$taskBootstrapPassword = Read-Host 'Contraseña del primer admin' -AsSecureString
+try {
+    $env:ERP_BOOTSTRAP_PASSWORD = [System.Net.NetworkCredential]::new('', $taskBootstrapPassword).Password
+    php bin/bootstrap-admin.php "Primera Empresa" "primera-empresa" "admin@example.test"
+    if ($LASTEXITCODE -ne 0) { throw 'Bootstrap no completado; revisar el mensaje del comando.' }
+} finally {
+    Remove-Item Env:ERP_BOOTSTRAP_PASSWORD -ErrorAction SilentlyContinue
+    Remove-Variable taskBootstrapPassword -ErrorAction SilentlyContinue
+}
+```
+
+`AuthService::bootstrapAdmin()` valida nombre/slug/email/password y crea exactamente una empresa, un usuario active y una membresía admin en una transacción. Serializa el chequeo inicial mediante el singleton existente `system_settings` con `FOR UPDATE`. Cualquier autoridad preexistente bloquea el bootstrap con error claro, sin duplicados ni modificación de esa autoridad. Es instalación inicial, no CRUD ni recuperación de passwords. Error durante las inserciones revierte la transacción.
+
+Rutas del operador:
+
+| Ruta | Contrato |
+|---|---|
+| GET/POST `/login` | Formulario etiquetado y CSRF actual; login correcto redirige a `/`. |
+| GET `/` | CompanyContext exige usuario activo + empresa autorizada; 303 a `/sales`; 403 sin autoridad. |
+| GET `/sales` y `/sales/{order_id}` | HTML local con empresa actual, Ventas, Settings sólo para el rol admin vigente y logout POST con CSRF. |
+| GET `/company/select` | CompanyContext lista sólo membresías del usuario activo; una sola empresa redirige a Sales sin selector; múltiples muestran el formulario. |
+| POST `/company/select` | CSRF + membership vigente; cambia sólo empresa/rol de la sesión existente y redirige a `/`; empresa ajena/disabled = 403. |
+| POST `/logout` | Convención actual con CSRF; vuelve a `/login`. |
+
+CompanyContext conserva una única autoridad de tenant/usuario/rol: no se confía en el rol almacenado para mostrar permisos en Sales. No se agrega estado de tenant ni RBAC. Settings conserva su comportamiento y ofrece un enlace de regreso a Ventas.
+
+La búsqueda de historial es `GET /sales?order_id=<ID exacto>` mediante formulario de Sales, validando 1–32 dígitos como string y consultando exclusivamente la empresa seleccionada. Mantiene la lista reciente acotada a 100 sin filtro; con filtro obtiene el ID exacto aunque sea antiguo. Venta ausente/ajena devuelve el mismo mensaje vacío; ID inválido devuelve 422 con enlace de recuperación. El detalle ajeno sigue 404. No se crea Work ni se consulta Mercado Libre.
+
+Sales muestra las últimas 25 auditorías propias mediante SalesAuditRepository: cuenta, período, estado persistido, inicio/fin UTC y conteos existentes (null = sin determinar). CAPTURING/REPAIRING/CONFIRMING y VALID/ATTENTION/UNAVAILABLE se muestran honestamente sin cambiar semántica runtime. No expone claim tokens, Work, payloads ni infraestructura. Actualización manual de página, sin polling. Iniciar auditoría sigue el POST explícito admin/CSRF/cuenta/mes cerrado y el productor actual; renderizar nunca procesa su Work.
+
+Todas estas lecturas/páginas tienen ML HTTP=0, MLSIM HTTP=0 y OAuth HTTP=0, sin depender de cuentas o tokens para renderizar. No certifican composición E2E en producción ni autorización OAuth externa.
+
+---
+
 ## 3. Work y runtime
 
 Tabla única: `work_items`.
