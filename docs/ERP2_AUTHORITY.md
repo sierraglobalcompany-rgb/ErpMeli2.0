@@ -419,7 +419,7 @@ Sales sólo demuestra un `buyer_id` opcional, no nombre, domicilio, identificaci
 
 ---
 
-## 13. External Billing Bridge (F11)
+## 13. External Billing Bridge and PostSale (F11/F12)
 
 F11 implementa una integración local para ejecutores externos Windows/otros servidores. No modifica `InvoiceRequest`: F10 sigue siendo un boundary cerrado por pedido y no tiene `pack_id` ni facts fiscales. No hay Alegra ni otro proveedor HTTP en este bloque.
 
@@ -434,6 +434,7 @@ API local:
 ```text
 GET  /api/integrations/v1/invoicing/sources
 POST /api/integrations/v1/invoicing/sources/{external_order_id}/artifact
+POST /api/integrations/v1/invoicing/sources/{external_order_id}/credit-note
 ```
 
 La exportación devuelve fechas Sales, estado/cancelación, importes y cantidades decimales exactos, moneda, items, buyer ID, cuenta, estado del artefacto y readiness. `buyer_id` nunca es identificación fiscal. Hoy `billing_data_status=UNKNOWN`: no existe una fuente local probada de datos fiscales; el ejecutor externo debe resolver sus requisitos fiscales. `invoice_eligible` significa que el pedido local puede entregarse al ejecutor y recibir su artefacto, no que ERP2 haya certificado datos fiscales o validez legal. No convertir UNKNOWN en cero ni en una afirmación fiscal.
@@ -450,9 +451,24 @@ BILLING_DATA_MISSING -> sólo ante un hecho local explícito; hoy billing perman
 
 `GET /packs/{pack_id}` es la futura evidencia autoritativa de membership. F14 debe certificar los `orders[]`, interpretación seller/account, billing-info READ y persistencia de snapshot completo antes de admitir facturación por pack. Si `pack_id` es null, el facturador remoto futuro podrá usar el order ID como fallback `/packs/{order_id}` sólo conforme al contrato certificado; F11 no hace esa llamada.
 
-La recepción local acepta un PDF y XML opcional sólo para `ORDER_READY`; exige número, fecha ISO-8601 con offset, moneda y total exacto iguales a Sales. ERP calcula hashes y nombres/rutas, limita uploads a 20 MiB por archivo, guarda archivos fuera de acceso cliente y permite un artefacto por source. Mismo artefacto + mismos metadatos es idempotente; uno distinto para el mismo source devuelve conflicto. No es un gestor genérico de documentos.
+La ruta `/artifact` conserva el contrato F11: acepta un PDF y XML opcional sólo para `ORDER_READY`, exige número, fecha ISO-8601 con offset, moneda y total exacto iguales a Sales. ERP calcula hashes y nombres/rutas, limita uploads a 20 MiB por archivo y guarda archivos fuera de acceso cliente.
 
-Alegra queda opcional y diferida como segundo ejecutor offline detrás del mismo boundary. F12 revisará cancelación posterior a factura/notas crédito sin decidir conducta legal en F11. F16, con autorización separada, será el gate de publicación fiscal remota. `REAL_MELI_HTTP=0`, `ALEGRA_REAL_HTTP=0` y remote writes OFF.
+F12 extiende el mismo almacenamiento con `document_kind=INVOICE|CREDIT_NOTE` y permite como máximo un artefacto de cada tipo por source. La ruta `/credit-note` acepta un PDF requerido y XML opcional sólo si el pedido local está cancelado, no tiene `pack_id` y ya existe su artefacto INVOICE. El servidor enlaza la nota al artefacto original; conserva número, fecha, moneda, total decimal exacto, hashes y metadatos opcionales. Total distinto es admisible y no se infieren impuestos, motivo, códigos legales ni factura original desde el cliente. Mismo artefacto + mismos metadatos es idempotente; una segunda nota distinta devuelve conflicto. No genera documentos ni llama proveedores.
+
+PostSale se deriva de `orders.status` y los dos tipos de artefacto locales:
+
+```text
+activo                         -> NONE
+cancelado, sin artefacto INVOICE -> CANCELLED_BEFORE_INVOICE
+cancelado + INVOICE, sin CREDIT_NOTE -> CREDIT_NOTE_REVIEW_REQUIRED
+cancelado + INVOICE + CREDIT_NOTE   -> CREDIT_NOTE_RECORDED
+```
+
+`GET /sources` expone `post_sale_status`, `original_invoice_artifact_present` y `credit_note_artifact_present`. El estado sólo expresa hechos y revisión pendiente; no declara que fiscalmente proceda anular ni que el documento haya sido validado por DIAN. `Billing document_type=CREDIT_NOTE` permanece como stream de conciliación de documentos de Mercado Libre y nunca se consume como nota crédito de factura del cliente.
+
+Para factura electrónica colombiana, DIAN describe la nota crédito referenciando la factura anulada como mecanismo de anulación cuando corresponda ([Concepto DIAN 000974 int. 126 de 2025](https://normograma.dian.gov.co/dian/compilacion/docs/oficio_dian_0974_2025.htm)). Mercado Libre describe `DELETE /packs/{pack_id}/fiscal_documents` como eliminación de los archivos fiscales adjuntos ([Cargar y Obtener Facturas — Emisión Propia](https://developers.mercadolibre.com.co/es_ar/mercadolider-tiendas-oficiales/cargar-factura)); ERP2 no lo trata como cancelación fiscal. No se ejecutan llamadas DIAN ni escrituras remotas. Pack membership continúa bloqueada hasta F14 y escrituras fiscales remotas hasta F16 con autorización separada.
+
+Alegra queda opcional y diferida como segundo ejecutor offline detrás del mismo boundary. F16, con autorización separada, será el gate de publicación fiscal remota. `REAL_MELI_HTTP=0`, `ALEGRA_REAL_HTTP=0` y remote writes OFF.
 
 ---
 
