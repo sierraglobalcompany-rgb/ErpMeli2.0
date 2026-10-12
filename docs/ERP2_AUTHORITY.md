@@ -362,16 +362,26 @@ El C0 real de seller MCO es un smoke de sólo lectura de F14/preproducción. No 
 
 ## 11. Financial
 
-Financial no está iniciado. No crear ledger/table inicialmente.
+MB-10 implementa un read model local de reconciliación sobre los hechos existentes de Sales, Billing y pack. No crea ledger, tabla, columna, fórmula contable, asignador, ruta ni Work nuevo.
+
+Contrato vigente:
+
+- La consulta siempre queda limitada por company/account. Si el pedido tiene `pack_id` local, el scope incluye los pedidos locales de ese pack; si no, usa sólo el pedido solicitado.
+- `order_items.sale_fee` conserva el decimal nullable por ítem recibido en `orders.get`, normalizado por el contrato decimal existente de Sales y en la moneda del ítem.
+- El total operativo multiplica el hecho por `quantity` con aritmética decimal de MariaDB. La cobertura sólo es KNOWN si todos los ítems del scope tienen el hecho y la moneda operativa es consistente; la ausencia es UNKNOWN y mezcla de monedas es CONFLICT.
+- Billing permanece como lista de hechos facturados, con tipo, subtipo, documento, asociación, importe exacto y moneda. Los detalles compartidos se identifican por `external_detail_id` y se muestran una vez; copias contradictorias no se eligen y marcan conflicto.
+- El contexto Billing sólo vincula identidades locales de pedido/pack y relaciones explícitas entre detalles. Ambigüedad o asociación contradictoria no se resuelve por inferencia.
+- `receiver_shipping_cost` se conserva como evidencia separada de shipping. `seller_shipping_cost` y `official_reference` permanecen UNKNOWN hasta que exista un hecho explícito y documentado.
+- No se expone neto, total oficial, costo final ni agregado Billing inferido. Ausente/null no significa cero; cero explícito sigue siendo cero.
 
 Hecho fuente previo a Financial:
 
 - `order_items.sale_fee` conserva el decimal nullable por ítem recibido en `orders.get`, normalizado por el contrato decimal existente de Sales y en la moneda del ítem.
 - Si dígitos no cero exceden la escala durable de cuatro decimales, Sales falla el contrato en vez de redondear; ceros finales redundantes siguen siendo exactos.
 - La clave ausente o un valor `null` permanece SQL `NULL` y nunca significa cero; el cero remoto se conserva como `0.0000`.
-- Es un hecho por unidad: no multiplicarlo por `quantity`, convertirlo en tarifa total del pedido ni inferir signos o significado contable desde Billing.
+- Es un hecho fuente por unidad y permanece así en Sales. El read model puede calcular de forma derivada la suma por ítem multiplicando por `quantity`, sin escribir ese cálculo como hecho fuente ni inferir signos o significado contable desde Billing.
 
-Modelo futuro esperado:
+El modelo conserva separación de fuentes:
 
 ```text
 Orders operational facts
@@ -381,7 +391,7 @@ Orders operational facts
 -> reconciliation/read model
 ```
 
-Debe probar no-double-count, shared pack charge una vez y separación entre billed/analytical/official values. Antes de Financial se alinea `order_items.sale_fee`. No inventar fórmulas desde la forma del API.
+La cobertura local prueba no-double-count y shared pack charge una vez, separa hechos operativos, facturados y evidencia de shipping, y deja unavailable values como UNKNOWN. No inventar fórmulas desde la forma del API ni añadir llamadas remotas para completar el read model.
 
 ---
 
