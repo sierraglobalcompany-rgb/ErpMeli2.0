@@ -1,35 +1,38 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**F14 LOCAL CONTRACT READY — PASS_LOCAL**
+**KISS-S1 CLOSED — Billing same-Work pagination**
 
 | Field | Value |
 |---|---|
 | Date | 2026-10-12 |
 | Branch | `impl/v3-b-sales-audit-20261010` |
-| HEAD before local closure | `39385dd638f0adcca76bcf0814ee9ec2bfca69a4` — clean, compatible F14 docs checkpoint |
-| F14 functional SHA | `fc281ee151ccf9f6f274a99785e4c6dc2d19bc14` |
-| F13 | CLOSED LOCAL — unchanged |
-| CURRENT | F14 LOCAL CONTRACT READY |
+| HEAD before | `4d1330bdcfacf100292d5e632841f4eeb2324d3a` — exact anchor, clean tree |
+| Functional SHA | `509b7343824d46a97e37cb348e1870447eac291f` |
+| CURRENT | KISS-S1 CLOSED — Billing same-Work pagination |
+| F14 | LOCAL CONTRACT READY |
 | LIVE_READ_CERTIFICATION | PENDING_F15_STAGE0 |
-| NEXT | F15 STAGE0 — fresh ERP2 OAuth for ONE seller + direct live calibration |
+| NEXT | F15 STAGE0 — one seller fresh ERP2 OAuth + direct live calibration |
 | F15 | NOT_STARTED |
 | F16 | UNAUTHORIZED |
 
-## F14 local closure
+## KISS-S1 receipt
 
-- [F14 report](F14_READ_CERTIFICATION.md): existing MeliClient/response/registry and Sales handler extended; zero new production classes, tables, queues, workers, schedulers, refresh/retry frameworks or dependencies.
-- ORDER_READ admits only complete matching resource/seller. 206/X-Content-Missing, missing seller and mismatches fail closed; account/company/status authority checked atomically before mutation. Source exact money/null semantics preserved.
-- `packs.get` plus pure pack-id/member normalization verifies each supplied resolved order; filters proven foreign sellers, rejects unknown/incomplete membership. No reconstruction or persistence; Invoicing pack gate remains unchanged pending evidence.
-- `orders.billing_info` plus MCO structural enum readiness; buyer association is not fiscal ID and shipping address is not billing address. No profile storage; unsupported/partial/null semantics UNKNOWN. Existing Invoicing readiness remains UNKNOWN without actual verified data.
-- Billing consumer unchanged; from_id, exact decimal/COP, 206 unchanged facts/cursor and 429 no inline retry tested. Financial unchanged, HTTP/Work/Queue=0.
-- Fresh QA PASS: focal 117 tests/839 assertions; Financial 5/126; full 450/3,108/one existing symlink skip/zero failures/errors; PHPStan, Composer, syntax 163 files and diff check PASS. RED37 cases then GREEN37/102; one new Billing fixture corrected, failed log retained.
-- No SSH, ERP1 token/refresh/cron use, real Mercado Libre API HTTP, OAuth or refresh. Ordinary tests use synthetic fake transports/disposable MariaDB only. Real API GET=POST=remote writes=0; no token/real provider payload/PII export. Container stopped after QA.
-- LIVE external certification NOT YET DONE. F15 Stage 0 is the next task, not executed or authorized by this closure. F16 UNAUTHORIZED; no push/merge/deploy.
+- BEFORE: page 1 produced two Work rows (completed parent + child). AFTER: one original Work remains, pending with cleared claim; next claim reuses its ID and original dedupe. New child continuation removed.
+- One logical page per claim; no Billing inline loop. Existing bounded 401 refresh/resource retry exception is unchanged. 429 one physical request and zero inline retry; 206 no partial facts/cursor mutation.
+- Existing `completeCurrentClaim()` gained one optional continuation timestamp. Its current claim row lock and transaction now contain page facts + Billing cursor + JSON_SET of the existing Work `from_id` dispatch hint + existing `deferCurrentClaim()` transition. Stale tokens cannot invoke the callback. The cursor remains Billing-owned; no new state field or queue topology.
+- Successful nonterminal claim increments attempts then returns that increment: net 0; earlier genuine failure budget is preserved. Normal `available_at` = caller execution `now` +1 second, UTC-normalized; existing eligibility handles pacing. No scheduler. Terminal completes the same Work with existing completion semantics.
+- Forced defer-update SQL failure rolls back facts, period/cursor, payload and claim. Test-only trigger is removed; no production fault injection/migration.
+- Production scope: BillingPeriodSyncHandler and WorkRepository only. Initial producers, generic runner, Sales, OAuth and Financial unchanged. New classes/tables/migrations/queues/workers/schedulers/dependencies/HTTP operations/retry frameworks =0.
+- Fresh QA PASS: Billing 36 tests/479 assertions; Work 31/246; Financial 5/126; full 453/3,171/one existing symlink skip/zero failures/errors; PHPStan and Composer PASS; PHP syntax 163 files; diff check PASS. RED 4 expected failures; early GREEN fixture omissions/timezone assertions corrected and logs retained.
+- Financial HTTP/Work/Queue=0. Real API GET/POST, Alegra/DIAN and remote writes=0. Local fake transports and ready disposable MariaDB only; container stopped after QA. No SSH/ERP1 credential use, F15 execution, push, merge or deploy.
+- [Current pagination authority](ERP2_AUTHORITY.md) and [compact architecture receipt](../storage/exports/kiss-s1/architecture-receipt.json). Existing F14 report/evidence remains the completed local-contract baseline; current pagination authority is KISS-S1.
 
 ## Upstream contracts remain closed
 
-- [F13 migration report](F13_MIGRATION_REHEARSAL.md): company/account mapping complete; C3 retains Catalog ownership, 100 products rehearsed locally with idempotency/tenancy PASS. Production migration and target OAuth were not executed.
-- F12 cancellation/linked invoice and credit-note artifact semantics remain frozen under [ERP2 authority](ERP2_AUTHORITY.md). Billing credit-note reconciliation is not a customer credit-note artifact; packs still need verified source membership.
-- Remote fiscal writes remain OFF; F16 requires its own explicit authorization. No push, merge or deploy.
+- [F13 report](F13_MIGRATION_REHEARSAL.md): explicit mapping complete, C3 Catalog ownership preserved, 100 products rehearsed locally. No production migration or target OAuth executed.
+- [F14 local report](F14_READ_CERTIFICATION.md): deterministic READ contracts ready; live calibration remains pending fresh ERP2 OAuth in a separately authorized F15 Stage 0 task.
+- F12 linked cancellation/invoice/credit-note contracts and Financial stay frozen. Remote fiscal writes remain OFF; F16 requires separate explicit authorization.
 
-STOP — local closure only; live calibration belongs to the next authorized F15 Stage 0 task.
+STOP — KISS-S1 only; F15/F16 not executed.
+
+[Verified KISS-S1 local evidence ZIP](../storage/exports/kiss-s1/KISS_S1_BILLING_SAME_WORK_20261012.zip), SHA-256 `b71c71c28d376c4a6045436682aec78b086079d2be0099897040a4cc5aa62c9f`; 13 entries verified against manifest/ZIP CRC. Local/untracked; no upload.
