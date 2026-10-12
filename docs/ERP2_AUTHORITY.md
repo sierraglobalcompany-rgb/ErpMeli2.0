@@ -78,6 +78,8 @@ Catálogo e inventario local:
 - `products` owns company-scoped product identity; inventory references `products.id` instead of copying product or company metadata.
 - F8 stores one current, non-negative integer quantity per product. Inventory reads and writes verify the owning company through `products.company_id`; setting quantity replaces the current value.
 - No account scope, remote quantity, warehouse, reservation, or movement history is part of this contract without a demonstrated consumer.
+- A legacy company name or numeric ID does not establish ERP2 company identity. Migration requires a proven business key supported by both owners or an explicit company/account mapping authority. Product sourcing accounts do not replace explicit Catalog ownership.
+- Empty legacy physical-stock tables do not establish zero stock for products, and listing availability is not physical inventory. Secret/transient state and cached/derived financial values do not become canonical imported facts.
 
 ERP API local (F9):
 
