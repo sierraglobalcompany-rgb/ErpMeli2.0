@@ -10,6 +10,8 @@ use App\Integrations\MercadoLibre\Auth\TokenCipher;
 use App\Integrations\MercadoLibre\Client\MeliClient;
 use App\Integrations\MercadoLibre\Transport\MeliTransport;
 use App\Integrations\MercadoLibre\Transport\MeliTransportResponse;
+use App\Modules\Billing\BillingDetailNormalizer;
+use App\Modules\Billing\BillingPeriodSyncHandler;
 use App\Modules\Sales\Audit\SalesAuditHandler;
 use App\Modules\Sales\Audit\SalesAuditRepairHandler;
 use App\Modules\Sales\Audit\SalesAuditRepository;
@@ -98,6 +100,7 @@ final class SalesAuditBaselineLifecycleTest extends TestCase
             new SalesAuditRepairHandler($audit, $work),
             $audit,
             $work,
+            new BillingPeriodSyncHandler($work, $client, $tokens, new BillingDetailNormalizer()),
         );
 
         $newRunId = $audit->createCapturingRun(
@@ -255,6 +258,7 @@ final class SalesAuditBaselineLifecycleTest extends TestCase
             new SalesAuditRepairHandler($audit, $work),
             $audit,
             $work,
+            new BillingPeriodSyncHandler($work, $client, $tokens, new BillingDetailNormalizer()),
         );
 
         $newRunId = $audit->createCapturingRun(

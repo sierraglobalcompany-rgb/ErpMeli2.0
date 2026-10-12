@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Sales;
 
+use App\Modules\Billing\BillingPeriodSyncHandler;
 use App\Modules\Sales\Audit\SalesAuditHandler;
 use App\Modules\Sales\Audit\SalesAuditRepairHandler;
 use App\Modules\Sales\Audit\SalesAuditRepository;
@@ -22,6 +23,7 @@ final class SalesWorkProcessor
         private readonly SalesAuditRepairHandler $salesAuditRepair,
         private readonly SalesAuditRepository $audit,
         private readonly WorkRepository $work,
+        private readonly BillingPeriodSyncHandler $billing,
     ) {
     }
 
@@ -41,6 +43,44 @@ final class SalesWorkProcessor
      */
     public function __invoke(array $claim): void
     {
+        if ($claim['type'] === 'billing.period.sync') {
+            $companyId = $claim['company_id'];
+            $accountId = $claim['account_id'];
+            $periodKey = $claim['payload']['period_key'] ?? null;
+            $documentType = $claim['payload']['document_type'] ?? null;
+            $fromId = $claim['payload']['from_id'] ?? null;
+
+            if (
+                $companyId === null
+                || $companyId < 1
+                || $accountId === null
+                || $accountId < 1
+                || !is_string($periodKey)
+                || !is_string($documentType)
+                || !is_string($fromId)
+            ) {
+                $this->work->failCurrentClaim(
+                    $claim['id'],
+                    $claim['claim_token'],
+                    'invalid_work_claim',
+                    'Work claim payload is invalid.',
+                );
+                return;
+            }
+
+            $this->billing->syncCurrentClaim(
+                $claim['id'],
+                $claim['claim_token'],
+                $companyId,
+                $accountId,
+                $periodKey,
+                $documentType,
+                $fromId,
+                new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            );
+            return;
+        }
+
         if ($claim['type'] === 'order.sync') {
             ($this->orderSync)($claim);
             return;
