@@ -45,7 +45,7 @@ Una decisión explícita reciente del usuario gobierna el alcance y la autorizac
 
 ERP2 reemplaza progresivamente ERP1, pero ERP1 es fuente de evidencia y aprendizaje, no blueprint arquitectónico.
 
-El núcleo actual mantiene una sola aplicación PHP/Slim, una MariaDB, un `Work` durable, un `WorkRunner`, un `MeliClient`, OAuth centralizado, Sales operational truth, Sales Audit y Billing por periodos. La protección de consumo existente necesita correcciones: **G3 RATE_SAFETY está OPEN / NOT FULLY CERTIFIED**. No se agregan queues, schedulers, engines, estados, tablas o capas por dominio sin evidencia real.
+El núcleo actual mantiene una sola aplicación PHP/Slim, una MariaDB, un `Work` durable, un `WorkRunner`, un `MeliClient`, OAuth centralizado, Sales operational truth, Sales Audit y Billing por periodos. El contrato y la cobertura local de protección de consumo están cerrados en MB-03: **G3 RATE_SAFETY = PASS LOCAL**. Las cuotas/comportamiento del proveedor y la certificación externa siguen pendientes en F14. No se agregan queues, schedulers, engines, estados, tablas o capas por dominio sin evidencia real.
 
 De ERP1 se recuperan invariantes, fixtures y criterios de aceptación útiles; no se trasladan sus motores ni su arquitectura por defecto. Cada cambio debe demostrar el problema y qué sustituye, elimina, simplifica o reúne, conforme a `AGENTS.md`.
 
@@ -68,7 +68,7 @@ El detalle verificable de estado, QA y gates vive en `docs/CURRENT_CHECKPOINT.md
 | F0 Truth / Preflight | Verificar código, entorno y contratos antes de cada bloque. Hosting real se certifica en F14. |
 | F1 Foundation | Base de aplicación, configuración y MariaDB. |
 | F2 Work | Ejecución durable sobre F1; un solo Work y runner. |
-| F3 Mercado Libre Core | Cliente, OAuth y protección de consumo sobre F2; G3 sigue abierto. |
+| F3 Mercado Libre Core | Cliente, OAuth y protección de consumo sobre F2; G3 = PASS LOCAL; certificación externa/provider/cuotas pendiente en F14. |
 | F4 Sales | Verdad operacional y Sales Audit sobre Work/core. |
 | F5 Debug / observabilidad | Diagnóstico reutilizando logging y core; no sustituye protección ni verdad de negocio. |
 | F6 Billing + Financial foundation | Billing periódico sobre Work/core; Financial local exige facts suficientes y fixtures sin doble conteo. |
