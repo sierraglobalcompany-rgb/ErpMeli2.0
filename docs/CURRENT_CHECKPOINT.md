@@ -10,17 +10,21 @@
 
 **MB-10 implementation and functional QA SHA:** `c62fd4f75869fe9e1e5a0bcd3ee72ce6d3d919bd`
 
+**MB-11 final full-QA code SHA:** `a9e45a67d548c603bb9003a3684211505da1424f`
+
 **MB-10 base SHA:** `b2415df01b848425e8a2121d3e307d1e83af9e3d`
 
-**Last closed block / CURRENT:** MB-10 CLOSED — F6B-FINANCIAL
+**Last closed block / CURRENT:** MB-11 CLOSED — Cleanup + documentation
 
-**NEXT:** MB-11
+**NEXT:** F7 — Catalog
 
 **REAL_MELI_HTTP:** `0`
 
 **Remote Mercado Libre writes:** OFF
 
-This docs-only commit follows the MB-10 functional commit and its valid full-QA run. QA used isolated local MariaDB 10.11.19 on port 13342 with `DB_NAME=erp_meli2_test`; fresh migrations and connectivity passed. Composer passed, global PHPStan reported 0 errors, and PHPUnit passed with 356 tests / 2732 assertions / 1 skipped / 0 failures / 0 errors. The prior focal A–H and MB-09/Billing regression passes remain valid because no code changed after those runs. The temporary database container was removed after QA. Tests used injected transports/fakes with `REAL_MELI_HTTP=0`; no real OAuth or Mercado Libre HTTP, remote writes, push, merge or deploy was performed. F14 external certification remains pending.
+MB-11 closes cleanup and documentation at code SHA `a9e45a67d548c603bb9003a3684211505da1424f`. Fresh global QA used isolated local MariaDB 10.11.19 on port 13342 with `DB_NAME=erp_meli2_test`; fresh migrations and connectivity passed. Composer passed, PHPStan reported 0 errors, and PHPUnit passed with 355 tests / 2731 assertions / 1 skipped / 0 failures / 0 errors. The temporary database container was removed. `REAL_MELI_HTTP=0`, remote writes OFF, F14 pending, and F16 remains unauthorized; no real OAuth/Mercado Libre HTTP, production mutation, push, merge or deploy occurred.
+
+MB-11A PASS: read-only cleanup audit found existing owners for Debug, terminal Work and API usage retention; no Sales Audit blind age-prune. MB-11B PASS: README G3 drift fixed in `53883b758b007c48eff7af612cd8b79940dff8ab`. MB-11C PASS: unused `AppLogger::retentionCutoff()` and its isolated test removed in `a9e45a67d548c603bb9003a3684211505da1424f`.
 
 ## 1. Local verification and QA
 
@@ -151,14 +155,14 @@ Git = superseded history
 
 Current truth: local code/schema > same-SHA tests/QA > same-SHA evidence > checkpoint > durable authority > README/supporting documents > handoffs/audits > remote visibility > inference.
 
-README roadmap and ERP2_AUTHORITY Financial contract were updated for MB-10. AGENTS.md is unchanged.
+README now agrees with the local G3 verdict and points to F7 as next. ERP2_AUTHORITY durable contracts did not need an MB-11 change. AGENTS.md is unchanged.
 
 ## 5. NEXT and STOP
 
 ```text
-CURRENT = MB-10 CLOSED — G6 PASS LOCAL
-NEXT = MB-11
+CURRENT = MB-11 CLOSED — Cleanup + documentation
+NEXT = F7 — Catalog
 STOP
 ```
 
-Stop after this checkpoint. Do not start MB-11 here. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, and F14 external certification remains pending. No production mutation, push, merge or deploy.
+Stop after this checkpoint. F7 — Catalog is next and has not been started here. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.
