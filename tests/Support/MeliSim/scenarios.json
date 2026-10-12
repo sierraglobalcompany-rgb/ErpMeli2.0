@@ -1,0 +1,171 @@
+{
+  "ORDER_HAPPY_EXACT": [
+    {
+      "operation": "orders.get",
+      "path": "/orders/9007199254740993",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":9007199254740993,\"status\":\"paid\",\"status_detail\":null,\"date_created\":\"2026-09-10T12:00:00Z\",\"date_closed\":null,\"last_updated\":\"2026-09-10T12:05:00Z\",\"total_amount\":90071992547409.1234,\"currency_id\":\"COP\",\"seller\":{\"id\":\"100\"},\"buyer\":{\"id\":9007199254740995},\"order_items\":[{\"item\":{\"id\":\"MCO-SYNTHETIC-1\",\"title\":\"Synthetic exact\"},\"quantity\":1,\"unit_price\":90071992547409.1234,\"sale_fee\":1.2345},{\"item\":{\"id\":\"MCO-SYNTHETIC-2\",\"title\":\"Synthetic null\"},\"quantity\":1,\"unit_price\":0,\"sale_fee\":null}]}"
+    }
+  ],
+  "ORDER_PARTIAL_HEADER": [
+    {
+      "operation": "orders.get",
+      "path": "/orders/9007199254740993",
+      "query": {},
+      "status": 200,
+      "headers": {
+        "X-CoNtEnT-MiSsInG": "buyer"
+      },
+      "body": "{\"id\":9007199254740993,\"status\":\"paid\",\"status_detail\":null,\"date_created\":\"2026-09-10T12:00:00Z\",\"date_closed\":null,\"last_updated\":\"2026-09-10T12:05:00Z\",\"total_amount\":90071992547409.1234,\"currency_id\":\"COP\",\"seller\":{\"id\":\"100\"},\"buyer\":{\"id\":9007199254740995},\"order_items\":[{\"item\":{\"id\":\"MCO-SYNTHETIC-1\",\"title\":\"Synthetic exact\"},\"quantity\":1,\"unit_price\":90071992547409.1234,\"sale_fee\":1.2345},{\"item\":{\"id\":\"MCO-SYNTHETIC-2\",\"title\":\"Synthetic null\"},\"quantity\":1,\"unit_price\":0,\"sale_fee\":null}]}"
+    }
+  ],
+  "INVALID_JSON": [
+    {
+      "operation": "orders.get",
+      "path": "/orders/9007199254740993",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"invalid\":"
+    }
+  ],
+  "AUDIT_REPAIR_1": [
+    {
+      "operation": "orders.search",
+      "path": "/orders/search",
+      "query": {
+        "seller": "100",
+        "order_date_created_from": "2026-09-01T04:00:00+00:00",
+        "order_date_created_to": "2026-10-01T06:00:00+00:00",
+        "sort": "date_asc",
+        "offset": "0",
+        "limit": "50"
+      },
+      "status": 200,
+      "headers": {},
+      "body": "{\"paging\":{\"total\":1,\"offset\":0,\"limit\":50},\"results\":[{\"id\":9007199254740993,\"date_created\":\"2026-09-10T12:00:00Z\"}]}"
+    },
+    {
+      "operation": "orders.get",
+      "path": "/orders/9007199254740993",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":9007199254740993,\"status\":\"paid\",\"status_detail\":null,\"date_created\":\"2026-09-10T12:00:00Z\",\"date_closed\":null,\"last_updated\":\"2026-09-10T12:05:00Z\",\"total_amount\":90071992547409.1234,\"currency_id\":\"COP\",\"seller\":{\"id\":\"100\"},\"buyer\":{\"id\":9007199254740995},\"order_items\":[{\"item\":{\"id\":\"MCO-SYNTHETIC-1\",\"title\":\"Synthetic exact\"},\"quantity\":1,\"unit_price\":90071992547409.1234,\"sale_fee\":1.2345},{\"item\":{\"id\":\"MCO-SYNTHETIC-2\",\"title\":\"Synthetic null\"},\"quantity\":1,\"unit_price\":0,\"sale_fee\":null}]}"
+    },
+    {
+      "operation": "orders.search",
+      "path": "/orders/search",
+      "query": {
+        "seller": "100",
+        "order_date_created_from": "2026-09-01T04:00:00+00:00",
+        "order_date_created_to": "2026-10-01T06:00:00+00:00",
+        "sort": "date_asc",
+        "offset": "0",
+        "limit": "50"
+      },
+      "status": 200,
+      "headers": {},
+      "body": "{\"paging\":{\"total\":1,\"offset\":0,\"limit\":50},\"results\":[{\"id\":9007199254740993,\"date_created\":\"2026-09-10T12:00:00Z\"}]}"
+    }
+  ],
+  "AUDIT_PARTIAL_206": [
+    {
+      "operation": "orders.search",
+      "path": "/orders/search",
+      "query": {
+        "seller": "100",
+        "order_date_created_from": "2026-09-01T04:00:00+00:00",
+        "order_date_created_to": "2026-10-01T06:00:00+00:00",
+        "sort": "date_asc",
+        "offset": "0",
+        "limit": "50"
+      },
+      "status": 206,
+      "headers": {},
+      "body": "{\"paging\":{\"total\":1,\"offset\":0,\"limit\":50},\"results\":[{\"id\":9007199254740993,\"date_created\":\"2026-09-10T12:00:00Z\"}]}"
+    }
+  ],
+  "BILLING_TWO_PAGES": [
+    {
+      "operation": "billing.period.details",
+      "path": "/billing/integration/periods/key/2026-09-01/group/ML/details",
+      "query": {
+        "document_type": "BILL",
+        "limit": "1000",
+        "from_id": "0",
+        "sort_by": "ID",
+        "order_by": "ASC"
+      },
+      "status": 200,
+      "headers": {},
+      "body": "{\"results\":[{\"charge_info\":{\"detail_id\":101,\"detail_amount\":90071992547409.1234,\"detail_type\":\"CHARGE\",\"detail_sub_type\":\"CV\"},\"currency_info\":{\"currency_id\":\"COP\"}}],\"last_id\":101}"
+    },
+    {
+      "operation": "billing.period.details",
+      "path": "/billing/integration/periods/key/2026-09-01/group/ML/details",
+      "query": {
+        "document_type": "BILL",
+        "limit": "1000",
+        "from_id": "101",
+        "sort_by": "ID",
+        "order_by": "ASC"
+      },
+      "status": 200,
+      "headers": {},
+      "body": "{\"results\":[{\"charge_info\":{\"detail_id\":102,\"detail_amount\":1.2345,\"detail_type\":\"CHARGE\",\"detail_sub_type\":\"CV\"},\"currency_info\":{\"currency_id\":\"COP\"}}],\"last_id\":102}"
+    },
+    {
+      "operation": "billing.period.details",
+      "path": "/billing/integration/periods/key/2026-09-01/group/ML/details",
+      "query": {
+        "document_type": "BILL",
+        "limit": "1000",
+        "from_id": "102",
+        "sort_by": "ID",
+        "order_by": "ASC"
+      },
+      "status": 200,
+      "headers": {},
+      "body": "{\"results\":[]}"
+    }
+  ],
+  "BILLING_PARTIAL_HEADER": [
+    {
+      "operation": "billing.period.details",
+      "path": "/billing/integration/periods/key/2026-09-01/group/ML/details",
+      "query": {
+        "document_type": "BILL",
+        "limit": "1000",
+        "from_id": "0",
+        "sort_by": "ID",
+        "order_by": "ASC"
+      },
+      "status": 200,
+      "headers": {
+        "X-CoNtEnT-MiSsInG": "results"
+      },
+      "body": "{\"results\":[]}"
+    }
+  ],
+  "FIRST_CALL_429": [
+    {
+      "operation": "billing.period.details",
+      "path": "/billing/integration/periods/key/2026-09-01/group/ML/details",
+      "query": {
+        "document_type": "BILL",
+        "limit": "1000",
+        "from_id": "0",
+        "sort_by": "ID",
+        "order_by": "ASC"
+      },
+      "status": 429,
+      "headers": {
+        "Retry-After": "60"
+      },
+      "body": "{\"error\":\"rate_limit\"}"
+    }
+  ]
+}
