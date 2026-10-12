@@ -19,7 +19,9 @@ CREATE TABLE invoicing_artifacts (
     company_id BIGINT UNSIGNED NOT NULL,
     account_id BIGINT UNSIGNED NOT NULL,
     source_order_id BIGINT UNSIGNED NOT NULL,
-    invoice_number VARCHAR(80) NOT NULL,
+    document_kind ENUM('INVOICE', 'CREDIT_NOTE') NOT NULL DEFAULT 'INVOICE',
+    original_invoice_artifact_id BIGINT UNSIGNED NULL,
+    document_number VARCHAR(80) NOT NULL,
     issued_at DATETIME(6) NOT NULL,
     currency VARCHAR(8) NOT NULL,
     exact_total DECIMAL(18,4) NOT NULL,
@@ -32,7 +34,8 @@ CREATE TABLE invoicing_artifacts (
     provider_document_id VARCHAR(120) NULL,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
-    UNIQUE KEY uq_invoicing_artifacts_source (company_id, account_id, source_order_id),
+    UNIQUE KEY uq_invoicing_artifacts_source_kind (company_id, account_id, source_order_id, document_kind),
+    KEY idx_invoicing_artifacts_original_invoice (original_invoice_artifact_id),
     CONSTRAINT fk_invoicing_artifacts_company
         FOREIGN KEY (company_id) REFERENCES companies(id)
         ON DELETE RESTRICT ON UPDATE RESTRICT,
@@ -41,5 +44,12 @@ CREATE TABLE invoicing_artifacts (
         ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT fk_invoicing_artifacts_order
         FOREIGN KEY (source_order_id) REFERENCES orders(id)
-        ON DELETE RESTRICT ON UPDATE RESTRICT
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT fk_invoicing_artifacts_original_invoice
+        FOREIGN KEY (original_invoice_artifact_id) REFERENCES invoicing_artifacts(id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT chk_invoicing_artifacts_document_link CHECK (
+        (document_kind = 'INVOICE' AND original_invoice_artifact_id IS NULL)
+        OR (document_kind = 'CREDIT_NOTE' AND original_invoice_artifact_id IS NOT NULL)
+    )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

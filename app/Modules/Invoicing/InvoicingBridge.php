@@ -151,10 +151,12 @@ final class InvoicingBridge
         $sql = 'SELECT o.id AS local_order_id, o.external_order_id AS order_id, o.account_id, '
             . 'a.external_user_id AS account_external_user_id, a.site_id, o.pack_id, o.status, '
             . 'o.status_detail, o.date_created, o.date_closed, o.last_updated, o.total_amount, '
-            . 'o.currency_id, o.buyer_id, ia.id AS artifact_id '
+            . 'o.currency_id, o.buyer_id, ia.id AS invoice_artifact_id, ca.id AS credit_note_artifact_id '
             . 'FROM orders o JOIN meli_accounts a ON a.company_id = o.company_id AND a.id = o.account_id '
             . 'LEFT JOIN invoicing_artifacts ia ON ia.company_id = o.company_id '
-            . 'AND ia.account_id = o.account_id AND ia.source_order_id = o.id '
+            . "AND ia.account_id = o.account_id AND ia.source_order_id = o.id AND ia.document_kind = 'INVOICE' "
+            . 'LEFT JOIN invoicing_artifacts ca ON ca.company_id = o.company_id '
+            . "AND ca.account_id = o.account_id AND ca.source_order_id = o.id AND ca.document_kind = 'CREDIT_NOTE' "
             . 'WHERE ' . implode(' AND ', $conditions)
             . ' ORDER BY o.date_created ASC, o.id ASC LIMIT :row_limit OFFSET :row_offset';
         $statement = $this->pdo->prepare($sql);
@@ -178,6 +180,8 @@ final class InvoicingBridge
         foreach ($orders as $order) {
             $items = $itemsByOrder[(int) $order['local_order_id']] ?? [];
             $readiness = $this->readiness($order, $items);
+            $invoiceArtifactPresent = $order['invoice_artifact_id'] !== null;
+            $creditNoteArtifactPresent = $order['credit_note_artifact_id'] !== null;
             $data[] = [
                 'local_order_id' => (int) $order['local_order_id'],
                 'order_id' => (string) $order['order_id'],
@@ -200,8 +204,15 @@ final class InvoicingBridge
                 'readiness' => $readiness,
                 'invoice_eligible' => $readiness === 'ORDER_READY',
                 'cancelled' => $this->isCancelled((string) $order['status']),
-                'artifact_status' => $order['artifact_id'] === null ? 'MISSING' : 'ACCEPTED',
-                'artifact_id' => $order['artifact_id'] === null ? null : (int) $order['artifact_id'],
+                'post_sale_status' => $this->postSaleStatus(
+                    (string) $order['status'],
+                    $invoiceArtifactPresent,
+                    $creditNoteArtifactPresent,
+                ),
+                'original_invoice_artifact_present' => $invoiceArtifactPresent,
+                'credit_note_artifact_present' => $creditNoteArtifactPresent,
+                'artifact_status' => $invoiceArtifactPresent ? 'ACCEPTED' : 'MISSING',
+                'artifact_id' => $invoiceArtifactPresent ? (int) $order['invoice_artifact_id'] : null,
             ];
         }
 
@@ -220,8 +231,17 @@ final class InvoicingBridge
      * @param array<string,UploadedFileInterface> $files
      * @return array{status:string,artifact_id?:int,pdf_sha256?:string,xml_sha256?:string|null}
      */
-    public function acceptArtifact(int $companyId, string $externalOrderId, array $fields, array $files): array
+    public function acceptArtifact(
+        int $companyId,
+        string $externalOrderId,
+        array $fields,
+        array $files,
+        string $documentKind = 'INVOICE',
+    ): array
     {
+        if (!in_array($documentKind, ['INVOICE', 'CREDIT_NOTE'], true)) {
+            return ['status' => 'invalid_artifact'];
+        }
         if (array_diff(array_keys($files), ['pdf', 'xml']) !== []) {
             return ['status' => 'invalid_artifact'];
         }
@@ -234,7 +254,7 @@ final class InvoicingBridge
             return ['status' => 'invalid_artifact'];
         }
 
-        $metadata = $this->normalizeArtifactMetadata($fields);
+        $metadata = $this->normalizeArtifactMetadata($fields, $documentKind);
         if ($metadata === null) {
             return ['status' => 'invalid_artifact'];
         }
@@ -271,32 +291,63 @@ final class InvoicingBridge
                 return ['status' => 'pack_membership_unverified'];
             }
 
-            $items = $this->itemsForOrders([(int) $order['id']])[(int) $order['id']] ?? [];
-            if ($this->readiness($order, $items) !== 'ORDER_READY') {
+            $isCancelled = $this->isCancelled((string) $order['status']);
+            if ($documentKind === 'INVOICE' && $isCancelled) {
                 $this->pdo->commit();
                 return ['status' => 'source_not_invoiceable'];
             }
-            if (
-                $metadata['currency'] !== (string) $order['currency_id']
-                || $metadata['normalized_total'] !== $this->normalizeExactDecimal((string) $order['total_amount'])
-            ) {
-                $this->pdo->commit();
-                return ['status' => 'source_total_mismatch'];
+
+            $originalInvoiceArtifactId = null;
+            if ($documentKind === 'INVOICE') {
+                $items = $this->itemsForOrders([(int) $order['id']])[(int) $order['id']] ?? [];
+                if ($this->readiness($order, $items) !== 'ORDER_READY') {
+                    $this->pdo->commit();
+                    return ['status' => 'source_not_invoiceable'];
+                }
+                if (
+                    $metadata['currency'] !== (string) $order['currency_id']
+                    || $metadata['normalized_total'] !== $this->normalizeExactDecimal((string) $order['total_amount'])
+                ) {
+                    $this->pdo->commit();
+                    return ['status' => 'source_total_mismatch'];
+                }
+            } else {
+                if (!$isCancelled) {
+                    $this->pdo->commit();
+                    return ['status' => 'source_not_cancelled'];
+                }
+
+                $invoiceStatement = $this->pdo->prepare(
+                    "SELECT id FROM invoicing_artifacts WHERE company_id = :company_id AND account_id = :account_id "
+                    . "AND source_order_id = :source_order_id AND document_kind = 'INVOICE' LIMIT 1",
+                );
+                $invoiceStatement->execute([
+                    'company_id' => $companyId,
+                    'account_id' => (int) $order['account_id'],
+                    'source_order_id' => (int) $order['id'],
+                ]);
+                $invoiceId = $invoiceStatement->fetchColumn();
+                if ($invoiceId === false) {
+                    $this->pdo->commit();
+                    return ['status' => 'original_invoice_missing'];
+                }
+                $originalInvoiceArtifactId = (int) $invoiceId;
             }
 
             $existingStatement = $this->pdo->prepare(
-                'SELECT id, invoice_number, issued_at, currency, exact_total, pdf_sha256, xml_sha256, cufe, provider_document_id '
+                'SELECT id, document_number, issued_at, currency, exact_total, pdf_sha256, xml_sha256, cufe, provider_document_id '
                 . 'FROM invoicing_artifacts WHERE company_id = :company_id AND account_id = :account_id '
-                . 'AND source_order_id = :source_order_id LIMIT 1',
+                . 'AND source_order_id = :source_order_id AND document_kind = :document_kind LIMIT 1',
             );
             $existingStatement->execute([
                 'company_id' => $companyId,
                 'account_id' => (int) $order['account_id'],
                 'source_order_id' => (int) $order['id'],
+                'document_kind' => $documentKind,
             ]);
             $existing = $existingStatement->fetch(PDO::FETCH_ASSOC);
             if (is_array($existing)) {
-                $same = (string) $existing['invoice_number'] === $metadata['invoice_number']
+                $same = (string) $existing['document_number'] === $metadata['document_number']
                     && (string) $existing['issued_at'] === $metadata['issued_at']
                     && (string) $existing['currency'] === $metadata['currency']
                     && $this->normalizeExactDecimal((string) $existing['exact_total']) === $metadata['normalized_total']
@@ -335,16 +386,20 @@ final class InvoicingBridge
 
             $insert = $this->pdo->prepare(
                 'INSERT INTO invoicing_artifacts '
-                . '(company_id, account_id, source_order_id, invoice_number, issued_at, currency, exact_total, channel, '
+                . '(company_id, account_id, source_order_id, document_kind, original_invoice_artifact_id, '
+                . 'document_number, issued_at, currency, exact_total, channel, '
                 . 'pdf_storage_ref, pdf_sha256, xml_storage_ref, xml_sha256, cufe, provider_document_id) '
-                . "VALUES (:company_id, :account_id, :source_order_id, :invoice_number, :issued_at, :currency, :exact_total, 'WINDOWS_BRIDGE', "
+                . "VALUES (:company_id, :account_id, :source_order_id, :document_kind, :original_invoice_artifact_id, "
+                . ":document_number, :issued_at, :currency, :exact_total, 'WINDOWS_BRIDGE', "
                 . ':pdf_storage_ref, :pdf_sha256, :xml_storage_ref, :xml_sha256, :cufe, :provider_document_id)',
             );
             $insert->execute([
                 'company_id' => $companyIdFromOrder,
                 'account_id' => $accountId,
                 'source_order_id' => $sourceOrderId,
-                'invoice_number' => $metadata['invoice_number'],
+                'document_kind' => $documentKind,
+                'original_invoice_artifact_id' => $originalInvoiceArtifactId,
+                'document_number' => $metadata['document_number'],
                 'issued_at' => $metadata['issued_at'],
                 'currency' => $metadata['currency'],
                 'exact_total' => $metadata['normalized_total'],
@@ -408,6 +463,18 @@ final class InvoicingBridge
         return in_array(strtolower(trim($status)), ['cancelled', 'canceled'], true);
     }
 
+    private function postSaleStatus(string $status, bool $invoicePresent, bool $creditNotePresent): string
+    {
+        if (!$this->isCancelled($status)) {
+            return 'NONE';
+        }
+        if (!$invoicePresent) {
+            return 'CANCELLED_BEFORE_INVOICE';
+        }
+
+        return $creditNotePresent ? 'CREDIT_NOTE_RECORDED' : 'CREDIT_NOTE_REVIEW_REQUIRED';
+    }
+
     private function readinessPredicate(string $readiness): string
     {
         $notCancelled = "LOWER(o.status) NOT IN ('cancelled', 'canceled')";
@@ -464,18 +531,19 @@ final class InvoicingBridge
 
     /**
      * @param array<string,mixed> $fields
-     * @return array{invoice_number:string,issued_at:string,currency:string,normalized_total:string,cufe:?string,provider_document_id:?string}|null
+     * @return array{document_number:string,issued_at:string,currency:string,normalized_total:string,cufe:?string,provider_document_id:?string}|null
      */
-    private function normalizeArtifactMetadata(array $fields): ?array
+    private function normalizeArtifactMetadata(array $fields, string $documentKind): ?array
     {
-        $invoiceNumber = $fields['invoice_number'] ?? null;
+        $numberField = $documentKind === 'CREDIT_NOTE' ? 'credit_note_number' : 'invoice_number';
+        $documentNumber = $fields[$numberField] ?? null;
         $issuedAtInput = $fields['issued_at'] ?? null;
         $currency = $fields['currency'] ?? null;
         $totalInput = $fields['exact_total'] ?? null;
         if (
-            !is_string($invoiceNumber)
-            || trim($invoiceNumber) === ''
-            || mb_strlen($invoiceNumber) > 80
+            !is_string($documentNumber)
+            || trim($documentNumber) === ''
+            || mb_strlen($documentNumber) > 80
             || !is_string($issuedAtInput)
             || !is_string($currency)
             || trim($currency) === ''
@@ -494,7 +562,7 @@ final class InvoicingBridge
         }
 
         return [
-            'invoice_number' => trim($invoiceNumber),
+            'document_number' => trim($documentNumber),
             'issued_at' => $issuedAt,
             'currency' => trim($currency),
             'normalized_total' => $normalizedTotal,

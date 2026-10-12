@@ -81,6 +81,7 @@ final class InvoicingBridgeController
         ServerRequestInterface $request,
         ResponseInterface $response,
         string $externalOrderId,
+        string $documentKind = 'INVOICE',
     ): ResponseInterface {
         $credential = $this->authorize($request, $response, 'invoicing.write');
         if ($credential instanceof ResponseInterface) {
@@ -101,6 +102,7 @@ final class InvoicingBridgeController
             $externalOrderId,
             $fields,
             $files,
+            $documentKind,
         );
 
         if ($result['status'] === 'created' || $result['status'] === 'existing') {
@@ -119,6 +121,8 @@ final class InvoicingBridgeController
             'source_total_mismatch' => $this->error($response, 409, 'source_total_mismatch'),
             'artifact_conflict' => $this->error($response, 409, 'artifact_conflict'),
             'source_not_invoiceable' => $this->error($response, 409, 'source_not_invoiceable'),
+            'source_not_cancelled' => $this->error($response, 409, 'source_not_cancelled'),
+            'original_invoice_missing' => $this->error($response, 409, 'original_invoice_missing'),
             default => $this->error($response, 422, 'invalid_artifact'),
         };
     }

@@ -136,6 +136,20 @@ final class Routes
                 $request,
                 $response,
                 (string) ($args['order_id'] ?? ''),
+                'INVOICE',
+            );
+        });
+
+        $app->post('/api/integrations/v1/invoicing/sources/{order_id:[0-9]+}/credit-note', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::invoicingBridgeController($config)->acceptArtifact(
+                $request,
+                $response,
+                (string) ($args['order_id'] ?? ''),
+                'CREDIT_NOTE',
             );
         });
 

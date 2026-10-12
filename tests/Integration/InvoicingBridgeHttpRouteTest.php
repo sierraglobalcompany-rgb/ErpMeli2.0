@@ -50,7 +50,7 @@ final class InvoicingBridgeHttpRouteTest extends TestCase
         self::assertSame(['error' => 'invalid_api_key'], $this->json($response));
     }
 
-    public function testF11SchemaStoresOnlyCredentialHashesAndOneArtifactPerSource(): void
+    public function testF11SchemaStoresOnlyCredentialHashesAndAtMostOneArtifactPerDocumentKind(): void
     {
         foreach (['invoicing_service_keys', 'invoicing_artifacts'] as $table) {
             $statement = $this->pdo->query('SHOW TABLES LIKE ' . $this->pdo->quote($table));
@@ -62,8 +62,20 @@ final class InvoicingBridgeHttpRouteTest extends TestCase
         self::assertNotContains('raw_key', $columns);
         self::assertNotContains('key_prefix', $columns);
 
+        $artifactColumns = $this->pdo->query('SHOW COLUMNS FROM invoicing_artifacts')->fetchAll(\PDO::FETCH_COLUMN);
+        self::assertContains('document_kind', $artifactColumns);
+        self::assertContains('document_number', $artifactColumns);
+        self::assertContains('original_invoice_artifact_id', $artifactColumns);
+
         $indexes = $this->pdo->query('SHOW INDEX FROM invoicing_artifacts')->fetchAll(\PDO::FETCH_ASSOC);
-        self::assertContains('uq_invoicing_artifacts_source', array_column($indexes, 'Key_name'));
+        $sourceKindIndex = array_values(array_filter(
+            $indexes,
+            static fn (array $index): bool => $index['Key_name'] === 'uq_invoicing_artifacts_source_kind',
+        ));
+        self::assertSame(
+            ['company_id', 'account_id', 'source_order_id', 'document_kind'],
+            array_column($sourceKindIndex, 'Column_name'),
+        );
     }
 
     public function testActiveCompanyBoundReadKeyIsAcceptedAndRawSecretIsNotStored(): void
@@ -123,9 +135,16 @@ final class InvoicingBridgeHttpRouteTest extends TestCase
         self::assertSame('PACK_MEMBERSHIP_UNVERIFIED', $byOrder['200000000102']['readiness']);
         self::assertFalse($byOrder['200000000102']['invoice_eligible']);
         self::assertTrue($byOrder['200000000102']['cancelled']);
+        self::assertSame('CANCELLED_BEFORE_INVOICE', $byOrder['200000000102']['post_sale_status']);
+        self::assertFalse($byOrder['200000000102']['original_invoice_artifact_present']);
+        self::assertFalse($byOrder['200000000102']['credit_note_artifact_present']);
         self::assertSame('CANCELLED', $byOrder['200000000103']['readiness']);
         self::assertSame('cancelled', $byOrder['200000000103']['status']);
+        self::assertSame('CANCELLED_BEFORE_INVOICE', $byOrder['200000000103']['post_sale_status']);
+        self::assertFalse($byOrder['200000000103']['original_invoice_artifact_present']);
+        self::assertFalse($byOrder['200000000103']['credit_note_artifact_present']);
         self::assertSame('SOURCE_DATA_MISSING', $byOrder['200000000104']['readiness']);
+        self::assertSame('NONE', $byOrder['200000000104']['post_sale_status']);
         self::assertSame(50, $body['pagination']['limit']);
     }
 
@@ -236,6 +255,50 @@ final class InvoicingBridgeHttpRouteTest extends TestCase
             static fn (array $source): bool => $source['order_id'] === '200000000101',
         ))[0];
         self::assertSame('ACCEPTED', $acceptedSource['artifact_status']);
+        self::assertTrue($acceptedSource['original_invoice_artifact_present']);
+        self::assertFalse($acceptedSource['credit_note_artifact_present']);
+        self::assertSame('NONE', $acceptedSource['post_sale_status']);
+    }
+
+    public function testPostSaleExportUsesInvoiceArtifactsAndKeepsBillingCreditNotesSeparate(): void
+    {
+        $period = $this->pdo->prepare(
+            "INSERT INTO billing_periods (company_id, account_id, period_key, document_type) "
+            . "VALUES (1, 10, '2026-10-01', 'CREDIT_NOTE')",
+        );
+        $period->execute();
+        $billingPeriodId = (int) $this->pdo->lastInsertId();
+        $billingDetail = $this->pdo->prepare(
+            "INSERT INTO billing_details (billing_period_id, external_detail_id, detail_type, detail_amount) "
+            . "VALUES (:period_id, 'ML-CN-1', 'CHARGE', '1.0000')",
+        );
+        $billingDetail->execute(['period_id' => $billingPeriodId]);
+
+        $writeKey = 'erp2_inv_' . str_repeat('7', 64);
+        $this->seedKey($writeKey, 1, 'invoicing.write');
+        self::assertSame(201, $this->artifactRequest(
+            '200000000101',
+            $writeKey,
+            $this->artifactFields(),
+        )->getStatusCode());
+
+        $readKey = 'erp2_inv_' . str_repeat('8', 64);
+        $this->seedKey($readKey, 1, 'invoicing.read');
+        $activeExport = $this->json($this->request('GET', '/api/integrations/v1/invoicing/sources', $readKey));
+        $activeSources = array_column($activeExport['data'], null, 'order_id');
+        self::assertSame('NONE', $activeSources['200000000101']['post_sale_status']);
+        self::assertTrue($activeSources['200000000101']['original_invoice_artifact_present']);
+        self::assertFalse($activeSources['200000000101']['credit_note_artifact_present']);
+
+        $this->pdo->exec("UPDATE orders SET status = 'cancelled' WHERE id = 101");
+        $cancelledExport = $this->json($this->request('GET', '/api/integrations/v1/invoicing/sources', $readKey));
+        $cancelledSources = array_column($cancelledExport['data'], null, 'order_id');
+        self::assertSame('CREDIT_NOTE_REVIEW_REQUIRED', $cancelledSources['200000000101']['post_sale_status']);
+        self::assertTrue($cancelledSources['200000000101']['original_invoice_artifact_present']);
+        self::assertFalse($cancelledSources['200000000101']['credit_note_artifact_present']);
+        self::assertSame('CANCELLED_BEFORE_INVOICE', $cancelledSources['200000000103']['post_sale_status']);
+        self::assertFalse($cancelledSources['200000000103']['original_invoice_artifact_present']);
+        self::assertFalse($cancelledSources['200000000103']['credit_note_artifact_present']);
     }
 
     public function testArtifactMustMatchExactLocalCurrencyAndTotal(): void
@@ -261,6 +324,114 @@ final class InvoicingBridgeHttpRouteTest extends TestCase
 
         self::assertSame(404, $response->getStatusCode());
         self::assertSame(['error' => 'source_not_found'], $this->json($response));
+
+        $creditNoteResponse = $this->artifactRequest(
+            '200000000201',
+            $key,
+            $this->creditNoteFields(),
+            route: 'credit-note',
+        );
+        self::assertSame(404, $creditNoteResponse->getStatusCode());
+        self::assertSame(['error' => 'source_not_found'], $this->json($creditNoteResponse));
+    }
+
+    public function testCreditNoteRequiresCancelledSourceAndStoredOriginalInvoice(): void
+    {
+        $key = 'erp2_inv_' . str_repeat('9', 64);
+        $this->seedKey($key, 1, 'invoicing.write');
+
+        $active = $this->artifactRequest(
+            '200000000101',
+            $key,
+            $this->creditNoteFields(),
+            route: 'credit-note',
+        );
+        $cancelledWithoutInvoice = $this->artifactRequest(
+            '200000000103',
+            $key,
+            $this->creditNoteFields(),
+            route: 'credit-note',
+        );
+
+        self::assertSame(409, $active->getStatusCode());
+        self::assertSame(['error' => 'source_not_cancelled'], $this->json($active));
+        self::assertSame(409, $cancelledWithoutInvoice->getStatusCode());
+        self::assertSame(['error' => 'original_invoice_missing'], $this->json($cancelledWithoutInvoice));
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM invoicing_artifacts')->fetchColumn());
+    }
+
+    public function testCreditNoteArtifactLinksToInvoiceAndIsIdempotent(): void
+    {
+        $writeKey = 'erp2_inv_' . str_repeat('a', 64);
+        $this->seedKey($writeKey, 1, 'invoicing.write');
+        $invoice = $this->artifactRequest('200000000101', $writeKey, $this->artifactFields());
+        self::assertSame(201, $invoice->getStatusCode());
+        $invoiceId = $this->json($invoice)['artifact_id'];
+        $this->pdo->exec("UPDATE orders SET status = 'cancelled' WHERE id = 101");
+
+        $fields = $this->creditNoteFields();
+        $pdf = "%PDF-1.7\ncredit note fixture\n";
+        $created = $this->artifactRequest(
+            '200000000101',
+            $writeKey,
+            $fields,
+            $pdf,
+            route: 'credit-note',
+        );
+        $repeat = $this->artifactRequest(
+            '200000000101',
+            $writeKey,
+            $fields,
+            $pdf,
+            route: 'credit-note',
+        );
+        $conflict = $this->artifactRequest(
+            '200000000101',
+            $writeKey,
+            $fields,
+            "%PDF-1.7\ndifferent credit note\n",
+            route: 'credit-note',
+        );
+
+        self::assertSame(201, $created->getStatusCode());
+        self::assertSame(200, $repeat->getStatusCode());
+        self::assertSame(409, $conflict->getStatusCode());
+        self::assertSame(['error' => 'artifact_conflict'], $this->json($conflict));
+        $creditNote = $this->pdo->query(
+            "SELECT id, original_invoice_artifact_id, document_number, exact_total, pdf_sha256, xml_sha256 "
+            . "FROM invoicing_artifacts WHERE document_kind = 'CREDIT_NOTE'",
+        )->fetch(\PDO::FETCH_ASSOC);
+        self::assertIsArray($creditNote);
+        self::assertSame($invoiceId, (int) $creditNote['original_invoice_artifact_id']);
+        self::assertSame('CN-101', $creditNote['document_number']);
+        self::assertSame('1.0000', $creditNote['exact_total']);
+        self::assertSame(hash('sha256', $pdf), $creditNote['pdf_sha256']);
+        self::assertNull($creditNote['xml_sha256']);
+
+        $readKey = 'erp2_inv_' . str_repeat('b', 64);
+        $this->seedKey($readKey, 1, 'invoicing.read');
+        $export = $this->json($this->request('GET', '/api/integrations/v1/invoicing/sources', $readKey));
+        $source = array_column($export['data'], null, 'order_id')['200000000101'];
+        self::assertSame('CREDIT_NOTE_RECORDED', $source['post_sale_status']);
+        self::assertTrue($source['original_invoice_artifact_present']);
+        self::assertTrue($source['credit_note_artifact_present']);
+        self::assertSame('ACCEPTED', $source['artifact_status']);
+    }
+
+    public function testCreditNoteCannotBeAcceptedForUnverifiedPack(): void
+    {
+        $key = 'erp2_inv_' . str_repeat('c', 64);
+        $this->seedKey($key, 1, 'invoicing.write');
+        $response = $this->artifactRequest(
+            '200000000102',
+            $key,
+            $this->creditNoteFields(),
+            route: 'credit-note',
+        );
+
+        self::assertSame(409, $response->getStatusCode());
+        self::assertSame(['error' => 'pack_membership_unverified'], $this->json($response));
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM invoicing_artifacts')->fetchColumn());
     }
 
     public function testAmbiguousExternalOrderIdentityAcrossCompanyAccountsFailsClosed(): void
@@ -332,10 +503,11 @@ final class InvoicingBridgeHttpRouteTest extends TestCase
         array $fields,
         string $pdf = "%PDF-1.7\nfixture\n",
         ?string $xml = null,
+        string $route = 'artifact',
     ): ResponseInterface {
         $request = (new ServerRequestFactory())->createServerRequest(
             'POST',
-            '/api/integrations/v1/invoicing/sources/' . $orderId . '/artifact',
+            '/api/integrations/v1/invoicing/sources/' . $orderId . '/' . $route,
         )
             ->withHeader('Authorization', 'Bearer ' . $key)
             ->withParsedBody($fields)
@@ -372,6 +544,19 @@ final class InvoicingBridgeHttpRouteTest extends TestCase
             'cufe' => 'CUFE-101',
             'provider_document_id' => 'DOC-101',
             'company_id' => '2',
+        ];
+    }
+
+    /** @return array<string,string> */
+    private function creditNoteFields(): array
+    {
+        return [
+            'credit_note_number' => 'CN-101',
+            'issued_at' => '2026-10-11T10:30:00-05:00',
+            'currency' => 'COP',
+            'exact_total' => '1.0000',
+            'cufe' => 'CUFE-CN-101',
+            'provider_document_id' => 'DOC-CN-101',
         ];
     }
 
