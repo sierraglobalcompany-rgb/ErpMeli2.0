@@ -1,82 +1,35 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**F14 BLOCKED — NO_CURRENTLY_VALID_EXISTING_CERTIFICATION_ACCESS_TOKEN**
+**F14 LOCAL CONTRACT READY — PASS_LOCAL**
 
 | Field | Value |
 |---|---|
 | Date | 2026-10-12 |
 | Branch | `impl/v3-b-sales-audit-20261010` |
-| HEAD before continuation | `38c6cb12e2779fcd356efc029668ce15ed567905` — exact anchor, clean |
+| HEAD before local closure | `39385dd638f0adcca76bcf0814ee9ec2bfca69a4` — clean, compatible F14 docs checkpoint |
+| F14 functional SHA | `fc281ee151ccf9f6f274a99785e4c6dc2d19bc14` |
 | F13 | CLOSED LOCAL — unchanged |
-| CURRENT | F14 BLOCKED — no currently valid existing certification token |
-| NEXT | F14 — authorized already-existing currently valid same-seller credential |
-| Authorization | ERP1 temporary source-memory certification access; <=8 GET; zero refresh/retry |
+| CURRENT | F14 LOCAL CONTRACT READY |
+| LIVE_READ_CERTIFICATION | PENDING_F15_STAGE0 |
+| NEXT | F15 STAGE0 — fresh ERP2 OAuth for ONE seller + direct live calibration |
 | F15 | NOT_STARTED |
 | F16 | UNAUTHORIZED |
 
-## F14 credential STOP checkpoint
+## F14 local closure
 
-- [Current F14 report](F14_READ_CERTIFICATION.md): SSH READ ONLY metadata check exit 0; ERP1 identity reverified; three candidates, zero valid. Stored expiries 2026-10-07 02:49:09 / 02:51:10 / 02:50:14; source clock 2026-10-12 14:43:58 UTC. All expired even with conservative timezone uncertainty.
-- Token/account associations proven. No ciphertext/plain token value selected or decrypted; zero GET, refresh, retries, production writes and remote file creation. No application changes.
-- A valid same-seller ERP1 certification token would suffice; final target OAuth belongs to F15. Previous target-runtime prerequisite superseded. The sole credential blocker is no valid existing authorized candidate.
-- No full QA rerun after explicit no-valid-token STOP. Prior 412 tests/2,998 assertions/one skip/zero failures/errors are baseline only. Current collector syntax, metadata/counter checks and docs diff PASS.
-- Required live contracts remain uncertified; Shipment/fiscal-document list NOT_NEEDED. F13 unchanged; no F15/F16.
+- [F14 report](F14_READ_CERTIFICATION.md): existing MeliClient/response/registry and Sales handler extended; zero new production classes, tables, queues, workers, schedulers, refresh/retry frameworks or dependencies.
+- ORDER_READ admits only complete matching resource/seller. 206/X-Content-Missing, missing seller and mismatches fail closed; account/company/status authority checked atomically before mutation. Source exact money/null semantics preserved.
+- `packs.get` plus pure pack-id/member normalization verifies each supplied resolved order; filters proven foreign sellers, rejects unknown/incomplete membership. No reconstruction or persistence; Invoicing pack gate remains unchanged pending evidence.
+- `orders.billing_info` plus MCO structural enum readiness; buyer association is not fiscal ID and shipping address is not billing address. No profile storage; unsupported/partial/null semantics UNKNOWN. Existing Invoicing readiness remains UNKNOWN without actual verified data.
+- Billing consumer unchanged; from_id, exact decimal/COP, 206 unchanged facts/cursor and 429 no inline retry tested. Financial unchanged, HTTP/Work/Queue=0.
+- Fresh QA PASS: focal 117 tests/839 assertions; Financial 5/126; full 450/3,108/one existing symlink skip/zero failures/errors; PHPStan, Composer, syntax 163 files and diff check PASS. RED37 cases then GREEN37/102; one new Billing fixture corrected, failed log retained.
+- No SSH, ERP1 token/refresh/cron use, real Mercado Libre API HTTP, OAuth or refresh. Ordinary tests use synthetic fake transports/disposable MariaDB only. Real API GET=POST=remote writes=0; no token/real provider payload/PII export. Container stopped after QA.
+- LIVE external certification NOT YET DONE. F15 Stage 0 is the next task, not executed or authorized by this closure. F16 UNAUTHORIZED; no push/merge/deploy.
 
-## F13 closure
+## Upstream contracts remain closed
 
-- ERP1 reverified with existing SSH/host key/password prompt: VERSION/app.version 2.41.0, DB `u390570745_erpmeli`, MariaDB 11.8.9, latest migration 303. Two bounded READ ONLY sessions exit 0: mapping/code/known artifact paths, then required Catalog ID/company/SKU/name only. No full snapshot/profile redo; no remote temporary files or writes.
-- Single local [mapping-manifest.json](../storage/exports/f13/mapping-manifest.json): C1/C3/C4/C5 CREATE_BEFORE_MIGRATION; C2 SKIP_HISTORICAL with zero required dependencies; A1/A2/A3 REAUTHORIZE_NEW under exact seller/company/site contracts. No real configured ERP2 target found; QA/demo/doc identities were excluded. Target absence is resolved creation, not BLOCKED.
-- Catalog ownership PRESERVE_EXPLICIT_OWNER C3; A2/C4 is intentional provenance according to current production source code/schema. Do not merge C3/C4 or C3/C5 by names. Product links remain zero; 93 suggestions untouched.
-- Catalog alone is MIGRATE: 100 original non-secret products. Existing Catalog repository plus local-only CLI; no schema/staging/service. Dry-run defaults to rollback on disposable DB, execute imported 100, repeat imported 0/already_present 100. All SKU/name fields exact; tenancy/idempotency PASS; no legacy numeric target IDs copied. No production execute path.
-- Historical PDFs/XML are NOT_REQUIRED_FOR_CUTOVER. Narrow known-path search observed none, not an absolute hosting filesystem inventory. Existing F11/F12 artifact acceptance semantics remain unchanged.
-- Fresh QA: 14 focal tests/33 assertions; full 412 tests/2,998 assertions/one existing symlink skip/zero failures or errors; PHPStan and Composer PASS; syntax 162 files PASS; diff check PASS. Earlier Work transient root cause remains unproven.
-- [Report](F13_MIGRATION_REHEARSAL.md) and [verified local evidence ZIP](../storage/exports/f13/F13_MAPPING_REHEARSAL_20261012.zip). Previous sanitized snapshot ZIP remains unchanged. Raw mapping and minimal Catalog evidence stay local/untracked; no credentials, tokens or OAuth states.
-- Production ERP1/ERP2 writes=0; application writes=0; remote files created=0; remote HTTP=0. No push/merge/deploy. Local disposable DB container stopped after QA/rehearsal.
+- [F13 migration report](F13_MIGRATION_REHEARSAL.md): company/account mapping complete; C3 retains Catalog ownership, 100 products rehearsed locally with idempotency/tenancy PASS. Production migration and target OAuth were not executed.
+- F12 cancellation/linked invoice and credit-note artifact semantics remain frozen under [ERP2 authority](ERP2_AUTHORITY.md). Billing credit-note reconciliation is not a customer credit-note artifact; packs still need verified source membership.
+- Remote fiscal writes remain OFF; F16 requires its own explicit authorization. No push, merge or deploy.
 
-## F13 remaining operational prerequisites
-
-Before eventual production use, create the four mapped companies and reauthorize the three exact seller IDs. These are resolved cutover actions, not unresolved identity gaps. F14 certification and F16 remote-write authorization are separate gates. Unsupported legacy packs/payments/claims/links remain fail-closed without added owners.
-
-## F12 closed contract
-
-- Cancellation is derived from the synchronized local `orders.status` (`cancelled`/`canceled`). F11 already exports it.
-- `GET /api/integrations/v1/invoicing/sources` exposes `post_sale_status`, `original_invoice_artifact_present`, and `credit_note_artifact_present` from local invoice/credit-note artifacts.
-- States: active → `NONE`; cancelled without invoice artifact → `CANCELLED_BEFORE_INVOICE`; cancelled with invoice and without credit note → `CREDIT_NOTE_REVIEW_REQUIRED`; both stored → `CREDIT_NOTE_RECORDED`.
-- The existing pre-release `invoicing_artifacts` table stores one `INVOICE` and one `CREDIT_NOTE` per source. `/credit-note` accepts an externally generated PDF and optional XML only for a cancelled non-pack source with its stored original invoice; the server links the note to that invoice and computes hashes. A different second note conflicts.
-- Billing `document_type=CREDIT_NOTE` remains a Mercado Libre reconciliation stream and is never used as a customer invoice credit note. No automatic generation, legal/tax decision, DIAN call, or remote write was added. Packs remain blocked pending F14.
-- DIAN's cancellation mechanism and Mercado Libre's attached-file DELETE distinction are documented in `docs/ERP2_AUTHORITY.md` with official sources.
-
-## F12 verification
-
-| Check | Result |
-|---|---|
-| F12 focal | PASS — 17 tests / 146 assertions |
-| Full PHPUnit on implementation SHA above | PASS — 405 tests / 2976 assertions / 1 skipped / 0 failures / 0 errors |
-| PHPStan | PASS — 0 errors |
-| Composer validation | PASS — `composer validate --strict` |
-| PHP syntax | PASS — 162 files |
-| `REAL_MELI_HTTP` | `0` |
-| `ALEGRA_REAL_HTTP` | `0` |
-| `DIAN_HTTP` | `0` |
-| Remote writes | OFF |
-
-QA ran against fresh migrations in local MariaDB 11.4 on port 3307. No Mercado Libre, Alegra, or DIAN HTTP was made. The one skipped PHPUnit case is the existing platform-dependent symlink test.
-
-## Gates
-
-```text
-REAL_MELI_HTTP=0
-ALEGRA_REAL_HTTP=0
-DIAN_HTTP=0
-remote writes=OFF
-F14=PENDING — certify pack membership, billing-info READ, and a complete local snapshot
-F16=UNAUTHORIZED — remote fiscal-document writes remain prohibited
-```
-
-F12 does not start F13. F10 and F11 remain unchanged. Alegra remains deferred. `ORDER_READY` covers local source/pack safety and artifact acceptance, not fiscal identity or legal validity.
-
-## Guardrails
-
-No real remote HTTP, OAuth, production DB mutation, push, merge, deploy, pack reconstruction, Alegra call, F14 execution, or F16 execution. Remote fiscal writes remain OFF.
-
-V4 evidence ZIP SHA-256: `ffb2a2574a9ed9ca01b07f03d659849d27771823f60336bb0ac05e85e92c07ec`; 37 entries verified against SHA256 manifest and ZIP CRC; local/untracked.
+STOP — local closure only; live calibration belongs to the next authorized F15 Stage 0 task.
