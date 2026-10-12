@@ -1,0 +1,10 @@
+CREATE TABLE product_inventory (
+    product_id BIGINT UNSIGNED NOT NULL,
+    quantity BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (product_id),
+    CONSTRAINT fk_product_inventory_product
+        FOREIGN KEY (product_id) REFERENCES products(id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
