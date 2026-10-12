@@ -37,16 +37,6 @@ final class AppLogger
         $this->write(new LogEvent('WARNING', $event, $fields, new DateTimeImmutable('now', new DateTimeZone('UTC'))));
     }
 
-    public function retentionCutoff(int $days, ?DateTimeImmutable $now = null): DateTimeImmutable
-    {
-        if ($days < 1) {
-            throw new RuntimeException('Retention days must be positive.');
-        }
-
-        $now ??= new DateTimeImmutable('now', new DateTimeZone('UTC'));
-        return $now->modify(sprintf('-%d days', $days));
-    }
-
     private function write(LogEvent $event): void
     {
         if (!is_dir($this->directory) && !mkdir($this->directory, 0700, true) && !is_dir($this->directory)) {

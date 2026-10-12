@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Core\Logging\AppLogger;
-use DateTimeImmutable;
-use DateTimeZone;
 use PHPUnit\Framework\TestCase;
 
 final class AppLoggerTest extends TestCase
@@ -32,16 +30,5 @@ final class AppLoggerTest extends TestCase
 
         @unlink($files[0]);
         @rmdir($dir);
-    }
-
-    public function testRetentionCutoffUsesWholeDays(): void
-    {
-        $logger = new AppLogger(sys_get_temp_dir());
-        $now = new DateTimeImmutable('2026-10-08T12:00:00+00:00');
-
-        self::assertSame(
-            '2026-09-24',
-            $logger->retentionCutoff(14, $now)->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d')
-        );
     }
 }
