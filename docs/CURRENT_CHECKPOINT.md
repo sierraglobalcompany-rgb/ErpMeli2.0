@@ -1,40 +1,32 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**F13 PARTIAL — REAL SNAPSHOT PROFILED; EXPLICIT COMPANY/ACCOUNT MAPPING REQUIRED**
+**F13 CLOSED LOCAL — explicit mapping complete; Catalog rehearsal PASS**
 
 | Field | Value |
 |---|---|
 | Date | 2026-10-12 |
 | Branch | `impl/v3-b-sales-audit-20261010` |
-| F12 implementation SHA | `1da47d4e65873daeb9dd324c72d01b85bc5d9b3e` |
-| F13 structural audit SHA | `f3179ab8d60ef21b900b424f3db50aa2d21ffecd` |
-| Continuation preflight HEAD | `0ec4d4847d369832234daf78c365b0f1fc873c51` — clean, docs-only checkpoint |
-| CURRENT | F13 PARTIAL LOCAL — authorized real snapshot captured and profiled; zero MIGRATE categories |
-| NEXT | F13 — explicit company/account mapping manifest and Catalog ownership authority; artifact source if required for cutover |
+| V4 preflight HEAD | `bbe28e8a68fa45d90721175c6b701fca1d79ce91` — exact anchor, clean tree, no drift |
+| Functional SHA | `e226263b9e3f842e5dbce0af15a83308465aab06` |
+| CURRENT | F13 CLOSED LOCAL — explicit mapping complete |
+| NEXT | F14 — External READ certification |
+| F14 | PENDING — not executed |
+| F16 | UNAUTHORIZED |
 
-## F13 real-data result
+## F13 closure
 
-- Existing SSH alias/host-key, native password prompt and ERP1 root were verified. Current version is 2.41.0, production DB is `u390570745_erpmeli` on MariaDB 11.8.9, latest migration is `303_outer_cron_http_receipt.sql` (303 records). These are current observations, not assumptions about the prior handoff.
-- The authorized READ ONLY consistent snapshot captured 155,538 sanitized projected rows from 29 tables, 309-table schema metadata and four count-only tables at `2026-10-12T06:05:56+00:00`. Source transaction was read-only; production DML/DDL/application writes, remote files and external HTTP were zero. Production access ended after capture.
-- All five company NITs are null and two names duplicate. Three seller IDs are non-null/unique, but company mapping is unproven. All 100 products have explicit company/SKU/name and no key duplicates; originating-account companies differ from explicit ownership. No company/account authority or SKU label is invented.
-- ERP1 physical inventory tables exist but warehouses, balances and movements have zero rows: SKIP the empty source; absent balances do not mean zero stock. There are zero canonical product links and 93 pending suggestions.
-- Source-quality limits include 2,043 orders without raw dates, 8,565 provisional packs, 65,400 local Billing details, payment default-zero/unknown-currency semantics and no verified invoice-artifact source. F12 remains frozen; F14 remains pending; F16 remains unauthorized.
-- No importer, schema or application code was added. Classification transitions, complete quality matrix and required next inputs are in [F13_MIGRATION_REHEARSAL.md](F13_MIGRATION_REHEARSAL.md).
-- [Local sanitized evidence package](../storage/exports/f13/ERP1_F13_20261012_09c47f54b7ba.zip) contains snapshot, code, notebook, complete matrix, manifest and QA logs. NDJSON SHA-256: `09c47f54b7bafac882b7db52158d38805292df5862b3c981b39a0f1938e1e2a9`. HMAC values cannot be reversed into an import; any future justified importer needs the smallest authorized original non-secret fields after mapping.
+- ERP1 reverified with existing SSH/host key/password prompt: VERSION/app.version 2.41.0, DB `u390570745_erpmeli`, MariaDB 11.8.9, latest migration 303. Two bounded READ ONLY sessions exit 0: mapping/code/known artifact paths, then required Catalog ID/company/SKU/name only. No full snapshot/profile redo; no remote temporary files or writes.
+- Single local [mapping-manifest.json](../storage/exports/f13/mapping-manifest.json): C1/C3/C4/C5 CREATE_BEFORE_MIGRATION; C2 SKIP_HISTORICAL with zero required dependencies; A1/A2/A3 REAUTHORIZE_NEW under exact seller/company/site contracts. No real configured ERP2 target found; QA/demo/doc identities were excluded. Target absence is resolved creation, not BLOCKED.
+- Catalog ownership PRESERVE_EXPLICIT_OWNER C3; A2/C4 is intentional provenance according to current production source code/schema. Do not merge C3/C4 or C3/C5 by names. Product links remain zero; 93 suggestions untouched.
+- Catalog alone is MIGRATE: 100 original non-secret products. Existing Catalog repository plus local-only CLI; no schema/staging/service. Dry-run defaults to rollback on disposable DB, execute imported 100, repeat imported 0/already_present 100. All SKU/name fields exact; tenancy/idempotency PASS; no legacy numeric target IDs copied. No production execute path.
+- Historical PDFs/XML are NOT_REQUIRED_FOR_CUTOVER. Narrow known-path search observed none, not an absolute hosting filesystem inventory. Existing F11/F12 artifact acceptance semantics remain unchanged.
+- Fresh QA: 14 focal tests/33 assertions; full 412 tests/2,998 assertions/one existing symlink skip/zero failures or errors; PHPStan and Composer PASS; syntax 162 files PASS; diff check PASS. Earlier Work transient root cause remains unproven.
+- [Report](F13_MIGRATION_REHEARSAL.md) and [verified local evidence ZIP](../storage/exports/f13/F13_MAPPING_REHEARSAL_20261012.zip). Previous sanitized snapshot ZIP remains unchanged. Raw mapping and minimal Catalog evidence stay local/untracked; no credentials, tokens or OAuth states.
+- Production ERP1/ERP2 writes=0; application writes=0; remote files created=0; remote HTTP=0. No push/merge/deploy. Local disposable DB container stopped after QA/rehearsal.
 
-### F13 local QA
+## F13 remaining operational prerequisites
 
-| Check | Result |
-|---|---|
-| Snapshot validation | PASS — 155,538 rows / 29 tables / zero count mismatches or forbidden values |
-| Composer | PASS — `composer validate --strict` |
-| PHPStan | PASS — zero errors |
-| PHPUnit | PASS — 405 tests / 2,976 assertions / one skipped / zero failures or errors |
-| Existing skip | Platform cannot create the symlink required by DebugMaintenanceTest |
-| PHP syntax | PASS — 161 PHP files |
-| Diff check | PASS |
-
-The initial QA invocation had local DB startup errors and transient immediate-claim failures; unchanged affected tests passed 17/114 and the full ready-DB suite passed 405/2,976. Both runs are retained in the evidence package. Only local disposable `erp_meli2_test` on port 3307 was used; its container was stopped. Remote HTTP guards stayed zero.
+Before eventual production use, create the four mapped companies and reauthorize the three exact seller IDs. These are resolved cutover actions, not unresolved identity gaps. F14 certification and F16 remote-write authorization are separate gates. Unsupported legacy packs/payments/claims/links remain fail-closed without added owners.
 
 ## F12 closed contract
 
@@ -76,4 +68,6 @@ F12 does not start F13. F10 and F11 remain unchanged. Alegra remains deferred. `
 
 ## Guardrails
 
-No real remote HTTP, OAuth, production DB mutation, push, merge, deploy, pack reconstruction, Alegra call, F13 implementation, F14 execution, or F16 execution. Remote fiscal writes remain OFF.
+No real remote HTTP, OAuth, production DB mutation, push, merge, deploy, pack reconstruction, Alegra call, F14 execution, or F16 execution. Remote fiscal writes remain OFF.
+
+V4 evidence ZIP SHA-256: `ffb2a2574a9ed9ca01b07f03d659849d27771823f60336bb0ac05e85e92c07ec`; 37 entries verified against SHA256 manifest and ZIP CRC; local/untracked.

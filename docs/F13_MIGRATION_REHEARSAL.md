@@ -1,8 +1,10 @@
 # F13 — ERP1 migration rehearsal
 
-**Result: PARTIAL — authorized real snapshot profiled locally; explicit company/account mapping remains blocked.**
+**Result: PASS — F13 CLOSED LOCAL; explicit identity mapping resolved and 100 Catalog products rehearsed on disposable MariaDB.**
 
-## Source and preflight
+V4 mapping pass: 2026-10-12. Exact anchor `bbe28e8a68fa45d90721175c6b701fca1d79ce91`, correct branch and clean tree; no drift. Original source profile below was not rerun. Current contract: one local [mapping-manifest.json](../storage/exports/f13/mapping-manifest.json).
+
+## Original snapshot/profile source and preflight
 
 | Field | Verified evidence |
 |---|---|
@@ -34,7 +36,7 @@ No access/refresh token, OAuth state, password/hash, session, encrypted setting,
 
 Fiscal/name/account/external/SKU keys are HMAC pseudonyms with an in-memory key that was never exported; null/blank distinctions and relational equality are preserved within this snapshot. Buyer and invoice-reference fields are presence flags only. Native source-collation key profiles provide duplicate counts without key values. Decimal values remain strings and the local analysis uses `Decimal`, never float for business money.
 
-This is an audit dataset, not an executable migration input: original labels, SKUs and external identity values cannot be recovered from HMACs. If a future explicit mapping makes Catalog genuinely eligible, provide the smallest authorized non-secret Catalog export required by its existing owner. Do not reopen production automatically. `information_schema.TABLE_ROWS` estimates in metadata are not exact row counts; only counted/exported tables have exact counts.
+This is an audit dataset, not an executable migration input: original labels, SKUs and external identity values cannot be recovered from HMACs. V4 separately captured only original product ID/company/SKU/name for the now-eligible Catalog rehearsal. It did not repeat this snapshot or export other raw payloads. `information_schema.TABLE_ROWS` estimates in metadata are not exact row counts; only counted/exported tables have exact counts.
 
 `profile_snapshot.py` validates every JSON record, all allowlisted projections, every HMAC field, each table count, the final total and the source read-only/zero-write markers. Validation found zero count mismatches and zero forbidden row values. `F13_PROFILE.ipynb` reproduces the local analysis and checks the snapshot hash. The evidence manifest contains file hashes.
 
@@ -82,20 +84,20 @@ These are current real-row counts from one consistent source view. The prior emp
 - **Orders/items — rebuild; date provenance has a gap.** 19,322 unique account/order keys, no order/account orphans, all COP; 768 cancelled, 18,546 paid and eight partially_refunded. Of the 17,279 raw offset-bearing source timestamps, all agree with stored UTC; their range is 2025-08-19 to 2026-09-01 UTC. The other 2,043 lack raw source dates; do not replace them with ingestion timestamps or infer source timezone. This subset's date range does not prove freshness/completeness for all orders. Items have no parent/account mismatch or duplicate logical keys, 17,935 null variation IDs and 19,322 missing full_unit_price fields. No external rebuild was performed.
 - **Packs — membership remains unproven.** 11,459 unique packs, 8,565 provisional integrity states and seven partial/count disagreements. All order pack references resolve locally; this does not certify external membership. F14 remains pending.
 - **Payments/Billing — exact storage is not proof of complete economic meaning.** 20,279 payments have valid parent/account relations and no key duplicates, but no payment currency column. Detail states: 19,845 summary, 117 unavailable and 317 blank; 2,863 lack date_approved_raw. All five payment DECIMAL fields default to `0.00`. Inspected amount cells have zero invalid Decimal values; no business-money calculation used float. Observed zeros include 15,049 shipping_cost and 12,757 marketplace_fee cells; unknown is not promoted to known zero. Billing has 65,499 details: 65,400 `local` and 99 `confirmed`, all COP. Candidate `(account, detail_id)` is not unique (21 groups across the 65,400 local rows); the source uses a wider order/type/subtype key, so this alone is not a source uniqueness defect. Do not use that candidate as an ERP2 canonical key or copy locally derived rows into official Billing.
-- **Reports/artifacts/PostSale.** One report, 24 report items and 437 report-order associations have no relevant parent orphans, and the report has no invoice reference. No canonical invoice-artifact table exists among the 309 table definitions and no PDF/XML was exported. Server filesystem artifact inventory was not performed: actual file availability is unproven, not asserted absent. Eight opened claims (seven mediations, one return) have null local order FKs and zero events. No Claims owner, refund interpretation or fiscal document was invented; F12 remains frozen around cancellations and real linked artifacts.
+- **Reports/artifacts/PostSale.** One report, 24 report items and 437 report-order associations have no relevant parent orphans, and the report has no invoice reference. No canonical invoice-artifact table exists among the 309 table definitions and no PDF/XML was exported. The V4 narrow known-path check observed no PDF/XML in storage/invoices, storage/reports, storage/uploads, storage/exports and public/uploads. This is not an assertion of absence throughout hosting; historical attachments are not required by the current cutover authority. Eight opened claims (seven mediations, one return) have null local order FKs and zero events. No Claims owner, refund interpretation or fiscal document was invented; F12 remains frozen around cancellations and real linked artifacts.
 
 ## Classification transition and data-quality matrix
 
-`old_classification` is the original structural audit's decision; it is retained explicitly rather than silently replaced. `real_data_finding`, `new_classification` and `reason` reflect the current snapshot. There are 26 categories and exactly one current top-level classification each. No category is MIGRATE.
+`old_classification` is the original structural audit's decision; it is retained explicitly rather than silently replaced. `real_data_finding`, `new_classification` and `reason` reflect the current snapshot. There are 26 categories and exactly one current top-level classification each. Current V4 reassessment makes Catalog the sole MIGRATE category (100 records); companies/accounts are REBUILD and nonrequired historical artifacts SKIP.
 
 | Category | Old | New | Rows seen | Eligible | Blocked | Null key | Duplicate groups | Orphans | Real data finding / reason |
 |---|---|---|---:|---:|---:|---:|---:|---:|---|
-| companies | BLOCKED | BLOCKED | 5 | 0 | 5 | 5 | 1 | 0 | Five null NITs; one duplicate-name group affects two rows; one soft-deleted company. Explicit company mapping authority is required. |
-| accounts | BLOCKED | BLOCKED | 3 | 0 | 3 | 0 | 0 | 0 | Three non-null unique seller IDs and no company orphans. Company mapping remains unproven; source account IDs never establish ERP2 authority. |
+| companies | BLOCKED | REBUILD | 5 | 0 | 0 | 5 | 1 | 0 | C1/C3/C4/C5 CREATE_BEFORE_MIGRATION; C2 SKIP_HISTORICAL. No matching by name/legacy ID alone. |
+| accounts | BLOCKED | REBUILD | 3 | 0 | 0 | 0 | 0 | 0 | Three exact seller IDs and source company FKs retained as REAUTHORIZE_NEW contracts. No real configured target account exists to compare. |
 | oauth_credentials | SKIP | SKIP | 3 | 0 | 0 | not exported/established | not exported/established | not exported/established | Three token rows counted only; token values were not exported. Re-authorize under ERP2 OAuth. |
 | oauth_states | SKIP | SKIP | 4 | 0 | 0 | not exported/established | not exported/established | not exported/established | Four temporary states counted only; no state values exported. |
 | users | REBUILD | REBUILD | 2 | 0 | 0 | not exported/established | 0 | 0 | Two active non-temporary admins, eight company memberships, no membership orphans. Recreate identities and membership without password hashes. |
-| catalog | BLOCKED | BLOCKED | 100 | 0 | 100 | 0 | 0 | 0 | All 100 have explicit company, SKU and name, no key duplicates/orphans. Explicit owner differs from originating-account company in all 100: preserve ownership and do not infer it from the source account. Company mapping is missing. |
+| catalog | BLOCKED | MIGRATE | 100 | 100 | 0 | 0 | 0 | 0 | Owner C3 proven; minimum original SKU/name export validated and imported through existing Catalog owner only on disposable target; exact fields, idempotency and tenancy PASS. |
 | product_listing_links | BLOCKED | BLOCKED | 0 | 0 | 0 | 0 | 0 | 0 | Zero canonical links; 93 pending suggestions are not canonical. ERP2 has no listing-link owner. |
 | listing_snapshots | REBUILD | REBUILD | 352 | 0 | 0 | 0 | not exported/established | 0 | 352 listing snapshots and 31 multi-origin stock-location rows; listing quantity is not physical stock. |
 | variations | REBUILD | REBUILD | 79 | 0 | 0 | 0 | not exported/established | 0 | 79 variations, no item orphans; no negative or null observed quantity values. |
@@ -107,7 +109,7 @@ These are current real-row counts from one consistent source view. The prior emp
 | payments | BLOCKED | BLOCKED | 20279 | 0 | 20279 | 0 | not exported/established | 0 | 20,279 payments; no parent orphans or account mismatch; no currency column. 19,845 summary, 117 unavailable, 317 blank detail states. DECIMAL defaults are 0.00; retrieval state is not payment authority; ERP2 has no payment owner. |
 | billing_reconciliation | REBUILD | REBUILD | 65499 | 0 | 0 | 0 | not exported/established | 0 | 65,499 details: 65,400 local and 99 confirmed; no order/account orphans. Do not copy local/derived reconciliation as official facts. |
 | financial_derived | SKIP | SKIP | 25 | 0 | 0 | not exported/established | not exported/established | 0 | One report and 24 report items; 437 report/order associations have no orphans. Other derived financial tables are schema-visible but not exported; do not use their approximate metadata counts as exact counts. |
-| invoicing_artifacts | BLOCKED | BLOCKED | 0 | 0 | not exported/established | not exported/established | not exported/established | not exported/established | No canonical invoice-artifact table in the 309-table schema; no invoice reference in the one report; no PDF/XML exported. Server filesystem artifact inventory was not performed, so actual file availability is unproven. |
+| invoicing_artifacts | BLOCKED | SKIP | 0 | 0 | 0 | not exported/established | not exported/established | not exported/established | NOT_REQUIRED_FOR_CUTOVER. Targeted storage paths returned no PDF/XML; no absolute filesystem absence claimed. |
 | post_sale | REBUILD | REBUILD | 19322 | 0 | 8 | 0 | 0 | 0 | 768 cancellations can be rebuilt from canonical orders. Eight partially_refunded rows have no automatic F12 interpretation and remain withheld; no credit note is invented. |
 | claims_returns | BLOCKED | BLOCKED | 8 | 0 | 8 | 8 | not exported/established | 0 | Eight opened claims (seven mediations, one return), all local order FKs null; zero claim events. ERP2 has no Claims owner; leave F12 frozen. |
 | work_jobs | SKIP | SKIP | not exported/established | 0 | 0 | not exported/established | not exported/established | not exported/established | Work/job values not exported; current schema and approximate table metadata only. Start from ERP2 Work authority. |
@@ -118,45 +120,90 @@ These are current real-row counts from one consistent source view. The prior emp
 | other | SKIP | SKIP | not exported/established | 0 | 0 | not exported/established | not exported/established | not exported/established | 100 product provenance rows, 93 suggestions and 5,875 inventory reviews are audit evidence, not additional canonical import categories. No logs/update/retry values copied. |
 
 
-The complete machine-readable `category-matrix.json` in the evidence package also includes `stable_key`, `company_mapping_status`, `account_mapping_status`, `semantic_risk` and all required row-quality fields. Null means not exported or not established, never a fabricated zero. Eligible means eligible for actual migration into ERP2 today; REBUILD/SKIP rows are not counted as MIGRATE candidates. Duplicate counts use the described candidate grain, and orphan checks cover exported parent relationships; non-exported derived financial parents are not claimed audited. PostSale's eight partially_refunded rows remain withheld despite its cancellation REBUILD classification.
+The current machine-readable `category-matrix.json` in the V4 evidence package also includes `stable_key`, `company_mapping_status`, `account_mapping_status`, `semantic_risk` and all required row-quality fields. Null means not exported or not established, never a fabricated zero. Eligible means eligible for actual migration into ERP2 today; REBUILD/SKIP rows are not counted as MIGRATE candidates. Duplicate counts use the described candidate grain, and orphan checks cover exported parent relationships; non-exported derived financial parents are not claimed audited. PostSale's eight partially_refunded rows remain withheld despite its cancellation REBUILD classification.
+
+## Explicit V4 mapping and cutover contract
+
+The accessible ERP2 runtime has no supplied DB/environment configuration and no `.env` loader/file. `Environment::all()` reads explicit environment only. No real configured company/account/Catalog authority was found. Local disposable QA identities are TEST_FIXTURE, repository names are DOC_ONLY, real target rows are NOT_PRESENT. No invented/default DB connection or external ERP2 search was attempted. Target absence resolves to creation/reauthorization under the V4 algorithm, not BLOCKED. Catalog convergence is NOT_NEEDED because no real configured Catalog exists.
+
+| Source | Lifecycle/role | Decision | New target contract | Evidence |
+|---|---|---|---|---|
+| C1 Lilliam Sofia | Active; A1 owner | CREATE_BEFORE_MIGRATION | `erp1-lilliam-sofia` | Verified seller/owner FK + E_TARGET_NOT_PRESENT |
+| C2 Lilliam Sofia | Soft-deleted 2026-06-26; no account/product | SKIP_HISTORICAL | None; never merge into C1 | E_SOFT_DELETED_NO_DEPENDENCY |
+| C3 Bodega Digital Medellin a SG | Active; explicit owner of 100 products | CREATE_BEFORE_MIGRATION | `erp1-bodega-digital-medellin-a-sg` | E_SOURCE_OWNER_FK + E_SOURCE_CODE_SEMANTICS + E_TARGET_NOT_PRESENT |
+| C4 Sierra Global Company SAS | Active; A2 owner; supplies C3 | CREATE_BEFORE_MIGRATION | `erp1-sierra-global-company-sas` | Verified seller/owner FK + E_TARGET_NOT_PRESENT |
+| C5 ValeriaML | Active; A3 owner | CREATE_BEFORE_MIGRATION | `erp1-valeriaml` | Verified seller/owner FK + E_TARGET_NOT_PRESENT |
+
+These slugs define new target creation, not inferred existing identities. Source installation + business role + source ownership establishes separate identities. Names/legacy numeric IDs alone do not map existing targets. C5's legal_name spelling `VlaeriaML` is preserved in raw evidence; it does not justify merging with C3 despite A3's nickname. No target company/account is created in production.
+
+| Source account | Exact seller ID | Source owner | Decision / target owner |
+|---|---|---|---|
+| A1 LILLIAMSOFIAML | 585784977 | C1 | REAUTHORIZE_NEW / `erp1-lilliam-sofia` |
+| A2 SIERRAGLOBALCOMPANYMED | 1797511852 | C4 | REAUTHORIZE_NEW / `erp1-sierra-global-company-sas` |
+| A3 BODEGA.DIGITAL.MEDELLIN | 175243724 | C5 | REAUTHORIZE_NEW / `erp1-valeriaml` |
+
+No real target seller exists to claim E_SELLER_ID_EXACT convergence. Reauthorization must return the exact seller/site contract (MCO), fail closed on a mismatch, and associate the mapped company. OAuth/token execution is not part of this phase. Token/state migration remains SKIP.
+
+C2 has zero dependencies in the exported snapshot plus all 19 targeted company-reference counts covering Catalog/import provenance, accounts, physical inventory, campaigns, monthly/date reports and fiscal closes/items/snapshots. Other skipped transient/derived domains do not require C2 for cutover. Required durable C2 dependency: NONE.
+
+Production ProductImportService lines 66–163 were read without execution. Its selected `$targetCompanyId` writes both product company and provenance company while `$item['meli_account_id']` records origin. SHA-256 `4b6aa332b446d6632ad083e49b691bb8cce12ecb2b0fdfe8842a15b8d02f4567`. Source schema confirms separate company and account FKs. PRESERVE_EXPLICIT_OWNER is proven, not assumed from conflicting names.
+
+### Historical artifacts
+
+NOT_REQUIRED_FOR_CUTOVER; blocking=NO. The current cutover authority does not require a legacy PDF/XML backfill. Known storage paths were checked narrowly without reading file contents or traversing symlinks. No PDF/XML observed; no canonical historical artifact table or invoice reference in the one snapshot report. ERP1 MonthlyReportService writes only an external invoice reference. This result makes no claim about the entire hosting account. Existing F11/F12 linked artifact requirements for future invoicing remain unchanged.
 
 ## Importer and rehearsal decision
 
-Zero categories qualify as MIGRATE. No importer, new schema, staging, generic ETL, service, queue or alternate business owner was created. No importer dry-run or execute mode exists, and no source row was written into ERP2. New architecture decision required: NO.
+Catalog is the sole MIGRATE domain: exactly 100 source products. Existing ProductRepository owns the implementation; no service, staging, schema, queue or generic ETL was added. `bin/catalog-rehearsal.php` consumes the one mapping manifest and checks the SHA-256 of the four-field local source file. It requires APP_ENV=test, host=127.0.0.1, port=3307 and DB `erp_meli2_test` or `erp_meli2_rehearsal`; production execute is unavailable. Default dry-run inserts within a disposable transaction then rolls back rows; AUTO_INCREMENT may advance in that disposable database. `--execute` persists only in the allowed disposable runtime.
 
-| Rehearsal field | Actual result |
+Only SKU/name map into existing `products`; source IDs remain audit metadata. Company mapping uses the explicit target slug, never copied legacy IDs. No links/suggestions, token, stock quantity, financial fields or fiscal artifacts are imported. Existing rows must match exact SKU/name; conflicts, source key collisions under MariaDB collation, owner mismatches, duplicate source IDs and invalid required fields fail atomically.
+
+| Rehearsal | Actual result |
 |---|---|
-| Source rows seen | 155,538 projected business/relation rows; four count-only tables |
-| Eligible / would migrate / migrated | 0 / 0 / 0 |
-| Already present / rejected | Not evaluated — no importer |
-| Ambiguous target identity | Five companies; three dependent accounts; 100 dependent products |
-| Snapshot errors | 0 |
-| Import idempotency / tenancy execution | NOT_NEEDED — no eligible importer; not claimed passed |
-| Source relation and money checks | Local profile complete for the described projections; exact amounts checked without float |
+| Source / eligible | 100 / 100 original non-secret Catalog rows |
+| Dry-run | would_migrate=100, already_present=0, migrated=0 |
+| Disposable execute | migrated=100, rejected=0, errors=0 |
+| Repeat | already_present=100, would_migrate=0, migrated=0 |
+| Exact fields | 100/100 SKU/name equal source; C3 owner mapped to target ID 2 |
+| Idempotency | PASS — first/repeat target data hashes identical |
+| Tenancy | PASS — same-SKU foreign-company control unchanged; foreign source owner rejected |
+| Target hash | `65302375c9c6610016f6c91b8b8582ddf0ff9d98f1aeab0d0aba7cfdfd513f36` |
+| Production migration | 0; no production company/account/product created |
 
-## Essential blockers and next input
+Functional commit: `e226263b9e3f842e5dbce0af15a83308465aab06`. Source minimum export and mapping were verified in two bounded SSH sessions, both exit 0. The second session was only the newly justified Catalog migration projection; it did not redo the snapshot/profile or mapping pass. Root/version/DB/migration were reverified for each session. All subsequent work is local.
 
-1. Explicit mapping authority: legacy company ID to intended ERP2 company identity, including inactive/deleted-company policy. All NITs are null and names are not keys.
-2. Account mapping/re-authorization: legacy account ID/external seller identity to the intended mapped ERP2 company/account. No token or OAuth-state transfer.
-3. Catalog ownership/field authority: preserve the explicit product owner; clarify the role of originating-account companies. After mappings, obtain only required original non-secret product fields if importing is justified, then decide eligibility and rehearse before adding code.
-4. If historical invoices/credit notes are required for cutover, provide an authorized artifact source with actual files and canonical source identity. Neither invoice references nor assumed filesystem absence prove this.
+## Closure and remaining gates
 
-Unsupported link/pack/payment/claim semantics remain fail-closed under their existing owner/gates. F13 remains PARTIAL; it cannot close or make F14 NEXT while essential company/account mappings remain unresolved. Do not start F14 in this run.
+Essential identity/cutover blockers: NONE. Four active companies resolve to CREATE_BEFORE_MIGRATION; historical C2 is SKIP_HISTORICAL; three accounts resolve to REAUTHORIZE_NEW; Catalog ownership/target are proven and the required importer is rehearsed. Historical artifacts have no unresolved REQUIRED dependency. F13 PASS is local contract/rehearsal closure, not production migration, company setup or OAuth completion.
+
+Unsupported links/packs/payments/claims retain their previous fail-closed classification without new owners. They do not automatically block this V4 F13 gate. Company creation and exact-seller reauthorization remain prerequisites for eventual production use. F14=PENDING; NEXT=F14 External READ certification, not executed. F16=UNAUTHORIZED.
 
 ## QA and guardrails
 
-No production PHP/schema changed; F13 importer focal tests are NOT_NEEDED.
+Local Catalog code and CLI changed; production code/schema remained untouched. RED verified the missing method, then minimal GREEN passed. Fresh local QA ran once successfully; no inference about the previous transient Work failure was used.
 
 | Check | Final result |
 |---|---|
 | Local snapshot validation | PASS — 155,538 rows / 29 tables / zero count mismatches / zero forbidden row values |
+| Catalog focal RED/GREEN | Expected missing-method RED; GREEN 14 tests / 33 assertions |
 | PHPStan | PASS — zero errors |
 | Composer | PASS — `composer validate --strict` |
-| PHP syntax | PASS — 161 files under app/public/bin/tests |
-| PHPUnit | PASS — 405 tests / 2,976 assertions / one skipped / zero errors or failures |
+| PHP syntax | PASS — 162 files under app/public/bin/tests |
+| PHPUnit | PASS — 412 tests / 2,998 assertions / one skipped / zero errors or failures |
 | Existing skip | Platform-dependent `DebugMaintenanceTest::testMaintenanceNeverFollowsSymlinkOutsideManagedRoots` |
+| Production CLI guard | PASS — production APP_ENV rejected before DB connection |
 | Diff check | PASS — `git diff --check` |
 
-The first suite invocation began before the local DB reported ready and had two early connection errors plus three immediate Work-claim failures (405 tests / 2,941 assertions). No code was changed. The affected classes then passed 17 tests / 114 assertions, and the complete suite passed 405 / 2,976 after the DB was ready. The exact cause of the three transient claim failures was not independently proven; both failed and passing logs are retained. No broader retry was needed after the complete pass.
+In the previous snapshot/profile pass, the first suite invocation began before the local DB reported ready and had two early connection errors plus three immediate Work-claim failures (405 tests / 2,941 assertions). No code was changed. The affected classes then passed 17 tests / 114 assertions, and the complete suite passed 405 / 2,976 after the DB was ready. The exact cause of the three transient claim failures was not independently proven; both failed and passing logs are retained. No broader retry was needed after the complete pass.
 
-QA used only disposable local MariaDB 11.4, `127.0.0.1:3307/erp_meli2_test`; its container was stopped after QA. No real ERP1 business data was imported into the test DB. ERP1 production INSERT/UPDATE/DELETE/DDL/application writes = 0; ERP2 production writes = 0; remote files created = 0; remote writes OFF; `REAL_MELI_HTTP=0`, `ALEGRA_REAL_HTTP=0`, `DIAN_HTTP=0`, F14=PENDING, F16=UNAUTHORIZED. No push, merge or deploy.
+QA used only disposable local MariaDB 11.4, `127.0.0.1:3307/erp_meli2_test`; its container was stopped after QA. The authorized 100-row Catalog minimum projection was imported only into separate disposable `erp_meli2_rehearsal`; the full test suite used `erp_meli2_test`. ERP1 production INSERT/UPDATE/DELETE/DDL/application writes = 0; ERP2 production writes = 0; remote files created = 0; remote writes OFF; `REAL_MELI_HTTP=0`, `ALEGRA_REAL_HTTP=0`, `DIAN_HTTP=0`, F14=PENDING, F16=UNAUTHORIZED. No push, merge or deploy.
+
+## V4 inspectable evidence
+
+- One [mapping manifest](../storage/exports/f13/mapping-manifest.json); raw non-secret names/sellers and minimum Catalog fields remain local/untracked.
+- [Mapping/rehearsal evidence ZIP](../storage/exports/f13/F13_MAPPING_REHEARSAL_20261012.zip): source receipts, safe collectors, target-authority receipt, RED/GREEN/full QA, deterministic rehearsal reports, exact-field verification, source hash and SHA256 file manifest.
+- Original sanitized snapshot ZIP remains unchanged and identifies the prior 155,538-row profile; V4 did not recapture it.
+
+STOP — F13 CLOSED LOCAL; no push, merge, deploy or F14 execution.
+
+V4 evidence ZIP SHA-256: `ffb2a2574a9ed9ca01b07f03d659849d27771823f60336bb0ac05e85e92c07ec`; 37 entries verified against SHA256 manifest and ZIP CRC; local/untracked.
