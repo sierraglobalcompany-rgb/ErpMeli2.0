@@ -22,6 +22,7 @@ use UnexpectedValueException;
 final class BillingPeriodSyncHandler
 {
     private const REMOTE_RETRY_SECONDS = 30;
+    private const CONTINUATION_DELAY_SECONDS = 1;
 
     public function __construct(
         private readonly WorkRepository $work,
@@ -139,8 +140,8 @@ final class BillingPeriodSyncHandler
                     $nextCursor,
                     $normalizedDetails,
                     $lastSyncedAt,
-                    $scopeKey,
-                    $now,
+                    $workId,
+                    $claimToken,
                 ): void {
                     $periodId = $this->lockPeriod($pdo, $companyId, $accountId, $periodKey, $documentType, $fromId);
                     if (!$isEmptyPage) {
@@ -163,22 +164,11 @@ final class BillingPeriodSyncHandler
                         return;
                     }
 
-                    $resourceKey = $periodKey . ':' . $documentType;
-                    $this->work->enqueue(
-                        $companyId,
-                        $accountId,
-                        $scopeKey,
-                        'billing.period.sync',
-                        $resourceKey,
-                        'billing.period.sync:' . $resourceKey . ':' . $nextCursor,
-                        [
-                            'period_key' => $periodKey,
-                            'document_type' => $documentType,
-                            'from_id' => $nextCursor,
-                        ],
-                        $now,
-                    );
+                    // Existing dispatcher hint stays in sync with the durable Billing cursor; identity/dedupe do not change.
+                    $payload = $pdo->prepare("UPDATE work_items SET payload_json = JSON_SET(payload_json, '$.from_id', :cursor) WHERE id = :id AND status = 'running' AND claim_token = :claim_token");
+                    $payload->execute(['cursor' => $nextCursor, 'id' => $workId, 'claim_token' => $claimToken]);
                 },
+                $isEmptyPage ? null : $now->modify('+' . self::CONTINUATION_DELAY_SECONDS . ' seconds'),
             );
         } catch (UnexpectedValueException) {
             $this->work->failCurrentClaim(

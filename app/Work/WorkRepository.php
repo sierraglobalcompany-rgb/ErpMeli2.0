@@ -200,11 +200,11 @@ final class WorkRepository
     }
 
     /**
-     * Persist local business effects and complete a work item only while the supplied claim is still current.
+     * Persist business effects and finish the current claim atomically; optionally defer the same Work for continuation.
      *
      * @param callable(PDO): void $persist
      */
-    public function completeCurrentClaim(int $workId, string $claimToken, callable $persist): bool
+    public function completeCurrentClaim(int $workId, string $claimToken, callable $persist, ?DateTimeImmutable $continueAt = null): bool
     {
         $this->pdo->beginTransaction();
 
@@ -226,19 +226,25 @@ final class WorkRepository
 
             $persist($this->pdo);
 
-            $complete = $this->pdo->prepare(
-                "UPDATE work_items SET "
-                . "status = 'done', claim_token = NULL, claimed_at = NULL, "
-                . "finished_at = UTC_TIMESTAMP(6), updated_at = UTC_TIMESTAMP(6), "
-                . "last_error_code = NULL, last_error_safe = NULL "
-                . "WHERE id = :id AND status = 'running' AND claim_token = :claim_token"
-            );
-            $complete->execute([
-                'id' => $workId,
-                'claim_token' => $claimToken,
-            ]);
+            if ($continueAt !== null) {
+                $transitioned = $this->deferCurrentClaim($workId, $claimToken, $continueAt, null, null);
+            } else {
+                $complete = $this->pdo->prepare(
+                    "UPDATE work_items SET "
+                    . "status = 'done', claim_token = NULL, claimed_at = NULL, "
+                    . "finished_at = UTC_TIMESTAMP(6), updated_at = UTC_TIMESTAMP(6), "
+                    . "last_error_code = NULL, last_error_safe = NULL "
+                    . "WHERE id = :id AND status = 'running' AND claim_token = :claim_token"
+                );
+                $complete->execute([
+                    'id' => $workId,
+                    'claim_token' => $claimToken,
+                ]);
 
-            if ($complete->rowCount() !== 1) {
+                $transitioned = $complete->rowCount() === 1;
+            }
+
+            if (!$transitioned) {
                 throw new RuntimeException('Current work claim changed before completion.');
             }
 
@@ -284,8 +290,8 @@ final class WorkRepository
         int $workId,
         string $claimToken,
         DateTimeImmutable $availableAt,
-        string $errorCode,
-        string $safeMessage,
+        ?string $errorCode,
+        ?string $safeMessage,
     ): bool {
         $statement = $this->pdo->prepare(
             "UPDATE work_items SET "

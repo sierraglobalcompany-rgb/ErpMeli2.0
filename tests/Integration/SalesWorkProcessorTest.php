@@ -424,7 +424,7 @@ final class SalesWorkProcessorTest extends TestCase
 
         self::assertSame(1, $runner->run($work, $processor, maxItems: 1, maxSeconds: 5));
         self::assertSame(
-            'done',
+            'pending',
             $pdo->query('SELECT status FROM work_items WHERE id=' . $initialWorkId)->fetchColumn(),
         );
         self::assertSame(
@@ -435,9 +435,12 @@ final class SalesWorkProcessorTest extends TestCase
         );
         self::assertCount(1, $transport->requests);
 
+        self::assertSame(0, $runner->run($work, $processor, maxItems: 1, maxSeconds: 5));
+        self::assertCount(1, $transport->requests);
+        $pdo->exec("UPDATE work_items SET available_at=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND WHERE id=" . $initialWorkId);
         self::assertSame(1, $runner->run($work, $processor, maxItems: 1, maxSeconds: 5));
         self::assertSame(
-            2,
+            1,
             (int) $pdo->query(
                 "SELECT COUNT(*) FROM work_items WHERE type='billing.period.sync' AND status='done'"
             )->fetchColumn(),

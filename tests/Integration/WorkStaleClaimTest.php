@@ -78,4 +78,18 @@ final class WorkStaleClaimTest extends TestCase
         self::assertNull($done['claimed_at']);
         self::assertNotNull($done['finished_at']);
     }
+    public function testAtomicSuccessfulDeferRejectsStaleClaimAndReusesCurrentWork(): void
+    {
+        $pdo=TestDatabase::reset();$work=new WorkRepository($pdo);
+        $id=$work->enqueue(null,null,'test:defer','test','resource','identity',[],new \DateTimeImmutable('2000-01-01Z'));
+        $claim=$work->claimNext();self::assertIsArray($claim);
+        $ran=false;
+        self::assertFalse($work->completeCurrentClaim($id,str_repeat('a',32),function(PDO $p)use(&$ran):void{$ran=true;},new \DateTimeImmutable('2030-01-01Z')));
+        self::assertFalse($ran);
+        self::assertTrue($work->completeCurrentClaim($id,$claim['claim_token'],function(PDO $p):void{},new \DateTimeImmutable('2030-01-01Z')));
+        $row=$pdo->query('SELECT * FROM work_items')->fetch(PDO::FETCH_ASSOC);
+        self::assertSame('pending',$row['status']);self::assertSame(0,(int)$row['attempts']);self::assertNull($row['claim_token']);self::assertNull($row['last_error_code']);
+        self::assertSame('2030-01-01 00:00:00.000000',$row['available_at']);self::assertNull($work->claimNext());
+    }
+
 }

@@ -60,7 +60,7 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         ]);
     }
 
-    public function testNonEmptyFirstPagePersistsDetailsAdvancesCursorAndQueuesContinuationAtomically(): void
+    public function testNonEmptyFirstPagePersistsDetailsAndDefersSameWorkAtomically(): void
     {
         $work = new WorkRepository($this->pdo);
         $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
@@ -146,25 +146,20 @@ final class BillingPeriodSyncHandlerTest extends TestCase
             'SELECT id, scope_key, type, resource_key, dedupe_key, payload_json, status '
             . 'FROM work_items ORDER BY id',
         )->fetchAll(PDO::FETCH_ASSOC);
-        self::assertCount(2, $workRows);
-        self::assertSame('done', $workRows[0]['status']);
+        self::assertCount(1, $workRows);
         self::assertSame($claim['id'], (int) $workRows[0]['id']);
-        self::assertSame('pending', $workRows[1]['status']);
-        self::assertNotSame($workRows[0]['dedupe_key'], $workRows[1]['dedupe_key']);
-        self::assertSame('billing.period.sync', $workRows[1]['type']);
-        self::assertSame('2026-09-01:BILL', $workRows[1]['resource_key']);
-        self::assertSame(
-            'company:' . $this->companyId . ':account:' . $this->accountId,
-            $workRows[1]['scope_key'],
-        );
-        self::assertSame([
-            'period_key' => '2026-09-01',
-            'document_type' => 'BILL',
-            'from_id' => '101',
-        ], json_decode((string) $workRows[1]['payload_json'], true, 512, JSON_THROW_ON_ERROR));
-        self::assertSame(1, (int) $this->pdo->query(
-            "SELECT COUNT(*) FROM work_items WHERE type = 'billing.period.sync' AND status = 'pending'",
-        )->fetchColumn());
+        self::assertSame('pending', $workRows[0]['status']);
+        self::assertSame('billing.period.sync', $workRows[0]['type']);
+        self::assertSame('2026-09-01:BILL', $workRows[0]['resource_key']);
+        self::assertSame(['period_key' => '2026-09-01', 'document_type' => 'BILL', 'from_id' => '101'], json_decode($workRows[0]['payload_json'], true, 512, JSON_THROW_ON_ERROR));
+        $row = $this->workRow($claim['id']);
+        self::assertNull($row['claim_token']);
+        self::assertNull($row['claimed_at']);
+        self::assertNull($row['finished_at']);
+        self::assertSame(0, (int) $row['attempts']);
+        self::assertNull($row['last_error_code']);
+        self::assertSame($this->now->setTimezone(new DateTimeZone('UTC'))->modify('+1 second')->format('Y-m-d H:i:s.u'), $row['available_at']);
+
     }
 
     public function testValidPageReplayUpsertsOneDurableBillingFactWithItsContext(): void
@@ -192,11 +187,11 @@ final class BillingPeriodSyncHandlerTest extends TestCase
             $claim['id'], $claim['claim_token'], $this->companyId, $this->accountId,
             '2026-09-01', 'BILL', '0', $this->now,
         ));
-        $continuation = $work->claimNext();
-        self::assertIsArray($continuation);
-        self::assertSame(['period_key' => '2026-09-01', 'document_type' => 'BILL', 'from_id' => '101'], $continuation['payload']);
+        $nextClaim = $work->claimNext();
+        self::assertIsArray($nextClaim);
+        self::assertSame(['period_key' => '2026-09-01', 'document_type' => 'BILL', 'from_id' => '101'], $nextClaim['payload']);
         self::assertTrue($handler->syncCurrentClaim(
-            $continuation['id'], $continuation['claim_token'], $this->companyId, $this->accountId,
+            $nextClaim['id'], $nextClaim['claim_token'], $this->companyId, $this->accountId,
             '2026-09-01', 'BILL', '101', $this->now->modify('+1 second'),
         ));
 
@@ -296,7 +291,7 @@ final class BillingPeriodSyncHandlerTest extends TestCase
             '2026-09-01', 'BILL', '0', $this->now,
         ));
         $this->assertSingleRefresh($transport);
-        self::assertSame('done', $this->workRow($claim['id'])['status']);
+        self::assertSame('pending', $this->workRow($claim['id'])['status']);
         self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_periods')->fetchColumn());
         self::assertSame('101', $this->pdo->query('SELECT cursor_last_id FROM billing_periods')->fetchColumn());
         self::assertSame('pending', $this->pdo->query('SELECT sync_state FROM billing_periods')->fetchColumn());
@@ -551,7 +546,7 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         self::assertSame('caught_up', $this->pdo->query('SELECT sync_state FROM billing_periods')->fetchColumn());
         self::assertSame('0', $this->pdo->query('SELECT cursor_last_id FROM billing_periods')->fetchColumn());
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_details')->fetchColumn());
-        self::assertSame(0, $this->continuationCount());
+        self::assertSame(0, $this->pendingWorkCount());
     }
 
     /** @return array<string,array{string}> */
@@ -571,7 +566,7 @@ final class BillingPeriodSyncHandlerTest extends TestCase
                 $claim['id'], $claim['claim_token'], $this->companyId, $this->accountId,
                 $periodKey, 'BILL', '0', $this->now,
             ));
-            self::assertSame('done', $this->workRow($claim['id'])['status']);
+            self::assertSame('pending', $this->workRow($claim['id'])['status']);
             $statement = $this->pdo->prepare('SELECT cursor_last_id FROM billing_periods WHERE period_key=:period');
             $statement->execute(['period' => $periodKey]);
             $actual = $statement->fetchColumn();
@@ -597,18 +592,19 @@ final class BillingPeriodSyncHandlerTest extends TestCase
             $claim['id'], $claim['claim_token'], $this->companyId, $this->accountId,
             '2026-09-01', 'BILL', '0', $this->now,
         ));
-        self::assertSame('done', $this->workRow($claim['id'])['status']);
+        self::assertSame('pending', $this->workRow($claim['id'])['status']);
         $periods = $this->pdo->query('SELECT * FROM billing_periods')->fetchAll(PDO::FETCH_ASSOC);
         $details = $this->pdo->query('SELECT * FROM billing_details')->fetchAll(PDO::FETCH_ASSOC);
-        $continuations = $this->pdo->query("SELECT * FROM work_items WHERE status='pending'")->fetchAll(PDO::FETCH_ASSOC);
+        $pendingWorks = $this->pdo->query("SELECT * FROM work_items WHERE status='pending'")->fetchAll(PDO::FETCH_ASSOC);
         self::assertCount(1, $periods);
         self::assertSame('101', $periods[0]['cursor_last_id']);
         self::assertSame('pending', $periods[0]['sync_state']);
         self::assertCount(1, $details);
-        self::assertCount(1, $continuations);
-        self::assertSame('101', json_decode((string) $continuations[0]['payload_json'], true, 512, JSON_THROW_ON_ERROR)['from_id']);
-        $replay = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
-        self::assertNotSame($claim['id'], $replay['id']);
+        self::assertCount(1, $pendingWorks);
+        self::assertSame('101', json_decode((string) $pendingWorks[0]['payload_json'], true, 512, JSON_THROW_ON_ERROR)['from_id']);
+        $replay = $work->claimNext();
+        self::assertIsArray($replay);
+        self::assertSame($claim['id'], $replay['id']);
         self::assertFalse($handler->syncCurrentClaim(
             $replay['id'], $replay['claim_token'], $this->companyId, $this->accountId,
             '2026-09-01', 'BILL', '0', $this->now,
@@ -616,7 +612,7 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         $this->assertCursorConflict($replay['id']);
         self::assertSame($periods, $this->pdo->query('SELECT * FROM billing_periods')->fetchAll(PDO::FETCH_ASSOC));
         self::assertSame($details, $this->pdo->query('SELECT * FROM billing_details')->fetchAll(PDO::FETCH_ASSOC));
-        self::assertSame($continuations, $this->pdo->query("SELECT * FROM work_items WHERE status='pending'")->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
         self::assertCount(2, $transport->requests);
     }
 
@@ -666,13 +662,63 @@ final class BillingPeriodSyncHandlerTest extends TestCase
             $recovered['id'], $recovered['claim_token'], $this->companyId, $this->accountId,
             '2026-09-01', 'BILL', '0', $this->now,
         ));
-        self::assertSame('done', $this->workRow($claim['id'])['status']);
+        self::assertSame('pending', $this->workRow($claim['id'])['status']);
         self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_periods')->fetchColumn());
         self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_details')->fetchColumn());
         self::assertSame('101', $this->pdo->query('SELECT cursor_last_id FROM billing_periods')->fetchColumn());
-        self::assertSame(1, $this->continuationCount());
+        self::assertSame(1, $this->pendingWorkCount());
         self::assertSame('101', json_decode((string) $this->pdo->query("SELECT payload_json FROM work_items WHERE status='pending'")->fetchColumn(), true, 512, JSON_THROW_ON_ERROR)['from_id']);
         self::assertCount(2, $transport->requests);
+    }
+
+
+    public function testTwoPagesAndTerminalReuseOneWorkAndRefundSuccessfulAttempts(): void
+    {
+        $work = new WorkRepository($this->pdo);
+        $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
+        $before = $this->workRow($claim['id']);
+        $transport = new BillingPeriodSyncFakeTransport([$this->validPage('101'), $this->validPage('102'), new MeliTransportResponse(200, [], '{"results":[]}')]);
+        $handler = $this->handler($work, $transport);
+        foreach (['0', '101', '102'] as $page => $cursor) {
+            if ($page > 0) { $claim = $work->claimNext(); self::assertIsArray($claim); }
+            self::assertSame((int) $before['id'], $claim['id']);
+            $now = $this->now->modify('+' . $page . ' seconds');
+            self::assertTrue($handler->syncCurrentClaim($claim['id'], $claim['claim_token'], $this->companyId, $this->accountId, '2026-09-01', 'BILL', $cursor, $now));
+            self::assertCount($page + 1, $transport->requests);
+            self::assertStringContainsString('from_id=' . $cursor, $transport->requests[$page]['url']);
+            self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
+            $row = $this->workRow($claim['id']);
+            self::assertSame($before['dedupe_key'], $row['dedupe_key']);
+            self::assertNull($row['claim_token']);
+            self::assertSame($page < 2 ? 'pending' : 'done', $row['status']);
+            if ($page < 2) {
+                self::assertSame(0, (int) $row['attempts']);
+                self::assertSame($now->setTimezone(new DateTimeZone('UTC'))->modify('+1 second')->format('Y-m-d H:i:s.u'), $row['available_at']);
+                self::assertSame(['period_key'=>'2026-09-01','document_type'=>'BILL','from_id'=>$page===0?'101':'102'], json_decode($row['payload_json'],true,512,JSON_THROW_ON_ERROR));
+            }
+        }
+        self::assertSame('caught_up', $this->pdo->query('SELECT sync_state FROM billing_periods')->fetchColumn());
+        self::assertSame('102', $this->pdo->query('SELECT cursor_last_id FROM billing_periods')->fetchColumn());
+    }
+
+    public function testDeferTransitionFailureRollsBackFactsCursorPayloadAndClaimTogether(): void
+    {
+        $work = new WorkRepository($this->pdo);
+        $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
+        $before = $this->workRow($claim['id']);
+        $this->pdo->exec("CREATE TRIGGER test_block_billing_defer BEFORE UPDATE ON work_items FOR EACH ROW BEGIN IF OLD.status='running' AND NEW.status='pending' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='test transition failure'; END IF; END");
+        $transport = new BillingPeriodSyncFakeTransport([$this->validPage('101')]);
+        try {
+            $this->handler($work,$transport)->syncCurrentClaim($claim['id'],$claim['claim_token'],$this->companyId,$this->accountId,'2026-09-01','BILL','0',$this->now);
+            self::fail('Transition must fail.');
+        } catch (\PDOException $e) {
+            self::assertStringContainsString('test transition failure',$e->getMessage());
+        } finally { $this->pdo->exec('DROP TRIGGER test_block_billing_defer'); }
+        self::assertSame(0,(int)$this->pdo->query('SELECT COUNT(*) FROM billing_details')->fetchColumn());
+        self::assertSame(0,(int)$this->pdo->query('SELECT COUNT(*) FROM billing_periods')->fetchColumn());
+        self::assertSame($before,$this->workRow($claim['id']));
+        self::assertCount(1,$transport->requests);
+        self::assertFalse($this->pdo->inTransaction());
     }
 
     private function validPage(string $cursorJson): MeliTransportResponse
@@ -680,7 +726,7 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         return new MeliTransportResponse(200, [], '{"results":[{"charge_info":{"detail_id":"101","detail_amount":"10.25","detail_type":"CHARGE"}}],"last_id":' . $cursorJson . '}');
     }
 
-    private function continuationCount(): int
+    private function pendingWorkCount(): int
     {
         return (int) $this->pdo->query("SELECT COUNT(*) FROM work_items WHERE status='pending'")->fetchColumn();
     }
@@ -708,7 +754,7 @@ final class BillingPeriodSyncHandlerTest extends TestCase
     /** @return array<string,mixed> */
     private function workRow(int $id): array
     {
-        $row = $this->pdo->query('SELECT status,attempts,claim_token,last_error_code,available_at FROM work_items WHERE id=' . $id)->fetch(PDO::FETCH_ASSOC);
+        $row = $this->pdo->query('SELECT * FROM work_items WHERE id=' . $id)->fetch(PDO::FETCH_ASSOC);
         self::assertIsArray($row);
         return $row;
     }
