@@ -21,6 +21,7 @@ use App\Integrations\MercadoLibre\Client\MeliClient;
 use App\Integrations\MercadoLibre\Client\MeliCooldownRepository;
 use App\Integrations\MercadoLibre\Transport\CurlMeliTransport;
 use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
+use App\Modules\Api\ErpApiController;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Sales\ViewSales\SalesListController;
 use App\Modules\Settings\SystemSettingsController;
@@ -75,6 +76,47 @@ final class Routes
             $receiver->receive($payload);
 
             return $response->withStatus(200);
+        });
+
+        $app->post('/api/products', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return self::erpApiController($config)->createProduct($request, $response);
+        });
+
+        $app->get('/api/products/{product_id}', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::erpApiController($config)->readProduct(
+                $response,
+                (string) ($args['product_id'] ?? ''),
+            );
+        });
+
+        $app->get('/api/products/{product_id}/inventory', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::erpApiController($config)->readInventory(
+                $response,
+                (string) ($args['product_id'] ?? ''),
+            );
+        });
+
+        $app->put('/api/products/{product_id}/inventory', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::erpApiController($config)->setInventory(
+                $request,
+                $response,
+                (string) ($args['product_id'] ?? ''),
+            );
         });
 
         $app->get('/oauth/mercadolibre/connect', static function (
@@ -349,5 +391,10 @@ final class Routes
             new DebugMaintenance($debugDirectory, $exportDirectory),
             new DebugExportService($debugDirectory, $exportDirectory),
         );
+    }
+
+    private static function erpApiController(AppConfig $config): ErpApiController
+    {
+        return new ErpApiController(Connection::fromConfig($config));
     }
 }
