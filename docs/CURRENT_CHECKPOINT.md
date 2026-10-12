@@ -1,21 +1,22 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**F13 PARTIAL — STOP UNTIL A VERIFIED ERP1 DATA SOURCE IS AVAILABLE**
+**F13 PARTIAL — STOP UNTIL THE CURRENT ERP1 SSH IDENTITY IS VERIFIED**
 
 | Field | Value |
 |---|---|
 | Date | 2026-10-12 |
 | Branch | `impl/v3-b-sales-audit-20261010` |
 | F12 implementation SHA | `1da47d4e65873daeb9dd324c72d01b85bc5d9b3e` |
-| F13 preflight HEAD | `b0e69f9da2c6f9d02d2d31977fa1edde95d5267d` |
-| CURRENT | F13 PARTIAL LOCAL — structural migration audit; no verified real ERP1 data source |
-| NEXT | F13 — repeat data-quality/mapping rehearsal against an authorized ERP1 data snapshot |
+| F13 audit HEAD | `f3179ab8d60ef21b900b424f3db50aa2d21ffecd` |
+| CURRENT | F13 PARTIAL LOCAL — structural audit complete; no verified current ERP1 production identity or data snapshot |
+| NEXT | Verify the supplied ERP1 SSH host against the existing trusted host identity, then create a local read-only snapshot and resume F13 |
 
 ## F13 partial result
 
 - ERP1 code/schema were identified locally; the inspectable snapshot is ERP1 2.35.1 pre-HF1. A local RC1 browser test database has no representative order/catalog/payment/claim/invoice facts and is not a real migration source.
 - ERP1 companies have nullable NIT; ERP2 companies have no NIT key. Legacy internal product company ownership is nullable. No real rows exist to prove company/SKU identity, so no entity qualifies for `MIGRATE`.
 - The complete category matrix and inspected row counts/source identity are in [F13_MIGRATION_REHEARSAL.md](F13_MIGRATION_REHEARSAL.md). No importer, schema, HTTP call, or production write was made.
+- The 2026-10-12 continuation found a historical root-read-only SSH script, but its configured endpoint does not match the currently supplied ERP1 hostname; the supplied hostname has no existing known-host entry. No SSH connection or SQL read was attempted, and no password was requested. F13 remains blocked until the current endpoint identity can be verified safely.
 - Do not start F14 until F13 can be resumed against an authorized ERP1 data snapshot. F14 remains pending; F16 remains unauthorized.
 
 ### F13 local QA

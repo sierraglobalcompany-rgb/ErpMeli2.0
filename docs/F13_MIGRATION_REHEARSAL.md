@@ -1,6 +1,13 @@
 # F13 — ERP1 migration rehearsal
 
-**Result: PARTIAL — structural audit complete; no verified real ERP1 data source is available for rehearsal.**
+**Result: PARTIAL — structural audit complete; current ERP1 production identity is not verified and no real-data rehearsal has run.**
+
+## Latest continuation checkpoint — 2026-10-12
+
+- The historical root-read-only SSH script was found at `C:\codex\ERP-BDM\WORK\phase6-ssh-access-20261009\RUN_ROOT_READONLY.ps1`. It validates the ERP1 root path and uses strict host-key checking.
+- The existing SSH configuration and historical script point to a different endpoint than the currently supplied `us-imm-web1450.main-hosting.eu`. The current hostname resolves elsewhere and has no matching known-host entry, so the current ERP1 server identity cannot be tied to the previously trusted SSH identity.
+- No SSH connection, password prompt, DB lookup, SQL read, or snapshot creation was attempted. Production reads/writes and external HTTP for this continuation are all zero. No application or database files changed.
+- Resume only after the current ERP1 endpoint can be verified using the existing trusted SSH identity. Do not accept or install an unknown host key as a workaround.
 
 ## Preflight
 
