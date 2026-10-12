@@ -2,11 +2,22 @@
 
 Fecha: 2026-10-12. Autoridad auditada: `d03c6fc7ff95809e889c99b2a628fc83130b126a`, descendiente limpio de `6fd1a7af57a04be5d993e3542d1f164ea8d91601`; delta exclusivamente `docs/CURRENT_CHECKPOINT.md`. Rama `impl/v3-b-sales-audit-20261010`.
 
+## Cierre LC1 de los P0 confirmados
+
+Functional SHA `1ee9da64ea6d23b0f97424d72f1398dd37a8a416`. Fresh QA475 tests /3372 assertions /1 skipped /0 failures /0 errors; PHPStan, strict Composer, syntax163 and diff check PASS. RED partial8 expected failures, repair2, disabled10; GREEN combined200/1910. Se conservaron logs iniciales y RED confirmado; fixture Sales usa available_at explícito para no depender de timing. No P1/P2 implementado.
+
+Delta: seis archivos productivos existentes + cinco de tests existentes; nuevas clases/tablas/migraciones/Work types/colas/workers/schedulers/services/deps/HTTP operations=0. Financial y OAuth refresh/cooldown/401 intactos. Corrección dentro de owners actuales, sin implementación de LC2.
+
+- LC-P0-1 CLOSED: Sales Audit A/B rechaza206 y200 con X-Content-Missing; Billing200 declarado parcial reutiliza el defer206. Sin evidencia/facts/cursor/continuación ni HTTP adicional. El200 vacío completo conserva terminal.
+- LC-P0-2 CLOSED: enqueue/dedupe/selección y defer del repair se ejecutan bajo el claim row lock y transacción actuales. Stale token=0 hijos y0 mutaciones; fallo de transición revierte hijo/padre/audit. Se conservan topology y repair wait existentes.
+- LC-P0-3 CLOSED: CompanyContext verifica estado activo vigente; Bootstrap aplica esa autoridad a todas las superficies protegidas de sesión actuales. Disabled403 aun con sesión previa; cero writes/enqueue/OAuth; membership y usuarios activos continúan probados.
+- Las reproducciones y matrix siguientes documentan el snapshot LC0, no bugs P0 todavía abiertos. Los P1/P2 enumerados no fueron implementados. LOCAL_PRODUCT_READY sigue NO, NEXT=LC2 P1 operator completeness, no iniciado. F14 liveDEFERRED; F15PAUSED; F16UNAUTHORIZED.
+
 ## Decisión
 
 `LOCAL_PRODUCT_READY=NO`. Terminar esta auditoría no equivale a terminar el producto. Las dependencias externas no causan este NO: existen faltantes de corrección y operación reproducibles localmente. F15 PAUSED BY LOCAL-FIRST POLICY; F14 LOCAL CONTRACT READY / LIVE DEFERRED; F16 UNAUTHORIZED. No SSH, hosting, red externa, OAuth real, deploy, implementación funcional, push ni merge en LC0.
 
-Prioridad de continuidad: **LC1 — completitud de respuestas parciales en Sales Audit y Billing**, RED antes de GREEN. Este informe no autoriza ejecutarlo.
+Prioridad de continuidad tras LC1: **LC2 — P1 operator completeness**. Este informe no autoriza ejecutarlo. La matriz original conserva evidencia LC0; los tres P0 están cerrados por el recibo LC1 superior.
 
 ## Evidencia y límites
 
@@ -164,9 +175,9 @@ No SQL/table/trigger temporal se añadió al schema. Test rollback trigger se in
 
 | ID / rank | Comportamiento concreto faltante | Owner y archivos mínimos esperados | Test esperado | Necesidad | KISS action |
 |---|---|---|---|---|---|
-| LC-P0-1 | Sales Audit acepta206/200+X-Content-Missing como terminal; Billing acepta200+missing como vacío terminal | SalesAuditHandler::normalizePage/processCurrentClaim; BillingPeriodSyncHandler guard; MeliClientResponse actual | Fake206 y200+header en captura A/B y Billing, 0 evidence/facts/cursor/VALID/caught_up; same claim y no HTTP extra | No certificar coverage incompleta como completa. Private probes confirman aceptación actual | REUSE/EXTEND guard actual, no estado nuevo |
-| LC-P0-2 | Reparación enqueueNextMissingOrder se ejecuta antes del guard claim; token obsoleto puede producir order.sync | SalesAuditRepairHandler, WorkRepository::completeCurrentClaim existente | Stale repair token →0 hijos/estado; current token→un hijo+diferir atómico; SQL failure rollback | Evitar side effects de executor sin authority actual | MERGE enqueue y transición bajo guard/transaction existente |
-| LC-P0-3 | Usuario disabled con sesión previa sigue admitido por CompanyContext/Sales/settings/OAuth membership queries | AuthService/CompanyContext y guards callers actuales; sin RBAC nuevo | Deshabilitar usuario tras login →403 en Sales/API/settings/OAuth, 0 writes/enqueue; active user PASS | Revocación real de acceso, no logout voluntario como seguridad | REUSE/MERGE autoridad actual con estado users |
+| LC-P0-1 CLOSED LC1 | Sales Audit acepta206/200+X-Content-Missing como terminal; Billing acepta200+missing como vacío terminal | SalesAuditHandler::normalizePage/processCurrentClaim; BillingPeriodSyncHandler guard; MeliClientResponse actual | Fake206 y200+header en captura A/B y Billing, 0 evidence/facts/cursor/VALID/caught_up; same claim y no HTTP extra | No certificar coverage incompleta como completa. Private probes confirman aceptación actual | REUSE/EXTEND guard actual, no estado nuevo |
+| LC-P0-2 CLOSED LC1 | Reparación enqueueNextMissingOrder se ejecuta antes del guard claim; token obsoleto puede producir order.sync | SalesAuditRepairHandler, WorkRepository::completeCurrentClaim existente | Stale repair token →0 hijos/estado; current token→un hijo+diferir atómico; SQL failure rollback | Evitar side effects de executor sin authority actual | MERGE enqueue y transición bajo guard/transaction existente |
+| LC-P0-3 CLOSED LC1 | Usuario disabled con sesión previa sigue admitido por CompanyContext/Sales/settings/OAuth membership queries | AuthService/CompanyContext y guards callers actuales; sin RBAC nuevo | Deshabilitar usuario tras login →403 en Sales/API/settings/OAuth, 0 writes/enqueue; active user PASS | Revocación real de acceso, no logout voluntario como seguridad | REUSE/MERGE autoridad actual con estado users |
 | LC-P1-1 | Operador sin entrada/menu/selector tenant, select redirige404; ventas>100 y audit outcomes inaccesibles | Routes, SalesListController y vistas existentes | Browser-contract login→select→sales, foreign403; consultar order anterior100; audit status correcto | Uso diario sin URL/SQL manual | REUSE/EXTEND UI existente |
 | LC-P1-2 | Catalog/Inventory no operables desde navegador normal; Financial y PostSale sólo clase/API de máquina | ErpApiController/API existentes, Sales/bridge readers, Routes/views | POST producto/PUT stock CSRF+tenant, render null/KNOWN/UNKNOWN/CONFLICT y review status; 0 HTTP | Capacidades de negocio existentes deben ser utilizables | REUSE/EXTEND consumers; Financial sin cambio |
 | LC-P1-3 | Ningún productor inicial Billing ni opción pública manualOne CLI | BillingPeriodSyncHandler, WorkExecution::runManualOne, bin/work.php/Routes según actor | Enqueue explícito periodo/cuenta/tipo, foreign reject, dedupe, exactamente1 claim/una página y automationOFF | Evitar SQL ad hoc para usar Billing probado | REUSE/EXTEND existente, no scheduler |

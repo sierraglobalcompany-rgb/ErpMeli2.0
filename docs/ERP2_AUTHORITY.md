@@ -86,6 +86,7 @@ ERP API local (F9):
 - `POST /api/products` creates a local Catalog product; `GET /api/products/{product_id}` reads it within the authorized company.
 - `GET /api/products/{product_id}/inventory` reads current local quantity; `PUT` on the same path sets an exact non-negative integer quantity. A product with no inventory row returns `quantity: null`, never an inferred zero.
 - Company authority comes from the authenticated PHP session's selected company, verified by `CompanyContext` against `company_users`. A client-supplied `company_id` does not change that scope. Foreign or absent product IDs return the same 404 response.
+- La identidad de sesión no basta: `CompanyContext::assertActiveUser()` comprueba `users.status='active'` vigente. Bootstrap aplica ese chequeo antes del dispatch de superficies de sesión Sales, ERP API, Settings, OAuth y selección de empresa; CompanyContext también lo exige al resolver membership directamente. Un usuario deshabilitado recibe 403 en el siguiente request aun con sesión previa; los guards existentes conservan membership/admin/CSRF y tenant. Health, login, webhook y bridge de máquina mantienen sus contratos independientes.
 - The API reuses the existing session authentication and requires the existing CSRF token in `X-CSRF-Token` for mutations. Expected API errors use JSON codes; unhandled errors pass through Slim's generic error handling without returning SQL details.
 - This contract is local-only. It adds no account scope, Mercado Libre HTTP/OAuth, remote writes, or schema.
 
@@ -117,6 +118,8 @@ Capacidades aceptadas:
 - terminal cleanup.
 
 `retryCurrentClaim` consume intento; `deferCurrentClaim` no consume presupuesto neto.
+
+`completeCurrentClaim()` guarda el claim actual con row lock antes de ejecutar su callback. El callback puede devolver `true` únicamente tras diferir él mismo ese Work mediante el owner existente; el repositorio verifica estado pending y claim limpio antes de commit. Sin defer del callback conserva completion/continueAt existentes. La reparación Sales Audit ejecuta selección/dedupe/enqueue del hijo y defer del padre dentro de esa misma transacción. Token obsoleto no ejecuta callback ni crea hijos; fallo de transición revierte todos los efectos.
 
 Crash recovery:
 
@@ -213,6 +216,8 @@ Short non-terminal page, fechas sin zona, IDs/paging/total incoherentes o contra
 ---
 
 ## 7. Sales Audit durable
+
+Capturas A y B sólo admiten HTTP200 sin `X-Content-Missing` no vacío. 206 o declaración de incompletitud siguen el fallo cerrado de contrato existente: cero evidencia/autoridad nueva, cero continuación y ninguna llamada adicional en ese claim. Un cuerpo aparentemente terminal no sustituye la completitud del response.
 
 Work types de Sales:
 
@@ -375,6 +380,8 @@ El desarrollo durable de Billing y Billing Task2 se diseñan e implementan local
 El C0 real de seller MCO es un smoke de sólo lectura de F14/preproducción. No refresca OAuth, no persiste Billing, uso API ni cooldown, y no hace remote writes. No es requisito previo para Billing Task2 local.
 
 ---
+
+Billing trata HTTP200 con `X-Content-Missing` no vacío igual que206: defer del mismo Work por mecanismo actual, sin facts/cursor/caught_up ni retry inline. Un200 vacío completo sigue siendo terminal; no se agrega estado ni se modifica partial_flag por este guard.
 
 ## 11. Financial
 
