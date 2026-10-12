@@ -14,15 +14,17 @@
 
 **MB-10 base SHA:** `b2415df01b848425e8a2121d3e307d1e83af9e3d`
 
-**Last closed block / CURRENT:** F8 CLOSED LOCAL — Inventory
+**Last closed block / CURRENT:** F9 CLOSED LOCAL — ERP API
 
-**NEXT:** F9 — ERP API
+**NEXT:** F10 — Invoicing Boundary
 
 **F7 functional SHA:** `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`
 
 **F7 closure documentation SHA:** `a2f3188dd72b5202850c72ab6cc9459c2f51b986`
 
 **F8 functional SHA:** `e639e0c5066cc648efea4bc0062ad64de0eae590`
+
+**F9 functional SHA:** `08c09b0e40d4ba06d9f57f555d95917f395abad5`
 
 **REAL_MELI_HTTP:** `0`
 
@@ -31,6 +33,8 @@
 MB-11 closes cleanup and documentation at code SHA `a9e45a67d548c603bb9003a3684211505da1424f`. Fresh global QA used isolated local MariaDB 10.11.19 on port 13342 with `DB_NAME=erp_meli2_test`; fresh migrations and connectivity passed. Composer passed, PHPStan reported 0 errors, and PHPUnit passed with 355 tests / 2731 assertions / 1 skipped / 0 failures / 0 errors. The temporary database container was removed. `REAL_MELI_HTTP=0`, remote writes OFF, F14 pending, and F16 remains unauthorized; no real OAuth/Mercado Libre HTTP, production mutation, push, merge or deploy occurred.
 
 F7 closed locally in documentation commit `a2f3188dd72b5202850c72ab6cc9459c2f51b986` over functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`. F8 added one company-safe current-stock row per Catalog product at functional SHA `e639e0c5066cc648efea4bc0062ad64de0eae590`. On that SHA, the focal test passed (6 tests / 11 assertions), Composer validation passed, PHPStan reported 0 errors, and PHPUnit passed (368 tests / 2753 assertions / 1 skipped / 0 failures / 0 errors) using local MariaDB 10.11.19 on port 13342. The temporary database container was removed; `REAL_MELI_HTTP=0` and remote writes stayed OFF.
+
+F9 exposed only local Catalog and Inventory operations at functional SHA `08c09b0e40d4ba06d9f57f555d95917f395abad5`. The focal HTTP suite passed (11 tests / 51 assertions); Composer validation passed; PHPStan reported 0 errors; full PHPUnit passed (379 tests / 2804 assertions / 1 skipped / 0 failures / 0 errors) using local MariaDB 10.11.19 on port 13342 with `REAL_MELI_HTTP=0`. G3 and G6 remain PASS LOCAL; remote writes remain OFF. F9 uses the existing Slim router, session/CSRF and Catalog/Inventory repositories; no remote operation or schema change was added.
 
 MB-11A PASS: read-only cleanup audit found existing owners for Debug, terminal Work and API usage retention; no Sales Audit blind age-prune. MB-11B PASS: README G3 drift fixed in `53883b758b007c48eff7af612cd8b79940dff8ab`. MB-11C PASS: unused `AppLogger::retentionCutoff()` and its isolated test removed in `a9e45a67d548c603bb9003a3684211505da1424f`.
 
@@ -163,14 +167,14 @@ Git = superseded history
 
 Current truth: local code/schema > same-SHA tests/QA > same-SHA evidence > checkpoint > durable authority > README/supporting documents > handoffs/audits > remote visibility > inference.
 
-README now agrees with the local G3 verdict, F8 closure, and F9 as next. ERP2_AUTHORITY records the local Catalog/Inventory boundary. AGENTS.md is unchanged.
+README now agrees with the local G3 verdict, F9 closure, and F10 as next. ERP2_AUTHORITY records the local Catalog/Inventory and F9 API boundaries. AGENTS.md is unchanged.
 
 ## 5. NEXT and STOP
 
 ```text
-CURRENT = F8 CLOSED LOCAL — Inventory
-NEXT = F9 — ERP API
+CURRENT = F9 CLOSED LOCAL — ERP API
+NEXT = F10 — Invoicing Boundary
 STOP
 ```
 
-F7 — Catalog is closed locally at functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`. F8 — Inventory is closed locally at functional SHA `e639e0c5066cc648efea4bc0062ad64de0eae590`: one local current-stock row per product, exact non-negative integer quantity, company isolation through Catalog identity, and deterministic local set/read. No account scope, listing relation, warehouse, reservation, movement history, or remote synchronization was added. F9 — ERP API is next and has not started. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.
+F7 — Catalog is closed locally at functional SHA `dd3bfd409c0877f3280dd7f9a63dd934e748a09f`. F8 — Inventory is closed locally at functional SHA `e639e0c5066cc648efea4bc0062ad64de0eae590`: one local current-stock row per product, exact non-negative integer quantity, company isolation through Catalog identity, and deterministic local set/read. F9 — ERP API is closed locally at functional SHA `08c09b0e40d4ba06d9f57f555d95917f395abad5`: `POST /api/products`, `GET /api/products/{product_id}`, `GET /api/products/{product_id}/inventory`, and `PUT /api/products/{product_id}/inventory`. Company authority comes from the authenticated selected-company session and membership; mutations require the existing CSRF token in `X-CSRF-Token`; foreign product IDs return 404; missing inventory remains `null`, not zero. No account scope, broad CRUD, remote operation, or schema change was added. F10 — Invoicing Boundary is next and has not started. Seller shipping and official/reference net remain UNKNOWN; do not add remote fetches or infer values to fill them. `REAL_MELI_HTTP=0`, remote writes OFF, F14 external certification remains pending, and F16 is not authorized. No production mutation, push, merge or deploy.

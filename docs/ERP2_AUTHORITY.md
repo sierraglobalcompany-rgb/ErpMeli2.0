@@ -79,6 +79,14 @@ Catálogo e inventario local:
 - F8 stores one current, non-negative integer quantity per product. Inventory reads and writes verify the owning company through `products.company_id`; setting quantity replaces the current value.
 - No account scope, remote quantity, warehouse, reservation, or movement history is part of this contract without a demonstrated consumer.
 
+ERP API local (F9):
+
+- `POST /api/products` creates a local Catalog product; `GET /api/products/{product_id}` reads it within the authorized company.
+- `GET /api/products/{product_id}/inventory` reads current local quantity; `PUT` on the same path sets an exact non-negative integer quantity. A product with no inventory row returns `quantity: null`, never an inferred zero.
+- Company authority comes from the authenticated PHP session's selected company, verified by `CompanyContext` against `company_users`. A client-supplied `company_id` does not change that scope. Foreign or absent product IDs return the same 404 response.
+- The API reuses the existing session authentication and requires the existing CSRF token in `X-CSRF-Token` for mutations. Expected API errors use JSON codes; unhandled errors pass through Slim's generic error handling without returning SQL details.
+- This contract is local-only. It adds no account scope, Mercado Libre HTTP/OAuth, remote writes, or schema.
+
 ---
 
 ## 3. Work y runtime
