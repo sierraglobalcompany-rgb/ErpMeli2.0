@@ -5,6 +5,7 @@ declare(strict_types=1);
 /** @var array<string,mixed> $order */
 /** @var list<array<string,mixed>> $items */
 /** @var array<string,mixed> $reconciliation */
+/** @var array<string,mixed> $invoiceReview */
 ?>
 <!doctype html>
 <html lang="es">
@@ -92,6 +93,15 @@ declare(strict_types=1);
                 <li>Detalle <?= htmlspecialchars((string) $shippingEvidence['external_detail_id'], ENT_QUOTES, 'UTF-8') ?>: <?= htmlspecialchars((string) $shippingEvidence['value'], ENT_QUOTES, 'UTF-8') ?></li>
                 <?php endforeach; ?>
             </ul>
+        </section>
+        <section id="invoice-review">
+            <h2>Factura / Postventa</h2>
+            <dl>
+                <dt>Readiness</dt><dd><?= htmlspecialchars((string) $invoiceReview['readiness'], ENT_QUOTES, 'UTF-8') ?></dd>
+                <dt>Factura registrada</dt><dd><?= $invoiceReview['original_invoice_artifact_present'] ? 'Sí' : 'No' ?></dd>
+                <dt>Nota crédito registrada</dt><dd><?= $invoiceReview['credit_note_artifact_present'] ? 'Sí' : 'No' ?></dd>
+                <dt>Postventa</dt><dd><?= htmlspecialchars((string) $invoiceReview['post_sale_status'], ENT_QUOTES, 'UTF-8') ?></dd>
+            </dl>
         </section>
     </main>
 </body>

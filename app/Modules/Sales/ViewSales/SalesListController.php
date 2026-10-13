@@ -7,6 +7,7 @@ namespace App\Modules\Sales\ViewSales;
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
 use App\Modules\Financial\FinancialReadModel;
+use App\Modules\Invoicing\InvoicingBridge;
 use App\Modules\Sales\Audit\SalesAuditRepository;
 use App\Modules\Sales\Audit\SalesAuditWindow;
 use App\Work\WorkRepository;
@@ -233,6 +234,11 @@ final class SalesListController
         $items = $itemsStatement->fetchAll(PDO::FETCH_ASSOC);
 
         $reconciliation = (new FinancialReadModel($this->pdo))->forOrder($companyId, (int) $order['account_id'], (string) $order['external_order_id']);
+        $invoiceReview = (new InvoicingBridge($this->pdo, dirname(__DIR__, 4) . '/storage/invoices'))
+            ->sourceForOrder($companyId, (int) $order['account_id'], (string) $order['external_order_id']);
+        if ($invoiceReview === null) {
+            return $response->withStatus(404);
+        }
         $companies = $context->memberships();
         $csrfToken = (new Csrf())->token();
         ob_start();

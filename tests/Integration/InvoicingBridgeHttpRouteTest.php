@@ -50,6 +50,59 @@ final class InvoicingBridgeHttpRouteTest extends TestCase
         self::assertSame(['error' => 'invalid_api_key'], $this->json($response));
     }
 
+    public function testExactLocalSourceLookupPreservesProjectionAndRejectsWrongIdentity(): void
+    {
+        $bridge = new InvoicingBridge($this->pdo, dirname(__DIR__, 2));
+        self::assertTrue(method_exists($bridge, 'sourceForOrder'), 'The owner lacks an exact local source reader.');
+        $source = $bridge->sourceForOrder(1, 10, '200000000101');
+        self::assertNotNull($source);
+        self::assertSame(101, $source['local_order_id']);
+        self::assertSame(10, $source['account_id']);
+        self::assertSame('ORDER_READY', $source['readiness']);
+        self::assertSame('NONE', $source['post_sale_status']);
+        self::assertFalse($source['original_invoice_artifact_present']);
+        self::assertFalse($source['credit_note_artifact_present']);
+        self::assertNull($bridge->sourceForOrder(2, 10, '200000000101'));
+        self::assertNull($bridge->sourceForOrder(1, 20, '200000000101'));
+        self::assertNull($bridge->sourceForOrder(1, 10, '999999'));
+        $pack = $bridge->sourceForOrder(1, 10, '200000000102');
+        self::assertSame('PACK_MEMBERSHIP_UNVERIFIED', $pack['readiness']);
+        self::assertSame('CANCELLED_BEFORE_INVOICE', $pack['post_sale_status']);
+    }
+
+    public function testExactSourceLookupIsBoundedBeforeProjectionAndMatchesExistingReader(): void
+    {
+        $config = TestDatabase::config();
+        $traced = new class($config) extends \PDO {
+            /** @var list<string> */
+            public array $queries = [];
+            public function __construct(\App\Core\Config\AppConfig $config)
+            {
+                parent::__construct(sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $config->dbHost, $config->dbPort, $config->dbName),
+                    $config->dbUser, $config->dbPassword, [\PDO::ATTR_ERRMODE=>\PDO::ERRMODE_EXCEPTION,\PDO::ATTR_DEFAULT_FETCH_MODE=>\PDO::FETCH_ASSOC,\PDO::ATTR_EMULATE_PREPARES=>false]);
+            }
+            public function prepare(string $query, array $options = []): \PDOStatement|false
+            {
+                $this->queries[] = $query;
+                return parent::prepare($query, $options);
+            }
+        };
+        $bridge = new InvoicingBridge($traced, dirname(__DIR__, 2));
+        self::assertTrue(method_exists($bridge, 'sourceForOrder'), 'The owner lacks an exact local source reader.');
+        $source = $bridge->sourceForOrder(1, 10, '200000000104');
+        self::assertSame(104, $source['local_order_id']);
+        self::assertSame('SOURCE_DATA_MISSING', $source['readiness']);
+        self::assertCount(2, $traced->queries, 'One bounded source query and its items query.');
+        self::assertStringContainsString('o.company_id = :company_id', $traced->queries[0]);
+        self::assertStringContainsString('o.account_id = :account_id', $traced->queries[0]);
+        self::assertStringContainsString('o.external_order_id = :external_order_id', $traced->queries[0]);
+        self::assertStringContainsString('LIMIT :row_limit', $traced->queries[0]);
+        $listed = (new InvoicingBridge($this->pdo, dirname(__DIR__, 2)))->listSources(1, [
+            'date_from'=>null,'date_to'=>null,'account_id'=>10,'status'=>null,'readiness'=>null,'limit'=>10,'offset'=>0,
+        ]);
+        self::assertSame(array_column($listed['data'], null, 'order_id')['200000000104'], $source);
+    }
+
     public function testF11SchemaStoresOnlyCredentialHashesAndAtMostOneArtifactPerDocumentKind(): void
     {
         foreach (['invoicing_service_keys', 'invoicing_artifacts'] as $table) {

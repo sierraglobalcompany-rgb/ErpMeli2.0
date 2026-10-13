@@ -119,14 +119,29 @@ final class InvoicingBridge
         return $statement->fetchColumn() !== false;
     }
 
+    /** @return array<string,mixed>|null */
+    public function sourceForOrder(int $companyId, int $accountId, string $externalOrderId): ?array
+    {
+        $result = $this->listSources($companyId, [
+            'date_from' => null, 'date_to' => null, 'account_id' => $accountId,
+            'status' => null, 'readiness' => null, 'limit' => 1, 'offset' => 0,
+        ], $externalOrderId);
+        return $result['data'][0] ?? null;
+    }
+
     /**
      * @param array{date_from:?string,date_to:?string,account_id:?int,status:?string,readiness:?string,limit:int,offset:int} $filters
      * @return array{data:list<array<string,mixed>>,pagination:array{limit:int,offset:int,has_more:bool}}
      */
-    public function listSources(int $companyId, array $filters): array
+    public function listSources(int $companyId, array $filters, ?string $externalOrderId = null): array
     {
         $conditions = ['o.company_id = :company_id'];
         $parameters = ['company_id' => $companyId];
+
+        if ($externalOrderId !== null) {
+            $conditions[] = 'o.external_order_id = :external_order_id';
+            $parameters['external_order_id'] = $externalOrderId;
+        }
 
         if ($filters['date_from'] !== null) {
             $conditions[] = 'o.date_created >= :date_from';
