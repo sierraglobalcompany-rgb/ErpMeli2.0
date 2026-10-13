@@ -27,6 +27,13 @@ use App\Work\WorkExecution;
 use App\Work\WorkRepository;
 use App\Work\WorkRunner;
 
+$arguments = array_slice($argv ?? [], 1);
+if ($arguments !== [] && $arguments !== ['--manual-one']) {
+    fwrite(STDERR, 'Usage: php bin/work.php [--manual-one]' . PHP_EOL);
+    exit(2);
+}
+$manualOne = $arguments === ['--manual-one'];
+
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 $config = AppConfig::fromEnvironment(Environment::all());
@@ -88,10 +95,8 @@ $execution = new WorkExecution(
     $work,
 );
 
-$processed = $execution->runAutomatic(
-    $processor,
-    maxItems: 25,
-    maxSeconds: 45,
-);
+$processed = $manualOne
+    ? $execution->runManualOne($processor)
+    : $execution->runAutomatic($processor, maxItems: 25, maxSeconds: 45);
 
 fwrite(STDOUT, 'processed=' . $processed . PHP_EOL);

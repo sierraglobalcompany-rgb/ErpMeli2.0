@@ -22,6 +22,7 @@ use App\Integrations\MercadoLibre\Client\MeliCooldownRepository;
 use App\Integrations\MercadoLibre\Transport\CurlMeliTransport;
 use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
 use App\Modules\Api\ErpApiController;
+use App\Modules\Billing\BillingController;
 use App\Modules\Catalog\CatalogController;
 use App\Modules\Invoicing\InvoicingBridgeController;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
@@ -313,6 +314,14 @@ final class Routes
             return (new CatalogController(Connection::fromConfig($config)))->setInventory(
                 $request, $response, (string) ($args['product_id'] ?? ''),
             );
+        });
+
+        $app->get('/billing', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+            return (new BillingController(Connection::fromConfig($config)))->index($request, $response);
+        });
+
+        $app->post('/billing/syncs', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+            return (new BillingController(Connection::fromConfig($config)))->sync($request, $response);
         });
 
         $app->get('/sales', static function (
