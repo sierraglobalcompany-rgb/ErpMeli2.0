@@ -13,6 +13,18 @@ final class ProductRepository
     {
     }
 
+    /** @return list<array{id:int,internal_sku:string,name:string}> */
+    public function listRecentForCompany(int $companyId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT id,internal_sku,name FROM products WHERE company_id = ? ORDER BY id DESC LIMIT 100'
+        );
+        $statement->execute([$companyId]);
+        return array_map(static fn (array $row): array => [
+            'id'=>(int) $row['id'], 'internal_sku'=>(string) $row['internal_sku'], 'name'=>(string) $row['name'],
+        ], $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
     public function create(int $companyId, string $internalSku, string $name): int
     {
         if (trim($internalSku) === '') {

@@ -22,6 +22,7 @@ use App\Integrations\MercadoLibre\Client\MeliCooldownRepository;
 use App\Integrations\MercadoLibre\Transport\CurlMeliTransport;
 use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
 use App\Modules\Api\ErpApiController;
+use App\Modules\Catalog\CatalogController;
 use App\Modules\Invoicing\InvoicingBridgeController;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Sales\ViewSales\SalesListController;
@@ -288,6 +289,30 @@ final class Routes
             }
 
             return $response->withHeader('Location', '/sales')->withStatus(303);
+        });
+
+        $app->get('/catalog', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return (new CatalogController(Connection::fromConfig($config)))->index($request, $response);
+        });
+
+        $app->post('/catalog', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return (new CatalogController(Connection::fromConfig($config)))->create($request, $response);
+        });
+
+        $app->post('/catalog/{product_id:[0-9]+}/inventory', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return (new CatalogController(Connection::fromConfig($config)))->setInventory(
+                $request, $response, (string) ($args['product_id'] ?? ''),
+            );
         });
 
         $app->get('/sales', static function (
