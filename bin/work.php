@@ -37,6 +37,16 @@ $manualOne = $arguments === ['--manual-one'];
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 $config = AppConfig::fromEnvironment(Environment::all());
+$baseUrl = 'https://api.mercadolibre.com';
+if ($config->appEnv === 'test') {
+    $testBaseUrl = getenv('MELI_TEST_BASE_URL');
+    if ($testBaseUrl !== false && $testBaseUrl !== '') {
+        if (preg_match('~\Ahttp://127\.0\.0\.1:([1-9][0-9]{0,4})\z~', $testBaseUrl, $port) !== 1 || (int) $port[1] > 65535) {
+            throw new RuntimeException('MELI_TEST_BASE_URL must be an HTTP literal loopback URL with a valid port.');
+        }
+        $baseUrl = $testBaseUrl;
+    }
+}
 $pdo = Connection::fromConfig($config);
 $runnerLockConnection = Connection::fromConfig($config);
 $oauthLockConnection = Connection::fromConfig($config);
@@ -58,7 +68,7 @@ $client = new MeliClient(
     new CurlMeliTransport(new RemoteHostPolicy(), $config->appEnv),
     $settings,
     $operations,
-    'https://api.mercadolibre.com',
+    $baseUrl,
     new ApiUsageRecorder($pdo),
     new MeliCooldownRepository($pdo),
     debugRecorder: $debugRecorder,
