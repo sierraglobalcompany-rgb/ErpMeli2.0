@@ -424,7 +424,7 @@ Request contract actualmente aceptado:
 period_key = YYYY-MM-01
 document_type = BILL | CREDIT_NOTE
 limit = 1000
-first from_id = 0
+new stream without durable progress: from_id = 0
 next from_id = last_id anterior
 sort_by = ID
 order_by = ASC
@@ -441,6 +441,16 @@ El C0 real de seller MCO es un smoke de sólo lectura de F14/preproducción. No 
 ---
 
 Billing trata HTTP200 con `X-Content-Missing` no vacío igual que206: defer del mismo Work por mecanismo actual, sin facts/cursor/caught_up ni retry inline. Un200 vacío completo sigue siendo terminal; no se agrega estado ni se modifica partial_flag por este guard.
+
+### Superficie del operador Billing y ejecución manual
+
+- GET `/billing` muestra hasta100 períodos propios, ordenados por período descendente, cuenta y tipo. La identidad seleccionada usa query `account_id`, `period_key`, `document_type`; consulta progreso Billing y `WorkRepository::latestLogicalState`, sin tabla de status, modelo persistido derivado o dashboard Work. No interpreta `partial_flag` como evidencia de respuesta parcial reciente. Renderizar es read-only y nunca hace HTTP ni enqueue/restart.
+- POST `/billing/syncs` exige CompanyContext vigente, usuario activo, rol admin de la empresa, cuenta propia connected y CSRF. Admin para iniciar Billing es decisión de este dominio. Company ID del cliente no aporta autoridad. Rechaza arrays/objects/null/bool/float, cuenta no positiva o fuera del rango nativo, período distinto de fecha calendario exacta `YYYY-MM-01` y tipos fuera de BILL/CREDIT_NOTE. Input inválido422; CSRF419; actor no autorizado403. Cuenta ajena/no conectada422 sin encolar. Éxito303 a la selección, HTTP remoto0.
+- `scope_key=company:<company_id>:account:<account_id>`, `type=billing.period.sync` y `logicalIdentity=period_key:document_type`; WorkRepository aplica su hash/dedupe activo existente. El cursor no forma parte de la identidad. El productor serializa su transacción mediante la fila de cuenta existente con FOR UPDATE y usa el reader/enqueue de Work; no persiste Billing. Si el último Work lógico sigue pending/running lo reutiliza sin tocar payload/cursor/available_at/claim/progreso. Sin activo, un POST explícito crea un nuevo Work desde `billing_periods.cursor_last_id`, o0 si no hay período. Done/failed no se reinician automáticamente.
+- `caught_up` registra el terminal de la fuente previamente consultada; no significa cierre fiscal. Un nuevo POST explícito desde ese cursor admite página vacía que conserva caught_up o hechos posteriores válidos que avanzan y continúan sobre el mismo Work. Es contrato local probado con el handler existente; no certifica cobertura de cambios remotos anteriores al cursor ni toda semántica de ajustes del proveedor.
+- La UI distingue solicitud registrada sin período, progreso persistido y último Work fallido que requiere revisión. El progreso anterior puede seguir caught_up durante una nueva solicitud; se muestra como lectura persistida, no como resultado nuevo. Escapa valores y no muestra payload JSON, claim token, attempts, stack traces ni errores internos. Actualización manual, sin polling.
+- `php bin/work.php --manual-one` usa exactamente WorkExecution::runManualOne, processor, handlers y lock existentes: cero o un Work elegible global incluso con automation OFF, por available_at/id, sin targeting ni procesamiento hasta terminal. Puede ejecutar otra empresa/dominio. `processed` cuenta invocaciones del processor, no completitud de Billing. Sin flag conserva el runner automático actual; argumentos de targeting/loop o desconocidos se rechazan con exit2 antes de claims.
+- No seam nuevo para CLI→Curl→MLSIM. Esa certificación de composición pertenece al gate local E2E separado. Se mantienen transporte local/test, cooldown, OAuth/401, pacing y writes OFF existentes; una página lógica por claim no equivale necesariamente a una llamada física. El request que recibe429 no tiene retry inline por429; un claim puede añadir dispatches AUTH/401 acotados.
 
 ## 11. Financial
 
