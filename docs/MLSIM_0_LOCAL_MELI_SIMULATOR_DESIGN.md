@@ -2,7 +2,29 @@
 
 Fecha: 2026-10-12. Checkout auditado: `7e09bd80e171763eadd4e08e316794d6c3e24706`, rama `impl/v3-b-sales-audit-20261010`, CLEAN. Functional baseline `1ee9da64ea6d23b0f97424d72f1398dd37a8a416`: 475 tests / 3372 assertions / 1 skipped / 0 failures/errors. No se ejecutó nuevamente QA funcional por un diseño exclusivamente documental.
 
-## MLSIM-1 V2 — recibo actual de cierre
+## MLSIM-2 — cobertura vigente, 2026-10-13
+
+Baseline `54ea1ba1161897c702f1fbda0a4048722987246d`, rama `impl/v3-b-sales-audit-20261010`, CLEAN. Functional SHA `84b8d6b5750be9ba187a386d5107023609601d9b`. Decisión del usuario LOCAL-FIRST; F14 LIVE=DEFERRED_BY_USER_LOCAL_FIRST. LOCAL_PRODUCT_READY=YES, LOCAL_PROVIDER_SIMULATION=COMPLETE_CURRENT_SCOPE, NEXT=LOCAL_STABILITY_REVIEW, F15=PAUSED, F16=UNAUTHORIZED y remote writes OFF.
+
+La auditoría confirmó un gap único del callback exitoso: fakes componían servicios; web tests probaban start/guards. OAUTH_HTTP_SIM_NEEDED=YES en esta fase. Sólo Routes extiende MELI_TEST_BASE_URL, APP_ENV=test, HTTP literal127.0.0.1/puerto válido; fuera de test se ignora. Bootstrap/Routes se ejecutan in-process con PSR-7; Curl→MLSIM cruza HTTP real local. Estado/PKCE generado y código sintético bastan: no servidor `/authorization`.
+
+| Operación actual | Estado local | Secuencia representativa / límite |
+|---|---|---|
+| orders.get | CERTIFIED_LOCAL_HTTP | SyncOrderHandler + CLI; money/IDs exactos, partial/invalid JSON |
+| orders.search | CERTIFIED_LOCAL_HTTP | Audit capture/repair/confirm + CLI; volumen/401 siguen en fakes |
+| billing.period.details | CERTIFIED_LOCAL_HTTP | Tres GET paginados, mismo Work; partial y429/cooldown |
+| packs.get | CERTIFIED_LOCAL_HTTP | Pack + dos órdenes independientes:3GET; partial206:1GET/rechazo; sin fetch consumer/crawler productivo |
+| orders.billing_info | CERTIFIED_LOCAL_HTTP | 1GET site/id por caso; COMPLETE/MISSING/UNKNOWN/UNAVAILABLE; sin tax/shipping fallback ni fetch consumer/perfil fiscal |
+| oauth.token | CERTIFIED_LOCAL_HTTP | Callback POST form/PKCE; refresh1POST; locks/401/invalid_grant/ambigüedad CERTIFIED_FAKE_ONLY_WITH_JUSTIFICATION |
+| users.me | CERTIFIED_LOCAL_HTTP | Callback GET tras token; tenant/cuenta/cifrado/expiry/Sales303; replay0calls |
+
+Diez scripts nuevos sobre ocho originales intactos: tres packs, cinco billing-info y OAUTH_CONNECT/OAUTH_REFRESH. Router finito sin ERP bootstrap/DB/transport/proxy; cuerpo literal, query READ allowlist, unexpected/excess fail500. Form exacto y verifier S256 validados sin log de valores; sólo desafío hash temporal propio, limpiado por helper existente. No tokens/form/Authorization/PII en trace. Financial HTTP0/Work0. Para billing-info404 MeliClient lanza excepción: el test verifica ese HTTP y explícitamente UNAVAILABLE del normalizador, sin atribuirlo a un consumer inexistente.
+
+Budget:1 archivo productivo +3 archivos de test existentes;0 nuevas clases/services/repos/tablas/migraciones/Work types/deps/queues/runners. RED real antes del GREEN; guards correctos no tuvieron RED fabricado. QA: MLSIM31/594; vecinos101/723; full648/5519/1skip/0failures/0errors/0deprecations. Composer strict/PHPStan/syntax178/diff PASS;182 input hashes coinciden. MariaDB detenida; procesos/temp propios0. Evidence/patch: storage/exports/mlsim-2/.
+
+Esta certificación sólo prueba contratos locales actuales. No ML/OAuth/app reales, DB productiva, hosting, deploy, F14 LIVE/F15/F16. Los apartados siguientes conservan diseño/recibo históricos MLSIM-0/1; sus decisiones, QA y límites corresponden a esos SHA, no al alcance vigente. El checkpoint determina el estado actual.
+
+## MLSIM-1 V2 — recibo histórico de cierre
 
 Autoridad de implementación: `ERP_MELI_2_0_MLSIM_1_IMPLEMENTATION_PLAN_V2_OPTIMIZADO_2026-10-12.md`, solicitud explícita del usuario. Sustituye el plan MLSIM-0 de cinco tareas y el sample51 por cuatro tareas / AUDIT_REPAIR_1. HEAD before268de288d6d5ea05a8e2bc85cd2efecfd0fbf197, clean. Functional SHA `3e45c756b35093f19d69cc428bcc7849e9146e43`.
 
