@@ -81,6 +81,17 @@ Catálogo e inventario local:
 - A legacy company name or numeric ID does not establish ERP2 company identity. Migration requires a proven business key supported by both owners or an explicit company/account mapping authority. Product sourcing accounts do not replace explicit Catalog ownership.
 - Empty legacy physical-stock tables do not establish zero stock for products, and listing availability is not physical inventory. Secret/transient state and cached/derived financial values do not become canonical imported facts.
 
+Superficie del operador Catalog/Inventory:
+
+- Una sola pantalla HTML `/catalog`, con el enlace Catálogo en la navegación compartida. No hay pantalla separada de Inventory ni JavaScript que autoconsuma `/api/*`.
+- `GET /catalog` muestra hasta 100 productos de la empresa seleccionada, `ORDER BY id DESC`, únicamente ID/SKU/nombre. `ProductRepository::listRecentForCompany(int $companyId)` tiene límite fijo 100, sin offset, cursor, búsqueda ni selección de tamaño. No consulta Inventory para cada fila.
+- `POST /catalog` usa `CompanyContext`, CSRF del formulario y `ProductRepository::create`; crea sólo identidad local y redirige a `/catalog?product_id=<new_id>`. `company_id` del cliente nunca aporta autoridad. Blank SKU/name = 422; duplicate same-company SKU = 409; longitud inválida = 422, re-renderizando la misma pantalla con mensaje recuperable y sin detalles SQL. Reutiliza validación/schema actuales; no añade editar/eliminar.
+- `GET /catalog?product_id=<id>` selecciona por ID entero positivo dentro del contrato nativo existente. Ejecuta una búsqueda company-scoped y una lectura Inventory únicamente si encontró producto propio. Ajeno/ausente = mismo 404 con mensaje recuperable; ID inválido = 422. No agrega ruta de detalle.
+- Cantidad ausente (`null`) se muestra como **Sin definir**, con input vacío, nunca como 0. `0` se conserva y se muestra como 0. Los enteros grandes se muestran exactamente, sin float/JavaScript numérico.
+- `POST /catalog/{product_id}/inventory` valida CompanyContext y CSRF, acepta sólo dígitos de un entero >=0 dentro del rango nativo de `InventoryRepository::setForProduct(int,int,int)`, y reemplaza su cantidad actual. Normaliza ceros iniciales sin float. Rechaza negativos, decimales, scientific notation, no numérico, blank, bool/array/float y overflow. Éxito = 303 a la selección; input inválido = 422 recuperable; producto ajeno/ausente = 404; CSRF inválido = 419.
+- InventoryRepository se reutiliza sin cambios. Usuario disabled, sesión ausente o empresa sin membership = 403 antes de cualquier mutación. La autoridad permanece en CompanyContext; no hay RBAC ni permisos por producto adicionales.
+- Todas las acciones de esta superficie son locales: ML HTTP=0, MLSIM HTTP=0, OAuth HTTP=0 y Work delta=0. No procesan handlers ni autoconsumen la API ERP. No inventario remoto, stock Mercado Libre, warehouses, reservas, movimientos, pricing/costos, links o variants.
+
 ERP API local (F9):
 
 - `POST /api/products` creates a local Catalog product; `GET /api/products/{product_id}` reads it within the authorized company.
