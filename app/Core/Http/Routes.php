@@ -261,11 +261,21 @@ final class Routes
             /** @var array<string,array{method:string,path:string,family:string,classification:string,official_doc_url:string,verified_at:string}> $operations */
             $operations = require dirname(__DIR__, 3) . '/config/meli_operations.php';
             $settings = new SystemSettingsRepository($pdo);
+            $baseUrl = 'https://api.mercadolibre.com';
+            if ($config->appEnv === 'test') {
+                $testBaseUrl = getenv('MELI_TEST_BASE_URL');
+                if ($testBaseUrl !== false && $testBaseUrl !== '') {
+                    if (preg_match('~\Ahttp://127\.0\.0\.1:([1-9][0-9]{0,4})\z~', $testBaseUrl, $port) !== 1 || (int) $port[1] > 65535) {
+                        throw new RuntimeException('MELI_TEST_BASE_URL must be an HTTP literal loopback URL with a valid port.');
+                    }
+                    $baseUrl = $testBaseUrl;
+                }
+            }
             $client = new MeliClient(
                 new CurlMeliTransport(new RemoteHostPolicy(), $config->appEnv),
                 $settings,
                 $operations,
-                'https://api.mercadolibre.com',
+                $baseUrl,
                 new ApiUsageRecorder($pdo),
                 new MeliCooldownRepository($pdo),
             );

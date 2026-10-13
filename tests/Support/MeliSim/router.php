@@ -12,7 +12,10 @@ if (getenv('APP_ENV') !== 'test') {
 $root = getenv('MLSIM_ROOT');
 $scenario = getenv('MLSIM_SCENARIO');
 $allowed = ['ORDER_HAPPY_EXACT','ORDER_PARTIAL_HEADER','INVALID_JSON','AUDIT_REPAIR_1',
-    'AUDIT_PARTIAL_206','BILLING_TWO_PAGES','BILLING_PARTIAL_HEADER','FIRST_CALL_429'];
+    'AUDIT_PARTIAL_206','BILLING_TWO_PAGES','BILLING_PARTIAL_HEADER','FIRST_CALL_429',
+    'PACK_MATCHING_SELLER','PACK_MIXED_SELLER','PACK_PARTIAL_OR_MISSING',
+    'BILLING_INFO_COMPLETE_MCO','BILLING_INFO_MISSING','BILLING_INFO_NULL',
+    'BILLING_INFO_PARTIAL_OR_UNAVAILABLE','BILLING_INFO_UNAVAILABLE','OAUTH_CONNECT','OAUTH_REFRESH'];
 if (!is_string($root) || realpath($root) === false || is_link($root)
     || str_replace('\\', '/', $root) !== str_replace('\\', '/', realpath($root))
     || realpath(dirname($root)) !== realpath(sys_get_temp_dir())
@@ -41,6 +44,14 @@ if (is_string($path) && preg_match('#^/orders/[0-9]{1,32}$#D', $path)) {
 } elseif ($path === '/orders/search') {
     $operation = 'orders.search';
     $keys = ['seller','order_date_created_from','order_date_created_to','sort','offset','limit'];
+} elseif (is_string($path) && preg_match('#^/packs/[1-9][0-9]{0,31}$#D', $path)) {
+    $operation = 'packs.get';
+} elseif (is_string($path) && preg_match('#^/orders/billing-info/[A-Z]{3}/[1-9][0-9]{0,31}$#D', $path)) {
+    $operation = 'orders.billing_info';
+} elseif ($path === '/oauth/token') {
+    $operation = 'oauth.token';
+} elseif ($path === '/users/me') {
+    $operation = 'users.me';
 } elseif (is_string($path) && preg_match('#^/billing/integration/periods/key/[0-9]{4}-[0-9]{2}-01/group/ML/details$#D', $path)) {
     $operation = 'billing.period.details';
     $keys = ['document_type','limit','from_id','sort_by','order_by'];
@@ -63,9 +74,25 @@ try {
     $step = $steps[$seq - 1] ?? null;
     $expectedQuery = is_array($step) ? ($step['query'] ?? []) : [];
     ksort($expectedQuery);
-    $matched = is_array($step) && $method === 'GET' && $operation !== 'UNKNOWN'
+    $formValid = true;
+    if ($operation === 'oauth.token') {
+        $form = $_POST;
+        $expectedForm = is_array($step) ? ($step['form'] ?? []) : [];
+        if (($form['grant_type'] ?? null) === 'authorization_code') {
+            $verifier = $form['code_verifier'] ?? null;
+            $challengePath = $root . '/pkce-challenge.txt';
+            $challenge = is_file($challengePath) && !is_link($challengePath) ? file_get_contents($challengePath) : false;
+            $formValid = is_string($verifier) && preg_match('/^[A-Za-z0-9_-]{43}$/D', $verifier) === 1
+                && is_string($challenge) && hash_equals($challenge, rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='));
+            unset($form['code_verifier']);
+        }
+        ksort($form); ksort($expectedForm);
+        $formValid = $formValid && $form === $expectedForm
+            && str_starts_with($_SERVER['CONTENT_TYPE'] ?? '', 'application/x-www-form-urlencoded');
+    }
+    $matched = is_array($step) && $method === ($step['method'] ?? 'GET') && $operation !== 'UNKNOWN'
         && $step['operation'] === $operation && $step['path'] === $path
-        && !$unexpectedQuery && $query === $expectedQuery;
+        && !$unexpectedQuery && $query === $expectedQuery && $formValid;
     $status = $matched ? $step['status'] : 500;
     $record = ['seq'=>$seq,'method'=>$method,'operation'=>$operation,
         'path'=>$operation === 'UNKNOWN' ? 'UNKNOWN' : $path,'query'=>$query,

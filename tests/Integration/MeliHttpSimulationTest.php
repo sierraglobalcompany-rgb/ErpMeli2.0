@@ -30,6 +30,9 @@ use App\Modules\Sales\Audit\SalesAuditWindow;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use PHPUnit\Framework\Attributes\DataProvider;
+use App\Integrations\MercadoLibre\Client\MeliApiException;
+use App\Integrations\MercadoLibre\Client\MeliClientResponse;
 
 final class MeliHttpSimulationTest extends TestCase
 {
@@ -83,7 +86,7 @@ final class MeliHttpSimulationTest extends TestCase
         $rows = $this->trace();
         self::assertCount(1, $rows);
         self::assertFalse($rows[0]['matched']);
-        self::assertSame('UNKNOWN', $rows[0]['operation']);
+        self::assertSame('oauth.token', $rows[0]['operation']);
         self::assertStringNotContainsString('do-not-log', json_encode($rows, JSON_THROW_ON_ERROR));
         self::assertSame([], $rows[0]['query']);
     }
@@ -303,18 +306,183 @@ final class MeliHttpSimulationTest extends TestCase
         $this->assertCalls([]);
     }
 
-    public function testSimulatorScopeIsExactlyEightScenariosAndThreeConsumedOperations(): void
+    #[DataProvider('packHttpCases')]
+    public function testPackHttpResolvesEachMemberIndependently(string $scenario, array $expected): void
+    {
+        $this->domain($scenario);
+        $pack = $this->client->request('packs.get', 'synthetic-access', pathParams: ['pack_id'=>'50']);
+        $one = $this->client->request('orders.get', 'synthetic-access', pathParams: ['order_id'=>'10']);
+        $two = $this->client->request('orders.get', 'synthetic-access', pathParams: ['order_id'=>'11']);
+        self::assertSame(['pack_id'=>'50','order_ids'=>$expected], $pack->packMembership('50', '100', ['10'=>$one,'11'=>$two]));
+        $this->assertCalls(['packs.get','orders.get','orders.get']);
+        self::assertSame(['/packs/50','/orders/10','/orders/11'], array_column($this->trace(), 'path'));
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM orders')->fetchColumn());
+    }
+
+    public static function packHttpCases(): iterable
+    {
+        yield 'matching sellers' => ['PACK_MATCHING_SELLER', ['10','11']];
+        yield 'mixed sellers' => ['PACK_MIXED_SELLER', ['10']];
+    }
+
+    public function testPartialPackHttpFailsClosedWithoutFetchingMembers(): void
+    {
+        $this->domain('PACK_PARTIAL_OR_MISSING');
+        $pack = $this->client->request('packs.get', pathParams: ['pack_id'=>'50']);
+        self::assertSame(206, $pack->status);
+        $this->assertCalls(['packs.get']);
+        $this->expectException(RuntimeException::class);
+        $pack->packMembership('50', '100', []);
+    }
+
+    #[DataProvider('billingInfoHttpCases')]
+    public function testBillingInfoHttpUsesOnlyFiscalEnvelope(string $scenario, string $expected): void
+    {
+        $this->domain($scenario);
+        try {
+            $response = $this->client->request('orders.billing_info', 'synthetic-access',
+                pathParams: ['site_id'=>'MCO','billing_info_id'=>'300']);
+        } catch (MeliApiException $exception) {
+            self::assertSame('BILLING_INFO_UNAVAILABLE', $scenario);
+            self::assertSame(404, $exception->status);
+            // Client exposes non-2xx as exceptions; certify the existing normalizer's unavailable branch explicitly.
+            $response = new MeliClientResponse($exception->status, [], $exception->requestId);
+        }
+        self::assertSame($expected, $response->billingInfoReadiness('MCO', '100', '200'));
+        $this->assertCalls(['orders.billing_info']);
+        self::assertSame('/orders/billing-info/MCO/300', $this->trace()[0]['path']);
+        $trace = json_encode($this->trace(), JSON_THROW_ON_ERROR);
+        foreach (['synthetic-access','Synthetic buyer','synthetic-tax-number','Synthetic street','DO-NOT-SUBSTITUTE'] as $secret) {
+            self::assertStringNotContainsString($secret, $trace);
+        }
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
+    }
+
+    public static function billingInfoHttpCases(): iterable
+    {
+        yield 'complete' => ['BILLING_INFO_COMPLETE_MCO','COMPLETE'];
+        yield 'missing despite shipping profile' => ['BILLING_INFO_MISSING','MISSING'];
+        yield 'null tax number despite buyer id' => ['BILLING_INFO_NULL','UNKNOWN'];
+        yield 'partial header' => ['BILLING_INFO_PARTIAL_OR_UNAVAILABLE','UNKNOWN'];
+        yield 'unavailable404' => ['BILLING_INFO_UNAVAILABLE','UNAVAILABLE'];
+    }
+
+    #[DataProvider('webOAuthSeamCases')]
+    public function testWebOAuthCallbackThroughCurlPersistsBoundCompanyAndConsumesCodeOnce(string $appEnv, ?string $override, int $status): void
+    {
+        $this->domain('OAUTH_CONNECT');
+        $this->pdo->exec('DELETE FROM meli_tokens');
+        $this->pdo->exec('DELETE FROM meli_accounts');
+        $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Other synthetic','mlsim-other')");
+        $this->pdo->exec("INSERT INTO users(id,email,password_hash,status) VALUES(1,'synthetic@example.test','unused','active')");
+        $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(1,1,'admin'),(2,1,'admin')");
+        $_SESSION = ['user_id'=>1,'company_id'=>1];
+        $env = ['APP_ENV'=>$appEnv,'MELI_CLIENT_ID'=>'synthetic-client','MELI_CLIENT_SECRET'=>'synthetic-secret',
+            'APP_KEY'=>TestDatabase::config()->appKey,'APP_URL'=>'http://localhost','MELI_TEST_BASE_URL'=>$override ?? $this->baseUrl];
+        $previous = [];
+        foreach ($env as $key=>$value) { $previous[$key]=getenv($key); putenv($key.'='.$value); }
+        try {
+            $factory = new ServerRequestFactory();
+            $start = Bootstrap::create()->handle($factory->createServerRequest('GET', '/oauth/mercadolibre/connect'));
+            self::assertSame(302, $start->getStatusCode());
+            parse_str((string) parse_url($start->getHeaderLine('Location'), PHP_URL_QUERY), $query);
+            self::assertSame('S256', $query['code_challenge_method']);
+            self::assertSame('http://localhost/oauth/mercadolibre/callback', $query['redirect_uri']);
+            $verifier = $_SESSION['meli_oauth']['code_verifier'];
+            self::assertSame(rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='), $query['code_challenge']);
+            file_put_contents($this->directory . '/pkce-challenge.txt', $query['code_challenge']);
+            self::assertSame(1, $_SESSION['meli_oauth_company_id']);
+            $_SESSION['company_id'] = 2; // Callback must keep the original bound company.
+            $callback = $factory->createServerRequest('GET', '/oauth/mercadolibre/callback')
+                ->withQueryParams(['code'=>'synthetic-one-use-code','state'=>$query['state']]);
+            $before = time();
+            $response = Bootstrap::create()->handle($callback);
+            self::assertSame($status, $response->getStatusCode());
+            if ($status !== 303) {
+                $this->assertCalls([]);
+                self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM meli_accounts')->fetchColumn());
+                return;
+            }
+            self::assertSame('/sales', $response->getHeaderLine('Location'));
+            self::assertArrayNotHasKey('meli_oauth', $_SESSION);
+            self::assertArrayNotHasKey('meli_oauth_company_id', $_SESSION);
+            $row = $this->pdo->query('SELECT a.company_id,a.external_user_id,a.site_id,t.* FROM meli_accounts a JOIN meli_tokens t ON t.account_id=a.id')->fetch(PDO::FETCH_ASSOC);
+            self::assertSame(1, (int) $row['company_id']);
+            self::assertSame('100', $row['external_user_id']);
+            self::assertSame('MCO', $row['site_id']);
+            $cipher = new TokenCipher(TestDatabase::config()->appKey);
+            self::assertSame('synthetic-new-access', $cipher->decrypt($row['access_token_cipher']));
+            self::assertSame('synthetic-new-refresh', $cipher->decrypt($row['refresh_token_cipher']));
+            self::assertNotSame('synthetic-new-access', $row['access_token_cipher']);
+            $expiry = (new DateTimeImmutable($row['expires_at'], new \DateTimeZone('UTC')))->getTimestamp();
+            self::assertGreaterThanOrEqual($before+1200, $expiry);
+            self::assertLessThanOrEqual(time()+1200, $expiry);
+            $this->assertCalls(['oauth.token','users.me'], ['POST','GET']);
+            self::assertSame(400, Bootstrap::create()->handle($callback)->getStatusCode(), 'Consumed callback must not exchange again.');
+            $this->assertCalls(['oauth.token','users.me'], ['POST','GET']);
+            $trace = json_encode($this->trace(), JSON_THROW_ON_ERROR);
+            foreach (array_merge(array_values($env), ['synthetic-one-use-code',$verifier,'synthetic-new-access','synthetic-new-refresh']) as $secret) {
+                self::assertStringNotContainsString($secret, $trace);
+            }
+        } finally {
+            foreach ($previous as $key=>$value) { putenv($value === false ? $key : $key.'='.$value); }
+        }
+    }
+
+    public static function webOAuthSeamCases(): iterable
+    {
+        yield 'successful test loopback' => ['test', null, 303];
+        yield 'ignored outside test, real host still blocked' => ['local', null, 502];
+        yield 'reject localhost alias' => ['test', 'http://localhost:1234', 500];
+        yield 'reject out-of-range port' => ['test', 'http://127.0.0.1:65536', 500];
+    }
+
+    public function testRefreshHttpRotatesOnceAndRereadsWithoutSecondPost(): void
+    {
+        $this->domain('OAUTH_REFRESH');
+        $this->pdo->exec("UPDATE meli_tokens SET expires_at='2000-01-01'");
+        $cipher = new TokenCipher(TestDatabase::config()->appKey);
+        self::assertSame('synthetic-new-access', $this->tokens->getValidAccessToken(1, $this->now()));
+        self::assertSame('synthetic-new-access', $this->tokens->getValidAccessToken(1, $this->now()));
+        $row = $this->pdo->query('SELECT * FROM meli_tokens')->fetch(PDO::FETCH_ASSOC);
+        self::assertSame(1, (int) $row['refresh_version']);
+        self::assertSame('synthetic-new-refresh', $cipher->decrypt($row['refresh_token_cipher']));
+        $this->assertCalls(['oauth.token'], ['POST']);
+    }
+
+    public function testOAuthFormRejectsWrongPkceWithoutLoggingFormValues(): void
+    {
+        $this->startServer('OAUTH_CONNECT');
+        $this->expectedUnexpected = true;
+        $verifier = str_repeat('a', 43);
+        file_put_contents($this->directory . '/pkce-challenge.txt',
+            rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='));
+        $form = ['grant_type'=>'authorization_code','client_id'=>'synthetic-client',
+            'client_secret'=>'synthetic-secret','code'=>'synthetic-one-use-code',
+            'redirect_uri'=>'http://localhost/oauth/mercadolibre/callback','code_verifier'=>str_repeat('b',43)];
+        $response = $this->transport()->send('POST', $this->baseUrl . '/oauth/token',
+            ['Content-Type'=>'application/x-www-form-urlencoded'], http_build_query($form));
+        self::assertSame(500, $response->status);
+        $rows = $this->trace();
+        self::assertCount(1, $rows);
+        self::assertFalse($rows[0]['matched']);
+        foreach ($form as $value) {
+            self::assertStringNotContainsString($value, json_encode($rows, JSON_THROW_ON_ERROR));
+        }
+    }
+
+    public function testSimulatorScopeUsesOnlyCurrentRegisteredOperations(): void
     {
         $scenarios = json_decode((string) file_get_contents(dirname(__DIR__) . '/Support/MeliSim/scenarios.json'), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame(['ORDER_HAPPY_EXACT','ORDER_PARTIAL_HEADER','INVALID_JSON','AUDIT_REPAIR_1',
-            'AUDIT_PARTIAL_206','BILLING_TWO_PAGES','BILLING_PARTIAL_HEADER','FIRST_CALL_429'], array_keys($scenarios));
         $operations = [];
         foreach ($scenarios as $steps) {
             foreach ($steps as $step) { $operations[] = $step['operation']; }
         }
         $operations = array_values(array_unique($operations));
         sort($operations);
-        self::assertSame(['billing.period.details','orders.get','orders.search'], $operations);
+        $registry = require dirname(__DIR__, 2) . '/config/meli_operations.php';
+        $registered = array_keys($registry); sort($registered);
+        self::assertSame($registered, $operations);
     }
 
     /** @return array{SalesAuditRepository,int,array<string,mixed>} */
@@ -401,12 +569,12 @@ final class MeliHttpSimulationTest extends TestCase
     }
 
     /** @param list<string> $operations */
-    private function assertCalls(array $operations): void
+    private function assertCalls(array $operations, ?array $methods = null): void
     {
         $trace = $this->trace();
         self::assertCount(count($operations), $trace);
         self::assertSame($operations, array_column($trace, 'operation'));
-        self::assertSame(array_fill(0, count($operations), 'GET'), array_column($trace, 'method'));
+        self::assertSame($methods ?? array_fill(0, count($operations), 'GET'), array_column($trace, 'method'));
         self::assertSame(array_fill(0, count($operations), true), array_column($trace, 'matched'));
         if ($operations !== []) {
             self::assertSame(range(1, count($operations)), array_column($trace, 'seq'));
@@ -475,7 +643,7 @@ final class MeliHttpSimulationTest extends TestCase
             if ($parent !== realpath(sys_get_temp_dir()) || !preg_match('/^erp-meli2-mlsim-[a-f0-9]{16}$/D', basename($this->directory)) || is_link($this->directory)) {
                 throw new RuntimeException('MLSIM_UNSAFE_CLEANUP');
             }
-            foreach (['requests.jsonl','stdout.txt','stderr.txt'] as $name) {
+            foreach (['requests.jsonl','stdout.txt','stderr.txt','pkce-challenge.txt'] as $name) {
                 $path = $this->directory . '/' . $name;
                 if (is_file($path)) { unlink($path); }
             }

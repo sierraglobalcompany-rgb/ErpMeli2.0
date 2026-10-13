@@ -167,5 +167,164 @@
       },
       "body": "{\"error\":\"rate_limit\"}"
     }
+  ],
+  "PACK_MATCHING_SELLER": [
+    {
+      "operation": "packs.get",
+      "path": "/packs/50",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":50,\"orders\":[{\"id\":10},{\"id\":11}]}"
+    },
+    {
+      "operation": "orders.get",
+      "path": "/orders/10",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":10,\"seller\":{\"id\":100}}"
+    },
+    {
+      "operation": "orders.get",
+      "path": "/orders/11",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":11,\"seller\":{\"id\":100}}"
+    }
+  ],
+  "PACK_MIXED_SELLER": [
+    {
+      "operation": "packs.get",
+      "path": "/packs/50",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":50,\"orders\":[{\"id\":10},{\"id\":11}]}"
+    },
+    {
+      "operation": "orders.get",
+      "path": "/orders/10",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":10,\"seller\":{\"id\":100}}"
+    },
+    {
+      "operation": "orders.get",
+      "path": "/orders/11",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":11,\"seller\":{\"id\":999}}"
+    }
+  ],
+  "PACK_PARTIAL_OR_MISSING": [
+    {
+      "operation": "packs.get",
+      "path": "/packs/50",
+      "query": {},
+      "status": 206,
+      "headers": {
+        "X-Content-Missing": "orders"
+      },
+      "body": "{\"id\":50,\"orders\":[{\"id\":10},{\"id\":11}]}"
+    }
+  ],
+  "BILLING_INFO_COMPLETE_MCO": [
+    {
+      "operation": "orders.billing_info",
+      "path": "/orders/billing-info/MCO/300",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"site_id\":\"MCO\",\"seller\":{\"cust_id\":100},\"buyer\":{\"cust_id\":200,\"billing_info\":{\"name\":\"Synthetic buyer\",\"identification\":{\"type\":\"CC\",\"number\":\"synthetic-tax-number\"},\"address\":{\"street_name\":\"Synthetic street\",\"street_number\":\"SN\",\"city_name\":\"Synthetic city\",\"state\":{\"name\":\"Synthetic state\"},\"country_id\":\"CO\"}}}}"
+    }
+  ],
+  "BILLING_INFO_MISSING": [
+    {
+      "operation": "orders.billing_info",
+      "path": "/orders/billing-info/MCO/300",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"site_id\":\"MCO\",\"seller\":{\"cust_id\":100},\"buyer\":{\"cust_id\":200},\"shipping\":{\"address\":\"DO-NOT-SUBSTITUTE\"}}"
+    }
+  ],
+  "BILLING_INFO_NULL": [
+    {
+      "operation": "orders.billing_info",
+      "path": "/orders/billing-info/MCO/300",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"site_id\":\"MCO\",\"seller\":{\"cust_id\":100},\"buyer\":{\"cust_id\":200,\"billing_info\":{\"name\":\"Synthetic buyer\",\"identification\":{\"type\":\"CC\",\"number\":null},\"address\":{\"street_name\":\"Synthetic street\",\"street_number\":\"SN\",\"city_name\":\"Synthetic city\",\"state\":{\"name\":\"Synthetic state\"},\"country_id\":\"CO\"}}}}"
+    }
+  ],
+  "BILLING_INFO_PARTIAL_OR_UNAVAILABLE": [
+    {
+      "operation": "orders.billing_info",
+      "path": "/orders/billing-info/MCO/300",
+      "query": {},
+      "status": 200,
+      "headers": {
+        "X-CoNtEnT-MiSsInG": "buyer"
+      },
+      "body": "{\"site_id\":\"MCO\",\"seller\":{\"cust_id\":100},\"buyer\":{\"cust_id\":200,\"billing_info\":{\"name\":\"Synthetic buyer\",\"identification\":{\"type\":\"CC\",\"number\":\"synthetic-tax-number\"},\"address\":{\"street_name\":\"Synthetic street\",\"street_number\":\"SN\",\"city_name\":\"Synthetic city\",\"state\":{\"name\":\"Synthetic state\"},\"country_id\":\"CO\"}}}}"
+    }
+  ],
+  "BILLING_INFO_UNAVAILABLE": [
+    {
+      "operation": "orders.billing_info",
+      "path": "/orders/billing-info/MCO/300",
+      "query": {},
+      "status": 404,
+      "headers": {},
+      "body": "{\"error\":\"not_found\"}"
+    }
+  ],
+  "OAUTH_CONNECT": [
+    {
+      "operation": "oauth.token",
+      "path": "/oauth/token",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"access_token\":\"synthetic-new-access\",\"refresh_token\":\"synthetic-new-refresh\",\"expires_in\":1200}",
+      "method": "POST",
+      "form": {
+        "grant_type": "authorization_code",
+        "client_id": "synthetic-client",
+        "client_secret": "synthetic-secret",
+        "code": "synthetic-one-use-code",
+        "redirect_uri": "http://localhost/oauth/mercadolibre/callback"
+      }
+    },
+    {
+      "operation": "users.me",
+      "path": "/users/me",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"id\":100,\"site_id\":\"MCO\",\"nickname\":\"synthetic-seller\"}"
+    }
+  ],
+  "OAUTH_REFRESH": [
+    {
+      "operation": "oauth.token",
+      "path": "/oauth/token",
+      "query": {},
+      "status": 200,
+      "headers": {},
+      "body": "{\"access_token\":\"synthetic-new-access\",\"refresh_token\":\"synthetic-new-refresh\",\"expires_in\":1200}",
+      "method": "POST",
+      "form": {
+        "grant_type": "refresh_token",
+        "client_id": "synthetic-client",
+        "client_secret": "synthetic-secret",
+        "refresh_token": "unused-synthetic-refresh"
+      }
+    }
   ]
 }
