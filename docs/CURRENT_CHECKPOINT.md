@@ -1,13 +1,13 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=LC2D CLOSED — Invoice/PostSale operator review**
+**CURRENT=LC3 CLOSED — full local E2E / real composition-root certification**
 
 | Field | Value |
 |---|---|
 | Date | 2026-10-13 |
 | Branch | impl/v3-b-sales-audit-20261010 |
-| HEAD before | 6a686e532542c5ee319e84b16f0edb82a4a5ce3b — exact V4 FINAL anchor, clean tree |
-| Functional SHA | 4a0d95c3e556728a2908d772902ba98351bc3645 |
+| HEAD before | 1cb07cbf1841fd0e6b073474764ff88ae1cf1858 — POST-W1 V4 anchor, clean tree |
+| Certification SHA | b8fbd51cf647261ac1f11c94aa35cac75192dc78 |
 | LC-P0-1..3 | CLOSED LOCAL — LC1 |
 | LC2A | CLOSED — operator/bootstrap/tenant/Sales history/audit visibility |
 | MLSIM-1 | CLOSED — existing local HTTP contracts |
@@ -16,8 +16,10 @@
 | LC2C2 | CLOSED — Financial Consumer in existing Sale detail |
 | LC2C | CLOSED |
 | LC2D | CLOSED — Invoice/PostSale operator review |
+| LC3-W1 | CLOSED — unchanged test-only loopback seam |
+| LC3 | CLOSED — existing local composition certified |
 | LOCAL_PRODUCT_READY | NO |
-| NEXT | LC3 — full local E2E/composition roots; NOT_STARTED |
+| NEXT | LC4 — noise/call-budget/recovery; NOT_STARTED |
 | LC4 | PENDING — noise/call-budget/recovery |
 | F13 | CLOSED LOCAL |
 | F14 | LOCAL CONTRACT READY |
@@ -26,17 +28,15 @@
 | F15 | PAUSED |
 | F16 | UNAUTHORIZED |
 
-## LC2D V4 FINAL receipt
+## LC3 RESUME POST-W1 V4 receipt
 
-- Authority: explicit execution of final compact V4, replacing LC2D V2/V3. Repo/branch/HEAD/clean tree verified. RED → GREEN mínimo → KISS/noise review → QA completa → real patch/evidence → functional commit → documentary closure. No pull/fetch/reset/stash/rebase/merge/push/deploy.
-- Owner path C: inspected existing readers; listSources had no exact external-order filter. Added one local sourceForOrder lookup in the same InvoicingBridge, reusing its projection/rules and filtering company/account/order in SQL before pagination. Existing unique identity bounds the source; no list-all/filter-in-PHP, duplicate rule, new productive class or composition-root change.
-- Identity stays LC2C2: CompanyContext plus exactly one canonical sale; account_id and external_order_id come from that row. Missing/foreign/ambiguous sale returns404 before Invoicing. Query parameters cannot select another identity.
-- Task1 RED: two expected missing-reader failures; GREEN owner19 tests/168 assertions, including existing F11/F12 regressions. Task2 RED: one missing-section failure; two existing regressions already passed; minimal GREEN3/18. Task3 RED: six missing-field failures; GREEN9/86. Task4 read-only/access/list regressions GREEN11/164 without a manufactured production break.
-- Existing Sale detail only adds «Factura / Postventa»: readiness, original invoice presence, customer credit-note presence and post_sale_status. Owner enums/flags and F11/F12 semantics unchanged; dynamic values escaped. No fiscal claims, metadata, artifact references/paths, generation/upload/download controls or remote operations. Billing CREDIT_NOTE cannot become a customer credit-note artifact or CREDIT_NOTE_RECORDED.
-- Three productive files, 32 additions/1 removal: InvoicingBridge.php, SalesListController.php and existing detail.php. Two test files; all new productive classes/routes/views/tables/migrations/Work types/queues/schedulers/services/repositories/dependencies/remote operations/download endpoints0. Financial/Billing/Work/OAuth/rate/schema/dependencies unchanged.
-- Valid detail obtains at most one bounded Invoicing source; Sales list0; denied/foreign/ambiguous0. Test-local PDO trace checks predicates/bounds and zero machine-key lookup. Same-connection write counters and Work/API usage/artifact/service-key snapshots demonstrate domain writes0/Work delta0. Source-path review confirms self-HTTP0/service-key web0/remote writes0/no filesystem access for this reader. Bootstrap route tests preserve existing auth/feature behavior.
-- Focal48 tests/489 assertions; full607/4902, failures0/errors0. Existing Windows symlink skip1 and curl_close() PHP8.5 deprecation1 preserved. Composer strict/PHPStan PASS; syntax177 files0failures; diff check PASS. Independent static KISS review Critical0/Important0/Minor0. No source changes after full QA.
-- Evidence under storage/exports/lc2d: RED/GREEN logs, full QA/JUnit, diffstat, real functional.patch and receipt/hashes. Synthetic CSRF value redacted from RED HTML failure log. REAL_MELI_HTTP=0, ALEGRA_REAL_HTTP=0, DIAN_HTTP=0; existing separate fixture/MLSIM regression traffic is not attributed to the consumer. Disposable MariaDB stopped after QA. One functional commit and one docs commit.
+- Certified existing product with zero production changes; W1, RemoteHostPolicy, MeliClient, owners, schema and dependencies unchanged. Only FreshInstallTest and WorkCliEntrypointTest changed; existing MLSIM lifecycle/fixtures shared through small private test helpers, with no alternate root/runner/framework or new test files. Child-CLI deprecation mask unchanged and not copied.
+- S1: disposable fresh DB → real bootstrap-admin CLI/migrations/admin → Bootstrap HTTP login → tenant/operator Sales. S2: Bootstrap webhook → Work → real bin/work.php → existing runner/handler → MLSIM → canonical sale → Sales UI. S3: Bootstrap audit start → real CLI capture/repair/order/confirm → persisted valid → visible VALID. Only disposable Work due times are advanced; result/status rows are not fabricated.
+- S4: Bootstrap Billing POST → same Work ID through three real CLI calls → existing handler/MLSIM → exact facts and caught_up → selected operator UI. No child continuation Work. S5: Bootstrap sale list/detail renders Financial Reconciliación and Factura/Postventa; global SQL write counters observe the root's distinct connections and table/Work/API/artifact/service-key snapshots remain unchanged.
+- G1: new S2/S3/S4 cases trace exactly seven matched local GETs; UI adds none. Existing W1/MLSIM/boundary regressions preserve partial fail-closed, 429 defer, no inline retry, remote writes OFF, test-only endpoint and official non-test host. REAL_MELI_HTTP=0; no real external HTTP or remote writes. Existing login/tenant and Catalog/Inventory contracts remain CLOSED.
+- One TEST_DESIGN correction: Billing UI translates caught_up and selected progress requires account/period/type query. Corrected only test assertion/query; clean rerun passed. Expected REDs0/fixture fixes0/environment fixes0/inconclusive0. Recalculated verified certification gaps0/wiring gaps0/product gaps0/unknown0.
+- Final focal100 tests/1397 assertions; single full620/5108, failures0/errors0. Existing Windows skip1 and PHP8.5 curl_close deprecation1 retained. Composer strict/PHPStan PASS; syntax177 files0failures; diff check PASS. No code changes after full QA; one test-only commit and one documentary closure commit. Disposable MariaDB stopped after QA.
+- Evidence: storage/exports/lc3-final contains preflight, receipt, gap matrix, iteration summary, QA logs/JUnit, test-only certification.patch and manifest/hashes. Synthetic CSRF values redacted from intermediate failure HTML. ERP2_AUTHORITY unchanged; no durable contract changed.
 
 ## Evidence and remaining gates
 
@@ -44,6 +44,6 @@
 - [MLSIM design](MLSIM_0_LOCAL_MELI_SIMULATOR_DESIGN.md): existing local HTTP fixtures and composition limits.
 - [LC0 audit](LC0_LOCAL_COMPLETENESS_AUDIT.md): historical findings; code/current checkpoint determine current closures.
 
-LOCAL_PRODUCT_READY=NO. NEXT=LC3 — full local E2E/composition roots, NOT_STARTED. LC4=PENDING. F14 LIVE=DEFERRED, F15=PAUSED, F16=UNAUTHORIZED. Git retains prior checkpoint receipts.
+LOCAL_PRODUCT_READY=NO. LC3=CLOSED. NEXT=LC4 — noise/call-budget/recovery, NOT_STARTED. LC4=PENDING. F14 LIVE=DEFERRED, F15=PAUSED, F16=UNAUTHORIZED. Git retains prior checkpoint receipts.
 
-STOP — LC2D CLOSED; LC3, LC4, F14, F15 and F16 not executed.
+STOP — LC3 CLOSED; LC4, F14, F15 and F16 not executed.
