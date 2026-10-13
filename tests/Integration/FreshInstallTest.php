@@ -82,8 +82,20 @@ final class FreshInstallTest extends TestCase
         [$exit, $output] = $run();
         self::assertSame(0, $exit, $output);
         self::assertStringNotContainsString('test-cli-password-long', $output);
-        self::assertTrue((new AuthService($pdo))->login('cli@example.test', 'test-cli-password-long'));
+        $app = Bootstrap::create();
+        $factory = new ServerRequestFactory();
+        $login = $app->handle($factory->createServerRequest('POST', '/login')->withParsedBody([
+            'email'=>'cli@example.test', 'password'=>'test-cli-password-long',
+            'csrf_token'=>(new \App\Core\Security\Csrf())->token(),
+        ]));
+        self::assertSame(303, $login->getStatusCode());
+        self::assertSame('/', $login->getHeaderLine('Location'));
         self::assertSame('admin', $_SESSION['role']);
+        $root = $app->handle($factory->createServerRequest('GET', '/'));
+        self::assertSame('/sales', $root->getHeaderLine('Location'));
+        $sales = $app->handle($factory->createServerRequest('GET', '/sales'));
+        self::assertSame(200, $sales->getStatusCode());
+        self::assertStringContainsString('CLI Company', (string) $sales->getBody());
         [$exit, $output] = $run();
         self::assertSame(1, $exit);
         self::assertStringContainsString('already', $output);
