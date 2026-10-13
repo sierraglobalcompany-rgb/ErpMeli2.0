@@ -67,12 +67,10 @@ final class CurlMeliTransport implements MeliTransport
 
         $responseBody = curl_exec($handle);
         if ($responseBody === false) {
-            curl_close($handle);
             throw new RuntimeException('Mercado Libre HTTP transport failed.');
         }
 
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        curl_close($handle);
 
         return new MeliTransportResponse($status, $responseHeaders, (string) $responseBody);
     }

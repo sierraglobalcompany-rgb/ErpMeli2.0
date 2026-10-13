@@ -447,8 +447,7 @@ final class WorkCliEntrypointTest extends TestCase
             'DB_NAME'=>$config->dbName,'DB_USER'=>$config->dbUser,'DB_PASSWORD'=>$config->dbPassword,
             'MELI_CLIENT_ID'=>'987654321','MELI_CLIENT_SECRET'=>'test-client-secret','REAL_MELI_HTTP'=>'0','MELI_TEST_BASE_URL'=>'',
         ], $overrides);
-        // Known PHP 8.5 curl_close deprecation is outside W1; keep child stdout's CLI contract observable.
-        $process = proc_open([PHP_BINARY, '-d', 'error_reporting=' . (E_ALL & ~E_DEPRECATED), dirname(__DIR__, 2) . '/bin/work.php', ...$arguments], [1=>['pipe','w'],2=>['pipe','w']], $pipes, dirname(__DIR__, 2), $environment);
+        $process = proc_open([PHP_BINARY, dirname(__DIR__, 2) . '/bin/work.php', ...$arguments], [1=>['pipe','w'],2=>['pipe','w']], $pipes, dirname(__DIR__, 2), $environment);
         self::assertIsResource($process);
         $output = (string) stream_get_contents($pipes[1]);
         $error = (string) stream_get_contents($pipes[2]);
