@@ -100,7 +100,7 @@ final class FinancialReadModel
 
         /** @var array<string,list<array<string,mixed>>> $rowsById */
         $rowsById = [];
-        /** @var array<string,bool> $directIds */
+        /** @var array<string,string> $directIds */
         $directIds = [];
         /** @var array<string,bool> $identityConflictById */
         $identityConflictById = [];
@@ -115,7 +115,7 @@ final class FinancialReadModel
             [$detailOrderIds, $detailPackIds] = $this->identities($context);
             $isDirect = $this->matchesScope($detailOrderIds, $detailPackIds, $scopeOrderIds, $packId);
             if ($isDirect) {
-                $directIds[$id] = true;
+                $directIds[$id] = $id;
             }
             if ($this->identityConflicts($detailOrderIds, $detailPackIds, $scopeOrderIds, $packId)) {
                 $identityConflictById[$id] = true;
@@ -135,7 +135,8 @@ final class FinancialReadModel
         $associationById = [];
         /** @var array<string,list<string>> $childrenByParent */
         $childrenByParent = [];
-        foreach ($rowsById as $id => $rows) {
+        foreach ($rowsById as $rows) {
+            $id = (string) $rows[0]['external_detail_id'];
             $associations = [];
             foreach ($rows as $row) {
                 $associatedId = is_string($row['associated_detail_id'] ?? null) && $row['associated_detail_id'] !== ''
@@ -158,7 +159,8 @@ final class FinancialReadModel
         }
 
         $selectedIds = $directIds;
-        $queue = array_keys($directIds);
+        // Opaque identities are stored values; PHP may coerce their lookup keys to integers.
+        $queue = array_values($directIds);
         $visited = [];
         for ($position = 0; $position < count($queue); $position++) {
             $id = $queue[$position];
@@ -169,12 +171,12 @@ final class FinancialReadModel
 
             $associatedId = $associationById[$id] ?? null;
             if (is_string($associatedId) && isset($rowsById[$associatedId]) && !isset($selectedIds[$associatedId])) {
-                $selectedIds[$associatedId] = true;
+                $selectedIds[$associatedId] = $associatedId;
                 $queue[] = $associatedId;
             }
             foreach ($childrenByParent[$id] ?? [] as $childId) {
                 if (!isset($selectedIds[$childId])) {
-                    $selectedIds[$childId] = true;
+                    $selectedIds[$childId] = $childId;
                     $queue[] = $childId;
                 }
             }
@@ -184,7 +186,7 @@ final class FinancialReadModel
         $receiverShipping = [];
         $billingIdentityConflict = false;
         $receiverShippingKnown = false;
-        foreach (array_keys($selectedIds) as $id) {
+        foreach ($selectedIds as $id) {
             if (isset($identityConflictById[$id]) || isset($duplicateConflictById[$id])) {
                 $billingIdentityConflict = true;
             }
@@ -290,7 +292,7 @@ final class FinancialReadModel
             }
             foreach ($entries as $entry) {
                 if (is_array($entry) && is_string($entry['order_id'] ?? null) && $entry['order_id'] !== '') {
-                    $orderIds[$entry['order_id']] = true;
+                    $orderIds[$entry['order_id']] = $entry['order_id'];
                 }
             }
         }
@@ -298,10 +300,10 @@ final class FinancialReadModel
         $packIds = [];
         $shipping = $context['shipping'] ?? null;
         if (is_array($shipping) && is_string($shipping['pack_id'] ?? null) && $shipping['pack_id'] !== '') {
-            $packIds[$shipping['pack_id']] = true;
+            $packIds[$shipping['pack_id']] = $shipping['pack_id'];
         }
 
-        return [array_keys($orderIds), array_keys($packIds)];
+        return [array_values($orderIds), array_values($packIds)];
     }
 
     /**

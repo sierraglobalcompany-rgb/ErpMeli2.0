@@ -18,6 +18,7 @@ use App\Work\WorkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Tests\Support\TestDatabase;
@@ -405,6 +406,105 @@ final class FinancialFactSufficiencyTest extends TestCase
 
         $unverifiablePack = $this->projection('E-PACK-ORDER');
         self::assertSame('CONFLICT', $unverifiablePack['coverage']['billing_identity']);
+    }
+
+    #[DataProvider('numericPackContexts')]
+    public function testSameNumericPackMatchesWithoutFalseConflict(bool $withOrder): void
+    {
+        $packId = '9007199254740993';
+        $this->insertSalesOrder('200000000501', 'COP', $packId, '0.0000');
+        $stored = $this->persistBillingDetail($this->billPeriodId, $this->billingDetail(
+            'PACK-CHARGE', 'CHARGE', 'CV', '1.0000', 'COP', '2026-09-01T00:00:00Z',
+            salesInfo: $withOrder ? [['order_id' => '200000000501']] : [],
+            shippingInfo: ['pack_id' => $packId],
+        ));
+        self::assertSame($packId, $this->context($stored['context_json'])['shipping']['pack_id']);
+
+        $projection = $this->projection('200000000501');
+        self::assertSame($packId, $projection['scope']['pack_id']);
+        self::assertSame('KNOWN', $projection['coverage']['billing_identity']);
+        self::assertSame(['PACK-CHARGE'], array_column($projection['billing']['details'], 'external_detail_id'));
+    }
+
+    public static function numericPackContexts(): iterable
+    {
+        yield 'pack alone must match' => [false];
+        yield 'matching order and pack must not conflict' => [true];
+    }
+
+    public function testMultipleNumericDetailsEmitStringsAndSortBillingAndShipping(): void
+    {
+        $this->insertSalesOrder('200000000502', 'COP', null, '0.0000');
+        foreach (['102', '101'] as $id) {
+            $stored = $this->persistBillingDetail($this->billPeriodId, $this->billingDetail(
+                $id, 'CHARGE', 'CV', '1.0000', 'COP', '2026-09-01T00:00:00Z',
+                salesInfo: [['order_id' => '200000000502']],
+                shippingInfo: ['receiver_shipping_cost' => '0.0000'],
+            ));
+            self::assertSame($id, $stored['external_detail_id']);
+        }
+
+        $projection = $this->projection('200000000502');
+        self::assertSame(['101', '102'], array_column($projection['billing']['details'], 'external_detail_id'));
+        self::assertSame(['101', '102'], array_column($projection['shipping']['receiver_shipping'], 'external_detail_id'));
+        self::assertSame('KNOWN', $projection['coverage']['billing_identity']);
+    }
+
+    #[DataProvider('opaquePackGuards')]
+    public function testOpaquePackIdentityRemainsStrict(?string $sourcePack, string $contextPack, string $coverage): void
+    {
+        $this->insertSalesOrder('0010001', 'COP', $sourcePack, '0.0000');
+        $this->persistBillingDetail($this->billPeriodId, $this->billingDetail(
+            'PACK-GUARD', 'CHARGE', 'CV', '0.0000', 'COP', '2026-09-01T00:00:00Z',
+            salesInfo: [['order_id' => '0010001']],
+            shippingInfo: ['pack_id' => $contextPack],
+        ));
+        $projection = $this->projection('0010001');
+        self::assertSame($sourcePack, $projection['scope']['pack_id']);
+        self::assertSame(['0010001'], $projection['scope']['order_ids']);
+        self::assertSame($coverage, $projection['coverage']['billing_identity']);
+    }
+
+    public static function opaquePackGuards(): iterable
+    {
+        yield 'different numeric pack' => ['9007199254740993', '9007199254740994', 'CONFLICT'];
+        yield 'leading zeros are significant' => ['00101', '101', 'CONFLICT'];
+        yield 'matching leading zeros' => ['00101', '00101', 'KNOWN'];
+        yield 'outside native integer range' => ['18446744073709551616', '18446744073709551616', 'KNOWN'];
+        yield 'zero is an identity' => ['0', '0', 'KNOWN'];
+        yield 'null is not zero' => [null, '0', 'CONFLICT'];
+    }
+
+    /** @param list<string> $expectedIds */
+    #[DataProvider('opaqueDetailAssociations')]
+    public function testOpaqueAssociationsPreserveExactIdsWithoutDuplicates(string $parent, string $child, string $leaf, array $expectedIds): void
+    {
+        $this->insertSalesOrder('0010001', 'COP', null, '0.0000');
+        foreach ([[$parent, null], [$child, $parent], [$leaf, $child]] as [$id, $associated]) {
+            $this->persistBillingDetail($this->billPeriodId, $this->billingDetail(
+                $id, 'CHARGE', 'CV', '1.0000', 'COP', '2026-09-01T00:00:00Z',
+                associatedDetailId: $associated,
+                salesInfo: $id === $child ? [] : [['order_id' => '0010001']],
+                shippingInfo: ['receiver_shipping_cost' => '0.0000'],
+                itemsInfo: $id === $parent ? [['order_id' => '0010001']] : [],
+            ));
+        }
+        $projection = $this->projection('0010001');
+        self::assertSame($expectedIds, array_column($projection['billing']['details'], 'external_detail_id'));
+        self::assertSame($expectedIds, array_column($projection['shipping']['receiver_shipping'], 'external_detail_id'));
+        self::assertCount(3, $projection['billing']['details']);
+        foreach ($projection['billing']['details'] as $detail) {
+            self::assertSame($detail['external_detail_id'] === $parent ? null : ($detail['external_detail_id'] === $child ? $parent : $child), $detail['associated_detail_id']);
+        }
+        self::assertSame('KNOWN', $projection['coverage']['billing_identity']);
+    }
+
+    public static function opaqueDetailAssociations(): iterable
+    {
+        yield 'numeric chain' => ['101', '102', '103', ['101', '102', '103']];
+        yield 'leading zero and numeric IDs remain distinct' => ['00101', '101', '00102', ['00101', '00102', '101']];
+        yield 'large identities remain exact' => ['18446744073709551616', '9007199254740993', '9223372036854775808', ['18446744073709551616', '9007199254740993', '9223372036854775808']];
+        yield 'zero parent differs from no association' => ['0', '101', '102', ['0', '101', '102']];
     }
 
     public function testFinancialProjectionIsTenantScopedAndReadOnly(): void

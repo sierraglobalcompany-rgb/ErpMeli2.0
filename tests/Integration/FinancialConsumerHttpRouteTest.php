@@ -161,6 +161,40 @@ final class FinancialConsumerHttpRouteTest extends TestCase
         self::assertSame('UNKNOWN', $this->value($html, 'Envío del vendedor'));
     }
 
+    public function testNumericPackAndDetailsRenderReconciliationAndInvoiceReviewWithoutSideEffects(): void
+    {
+        $this->order(101, 11, '1001', '9007199254740993');
+        $this->order(102, 11, '1002', '9007199254740993');
+        foreach (['102', '101'] as $id) {
+            $this->billingFact($id, '1.0000', 'COP', [
+                'sales'=>[['order_id'=>'1001']],
+                'shipping'=>['pack_id'=>'9007199254740993','receiver_shipping_cost'=>'0.0000'],
+            ]);
+        }
+        $response = $this->detail('1001', ['account_id'=>'10']);
+        self::assertSame(200, $response->getStatusCode());
+        $html = (string) $response->getBody();
+        self::assertStringContainsString('Reconciliación', $html);
+        self::assertStringContainsString('Factura / Postventa', $html);
+        self::assertStringContainsString('9007199254740993', $html);
+        self::assertSame('KNOWN', $this->value($html, 'Cobertura Billing'));
+        foreach (['101', '102'] as $id) {
+            self::assertSame(1, substr_count($html, '<td>' . $id . '</td>'));
+            self::assertStringContainsString('Detalle ' . $id . ': 0.0000', $html);
+        }
+        $work = $this->pdo->query('SELECT * FROM work_items ORDER BY id')->fetchAll();
+        $usage = $this->pdo->query('SELECT * FROM api_usage_daily')->fetchAll();
+        $writes = $this->pdo->query("SHOW GLOBAL STATUS WHERE Variable_name IN ('Com_insert','Com_update','Com_delete','Com_replace','Com_create_table','Com_alter_table','Com_drop_table','Com_truncate','Com_rename_table')")->fetchAll();
+        $route = Bootstrap::create()->handle((new ServerRequestFactory())->createServerRequest('GET', '/sales/1001'));
+        self::assertSame(200, $route->getStatusCode());
+        self::assertStringContainsString('Reconciliación', (string) $route->getBody());
+        self::assertStringContainsString('Factura / Postventa', (string) $route->getBody());
+        self::assertSame($writes, $this->pdo->query("SHOW GLOBAL STATUS WHERE Variable_name IN ('Com_insert','Com_update','Com_delete','Com_replace','Com_create_table','Com_alter_table','Com_drop_table','Com_truncate','Com_rename_table')")->fetchAll());
+        self::assertSame($work, $this->pdo->query('SELECT * FROM work_items ORDER BY id')->fetchAll());
+        self::assertSame($usage, $this->pdo->query('SELECT * FROM api_usage_daily')->fetchAll());
+        self::assertSame('0', getenv('REAL_MELI_HTTP'));
+    }
+
     public function testBillingIdentityConflictIsDisplayedWithoutChoosingOrAddingTotals(): void
     {
         $this->order(101, 11, '1001');
