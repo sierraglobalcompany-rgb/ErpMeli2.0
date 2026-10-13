@@ -551,6 +551,14 @@ cancelado + INVOICE + CREDIT_NOTE   -> CREDIT_NOTE_RECORDED
 
 `GET /sources` expone `post_sale_status`, `original_invoice_artifact_present` y `credit_note_artifact_present`. El estado sólo expresa hechos y revisión pendiente; no declara que fiscalmente proceda anular ni que el documento haya sido validado por DIAN. `Billing document_type=CREDIT_NOTE` permanece como stream de conciliación de documentos de Mercado Libre y nunca se consume como nota crédito de factura del cliente.
 
+**Consumer humano LC2D.**
+
+El detalle existente `GET /sales/{external_order_id}` muestra únicamente readiness, presencia de factura, presencia de nota crédito y PostSale en «Factura / Postventa». CompanyContext determina la empresa; la resolución canónica existente exige exactamente una venta y aporta su account_id y external_order_id. Ausencia, empresa ajena o ambigüedad entre cuentas devuelven404 antes de Invoicing; los parámetros del cliente no sustituyen esa identidad.
+
+`InvoicingBridge::sourceForOrder(company_id, account_id, external_order_id)` reutiliza la proyección de `listSources`, con el filtro exacto aplicado en SQL antes de paginar. Un detalle válido obtiene como máximo una source; el listado Sales no consulta Invoicing. Los enums y flags F11/F12 se muestran sin recalcularlos ni certificar preparación fiscal. Billing CREDIT_NOTE no prueba presencia de una nota crédito del cliente.
+
+Este consumer sólo lee SQL local: no usa self-HTTP, service keys, Work, escrituras de dominio/remotas, filesystem de artefactos ni controles de generación, upload o download. No cambia rutas, composition root ni semántica F11/F12.
+
 Para factura electrónica colombiana, DIAN describe la nota crédito referenciando la factura anulada como mecanismo de anulación cuando corresponda ([Concepto DIAN 000974 int. 126 de 2025](https://normograma.dian.gov.co/dian/compilacion/docs/oficio_dian_0974_2025.htm)). Mercado Libre describe `DELETE /packs/{pack_id}/fiscal_documents` como eliminación de los archivos fiscales adjuntos ([Cargar y Obtener Facturas — Emisión Propia](https://developers.mercadolibre.com.co/es_ar/mercadolider-tiendas-oficiales/cargar-factura)); ERP2 no lo trata como cancelación fiscal. No se ejecutan llamadas DIAN ni escrituras remotas. Pack membership continúa bloqueada hasta F14 y escrituras fiscales remotas hasta F16 con autorización separada.
 
 Alegra queda opcional y diferida como segundo ejecutor offline detrás del mismo boundary. F16, con autorización separada, será el gate de publicación fiscal remota. `REAL_MELI_HTTP=0`, `ALEGRA_REAL_HTTP=0` y remote writes OFF.
