@@ -6,6 +6,7 @@ namespace App\Modules\Sales\ViewSales;
 
 use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
+use App\Modules\Financial\FinancialReadModel;
 use App\Modules\Sales\Audit\SalesAuditRepository;
 use App\Modules\Sales\Audit\SalesAuditWindow;
 use App\Work\WorkRepository;
@@ -207,21 +208,22 @@ final class SalesListController
         }
 
         $statement = $this->pdo->prepare(
-            'SELECT o.id, o.external_order_id, o.status, o.status_detail, o.total_amount, o.currency_id, '
+            'SELECT o.id, o.account_id, o.external_order_id, o.status, o.status_detail, o.total_amount, o.currency_id, '
             . 'o.date_created, o.date_closed, o.last_updated, o.buyer_id, o.pack_id, '
             . 'a.external_user_id AS account_external_user_id '
             . 'FROM orders o '
             . 'INNER JOIN meli_accounts a ON a.company_id = o.company_id AND a.id = o.account_id '
-            . 'WHERE o.company_id = :company_id AND o.external_order_id = :external_order_id LIMIT 1'
+            . 'WHERE o.company_id = :company_id AND o.external_order_id = :external_order_id LIMIT 2'
         );
         $statement->execute([
             'company_id' => $companyId,
             'external_order_id' => $externalOrderId,
         ]);
-        $order = $statement->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($order)) {
+        $matchingOrders = $statement->fetchAll(PDO::FETCH_ASSOC);
+        if (count($matchingOrders) !== 1) {
             return $response->withStatus(404);
         }
+        $order = $matchingOrders[0];
 
         $itemsStatement = $this->pdo->prepare(
             'SELECT external_item_id, variation_id, title, quantity, unit_price, currency_id, seller_sku '
@@ -230,6 +232,7 @@ final class SalesListController
         $itemsStatement->execute(['order_id' => (int) $order['id']]);
         $items = $itemsStatement->fetchAll(PDO::FETCH_ASSOC);
 
+        $reconciliation = (new FinancialReadModel($this->pdo))->forOrder($companyId, (int) $order['account_id'], (string) $order['external_order_id']);
         $companies = $context->memberships();
         $csrfToken = (new Csrf())->token();
         ob_start();
