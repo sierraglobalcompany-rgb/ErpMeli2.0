@@ -485,6 +485,13 @@ Orders operational facts
 
 La cobertura local prueba no-double-count y shared pack charge una vez, separa hechos operativos, facturados y evidencia de shipping, y deja unavailable values como UNKNOWN. No inventar fórmulas desde la forma del API ni añadir llamadas remotas para completar el read model.
 
+### Consumidor Financial en detalle de venta
+
+- La ruta existente `GET /sales/{external_order_id}` conserva CompanyContext y membership/usuario activo. El lookup usa company_id de esa autoridad + external_order_id, con LIMIT2: cero coincidencias o dos cuentas propias coincidentes devuelven el mismo404, sin elegir una fila ni consultar Financial. Una sola coincidencia aporta SU account_id. Parámetros account/company del cliente no cambian identidad ni URL.
+- El detalle válido invoca exactamente una vez `FinancialReadModel::forOrder(company_id, account_id, external_order_id)` sobre la misma conexión PDO y renderiza Reconciliación en la vista existente. El listado `/sales` y los requests rechazados no invocan Financial. No ruta, clase, DTO, renderer genérico, service, repository, cache o estado Financial adicional.
+- Renderiza el scope order/pack y miembros locales devueltos por el modelo, comisión operativa, coberturas, moneda, lista de hechos Billing y shipping evidence separados. Un hecho Billing compartido aparece una vez en esa lista, sin asignarlo a cada pedido. Importes exactos permanecen strings; cero conocido no desaparece, UNKNOWN no se convierte en0 y CONFLICT no se completa con una elección. Cobertura Billing representa billing_identity, no prueba de conciliación exhaustiva de periodos ni total oficial. No sumas Billing, profit, netos, signos contables inferidos, costo final o seller shipping inventado.
+- Escapa contenido dinámico mediante la convención HTML actual. No expone context_json, payloads, tokens o debug internals, ni agrega JavaScript o navegación. GET es pure read: cero HTTP ML/MLSIM/OAuth, cero Work creado/reclamado/mutado, cero escrituras de dominio y cero remote writes. No fetch para completar UNKNOWN ni instrumentación productiva nueva.
+
 ---
 
 ## 12. Invoicing boundary
