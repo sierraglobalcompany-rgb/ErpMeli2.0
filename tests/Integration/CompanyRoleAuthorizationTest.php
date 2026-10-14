@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use App\Bootstrap;
-use App\Core\Security\Csrf;
 use App\Core\Tenancy\CompanyContext;
 use App\Modules\Catalog\ProductRepository;
 use PHPUnit\Framework\TestCase;
@@ -40,11 +39,13 @@ final class CompanyRoleAuthorizationTest extends TestCase
         self::assertSame('operator', $column['Default']);
     }
 
-    public function testLegacyMemberIsCanonicalOperatorWithoutLosingOperationalWrites(): void
+    public function testLegacyMemberRetainsVisibleCompatibilityAndGetsOperatorAuthority(): void
     {
         $this->pdo->exec("UPDATE company_users SET role='member' WHERE user_id=1");
         $this->asUser(1);
-        self::assertSame('operator', (new CompanyContext($this->pdo))->company()['role']);
+        $context = new CompanyContext($this->pdo);
+        self::assertSame('member', $context->company()['role']);
+        self::assertSame('operator', $context->companyForRoles('admin', 'operator')['role']);
 
         $response = $this->formRequest('POST', '/catalog', [
             'internal_sku' => 'LEGACY-OP',

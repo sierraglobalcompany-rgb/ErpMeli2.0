@@ -42,10 +42,12 @@ final class CompanyContext
         }
 
         $company = $this->company();
-        if (!in_array($company['role'], $allowedRoles, true)) {
+        $effectiveRole = $company['role'] === 'member' ? 'operator' : $company['role'];
+        if (!in_array($effectiveRole, $allowedRoles, true)) {
             throw new DomainException('Company role denied.');
         }
 
+        $company['role'] = $effectiveRole;
         return $company;
     }
 
@@ -86,7 +88,7 @@ final class CompanyContext
 
         $memberships = [];
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $role = $this->canonicalRole($row['role'] ?? null);
+            $role = $this->storedRole($row['role'] ?? null);
             if ($role === null) {
                 continue;
             }
@@ -123,9 +125,18 @@ final class CompanyContext
         );
         $stmt->execute([$userId, $companyId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        $role = is_array($row) ? $this->canonicalRole($row['role'] ?? null) : null;
 
-        if (!is_array($row) || $role === null) {
+        if (!is_array($row)) {
+            $archived = $this->pdo->prepare('SELECT 1 FROM companies WHERE id=? AND archived_at IS NOT NULL');
+            $archived->execute([$companyId]);
+            if ($archived->fetchColumn() !== false && ($_SESSION['company_id'] ?? null) === $companyId) {
+                unset($_SESSION['company_id'], $_SESSION['role']);
+            }
+            throw new DomainException('Company access denied.');
+        }
+
+        $role = $this->storedRole($row['role'] ?? null);
+        if ($role === null) {
             if (($_SESSION['company_id'] ?? null) === $companyId) {
                 unset($_SESSION['company_id'], $_SESSION['role']);
             }
@@ -135,13 +146,13 @@ final class CompanyContext
         return ['id'=>(int) $row['id'], 'name'=>(string) $row['name'], 'role'=>$role];
     }
 
-    private function canonicalRole(mixed $role): ?string
+    private function storedRole(mixed $role): ?string
     {
         if (!is_string($role)) {
             return null;
         }
         if ($role === 'member') {
-            return 'operator';
+            return 'member';
         }
         return in_array($role, self::ROLES, true) ? $role : null;
     }
