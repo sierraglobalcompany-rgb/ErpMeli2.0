@@ -198,6 +198,17 @@ final class Routes
             ))->index($request, $response);
         });
 
+        $app->post('/mercadolibre/accounts/{account_id:[0-9]+}/disconnect', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return (new MeliAccountController(
+                Connection::fromConfig($config),
+                $config,
+            ))->disconnect($request, $response, (int) ($args['account_id'] ?? 0));
+        });
+
         $app->get('/oauth/mercadolibre/connect', static function (
             ServerRequestInterface $request,
             ResponseInterface $response
