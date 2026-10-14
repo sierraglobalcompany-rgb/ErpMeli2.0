@@ -37,6 +37,104 @@ $bundle = json_decode((string) file_get_contents(__DIR__ . '/scenarios.json'), t
 $steps = $bundle[$scenario] ?? [];
 $method = $_SERVER['REQUEST_METHOD'] ?? '';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+
+if ($path === '/authorization') {
+    if ($scenario !== 'OAUTH_CONNECT') {
+        http_response_code(404);
+        echo 'MLSIM_AUTH_NOT_AVAILABLE';
+        exit;
+    }
+
+    $authorizationPath = $root . '/authorization.json';
+    $challengePath = $root . '/pkce-challenge.txt';
+
+    if ($method === 'GET') {
+        $expectedKeys = ['client_id','code_challenge','code_challenge_method','redirect_uri','response_type','state'];
+        $actualKeys = array_keys($_GET);
+        sort($actualKeys);
+        sort($expectedKeys);
+        $clientId = is_string($_GET['client_id'] ?? null) ? trim($_GET['client_id']) : '';
+        $redirectUri = is_string($_GET['redirect_uri'] ?? null) ? trim($_GET['redirect_uri']) : '';
+        $state = is_string($_GET['state'] ?? null) ? trim($_GET['state']) : '';
+        $challenge = is_string($_GET['code_challenge'] ?? null) ? trim($_GET['code_challenge']) : '';
+        $redirect = parse_url($redirectUri);
+        $redirectHost = is_array($redirect) ? ($redirect['host'] ?? null) : null;
+        $redirectPath = is_array($redirect) ? ($redirect['path'] ?? null) : null;
+        $validRedirect = is_array($redirect)
+            && ($redirect['scheme'] ?? null) === 'http'
+            && in_array($redirectHost, ['localhost','127.0.0.1'], true)
+            && $redirectPath === '/oauth/mercadolibre/callback'
+            && !isset($redirect['user'], $redirect['pass'], $redirect['query'], $redirect['fragment']);
+        $valid = $actualKeys === $expectedKeys
+            && ($_GET['response_type'] ?? null) === 'code'
+            && $clientId !== '' && strlen($clientId) <= 191
+            && $validRedirect
+            && preg_match('/^[A-Za-z0-9_-]{32,128}$/D', $state) === 1
+            && preg_match('/^[A-Za-z0-9_-]{43}$/D', $challenge) === 1
+            && ($_GET['code_challenge_method'] ?? null) === 'S256';
+        if (!$valid) {
+            http_response_code(400);
+            echo 'MLSIM_AUTH_INVALID';
+            exit;
+        }
+
+        $approvalToken = bin2hex(random_bytes(16));
+        $metadata = [
+            'client_id'=>$clientId,
+            'redirect_uri'=>$redirectUri,
+            'state'=>$state,
+            'code_challenge'=>$challenge,
+            'approval_token_hash'=>hash('sha256', $approvalToken),
+        ];
+        $encoded = json_encode($metadata, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        if (file_put_contents($authorizationPath, $encoded, LOCK_EX) === false
+            || file_put_contents($challengePath, $challenge, LOCK_EX) === false) {
+            throw new RuntimeException('MLSIM_AUTH_WRITE_FAILED');
+        }
+        @chmod($authorizationPath, 0600);
+        @chmod($challengePath, 0600);
+
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Mercado Libre simulado</title></head><body>'
+            . '<main><h1>Cuenta simulada Mercado Libre</h1><p>Seller: 100</p><p>Site: MCO</p>'
+            . '<form method="post" action="/authorization">'
+            . '<input type="hidden" name="approval_token" value="' . htmlspecialchars($approvalToken, ENT_QUOTES, 'UTF-8') . '">'
+            . '<button type="submit">Autorizar cuenta simulada</button></form></main></body></html>';
+        exit;
+    }
+
+    if ($method === 'POST') {
+        $token = is_string($_POST['approval_token'] ?? null) ? $_POST['approval_token'] : '';
+        $raw = is_file($authorizationPath) && !is_link($authorizationPath) ? file_get_contents($authorizationPath) : false;
+        $metadata = is_string($raw) ? json_decode($raw, true, 512, JSON_THROW_ON_ERROR) : null;
+        $valid = is_array($metadata)
+            && count($_POST) === 1
+            && preg_match('/^[a-f0-9]{32}$/D', $token) === 1
+            && is_string($metadata['approval_token_hash'] ?? null)
+            && hash_equals($metadata['approval_token_hash'], hash('sha256', $token))
+            && is_string($metadata['redirect_uri'] ?? null)
+            && is_string($metadata['state'] ?? null);
+        if (!$valid) {
+            http_response_code(400);
+            echo 'MLSIM_AUTH_INVALID_APPROVAL';
+            exit;
+        }
+
+        unlink($authorizationPath);
+        $separator = str_contains($metadata['redirect_uri'], '?') ? '&' : '?';
+        header('Location: ' . $metadata['redirect_uri'] . $separator . http_build_query([
+            'code'=>'synthetic-one-use-code',
+            'state'=>$metadata['state'],
+        ], '', '&', PHP_QUERY_RFC3986));
+        http_response_code(302);
+        exit;
+    }
+
+    header('Allow: GET, POST');
+    http_response_code(405);
+    exit;
+}
+
 $operation = 'UNKNOWN';
 $keys = [];
 if (is_string($path) && preg_match('#^/orders/[0-9]{1,32}$#D', $path)) {
