@@ -83,6 +83,25 @@ El detalle verificable de estado, QA y gates vive en `docs/CURRENT_CHECKPOINT.md
 | F15 Cutover | Depende de la certificación externa y autorización de transición. |
 | F16 Remote Writes | Requiere autorización explícita separada y gate de escrituras; hasta entonces OFF. |
 
+### Local Product Readiness antes de F14
+
+El cierre del núcleo local no equivale a producto operable completo. Antes de abrir Hostinger/F14 deben cerrarse, en este orden y un bloque a la vez:
+
+```text
+L1 Web Installer humano/local-first/DB-safe      ✅ cerrado en el checkpoint actual
+L2 Company management
+L3 Users + roles/memberships
+L4 Mercado Libre application settings
+L5 Mercado Libre account management
+L6 local MLSIM account linking
+L7 account lifecycle
+L8 human E2E local desde instalación vacía
+L9 Local Release Candidate + package
+L10 decisión explícita para gates externos
+```
+
+Mientras `LOCAL_PRODUCT_READY=NO` en `docs/CURRENT_CHECKPOINT.md`, Hostinger, OAuth real y F14 LIVE permanecen diferidos aunque el core técnico o la app de Mercado Libre ya existan.
+
 ### Continuidad local después de R0
 
 R0, MB-01/02/03 de seguridad API y F6A-LOCAL-0..4 de Billing están cerrados localmente dentro de su cobertura. **MB-09 / F6B-FACTS está cerrado localmente**: `order_items.sale_fee` conserva el hecho nullable por ítem. **MB-10 / F6B-FINANCIAL también está cerrado localmente**: un read model de reconciliación separa hechos operativos, Billing y shipping; los hechos faltantes/conflictivos y los importes oficiales o seller shipping no disponibles permanecen explícitos como UNKNOWN/CONFLICT. No se añadió ledger, schema, ruta, Work ni HTTP. **G3, G5 y G6 = PASS LOCAL.**
