@@ -12,7 +12,7 @@ declare(strict_types=1);
     <a href="/sales">Ventas</a>
     <a href="/catalog">Catálogo</a>
     <a href="/billing">Facturación</a>
-    <?php if ($_SESSION['is_system_admin'] ?? false): ?><a href="/system/companies">Empresas</a><a href="/system/users">Usuarios</a><a href="/settings/system">Configuración</a><?php endif; ?>
+    <?php if ($_SESSION['is_system_admin'] ?? false): ?><a href="/system/companies">Empresas</a><a href="/system/users">Usuarios</a><a href="/settings/system">Configuración</a><a href="/settings/mercadolibre">Mercado Libre</a><?php endif; ?>
     <?php if (count($companies) > 1): ?><a href="/company/select">Cambiar empresa</a><?php endif; ?>
     <form method="post" action="/logout">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">

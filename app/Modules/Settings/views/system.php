@@ -12,7 +12,7 @@
 </head>
 <body>
 <main>
-    <p><a href="/">Inicio</a> · <a href="/system/companies">Empresas</a> · <a href="/system/users">Usuarios</a></p>
+    <p><a href="/">Inicio</a> · <a href="/system/companies">Empresas</a> · <a href="/system/users">Usuarios</a> · <a href="/settings/mercadolibre">Mercado Libre</a></p>
     <h1>Sistema</h1>
     <form method="post" action="/settings/system">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">

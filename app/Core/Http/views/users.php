@@ -19,7 +19,7 @@ nav{display:flex;gap:18px;flex-wrap:wrap}section{border:1px solid #ccd5dd;border
 label{display:inline-block;margin:7px}input,select,button{font:inherit;padding:7px}form{margin:10px 0}.danger{color:#9b241b}.muted{color:#526273}
 </style>
 </head><body><main>
-<nav><a href="/">Inicio</a><a href="/system/companies">Empresas</a><a href="/system/users">Usuarios</a><a href="/settings/system">Configuración del sistema</a></nav>
+<nav><a href="/">Inicio</a><a href="/system/companies">Empresas</a><a href="/system/users">Usuarios</a><a href="/settings/system">Configuración del sistema</a><a href="/settings/mercadolibre">Mercado Libre</a></nav>
 <h1>Usuarios</h1>
 <p>El Administrador del sistema gestiona identidad, acceso global y membresías. Los roles por empresa son: Administrador, Operador y Consulta.</p>
 <section>
