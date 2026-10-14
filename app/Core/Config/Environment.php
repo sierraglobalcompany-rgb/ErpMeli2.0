@@ -38,4 +38,9 @@ final class Environment
 
         return $result;
     }
+
+    public static function isExternallyManaged(string $key): bool
+    {
+        return getenv($key) !== false || array_key_exists($key, $_ENV);
+    }
 }

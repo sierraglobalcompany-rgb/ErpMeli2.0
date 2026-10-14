@@ -27,6 +27,7 @@ use App\Modules\Catalog\CatalogController;
 use App\Modules\Invoicing\InvoicingBridgeController;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Sales\ViewSales\SalesListController;
+use App\Modules\Settings\MeliAppSettingsController;
 use App\Modules\Settings\SystemSettingsController;
 use App\Modules\Settings\SystemSettingsRepository;
 use App\Work\WorkRepository;
@@ -474,6 +475,17 @@ final class Routes
             }
 
             return $response->withHeader('Location', '/')->withStatus(303);
+        });
+
+        $app->map(['GET', 'POST'], '/settings/mercadolibre', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return (new MeliAppSettingsController(
+                Connection::fromConfig($config),
+                $config,
+                dirname(__DIR__, 3),
+            ))->handle($request, $response);
         });
 
         $app->map(['GET', 'POST'], '/settings/system', static function (
