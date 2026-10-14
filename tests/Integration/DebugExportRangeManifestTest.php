@@ -150,7 +150,7 @@ final class DebugExportRangeManifestTest extends TestCase
     {
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Debug Range','debug-range')");
         $pdo->exec(
-            "INSERT INTO users(id,email,password_hash,status) VALUES (1,'debug-range@example.test','unused','active')"
+            "INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'debug-range@example.test','debug-range@example.test','debug-range@example.test','unused','active')"
         );
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin')");
     }

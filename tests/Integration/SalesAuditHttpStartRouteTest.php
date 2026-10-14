@@ -170,7 +170,7 @@ final class SalesAuditHttpStartRouteTest extends TestCase
         $pdo = TestDatabase::reset();
         $this->seedCompanyUserAndAccount($pdo);
         $hash = (new PasswordService())->hash('secret');
-        $stmt = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (2,'audit-member@example.test',?,'active')");
+        $stmt = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (2,'audit-member@example.test','audit-member@example.test','audit-member@example.test',?,'active')");
         $stmt->execute([$hash]);
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,2,'member')");
 
@@ -204,7 +204,7 @@ final class SalesAuditHttpStartRouteTest extends TestCase
     {
         $hash = (new PasswordService())->hash('secret');
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Audit Company','audit-company')");
-        $stmt = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'audit-user@example.test',?,'active')");
+        $stmt = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'audit-user@example.test','audit-user@example.test','audit-user@example.test',?,'active')");
         $stmt->execute([$hash]);
         $membership = $pdo->prepare('INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,?)');
         $membership->execute([$role]);

@@ -35,8 +35,8 @@ final class SystemSettingsTest extends TestCase
         $pdo = TestDatabase::reset();
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main')");
         $pdo->exec(
-            "INSERT INTO users(id,email,password_hash,status)
-             VALUES (1,'admin@example.test','unused','active')"
+            "INSERT INTO users(id,username,display_name,email,password_hash,status)
+             VALUES (1,'admin@example.test','admin@example.test','admin@example.test','unused','active')"
         );
 
         $repo = new SystemSettingsRepository($pdo);

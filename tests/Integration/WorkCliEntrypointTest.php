@@ -363,7 +363,7 @@ final class WorkCliEntrypointTest extends TestCase
         $pdo->exec("INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,status) VALUES(10,1,'100','MCO','connected')");
         $tokens = $pdo->prepare('INSERT INTO meli_tokens(account_id,access_token_cipher,refresh_token_cipher,expires_at,refresh_version) VALUES(10,?,?,?,0)');
         $tokens->execute([$cipher->encrypt('synthetic-access'), $cipher->encrypt('synthetic-refresh'), '2030-01-01 00:00:00']);
-        $pdo->exec("INSERT INTO users(id,email,password_hash,status) VALUES(1,'cli-cert@example.test','unused','active')");
+        $pdo->exec("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'cli-cert@example.test','cli-cert@example.test','cli-cert@example.test','unused','active')");
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(1,1,'admin')");
         $_SESSION = ['user_id'=>1,'company_id'=>1];
         return $pdo;

@@ -58,7 +58,7 @@ final class OperatorFoundationTest extends TestCase
     public function testLoginLandsOnUsableOperatorRoute(): void
     {
         $_SESSION = [];
-        $response = $this->request('POST', '/login', ['email'=>'admin@example.test', 'password'=>'test-password-long', 'csrf_token'=>(new Csrf())->token()]);
+        $response = $this->request('POST', '/login', ['username'=>'admin@example.test', 'password'=>'test-password-long', 'csrf_token'=>(new Csrf())->token()]);
         self::assertSame(303, $response->getStatusCode());
         self::assertSame('/', $response->getHeaderLine('Location'));
         self::assertSame('/sales', $this->request('GET', '/')->getHeaderLine('Location'));
@@ -93,7 +93,7 @@ final class OperatorFoundationTest extends TestCase
     public function testMultiCompanyLoginReachesChooserWithoutClaimingAnActiveCompany(): void
     {
         $this->addSecondMembership();
-        $login = $this->request('POST', '/login', ['email'=>'admin@example.test','password'=>'test-password-long','csrf_token'=>(new Csrf())->token()]);
+        $login = $this->request('POST', '/login', ['username'=>'admin@example.test','password'=>'test-password-long','csrf_token'=>(new Csrf())->token()]);
         self::assertSame(303, $login->getStatusCode());
         self::assertSame('/', $login->getHeaderLine('Location'));
         self::assertSame('/company/select', $this->request('GET', '/')->getHeaderLine('Location'));
@@ -257,7 +257,7 @@ final class OperatorFoundationTest extends TestCase
         self::assertStringContainsString('href="/sales"', $html);
         $html = (string) $this->request('GET', '/login')->getBody();
         self::assertStringContainsString('<label', $html);
-        self::assertStringContainsString('Correo', $html);
+        self::assertStringContainsString('Usuario', $html);
         self::assertStringContainsString('Contraseña', $html);
     }
 

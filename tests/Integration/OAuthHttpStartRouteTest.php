@@ -17,7 +17,7 @@ final class OAuthHttpStartRouteTest extends TestCase
         $pdo = TestDatabase::reset();
         $hash = (new PasswordService())->hash('secret');
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'OAuth Route Company','oauth-route-company')");
-        $stmt = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'oauth@example.test',?,'active')");
+        $stmt = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'oauth@example.test','oauth@example.test','oauth@example.test',?,'active')");
         $stmt->execute([$hash]);
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin')");
 
@@ -67,7 +67,7 @@ final class OAuthHttpStartRouteTest extends TestCase
         $pdo = TestDatabase::reset();
         $hash = (new PasswordService())->hash('secret');
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'OAuth Member Company','oauth-member-company')");
-        $stmt = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'oauth-member@example.test',?,'active')");
+        $stmt = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'oauth-member@example.test','oauth-member@example.test','oauth-member@example.test',?,'active')");
         $stmt->execute([$hash]);
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'member')");
 

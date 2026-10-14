@@ -18,7 +18,7 @@ final class SalesDetailHttpRouteTest extends TestCase
         $hash = (new PasswordService())->hash('secret');
 
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main'),(2,'Other','other')");
-        $user = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'detail@example.test',?,'active')");
+        $user = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'detail@example.test','detail@example.test','detail@example.test',?,'active')");
         $user->execute([$hash]);
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'member')");
         $pdo->exec(

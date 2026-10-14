@@ -9,7 +9,7 @@ use PDO;
 
 final class Connection
 {
-    public static function fromConfig(AppConfig $config): PDO
+    public static function fromConfig(AppConfig $config, bool $initializeSession = true): PDO
     {
         $dsn = sprintf(
             'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
@@ -24,7 +24,7 @@ final class Connection
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
 
-        $pdo->exec("SET time_zone = '+00:00'");
+        if ($initializeSession) { $pdo->exec("SET time_zone = '+00:00'"); }
 
         return $pdo;
     }

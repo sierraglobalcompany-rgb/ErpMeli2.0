@@ -85,7 +85,7 @@ final class FreshInstallTest extends TestCase
         $app = Bootstrap::create();
         $factory = new ServerRequestFactory();
         $login = $app->handle($factory->createServerRequest('POST', '/login')->withParsedBody([
-            'email'=>'cli@example.test', 'password'=>'test-cli-password-long',
+            'username'=>'cli@example.test', 'password'=>'test-cli-password-long',
             'csrf_token'=>(new \App\Core\Security\Csrf())->token(),
         ]));
         self::assertSame(303, $login->getStatusCode());
@@ -111,7 +111,7 @@ final class FreshInstallTest extends TestCase
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main')");
         $hash = (new PasswordService())->hash('secret');
         $stmt = $pdo->prepare(
-            "INSERT INTO users(id,email,password_hash,status) VALUES (1,'admin@example.test',?,'active')"
+            "INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'admin@example.test','admin@example.test','admin@example.test',?,'active')"
         );
         $stmt->execute([$hash]);
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin')");

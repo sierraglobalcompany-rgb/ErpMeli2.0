@@ -17,7 +17,7 @@ final class OAuthHttpCallbackGuardTest extends TestCase
         $pdo = TestDatabase::reset();
         $hash = (new PasswordService())->hash('secret');
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Original','original'),(2,'Other','other')");
-        $stmt = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'oauth-guard@example.test',?,'active')");
+        $stmt = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'oauth-guard@example.test','oauth-guard@example.test','oauth-guard@example.test',?,'active')");
         $stmt->execute([$hash]);
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin'),(2,1,'admin')");
 
@@ -60,7 +60,7 @@ final class OAuthHttpCallbackGuardTest extends TestCase
         $pdo = TestDatabase::reset();
         $hash = (new PasswordService())->hash('secret');
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'OAuth Admin Company','oauth-admin-company')");
-        $stmt = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'oauth-role@example.test',?,'active')");
+        $stmt = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'oauth-role@example.test','oauth-role@example.test','oauth-role@example.test',?,'active')");
         $stmt->execute([$hash]);
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin')");
 

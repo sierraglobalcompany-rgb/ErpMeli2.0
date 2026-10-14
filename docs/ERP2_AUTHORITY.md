@@ -105,7 +105,15 @@ ERP API local (F9):
 
 ### Primera instalación y autoridad del operador
 
-Con una DB MariaDB local vacía ya provisionada y las variables existentes `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` configuradas, la ruta soportada es:
+El entrypoint web único ofrece un instalador de una sola ejecución cuando falta el marker privado. El wizard en español prepara servidor, base de datos, ERP/Mercado Libre opcional, empresa inicial y administrador, y permite volver y revisar sin redisplay de secretos. Sólo la acción final crea las tablas mediante el Migrator existente y la primera autoridad mediante AuthService. El marker se escribe al final bajo un lock exclusivo; después `/install` no está disponible. Marker con configuración ausente o inválida falla cerrado con 503, sin reabrir instalación.
+
+La dirección validada determina el modo: HTTP o HTTPS en `localhost`/`127.0.0.1` admite modo local; una dirección no loopback requiere HTTPS y usa producción. No se aceptan credenciales, query, fragmento ni host inválido. La configuración privada es JSON inerte, fuera de exposición HTTP: entorno real/`$_ENV` tiene precedencia sobre ella y los defaults. Un destino DB distinto en el entorno bloquea la finalización. Mercado Libre admite ambas credenciales vacías o ambas configuradas; no se valida por red. Sin Client ID, el ERP arranca y la acción de conexión autorizada devuelve un mensaje claro con 503.
+
+El instalador requiere una DB vacía y dedicada. Probar conexión observa servidor compatible y verifica CREATE/ALTER/índice/DROP en una tabla aleatoria reservada con cleanup; no toca datos de negocio. La prueba queda ligada a host, puerto, base, usuario y contraseña actuales; cambiar cualquier valor la invalida. La acción final vuelve a comprobar destino, permisos y frescura. Cualquier tabla preexistente o residuo de migración sin marker requiere recuperación explícita, sin borrar tablas ni reparar automáticamente. Restaurar o recrear una DB vacía dedicada y volver a instalar es una recuperación operativa aceptada, no un motor de migración alternativo.
+
+Login usa username canónico y contraseña; display_name es el nombre informativo y `users.email` conserva contacto/recuperación. Los usernames nuevos usan 3–80 caracteres minúsculos, números, punto, guion o guion bajo; los usuarios previos conservan su email canónico como username y la columna admite su ancho anterior. El administrador inicial tiene sólo la membresía admin de su empresa, sin autoridad global añadida ni entrega de password reset.
+
+El bootstrap CLI sigue disponible como provisión manual del núcleo, con las variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` configuradas. No crea el marker/configuración web ni sustituye el wizard; no debe ejecutarse para preparar la DB que éste exige vacía:
 
 ```text
 php bin/bootstrap-admin.php "Primera Empresa" "primera-empresa" "admin@example.test"

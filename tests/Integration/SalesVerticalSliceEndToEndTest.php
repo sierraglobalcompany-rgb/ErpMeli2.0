@@ -140,7 +140,7 @@ final class SalesVerticalSliceEndToEndTest extends TestCase
     {
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Sales E2E Company','sales-e2e-company')");
         $hash = (new PasswordService())->hash('secret');
-        $user = $pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES (1,'sales-e2e@example.test',?,'active')");
+        $user = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'sales-e2e@example.test','sales-e2e@example.test','sales-e2e@example.test',?,'active')");
         $user->execute([$hash]);
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'member')");
 

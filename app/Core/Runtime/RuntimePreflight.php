@@ -9,6 +9,21 @@ use PDO;
 
 final class RuntimePreflight
 {
+    /** @return array{php:bool,extensions:bool,storage:bool,vendor:bool} */
+    public function installerChecks(string $root): array
+    {
+        $extensions = true;
+        foreach (self::REQUIRED_EXTENSIONS as $extension) {
+            $extensions = $extensions && extension_loaded($extension);
+        }
+        $version = (string) phpversion();
+        return [
+            'php'=>version_compare($version, '8.3.0', '>=') && version_compare($version, '8.6.0', '<'),
+            'extensions'=>$extensions,
+            'storage'=>is_dir($root . '/storage/private') && is_writable($root . '/storage/private'),
+            'vendor'=>is_file($root . '/vendor/autoload.php'),
+        ];
+    }
     /** @var list<string> */
     private const REQUIRED_EXTENSIONS = [
         'curl',

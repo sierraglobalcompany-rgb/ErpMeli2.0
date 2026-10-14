@@ -163,8 +163,8 @@ final class WorkExecutionTest extends TestCase
     private function seedSettingsActor(PDO $pdo): void
     {
         $pdo->exec(
-            "INSERT INTO users(id,email,password_hash,status) "
-            . "VALUES (1,'f2-settings@example.test','not-used-in-this-test','active')"
+            "INSERT INTO users(id,username,display_name,email,password_hash,status) "
+            . "VALUES (1,'f2-settings@example.test','f2-settings@example.test','f2-settings@example.test','not-used-in-this-test','active')"
         );
     }
 

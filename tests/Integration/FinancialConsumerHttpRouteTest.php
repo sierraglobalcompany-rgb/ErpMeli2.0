@@ -41,7 +41,7 @@ final class FinancialConsumerHttpRouteTest extends TestCase
             }
         };
         $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(1,'Main','main'),(2,'Foreign','foreign')");
-        $this->pdo->exec("INSERT INTO users(id,email,password_hash,status) VALUES(1,'financial@example.test','unused','active')");
+        $this->pdo->exec("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'financial@example.test','financial@example.test','financial@example.test','unused','active')");
         $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(1,1,'member')");
         $this->pdo->exec("INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,status) VALUES
             (10,1,'first-account','MCO','connected'),(11,1,'exact-account','MCO','connected'),(20,2,'foreign-account','MCO','connected')");

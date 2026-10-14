@@ -14,15 +14,20 @@ final class AuthService
     ) {
     }
 
-    public function bootstrapAdmin(string $companyName, string $slug, string $email, string $password): void
+    public function bootstrapAdmin(string $companyName, string $slug, string $email, string $password, ?string $displayName = null, ?string $username = null): void
     {
         $companyName = trim($companyName);
         $slug = trim($slug);
         $email = mb_strtolower(trim($email));
+        $displayName = trim($displayName ?? $email);
+        $legacyUsername = $username === null;
+        $username = mb_strtolower(trim($username ?? $email));
         if ($companyName === '' || mb_strlen($companyName) > 160
             || preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/D', $slug) !== 1 || strlen($slug) > 120
             || filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 191
-            || strlen($password) < 12 || strlen($password) > 72) {
+            || strlen($password) < 12 || strlen($password) > 72
+            || $displayName === '' || mb_strlen($displayName) > 191
+            || (!$legacyUsername && preg_match('/^[a-z0-9._-]{3,80}$/D', $username) !== 1)) {
             throw new \InvalidArgumentException('Invalid bootstrap input: company, slug, email and password (12-72 bytes) required.');
         }
         $hash = $this->passwords->hash($password);
@@ -40,8 +45,8 @@ final class AuthService
             $company = $this->pdo->prepare('INSERT INTO companies(name,slug) VALUES (?,?)');
             $company->execute([$companyName, $slug]);
             $companyId = (int) $this->pdo->lastInsertId();
-            $user = $this->pdo->prepare("INSERT INTO users(email,password_hash,status) VALUES (?,?,'active')");
-            $user->execute([$email, $hash]);
+            $user = $this->pdo->prepare("INSERT INTO users(email,password_hash,status,username,display_name) VALUES (?,?,'active',?,?)");
+            $user->execute([$email, $hash, $username, $displayName]);
             $userId = (int) $this->pdo->lastInsertId();
             $membership = $this->pdo->prepare("INSERT INTO company_users(company_id,user_id,role) VALUES (?,?,'admin')");
             $membership->execute([$companyId, $userId]);
@@ -52,13 +57,13 @@ final class AuthService
         }
     }
 
-    public function login(string $email, string $password): bool
+    public function login(string $username, string $password): bool
     {
         $stmt = $this->pdo->prepare(
-            "SELECT id, password_hash FROM users
-             WHERE email = ? AND status = 'active' LIMIT 1"
+            "SELECT id, password_hash, display_name FROM users
+             WHERE username = ? AND status = 'active' LIMIT 1"
         );
-        $stmt->execute([mb_strtolower(trim($email))]);
+        $stmt->execute([mb_strtolower(trim($username))]);
         $user = $stmt->fetch();
 
         if (!is_array($user) || !$this->passwords->verify($password, (string) $user['password_hash'])) {
@@ -70,7 +75,7 @@ final class AuthService
         );
         $membership->execute([(int) $user['id']]);
         $memberships = $membership->fetchAll(PDO::FETCH_ASSOC);
-        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role']);
+        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role'], $_SESSION['display_name']);
 
         if ($memberships === []) {
             return false;
@@ -78,6 +83,7 @@ final class AuthService
 
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['display_name'] = (string) $user['display_name'];
         if (count($memberships) === 1) {
             $_SESSION['company_id'] = (int) $memberships[0]['company_id'];
             $_SESSION['role'] = (string) $memberships[0]['role'];
@@ -88,7 +94,7 @@ final class AuthService
 
     public function logout(): void
     {
-        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role'], $_SESSION['csrf_token']);
+        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role'], $_SESSION['csrf_token'], $_SESSION['display_name']);
         session_regenerate_id(true);
     }
 

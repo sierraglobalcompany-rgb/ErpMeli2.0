@@ -1,5 +1,8 @@
 /vendor/
 .env
+/storage/private/*
+!/storage/private/.gitkeep
+!/storage/private/.htaccess
 .phpunit.cache/
 .phpstan-cache/
 /storage/logs/*

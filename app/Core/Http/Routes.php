@@ -194,6 +194,10 @@ final class Routes
                 return $response->withStatus(403);
             }
 
+            if ($config->meliClientId === '') {
+                $response->getBody()->write('Mercado Libre no está configurado.');
+                return $response->withStatus(503);
+            }
             $redirectUri = rtrim($config->appUrl, '/') . '/oauth/mercadolibre/callback';
             $flow = new OAuthAuthorizationFlow(
                 $config->meliClientId,
@@ -368,11 +372,11 @@ final class Routes
         $app->get('/login', static function (
             ServerRequestInterface $request,
             ResponseInterface $response
-        ): ResponseInterface {
+        ) use ($config): ResponseInterface {
             $token = (new Csrf())->token();
-            $html = '<h1>Ingresar</h1><form method="post" action="/login">'
+            $html = '<h1>' . htmlspecialchars($config->appName, ENT_QUOTES, 'UTF-8') . '</h1><h2>Ingresar</h2><form method="post" action="/login">'
                 . '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">'
-                . '<label>Correo <input name="email" type="email" autocomplete="username" required></label>'
+                . '<label>Usuario <input name="username" type="text" autocomplete="username" required></label>'
                 . '<label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>'
                 . '<button type="submit">Ingresar</button></form>';
             $response->getBody()->write($html);
@@ -393,7 +397,7 @@ final class Routes
             }
 
             $auth = new AuthService(Connection::fromConfig($config));
-            if (!$auth->login((string) ($body['email'] ?? ''), (string) ($body['password'] ?? ''))) {
+            if (!$auth->login((string) ($body['username'] ?? ''), (string) ($body['password'] ?? ''))) {
                 return $response->withStatus(401);
             }
 

@@ -27,7 +27,7 @@ final class ErpApiHttpRouteTest extends TestCase
 
         $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main'),(2,'Other','other')");
         $user = $this->pdo->prepare(
-            "INSERT INTO users(id,email,password_hash,status) VALUES (1,'api@example.test',?,'active')",
+            "INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'api@example.test','api@example.test','api@example.test',?,'active')",
         );
         $user->execute([$passwordHash]);
         $this->pdo->exec(

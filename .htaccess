@@ -1,0 +1,6 @@
+Options -Indexes
+RewriteEngine On
+RewriteRule ^public/index\.php$ - [L]
+RewriteRule ^(?:storage|app|bin|config|database|tests|vendor|docs|\.git[^/]*|\.env|composer\.[^/]*|AGENTS\.md)(?:/|$) - [F,L,NC]
+RewriteRule ^public(?:/.*)?$ - [F,L,NC]
+RewriteRule ^ public/index.php [L]

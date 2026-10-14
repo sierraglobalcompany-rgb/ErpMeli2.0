@@ -7,6 +7,7 @@ declare(strict_types=1);
 /** @var list<array{id:int,name:string,role:string}> $companies */
 ?>
 <nav aria-label="Navegación del operador">
+    <p>Usuario: <?= htmlspecialchars((string) ($_SESSION['display_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
     <p>Empresa: <?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?></p>
     <a href="/sales">Ventas</a>
     <a href="/catalog">Catálogo</a>

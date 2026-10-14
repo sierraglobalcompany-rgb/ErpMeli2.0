@@ -257,7 +257,7 @@ final class MeliHttpSimulationTest extends TestCase
     public function testDisabledSessionProducesZeroSimulatorCalls(): void
     {
         $this->domain('ORDER_HAPPY_EXACT');
-        $user = $this->pdo->prepare("INSERT INTO users(id,email,password_hash,status) VALUES(1,'synthetic@example.test',?,'active')");
+        $user = $this->pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'synthetic@example.test','synthetic@example.test','synthetic@example.test',?,'active')");
         $user->execute([(new PasswordService())->hash('synthetic-password')]);
         $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(1,1,'admin')");
         self::assertTrue((new AuthService($this->pdo))->login('synthetic@example.test', 'synthetic-password'));
@@ -374,7 +374,7 @@ final class MeliHttpSimulationTest extends TestCase
         $this->pdo->exec('DELETE FROM meli_tokens');
         $this->pdo->exec('DELETE FROM meli_accounts');
         $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Other synthetic','mlsim-other')");
-        $this->pdo->exec("INSERT INTO users(id,email,password_hash,status) VALUES(1,'synthetic@example.test','unused','active')");
+        $this->pdo->exec("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'synthetic@example.test','synthetic@example.test','synthetic@example.test','unused','active')");
         $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(1,1,'admin'),(2,1,'admin')");
         $_SESSION = ['user_id'=>1,'company_id'=>1];
         $env = ['APP_ENV'=>$appEnv,'MELI_CLIENT_ID'=>'synthetic-client','MELI_CLIENT_SECRET'=>'synthetic-secret',

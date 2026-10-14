@@ -32,7 +32,7 @@ final class BillingOperatorHttpRouteTest extends TestCase
     {
         $this->pdo = TestDatabase::reset();
         $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(1,'Billing <Company>','billing'),(2,'Foreign','foreign')");
-        $this->pdo->exec("INSERT INTO users(id,email,password_hash,status) VALUES(1,'billing@example.test','unused','active')");
+        $this->pdo->exec("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'billing@example.test','billing@example.test','billing@example.test','unused','active')");
         $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(1,1,'admin')");
         $this->pdo->exec("INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,nickname,status) VALUES
             (10,1,'100','MCO','Seller <script>','connected'),(11,1,'101','MCO','Other','connected'),
