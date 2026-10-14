@@ -71,8 +71,22 @@ final class PasswordMinimumPolicyTest extends TestCase
         touch($this->installerRoot . '/vendor/autoload.php');
         $app = (new WebInstaller($this->installerRoot))->app();
         $factory = new ServerRequestFactory();
+        $priorData = [
+            'APP_NAME' => 'ERP Meli 2.0',
+            'APP_URL' => 'http://localhost',
+            'APP_ENV' => 'local',
+            'DB_HOST' => '127.0.0.1',
+            'DB_PORT' => '3306',
+            'DB_NAME' => 'erp_password_policy',
+            'DB_USER' => 'root',
+            'DB_PASSWORD' => 'root',
+            'MELI_CLIENT_ID' => '',
+            'MELI_CLIENT_SECRET' => '',
+            'company_name' => 'Local Company',
+            'company_slug' => 'local-company',
+        ];
 
-        $_SESSION['installer'] = ['stage' => 4, 'data' => []];
+        $_SESSION['installer'] = ['stage' => 4, 'data' => $priorData];
         $six = $app->handle(
             $factory->createServerRequest('POST', 'http://localhost/install')
                 ->withHeader('Origin', 'http://localhost')
@@ -89,7 +103,7 @@ final class PasswordMinimumPolicyTest extends TestCase
         self::assertSame(200, $six->getStatusCode());
         self::assertSame(5, $_SESSION['installer']['stage']);
 
-        $_SESSION['installer'] = ['stage' => 4, 'data' => []];
+        $_SESSION['installer'] = ['stage' => 4, 'data' => $priorData];
         $five = $app->handle(
             $factory->createServerRequest('POST', 'http://localhost/install')
                 ->withHeader('Origin', 'http://localhost')
