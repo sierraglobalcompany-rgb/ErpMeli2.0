@@ -32,7 +32,7 @@ final class ErpApiController
         ServerRequestInterface $request,
         ResponseInterface $response,
     ): ResponseInterface {
-        $companyId = $this->authorizedCompanyId();
+        $companyId = $this->authorizedCompanyId(write: true);
         if ($companyId === null) {
             return $this->error($response, 403, 'forbidden');
         }
@@ -128,7 +128,7 @@ final class ErpApiController
         ResponseInterface $response,
         string $productIdInput,
     ): ResponseInterface {
-        $companyId = $this->authorizedCompanyId();
+        $companyId = $this->authorizedCompanyId(write: true);
         if ($companyId === null) {
             return $this->error($response, 403, 'forbidden');
         }
@@ -159,10 +159,13 @@ final class ErpApiController
         ]);
     }
 
-    private function authorizedCompanyId(): ?int
+    private function authorizedCompanyId(bool $write = false): ?int
     {
         try {
-            return (new CompanyContext($this->pdo))->companyId();
+            $context = new CompanyContext($this->pdo);
+            return $write
+                ? $context->companyForRoles('admin', 'operator')['id']
+                : $context->companyId();
         } catch (DomainException) {
             return null;
         }

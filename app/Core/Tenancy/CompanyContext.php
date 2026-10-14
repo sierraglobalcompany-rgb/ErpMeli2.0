@@ -9,6 +9,9 @@ use PDO;
 
 final class CompanyContext
 {
+    /** @var list<string> */
+    private const array ROLES = ['admin', 'operator', 'viewer'];
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -29,6 +32,21 @@ final class CompanyContext
     public function companyId(): int
     {
         return $this->company()['id'];
+    }
+
+    /** @return array{id:int,name:string,role:string} */
+    public function companyForRoles(string ...$allowedRoles): array
+    {
+        if ($allowedRoles === [] || array_diff($allowedRoles, self::ROLES) !== []) {
+            throw new DomainException('Unsupported Company role.');
+        }
+
+        $company = $this->company();
+        if (!in_array($company['role'], $allowedRoles, true)) {
+            throw new DomainException('Company role denied.');
+        }
+
+        return $company;
     }
 
     public function isSystemAdmin(): bool
@@ -65,9 +83,21 @@ final class CompanyContext
             . 'WHERE cu.user_id = ? AND c.archived_at IS NULL ORDER BY c.name,c.id'
         );
         $statement->execute([$_SESSION['user_id']]);
-        return array_map(static fn (array $row): array => [
-            'id'=>(int) $row['id'], 'name'=>(string) $row['name'], 'role'=>(string) $row['role'],
-        ], $statement->fetchAll(PDO::FETCH_ASSOC));
+
+        $memberships = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $role = $this->canonicalRole($row['role'] ?? null);
+            if ($role === null) {
+                continue;
+            }
+            $memberships[] = [
+                'id' => (int) $row['id'],
+                'name' => (string) $row['name'],
+                'role' => $role,
+            ];
+        }
+
+        return $memberships;
     }
 
     public function select(int $companyId): void
@@ -93,16 +123,26 @@ final class CompanyContext
         );
         $stmt->execute([$userId, $companyId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $role = is_array($row) ? $this->canonicalRole($row['role'] ?? null) : null;
 
-        if (!is_array($row) || !is_string($row['role']) || $row['role'] === '') {
-            $archived = $this->pdo->prepare('SELECT 1 FROM companies WHERE id=? AND archived_at IS NOT NULL');
-            $archived->execute([$companyId]);
-            if ($archived->fetchColumn() !== false && ($_SESSION['company_id'] ?? null) === $companyId) {
+        if (!is_array($row) || $role === null) {
+            if (($_SESSION['company_id'] ?? null) === $companyId) {
                 unset($_SESSION['company_id'], $_SESSION['role']);
             }
             throw new DomainException('Company access denied.');
         }
 
-        return ['id'=>(int) $row['id'], 'name'=>(string) $row['name'], 'role'=>$row['role']];
+        return ['id'=>(int) $row['id'], 'name'=>(string) $row['name'], 'role'=>$role];
+    }
+
+    private function canonicalRole(mixed $role): ?string
+    {
+        if (!is_string($role)) {
+            return null;
+        }
+        if ($role === 'member') {
+            return 'operator';
+        }
+        return in_array($role, self::ROLES, true) ? $role : null;
     }
 }

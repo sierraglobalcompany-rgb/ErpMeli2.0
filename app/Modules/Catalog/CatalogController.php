@@ -35,6 +35,7 @@ final class CatalogController
         } catch (DomainException) {
             return $response->withStatus(403);
         }
+        $canOperate = in_array($company['role'], ['admin', 'operator'], true);
         $repository = new ProductRepository($this->pdo);
         $query = $request->getQueryParams();
         $input = $query['product_id'] ?? '';
@@ -68,7 +69,7 @@ final class CatalogController
     public function create(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         try {
-            $companyId = (new CompanyContext($this->pdo))->companyId();
+            $companyId = (new CompanyContext($this->pdo))->companyForRoles('admin', 'operator')['id'];
         } catch (DomainException) {
             return $response->withStatus(403);
         }
@@ -102,7 +103,7 @@ final class CatalogController
         string $productIdInput,
     ): ResponseInterface {
         try {
-            $companyId = (new CompanyContext($this->pdo))->companyId();
+            $companyId = (new CompanyContext($this->pdo))->companyForRoles('admin', 'operator')['id'];
         } catch (DomainException) {
             return $response->withStatus(403);
         }

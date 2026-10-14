@@ -10,6 +10,7 @@ declare(strict_types=1);
 /** @var string $name */
 /** @var string $csrfToken */
 /** @var list<array{id:int,internal_sku:string,name:string}> $products */
+/** @var bool $canOperate */
 ?>
 <!doctype html>
 <html lang="es">
@@ -19,6 +20,7 @@ declare(strict_types=1);
 <main>
     <h1>Catálogo local</h1>
     <?php if ($error !== ''): ?><p role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+    <?php if ($canOperate): ?>
     <section aria-labelledby="create-product-title">
         <h2 id="create-product-title">Crear producto</h2>
         <form method="post" action="/catalog">
@@ -28,6 +30,7 @@ declare(strict_types=1);
             <button type="submit">Crear producto</button>
         </form>
     </section>
+    <?php endif; ?>
     <h2>Productos recientes (máximo 100)</h2>
     <?php if ($products === []): ?><p>No hay productos en esta empresa.</p><?php else: ?>
     <table>
@@ -58,11 +61,13 @@ declare(strict_types=1);
             <dt>Nombre</dt><dd><?= htmlspecialchars($selectedProduct['name'], ENT_QUOTES, 'UTF-8') ?></dd>
             <dt>Cantidad local</dt><dd><output id="local-quantity"><?= $quantity === null ? 'Sin definir' : $quantity ?></output></dd>
         </dl>
+        <?php if ($canOperate): ?>
         <form method="post" action="/catalog/<?= $selectedProduct['id'] ?>/inventory">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <label>Cantidad local (entero >= 0) <input name="quantity" inputmode="numeric" pattern="[0-9]+" value="<?= $quantity === null ? '' : $quantity ?>" required></label>
             <button type="submit">Establecer cantidad local</button>
         </form>
+        <?php endif; ?>
     </section>
     <?php endif; ?>
 </main>
