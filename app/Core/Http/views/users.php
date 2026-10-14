@@ -7,6 +7,7 @@ declare(strict_types=1);
 /** @var array<int,list<array<string,mixed>>> $memberships */
 /** @var string $csrfToken */
 $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$passwordMin = \App\Core\Auth\PasswordService::MIN_LENGTH;
 ?>
 <!doctype html>
 <html lang="es">
@@ -29,7 +30,7 @@ label{display:inline-block;margin:7px}input,select,button{font:inherit;padding:7
 <label>Usuario <input name="username" minlength="3" maxlength="80" pattern="[a-z0-9._-]+" required></label>
 <label>Nombre <input name="display_name" maxlength="191" required></label>
 <label>Correo <input name="email" type="email" maxlength="191" required></label>
-<label>Contraseña inicial <input name="password" type="password" minlength="12" maxlength="72" autocomplete="new-password" required></label>
+<label>Contraseña inicial <input name="password" type="password" minlength="<?= $passwordMin ?>" maxlength="72" autocomplete="new-password" required></label>
 <label><input type="checkbox" name="is_system_admin" value="1"> Administrador del sistema</label>
 <label>Empresa inicial <select name="company_id"><option value="">Sin empresa</option><?php foreach ($companies as $company): ?><option value="<?= (int)$company['id'] ?>"><?= $e((string)$company['name']) ?><?= $company['archived_at']!==null?' (archivada)':'' ?></option><?php endforeach; ?></select></label>
 <label>Rol inicial <select name="role"><option value="operator">Operador</option><option value="viewer">Consulta</option><option value="admin">Administrador</option></select></label>
@@ -50,7 +51,7 @@ label{display:inline-block;margin:7px}input,select,button{font:inherit;padding:7
 </form>
 <form method="post" action="/system/users/<?= $id ?>/status"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="status" value="<?= $active?'disabled':'active' ?>"><button class="<?= $active?'danger':'' ?>"><?= $active?'Desactivar':'Activar' ?></button></form>
 <form method="post" action="/system/users/<?= $id ?>/system-admin"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="enabled" value="<?= $systemAdmin?'0':'1' ?>"><button><?= $systemAdmin?'Quitar administración del sistema':'Hacer Administrador del sistema' ?></button></form>
-<form method="post" action="/system/users/<?= $id ?>/password"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><label>Nueva contraseña <input name="password" type="password" minlength="12" maxlength="72" autocomplete="new-password" required></label><button>Restablecer contraseña</button></form>
+<form method="post" action="/system/users/<?= $id ?>/password"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><label>Nueva contraseña <input name="password" type="password" minlength="<?= $passwordMin ?>" maxlength="72" autocomplete="new-password" required></label><button>Restablecer contraseña</button></form>
 <h3>Acceso por empresa</h3>
 <?php if (($memberships[$id] ?? []) === []): ?><p>Sin membresías.</p><?php endif; ?>
 <?php foreach (($memberships[$id] ?? []) as $membership): $companyId=(int)$membership['company_id']; ?>
