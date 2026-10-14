@@ -101,16 +101,14 @@ final class OAuthConnectService
         try {
             // Archive and persistence serialize on this row without holding a lock during HTTP.
             $this->assertActiveCompany($companyId, true);
+
+            // external_user_id is installation-global. The duplicate path intentionally mutates no account data;
+            // LAST_INSERT_ID only returns the canonical row id so ownership can be checked before any update.
             $account = $this->pdo->prepare(
                 'INSERT INTO meli_accounts '
                 . '(company_id, external_user_id, site_id, nickname, status) '
                 . "VALUES (:company_id, :external_user_id, :site_id, :nickname, 'connected') "
-                . 'ON DUPLICATE KEY UPDATE '
-                . 'id = LAST_INSERT_ID(id), '
-                . 'site_id = VALUES(site_id), '
-                . 'nickname = VALUES(nickname), '
-                . "status = 'connected', "
-                . 'updated_at = UTC_TIMESTAMP(6)'
+                . 'ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)'
             );
             $account->execute([
                 'company_id' => $companyId,
@@ -123,6 +121,29 @@ final class OAuthConnectService
             if ($accountId < 1) {
                 throw new RuntimeException('Mercado Libre account could not be persisted.');
             }
+
+            $owner = $this->pdo->prepare(
+                'SELECT company_id FROM meli_accounts WHERE id = :account_id FOR UPDATE'
+            );
+            $owner->execute(['account_id' => $accountId]);
+            $ownerCompanyId = $owner->fetchColumn();
+            if ($ownerCompanyId === false) {
+                throw new RuntimeException('Mercado Libre account could not be persisted.');
+            }
+            if ((int) $ownerCompanyId !== $companyId) {
+                throw new RuntimeException('This Mercado Libre seller is already linked to another Company.');
+            }
+
+            $metadata = $this->pdo->prepare(
+                "UPDATE meli_accounts SET site_id = :site_id, nickname = :nickname, status = 'connected', "
+                . 'updated_at = UTC_TIMESTAMP(6) WHERE id = :account_id AND company_id = :company_id'
+            );
+            $metadata->execute([
+                'site_id' => $siteId,
+                'nickname' => $nickname,
+                'account_id' => $accountId,
+                'company_id' => $companyId,
+            ]);
 
             $tokens = $this->pdo->prepare(
                 'INSERT INTO meli_tokens '
