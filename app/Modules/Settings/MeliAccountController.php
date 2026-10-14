@@ -188,7 +188,10 @@ final class MeliAccountController
                 ['SELECT EXISTS(SELECT 1 FROM sales_audit_runs WHERE account_id=?)', [$accountId]],
                 ['SELECT EXISTS(SELECT 1 FROM billing_periods WHERE account_id=?)', [$accountId]],
                 ['SELECT EXISTS(SELECT 1 FROM webhook_events WHERE external_user_id=?)', [(string) $row['external_user_id']]],
-                ['SELECT EXISTS(SELECT 1 FROM api_usage_daily WHERE scope_key=?)', ['company:' . $company['id'] . ':account:' . $accountId]],
+                [
+                    'SELECT EXISTS(SELECT 1 FROM api_usage_daily WHERE scope_key IN (?,?))',
+                    ['company:' . $company['id'] . ':account:' . $accountId, 'account:' . $accountId],
+                ],
             ];
 
             foreach ($historyChecks as [$sql, $parameters]) {
