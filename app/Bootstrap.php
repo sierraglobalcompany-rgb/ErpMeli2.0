@@ -9,7 +9,6 @@ use App\Core\Config\Environment;
 use App\Core\Database\Connection;
 use App\Core\Http\Routes;
 use App\Core\Tenancy\CompanyContext;
-use App\Modules\Settings\MeliAccountController;
 use DomainException;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -71,16 +70,6 @@ final class Bootstrap
         $app->addErrorMiddleware(false, true, true);
 
         Routes::register($app, $config);
-        $app->get('/mercadolibre/accounts', static function (
-            ServerRequestInterface $request,
-            ResponseInterface $response
-        ) use ($config): ResponseInterface {
-            return (new MeliAccountController(
-                Connection::fromConfig($config),
-                $config,
-            ))->index($request, $response);
-        });
-
         return $app;
     }
 
