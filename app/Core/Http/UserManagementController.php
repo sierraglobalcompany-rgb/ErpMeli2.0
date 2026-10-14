@@ -308,7 +308,7 @@ final class UserManagementController
 
     private function password(mixed $password): string
     {
-        if (!is_string($password) || strlen($password) < 12 || strlen($password) > 72) {
+        if (!is_string($password) || strlen($password) < PasswordService::MIN_LENGTH || strlen($password) > 72) {
             throw new InvalidArgumentException();
         }
         return $password;
