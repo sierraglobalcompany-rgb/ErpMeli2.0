@@ -43,7 +43,7 @@ final class LocalOAuthMeliSimEndToEndTest extends TestCase
         $this->startServer();
         $config = TestDatabase::config();
         $this->setEnv('APP_ENV', 'local');
-        $this->setEnv('APP_URL', 'http://localhost');
+        $this->setEnv('APP_URL', 'http://127.0.0.1:18082');
         $this->setEnv('APP_KEY', $config->appKey);
         $this->setEnv('MELI_CLIENT_ID', 'synthetic-client');
         $this->setEnv('MELI_CLIENT_SECRET', 'synthetic-secret');
@@ -91,7 +91,7 @@ final class LocalOAuthMeliSimEndToEndTest extends TestCase
         );
         self::assertSame(302, $approved->status);
         $callbackUrl = $approved->headers['location'] ?? '';
-        self::assertStringStartsWith('http://localhost/oauth/mercadolibre/callback?', $callbackUrl);
+        self::assertStringStartsWith('http://127.0.0.1:18082/oauth/mercadolibre/callback?', $callbackUrl);
         parse_str((string) parse_url($callbackUrl, PHP_URL_QUERY), $callbackQuery);
         self::assertSame('synthetic-one-use-code', $callbackQuery['code'] ?? null);
         self::assertSame($_SESSION['meli_oauth']['state'] ?? null, $callbackQuery['state'] ?? null);
