@@ -1,15 +1,15 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=L8 HUMAN LOCAL E2E — PREPARED / WINDOWS EVIDENCE PENDING**
+**CURRENT=L9 LOCAL RELEASE CANDIDATE — PACKAGE BUILD PENDING**
 
 | Campo | Estado actual |
 |---|---|
 | Fecha | 2026-10-14 |
-| Rama activa | `impl/l8-human-local-e2e-chatgpt` |
-| Functional HEAD certificado | `9a67e843b189d7a958b184a64235022a6b36b578` |
+| Rama activa | `impl/l9-local-release-candidate-chatgpt` |
+| Functional source HEAD certificado | `ea4fddab7d4d6439583dc5061daa5936eb97cc1f` |
 | Stable separado | `impl/v3-b-sales-audit-20261010` — no merge autorizado |
-| Actions | `#746` / run `38628786800` — PASS PHP 8.3 / 8.4 / 8.5 |
-| PHP 8.3 | 764 tests / 6441 assertions / 0 failures |
+| Último QA código | Actions `#754` — PASS PHP 8.3 / 8.4 / 8.5 |
+| PHP 8.3 | 766 tests / 6448 assertions / 0 failures |
 | LOCAL_CORE_CONTRACTS_READY | YES |
 | LOCAL_PRODUCT_READY | NO |
 | L1 Web Installer | CLOSED |
@@ -19,110 +19,82 @@
 | L5 Canonical Seller + Account Management | CLOSED |
 | L6 Local OAuth / MLSIM | CLOSED |
 | L7 Account Lifecycle | CLOSED |
-| L8 Human Local E2E | IN PROGRESS |
-| L9 Local Release Candidate | NOT STARTED |
+| L8 Human Local E2E | CLOSED / GREEN |
+| L9 Local Release Candidate | IN PROGRESS |
 | HOSTINGER | DEFERRED |
 | F14 LIVE | DEFERRED |
 | F15 | PAUSED |
 | F16 | UNAUTHORIZED |
 | REMOTE_WRITES | OFF |
-| NEXT | Recibir evidencia Windows/local de Codex y ejecutar/certificar un único smoke humano L8 |
+| NEXT | Construir y probar un paquete local autocontenido desde el functional source HEAD |
 
-## Qué está cerrado localmente
+## L8 cerrado
 
-L1–L7 están cerrados en cobertura local. El producto ya dispone de:
+L8-A certificó instalación local real desde base vacía, login y navegación humana. L8-B certificó configuración MELI sintética, OAuth local MLSIM, Seller `100` / `MCO`, una sola cuenta canónica, disconnect y reauthorization sobre el mismo `account_id`, con dos ciclos `oauth.token → users.me` y cero requests al proveedor real.
 
-- instalador web humano/local-first/DB-safe;
-- empresas;
-- usuarios, roles y memberships;
-- configuración de la aplicación Mercado Libre;
-- identidad seller canónica y administración de cuentas;
-- OAuth local mediante MLSIM sin HTTP real a Mercado Libre;
-- lifecycle de cuenta: disconnect, reauthorization canónica y hard-delete sólo de cuentas prístinas.
+La evidencia visual L8-B quedó validada en cuatro PNG. La aparición de `Eliminar` en una cuenta `disabled` recién desconectada es compatible con el contrato: hard-delete depende de historia persistida asociada a la cuenta; una cuenta OAuth puede continuar prístina si no existen Work/orders/audits/billing/webhook/account-scoped usage.
 
-L8 no está cerrado porque todavía falta evidencia del runtime Windows/local real y un smoke humano por navegador desde instalación vacía. L9 no debe abrirse en el mismo bloque.
+## L9 — decisión KISS
 
-## L8 — preparación GitHub cerrada
+No se añadirá un framework de releases ni otro stack de packaging al producto.
 
-La preparación previa al smoke humano quedó certificada en el functional HEAD `9a67e843...`.
+El paquete local debe construirse **fuera del árbol de producto** desde el functional source HEAD certificado y demostrar que el artefacto, no sólo el repositorio, instala y arranca.
 
-### Flujo humano navegable
+### Forma de construcción
 
-```text
-fresh install
-→ login
-→ empresa inicial / selección de empresa
-→ usuarios y roles
-→ settings Mercado Libre
-→ cuentas Mercado Libre
-→ OAuth local MLSIM
-→ cuenta connected
-→ disconnect
-→ reauthorize misma canonical row
-```
+1. materializar exactamente `ea4fddab7d4d6439583dc5061daa5936eb97cc1f` en un worktree limpio;
+2. crear staging desechable fuera del repo;
+3. copiar sólo contenido versionado necesario;
+4. instalar dependencias de producción en staging con Composer `--no-dev --prefer-dist --optimize-autoloader`;
+5. retirar del staging ruido no-runtime: `.git*`, `.github`, `tests`, docs de desarrollo, caches y herramientas QA;
+6. conservar runtime real: `app`, `bin`, `config`, `database`, `public`, `storage` skeleton, `.htaccess`, `composer.json`, `composer.lock` y `vendor` de producción;
+7. no incluir `.env`, `storage/private/runtime.json`, `installed.lock`, credenciales, logs, debug, cache, exports, invoices ni tmp generados;
+8. crear un único ZIP RC + SHA-256;
+9. extraer el ZIP en otra carpeta limpia;
+10. verificar `vendor/autoload.php`, permisos/skeleton de storage y ausencia de secretos;
+11. ejecutar el Web Installer desde el ZIP extraído contra una DB nueva y dedicada;
+12. smoke mínimo: instalación → login → `/sales` → `/system/companies` → `/system/users`;
+13. `REAL_MELI_HTTP=0`, remote writes OFF, no Hostinger/F14/LIVE.
 
-La UI de `/settings/mercadolibre` puede guardar `synthetic-client` / `synthetic-secret` en `storage/private/runtime.json`; para L8 el proceso ERP no debe heredar `MELI_CLIENT_ID` ni `MELI_CLIENT_SECRET` como variables externas, porque en ese caso el panel queda correctamente en modo administrado por servidor.
+`RuntimePreflight::installerChecks()` exige `vendor/autoload.php`; por eso un `git archive` sin dependencias no cumple L9 como paquete instalable.
 
-`APP_ENV=local` sólo acepta `MELI_LOCAL_SIM_BASE_URL=http://127.0.0.1:<port>`. Sin seam válido OAuth local falla 503. `RemoteHostPolicy` bloquea `api.mercadolibre.com` fuera de producción.
+## Criterio de cierre L9
 
-### Hueco detectado y corregido antes del smoke
-
-RED:
+L9 sólo puede cerrar si existe evidencia de:
 
 ```text
-380da74c2cb64163ba9459dfd5b83c5f8f98d9cd
+PACKAGE_BUILD=PASS
+PACKAGE_SELF_CONTAINED=YES
+PRODUCTION_VENDOR_PRESENT=YES
+DEV_VENDOR_ABSENT=YES
+SECRETS_IN_PACKAGE=NO
+PACKAGE_SHA256=KNOWN
+EXTRACTED_INSTALLER=PASS
+EXTRACTED_LOGIN=PASS
+EXTRACTED_SALES=PASS
+EXTRACTED_COMPANIES=PASS
+EXTRACTED_USERS=PASS
+REAL_MELI_HTTP=0
+REMOTE_WRITES=OFF
+PRODUCT_CODE_CHANGED=NO
 ```
 
-El segundo ciclo OAuth humano fallaba porque `OAUTH_CONNECT` tenía sólo dos pasos globales. PHP 8.3 confirmó exactamente un fallo: el segundo callback devolvía 502 en vez de 303.
-
-GREEN:
-
-```text
-9a67e843b189d7a958b184a64235022a6b36b578
-```
-
-MLSIM repite únicamente el patrón exacto `oauth.token → users.me` de `OAUTH_CONNECT`; los demás escenarios continúan finitos. No se modificó código productivo en `app/`. Diff del arreglo frente al checkpoint previo: test E2E +25 líneas y router MLSIM +6/-2.
-
-Actions `#746` certificó PHP 8.3/8.4/8.5 GREEN; PHP 8.3 terminó con 764 tests / 6441 assertions.
-
-## Gate humano mínimo para cerrar L8
-
-1. runtime/preflight local PASS;
-2. instalación real desde base vacía;
-3. login con el administrador creado por el wizard;
-4. empresa inicial visible y seleccionable;
-5. usuarios/roles/memberships accesibles desde UI;
-6. guardar credenciales sintéticas desde UI con `MELI_CLIENT_ID` y `MELI_CLIENT_SECRET` ausentes del entorno del proceso ERP;
-7. MLSIM loopback activo y `MELI_LOCAL_SIM_BASE_URL` presente sólo en el proceso local;
-8. conectar seller sintético `100` / `MCO` por navegador;
-9. comprobar estado `connected`;
-10. desconectar;
-11. reautorizar la misma canonical row mediante un segundo OAuth completo;
-12. demostrar que no hubo HTTP real, remote writes, Hostinger ni gates externos.
-
-Hard-delete se valida sólo si existe una cuenta realmente prístina. Nunca se elimina historia para forzar el caso.
-
-## Papel de Codex en L8
-
-Codex se usa aquí únicamente para evidencia que requiere el PC Windows/local: runtime, procesos, puertos, navegador y filesystem local. No debe rediseñar el sistema ni implementar otra arquitectura. Si detecta un hueco real, se vuelve al owner raíz con RED → GREEN mínimo → QA → checkpoint.
+El ZIP no se despliega. Hostinger/F14 siguen cerrados hasta terminar L9 y luego tomar una decisión explícita L10.
 
 ## Guardrails permanentes
 
 ```text
 KISS: simple, eficiente, optimizado, eficaz; sin arquitectura innecesaria
-NOISE: borrar sólo con evidencia; si no, simplificar/mergear/optimizar
-ANTI-PATCH: corregir el owner raíz, no parche sobre parche
-REAL_MELI_HTTP=0 durante L8
+NOISE: eliminar/simplificar/unir antes de añadir
+ANTI-PATCH: corregir causa raíz, no workaround sobre workaround
+REAL_MELI_HTTP=0 durante L9
 remote writes=OFF
 no Hostinger / no F14 / no LIVE
-no L9 hasta cerrar L8
 no merge a stable/main sin autorización explícita
 ```
 
-R-02 costo de historial, R-03 pacing entre procesos y R-04 límite blando del runner permanecen como límites conocidos previos; L8 no los declara resueltos salvo evidencia nueva específica.
-
 ## NEXT — un solo microbloque
 
-Recibir la evidencia Windows/local de Codex y ejecutar/certificar el smoke humano L8. Si pasa, cerrar L8 y STOP. Si falla, corregir únicamente el owner raíz del fallo, certificarlo y volver al smoke antes de declarar L8 cerrado.
+Construir el RC local en Windows y probar una instalación completamente nueva **desde el ZIP extraído**. Codex sólo participa porque requiere filesystem, Composer, ZIP, MariaDB y navegador local. Si el paquete falla por defecto de producto, no parchear localmente: volver al owner raíz con RED → GREEN mínimo → QA → checkpoint.
 
-La continuidad documental adicional está en Issue #16. Los contratos durables siguen en [`ERP2_AUTHORITY.md`](ERP2_AUTHORITY.md).
+La continuidad adicional está en Issue #16. Los contratos durables siguen en [`ERP2_AUTHORITY.md`](ERP2_AUTHORITY.md).
