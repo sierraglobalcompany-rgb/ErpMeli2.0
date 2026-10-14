@@ -118,6 +118,33 @@ final class AuthTenancyTest extends TestCase
         (new CompanyContext($pdo))->select(2);
     }
 
+    public function testMultiMembershipLoginClearsStaleCompanyAndRoleBeforeSelection(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedUser($pdo);
+        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Second','second')");
+        $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(2,1,'member')");
+        $_SESSION = ['user_id'=>1,'company_id'=>1,'role'=>'admin'];
+
+        self::assertTrue((new AuthService($pdo))->login('admin@example.test', 'secret'));
+        self::assertSame(1, $_SESSION['user_id']);
+        self::assertArrayNotHasKey('company_id', $_SESSION);
+        self::assertArrayNotHasKey('role', $_SESSION);
+    }
+
+    public function testValidCredentialsWithoutMembershipCannotRetainPreviousOperatorIdentity(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedUser($pdo);
+        $_SESSION = ['user_id'=>1,'company_id'=>1,'role'=>'admin'];
+        $pdo->exec('DELETE FROM company_users');
+
+        self::assertFalse((new AuthService($pdo))->login('admin@example.test', 'secret'));
+        self::assertArrayNotHasKey('user_id', $_SESSION);
+        self::assertArrayNotHasKey('company_id', $_SESSION);
+        self::assertArrayNotHasKey('role', $_SESSION);
+    }
+
     private function seedUser(\PDO $pdo): void
     {
         $hash = (new PasswordService())->hash('secret');

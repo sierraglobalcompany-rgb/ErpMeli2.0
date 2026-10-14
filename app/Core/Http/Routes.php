@@ -48,7 +48,12 @@ final class Routes
             ResponseInterface $response
         ) use ($config): ResponseInterface {
             try {
-                (new CompanyContext(Connection::fromConfig($config)))->companyId();
+                $context = new CompanyContext(Connection::fromConfig($config));
+                if (!isset($_SESSION['company_id'])) {
+                    $context->assertActiveUser();
+                    return $response->withHeader('Location', '/company/select')->withStatus(303);
+                }
+                $context->companyId();
             } catch (\DomainException) {
                 return $response->withStatus(403);
             }
@@ -417,12 +422,15 @@ final class Routes
         ) use ($config): ResponseInterface {
             $context = new CompanyContext(Connection::fromConfig($config));
             try {
-                $company = $context->company();
                 $companies = $context->memberships();
+                $company = isset($_SESSION['company_id']) ? $context->company() : null;
             } catch (\DomainException) {
                 return $response->withStatus(403);
             }
-            if (count($companies) < 2) {
+            if ($companies === []) {
+                return $response->withStatus(403);
+            }
+            if ($company !== null && count($companies) < 2) {
                 return $response->withHeader('Location', '/sales')->withStatus(303);
             }
             $csrfToken = (new Csrf())->token();

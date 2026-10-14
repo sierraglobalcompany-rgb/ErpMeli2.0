@@ -9,6 +9,7 @@ use App\Core\Auth\AuthService;
 use App\Core\Security\Csrf;
 use PDO;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Tests\Support\TestDatabase;
@@ -87,6 +88,86 @@ final class OperatorFoundationTest extends TestCase
         self::assertSame(403, $this->request('GET', '/company/select')->getStatusCode());
         self::assertSame(403, $this->request('POST', '/company/select', ['company_id'=>1, 'csrf_token'=>$csrf])->getStatusCode());
         self::assertSame(2, $_SESSION['company_id']);
+    }
+
+    public function testMultiCompanyLoginReachesChooserWithoutClaimingAnActiveCompany(): void
+    {
+        $this->addSecondMembership();
+        $login = $this->request('POST', '/login', ['email'=>'admin@example.test','password'=>'test-password-long','csrf_token'=>(new Csrf())->token()]);
+        self::assertSame(303, $login->getStatusCode());
+        self::assertSame('/', $login->getHeaderLine('Location'));
+        self::assertSame('/company/select', $this->request('GET', '/')->getHeaderLine('Location'));
+        self::assertSame(1, $_SESSION['user_id']);
+        self::assertArrayNotHasKey('company_id', $_SESSION);
+        self::assertArrayNotHasKey('role', $_SESSION);
+
+        $selector = $this->request('GET', '/company/select');
+        self::assertSame(200, $selector->getStatusCode());
+        $html = (string) $selector->getBody();
+        self::assertStringContainsString('Main &lt;Company&gt;', $html);
+        self::assertStringContainsString('Second', $html);
+        self::assertStringNotContainsString('<p>Empresa:', $html, 'An uncommitted option is not an active company.');
+        foreach (['/sales','/catalog','/billing','/settings/system'] as $path) {
+            self::assertSame(403, $this->request('GET', $path)->getStatusCode());
+        }
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
+    }
+
+    #[DataProvider('explicitCompanyChoices')]
+    public function testExplicitCompanyChoiceActivatesExactRoleAndDownstreamContext(int $companyId, string $role, string $name, int $settingsStatus): void
+    {
+        $this->addSecondMembership();
+        self::assertTrue((new AuthService($this->pdo))->login('admin@example.test', 'test-password-long'));
+        self::assertArrayNotHasKey('company_id', $_SESSION);
+        self::assertArrayNotHasKey('role', $_SESSION);
+        $selected = $this->request('POST', '/company/select', ['company_id'=>$companyId,'csrf_token'=>(new Csrf())->token()]);
+        self::assertSame(303, $selected->getStatusCode());
+        self::assertSame($companyId, $_SESSION['company_id']);
+        self::assertSame($role, $_SESSION['role']);
+        self::assertSame('/sales', $this->request('GET', '/')->getHeaderLine('Location'));
+        foreach (['/sales','/catalog','/billing'] as $path) {
+            $response = $this->request('GET', $path);
+            self::assertSame(200, $response->getStatusCode());
+            self::assertStringContainsString($name, (string) $response->getBody());
+        }
+        self::assertSame($settingsStatus, $this->request('GET', '/settings/system')->getStatusCode());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
+    }
+
+    public static function explicitCompanyChoices(): iterable
+    {
+        yield 'admin' => [1,'admin','Main &lt;Company&gt;',200];
+        yield 'member' => [2,'member','Second',403];
+    }
+
+    #[DataProvider('rejectedCompanyChoices')]
+    public function testRejectedCompanyChoiceDoesNotActivateTenantOrRole(string $case, int $status): void
+    {
+        $this->addSecondMembership();
+        self::assertTrue((new AuthService($this->pdo))->login('admin@example.test', 'test-password-long'));
+        $body = ['company_id'=>2,'csrf_token'=>(new Csrf())->token()];
+        if ($case === 'csrf') { $body['csrf_token'] = 'invalid'; }
+        if ($case === 'invalid-id') { $body['company_id'] = 'invalid'; }
+        if ($case === 'foreign') { $body['company_id'] = 999; }
+        self::assertSame($status, $this->request('POST', '/company/select', $body)->getStatusCode());
+        self::assertSame(1, $_SESSION['user_id']);
+        self::assertArrayNotHasKey('company_id', $_SESSION);
+        self::assertArrayNotHasKey('role', $_SESSION);
+        self::assertSame('/company/select', $this->request('GET', '/')->getHeaderLine('Location'));
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
+    }
+
+    public static function rejectedCompanyChoices(): iterable
+    {
+        yield 'bad CSRF' => ['csrf',419];
+        yield 'invalid ID' => ['invalid-id',422];
+        yield 'foreign ID' => ['foreign',403];
+    }
+
+    private function addSecondMembership(): void
+    {
+        $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Second','second')");
+        $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(2,1,'member')");
     }
 
     private function seedSales(): void

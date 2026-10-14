@@ -66,19 +66,22 @@ final class AuthService
         }
 
         $membership = $this->pdo->prepare(
-            'SELECT company_id, role FROM company_users WHERE user_id = ? ORDER BY company_id LIMIT 1'
+            'SELECT company_id, role FROM company_users WHERE user_id = ? LIMIT 2'
         );
         $membership->execute([(int) $user['id']]);
-        $row = $membership->fetch();
+        $memberships = $membership->fetchAll(PDO::FETCH_ASSOC);
+        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role']);
 
-        if (!is_array($row)) {
+        if ($memberships === []) {
             return false;
         }
 
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $user['id'];
-        $_SESSION['company_id'] = (int) $row['company_id'];
-        $_SESSION['role'] = (string) $row['role'];
+        if (count($memberships) === 1) {
+            $_SESSION['company_id'] = (int) $memberships[0]['company_id'];
+            $_SESSION['role'] = (string) $memberships[0]['role'];
+        }
 
         return true;
     }
