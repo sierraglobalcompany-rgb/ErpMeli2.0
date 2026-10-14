@@ -128,6 +128,31 @@ final class LocalOAuthMeliSimEndToEndTest extends TestCase
 
         self::assertSame(400, Bootstrap::create()->handle($callback)->getStatusCode());
         self::assertCount(2, $this->trace(), 'Consumed callback must not exchange again.');
+
+        $accountId = (int) $row['id'];
+        $secondStart = Bootstrap::create()->handle($factory->createServerRequest('GET', '/oauth/mercadolibre/connect'));
+        self::assertSame(302, $secondStart->getStatusCode());
+        $secondApproval = $transport->send('GET', $secondStart->getHeaderLine('Location'), [], null);
+        self::assertSame(200, $secondApproval->status);
+        self::assertSame(1, preg_match('/name="approval_token" value="([a-f0-9]{32})"/', $secondApproval->body, $secondMatch));
+        $secondApproved = $transport->send(
+            'POST',
+            $this->baseUrl . '/authorization',
+            ['Content-Type'=>'application/x-www-form-urlencoded'],
+            http_build_query(['approval_token'=>$secondMatch[1]], '', '&', PHP_QUERY_RFC3986),
+        );
+        self::assertSame(302, $secondApproved->status);
+        parse_str((string) parse_url($secondApproved->headers['location'] ?? '', PHP_URL_QUERY), $secondCallbackQuery);
+        $secondCallback = $factory->createServerRequest('GET', '/oauth/mercadolibre/callback')->withQueryParams($secondCallbackQuery);
+        $secondResponse = Bootstrap::create()->handle($secondCallback);
+        self::assertSame(303, $secondResponse->getStatusCode());
+        self::assertSame($accountId, (int) $this->pdo->query('SELECT id FROM meli_accounts WHERE external_user_id=100')->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM meli_accounts WHERE external_user_id=100')->fetchColumn());
+
+        $trace = $this->trace();
+        self::assertSame(['oauth.token','users.me','oauth.token','users.me'], array_column($trace, 'operation'));
+        self::assertSame([true,true,true,true], array_column($trace, 'matched'));
+        self::assertSame([1,2,3,4], array_column($trace, 'seq'));
     }
 
     /** @return list<array<string,mixed>> */
