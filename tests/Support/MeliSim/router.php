@@ -37,6 +37,15 @@ $bundle = json_decode((string) file_get_contents(__DIR__ . '/scenarios.json'), t
 $steps = $bundle[$scenario] ?? [];
 $method = $_SERVER['REQUEST_METHOD'] ?? '';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+$validLocalCallback = static function (string $uri): bool {
+    $redirect = parse_url($uri);
+    $host = is_array($redirect) ? ($redirect['host'] ?? null) : null;
+    return is_array($redirect)
+        && ($redirect['scheme'] ?? null) === 'http'
+        && in_array($host, ['localhost','127.0.0.1'], true)
+        && ($redirect['path'] ?? null) === '/oauth/mercadolibre/callback'
+        && !isset($redirect['user'], $redirect['pass'], $redirect['query'], $redirect['fragment']);
+};
 
 if ($path === '/authorization') {
     if ($scenario !== 'OAUTH_CONNECT') {
@@ -57,18 +66,10 @@ if ($path === '/authorization') {
         $redirectUri = is_string($_GET['redirect_uri'] ?? null) ? trim($_GET['redirect_uri']) : '';
         $state = is_string($_GET['state'] ?? null) ? trim($_GET['state']) : '';
         $challenge = is_string($_GET['code_challenge'] ?? null) ? trim($_GET['code_challenge']) : '';
-        $redirect = parse_url($redirectUri);
-        $redirectHost = is_array($redirect) ? ($redirect['host'] ?? null) : null;
-        $redirectPath = is_array($redirect) ? ($redirect['path'] ?? null) : null;
-        $validRedirect = is_array($redirect)
-            && ($redirect['scheme'] ?? null) === 'http'
-            && in_array($redirectHost, ['localhost','127.0.0.1'], true)
-            && $redirectPath === '/oauth/mercadolibre/callback'
-            && !isset($redirect['user'], $redirect['pass'], $redirect['query'], $redirect['fragment']);
         $valid = $actualKeys === $expectedKeys
             && ($_GET['response_type'] ?? null) === 'code'
             && $clientId !== '' && strlen($clientId) <= 191
-            && $validRedirect
+            && $validLocalCallback($redirectUri)
             && preg_match('/^[A-Za-z0-9_-]{32,128}$/D', $state) === 1
             && preg_match('/^[A-Za-z0-9_-]{43}$/D', $challenge) === 1
             && ($_GET['code_challenge_method'] ?? null) === 'S256';
@@ -178,11 +179,13 @@ try {
         $expectedForm = is_array($step) ? ($step['form'] ?? []) : [];
         if (($form['grant_type'] ?? null) === 'authorization_code') {
             $verifier = $form['code_verifier'] ?? null;
+            $redirectUri = is_string($form['redirect_uri'] ?? null) ? trim($form['redirect_uri']) : '';
             $challengePath = $root . '/pkce-challenge.txt';
             $challenge = is_file($challengePath) && !is_link($challengePath) ? file_get_contents($challengePath) : false;
             $formValid = is_string($verifier) && preg_match('/^[A-Za-z0-9_-]{43}$/D', $verifier) === 1
-                && is_string($challenge) && hash_equals($challenge, rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='));
-            unset($form['code_verifier']);
+                && is_string($challenge) && hash_equals($challenge, rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='))
+                && $validLocalCallback($redirectUri);
+            unset($form['code_verifier'], $form['redirect_uri'], $expectedForm['redirect_uri']);
         }
         ksort($form); ksort($expectedForm);
         $formValid = $formValid && $form === $expectedForm
