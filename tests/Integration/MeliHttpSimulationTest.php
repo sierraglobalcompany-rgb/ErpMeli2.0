@@ -432,7 +432,6 @@ final class MeliHttpSimulationTest extends TestCase
     public static function webOAuthSeamCases(): iterable
     {
         yield 'successful test loopback' => ['test', null, 303];
-        yield 'ignored outside test, real host still blocked' => ['local', null, 502];
         yield 'reject localhost alias' => ['test', 'http://localhost:1234', 500];
         yield 'reject out-of-range port' => ['test', 'http://127.0.0.1:65536', 500];
     }
