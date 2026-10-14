@@ -145,4 +145,73 @@ final class MeliAccountController
             ->withHeader('Location', '/oauth/mercadolibre/connect?reauthorize=1')
             ->withStatus(303);
     }
+
+    public function hardDelete(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        int $accountId,
+    ): ResponseInterface {
+        try {
+            $company = (new CompanyContext($this->pdo))->companyForRoles('admin');
+        } catch (DomainException) {
+            return $response->withStatus(403);
+        }
+
+        $body = $request->getParsedBody();
+        $body = is_array($body) ? $body : [];
+        try {
+            (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
+        } catch (RuntimeException) {
+            return $response->withStatus(419);
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $account = $this->pdo->prepare(
+                'SELECT external_user_id,status FROM meli_accounts WHERE id=? AND company_id=? FOR UPDATE'
+            );
+            $account->execute([$accountId, $company['id']]);
+            $row = $account->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row)) {
+                $this->pdo->rollBack();
+                return $response->withStatus(404);
+            }
+            if (($row['status'] ?? null) !== 'disabled') {
+                $this->pdo->rollBack();
+                return $response->withStatus(409);
+            }
+
+            $historyChecks = [
+                ['SELECT EXISTS(SELECT 1 FROM meli_tokens WHERE account_id=?)', [$accountId]],
+                ['SELECT EXISTS(SELECT 1 FROM work_items WHERE account_id=?)', [$accountId]],
+                ['SELECT EXISTS(SELECT 1 FROM orders WHERE account_id=?)', [$accountId]],
+                ['SELECT EXISTS(SELECT 1 FROM sales_audit_runs WHERE account_id=?)', [$accountId]],
+                ['SELECT EXISTS(SELECT 1 FROM billing_periods WHERE account_id=?)', [$accountId]],
+                ['SELECT EXISTS(SELECT 1 FROM webhook_events WHERE external_user_id=?)', [(string) $row['external_user_id']]],
+                ['SELECT EXISTS(SELECT 1 FROM api_usage_daily WHERE scope_key=?)', ['company:' . $company['id'] . ':account:' . $accountId]],
+            ];
+
+            foreach ($historyChecks as [$sql, $parameters]) {
+                $history = $this->pdo->prepare($sql);
+                $history->execute($parameters);
+                if ((int) $history->fetchColumn() !== 0) {
+                    $this->pdo->rollBack();
+                    return $response->withStatus(409);
+                }
+            }
+
+            $delete = $this->pdo->prepare('DELETE FROM meli_accounts WHERE id=? AND company_id=?');
+            $delete->execute([$accountId, $company['id']]);
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
+
+        return $response
+            ->withHeader('Location', '/mercadolibre/accounts')
+            ->withStatus(303);
+    }
 }

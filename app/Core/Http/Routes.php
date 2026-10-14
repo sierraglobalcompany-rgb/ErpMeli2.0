@@ -220,6 +220,17 @@ final class Routes
             ))->reauthorize($request, $response, (int) ($args['account_id'] ?? 0));
         });
 
+        $app->post('/mercadolibre/accounts/{account_id:[0-9]+}/delete', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return (new MeliAccountController(
+                Connection::fromConfig($config),
+                $config,
+            ))->hardDelete($request, $response, (int) ($args['account_id'] ?? 0));
+        });
+
         $app->get('/oauth/mercadolibre/connect', static function (
             ServerRequestInterface $request,
             ResponseInterface $response
