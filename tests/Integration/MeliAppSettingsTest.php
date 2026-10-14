@@ -92,6 +92,16 @@ final class MeliAppSettingsTest extends TestCase
         self::assertStringContainsString('http://localhost/webhooks/mercadolibre', $html);
     }
 
+    public function testGlobalAdminNavigationMakesMeliSettingsDiscoverable(): void
+    {
+        $factory = new ServerRequestFactory();
+        foreach (['/system/companies', '/system/users', '/settings/system'] as $path) {
+            $response = Bootstrap::create()->handle($factory->createServerRequest('GET', $path));
+            self::assertSame(200, $response->getStatusCode(), $path);
+            self::assertStringContainsString('href="/settings/mercadolibre"', (string) $response->getBody(), $path);
+        }
+    }
+
     public function testCompanyAdminWithoutSystemAuthorityIsDenied(): void
     {
         $this->pdo->exec('UPDATE users SET is_system_admin=0 WHERE id=1');
