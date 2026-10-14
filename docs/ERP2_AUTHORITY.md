@@ -134,14 +134,14 @@ Rutas del operador:
 
 | Ruta | Contrato |
 |---|---|
-| GET/POST `/login` | Formulario etiquetado y CSRF actual; login correcto redirige a `/`. |
-| GET `/` | CompanyContext exige usuario activo + empresa autorizada; 303 a `/sales`; 403 sin autoridad. |
+| GET/POST `/login` | Formulario etiquetado y CSRF actual. Credenciales válidas con una membresía activan su empresa y rol; con múltiples autentican al usuario sin empresa/rol hasta selección explícita; sin membresías falla cerrado y no conserva contexto usable previo. Login correcto redirige a `/`. |
+| GET `/` | Empresa activa autorizada: 303 a `/sales`. Usuario activo autenticado sin empresa seleccionada: 303 a `/company/select`. Usuario ausente/inactivo o contexto ajeno: 403. |
 | GET `/sales` y `/sales/{order_id}` | HTML local con empresa actual, Ventas, Settings sólo para el rol admin vigente y logout POST con CSRF. |
-| GET `/company/select` | CompanyContext lista sólo membresías del usuario activo; una sola empresa redirige a Sales sin selector; múltiples muestran el formulario. |
-| POST `/company/select` | CSRF + membership vigente; cambia sólo empresa/rol de la sesión existente y redirige a `/`; empresa ajena/disabled = 403. |
+| GET `/company/select` | CompanyContext lista sólo membresías del usuario activo, incluso sin empresa seleccionada. Sin membresías: 403. Con una membresía y empresa ya activa redirige a Sales; sin empresa activa o con múltiples muestra el selector existente, sin afirmar una empresa activa ficticia. |
+| POST `/company/select` | CSRF + membership vigente; activa empresa elegida y rol de esa membresía en DB y redirige a `/`. CSRF inválido: 419; ID inválido: 422; empresa ajena/usuario inactivo: 403. Una selección rechazada no crea autoridad de tenant. |
 | POST `/logout` | Convención actual con CSRF; vuelve a `/login`. |
 
-CompanyContext conserva una única autoridad de tenant/usuario/rol: no se confía en el rol almacenado para mostrar permisos en Sales. No se agrega estado de tenant ni RBAC. Settings conserva su comportamiento y ofrece un enlace de regreso a Ventas.
+CompanyContext conserva una única autoridad de tenant/usuario/membresía/rol: el `company_id` enviado por el cliente no crea scope y el rol de sesión no es autoridad independiente. Reautenticar con múltiples membresías elimina empresa/rol previos antes de elegir. No se persiste estado de selección de tenant ni se agrega RBAC. Settings conserva su comportamiento y ofrece un enlace de regreso a Ventas.
 
 La búsqueda de historial es `GET /sales?order_id=<ID exacto>` mediante formulario de Sales, validando 1–32 dígitos como string y consultando exclusivamente la empresa seleccionada. Mantiene la lista reciente acotada a 100 sin filtro; con filtro obtiene el ID exacto aunque sea antiguo. Venta ausente/ajena devuelve el mismo mensaje vacío; ID inválido devuelve 422 con enlace de recuperación. El detalle ajeno sigue 404. No se crea Work ni se consulta Mercado Libre.
 
@@ -177,6 +177,8 @@ Capacidades aceptadas:
 - terminal cleanup.
 
 `retryCurrentClaim` consume intento; `deferCurrentClaim` no consume presupuesto neto.
+
+`maxSeconds` es un presupuesto blando del runner comprobado antes del siguiente claim: un claim ya en ejecución puede terminar y, agotado el presupuesto, no se toma otro.
 
 `completeCurrentClaim()` guarda el claim actual con row lock antes de ejecutar su callback. El callback puede devolver `true` únicamente tras diferir él mismo ese Work mediante el owner existente; el repositorio verifica estado pending y claim limpio antes de commit. Sin defer del callback conserva completion/continueAt existentes. La reparación Sales Audit ejecuta selección/dedupe/enqueue del hijo y defer del padre dentro de esa misma transacción. Token obsoleto no ejecuta callback ni crea hijos; fallo de transición revierte todos los efectos.
 

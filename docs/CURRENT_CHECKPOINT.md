@@ -1,64 +1,46 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=MLSIM-2 PASS — local provider simulation complete within current scope**
+**CURRENT=LOCAL-FIRST CURRENT-SCOPE CERTIFICATION CLOSED**
 
-| Field | Value |
+| Campo | Estado actual |
 |---|---|
-| Date | 2026-10-13 |
-| Branch | impl/v3-b-sales-audit-20261010 |
-| HEAD before | 54ea1ba1161897c702f1fbda0a4048722987246d — MLSIM-2 anchor, clean tree |
-| Functional SHA | 84b8d6b5750be9ba187a386d5107023609601d9b |
-| LC-P0-1..3 | CLOSED LOCAL — LC1 |
-| LC2A | CLOSED — operator/bootstrap/tenant/Sales history/audit visibility |
-| MLSIM-1 | CLOSED — original local HTTP contracts |
-| MLSIM-2 | PASS — seven current registry operations classified and locally certified |
-| LOCAL_PROVIDER_SIMULATION | COMPLETE_CURRENT_SCOPE |
-| LC2B | CLOSED — Catalog + Inventory operator UI |
-| LC2C1 | CLOSED — Billing Operator + CLI manual |
-| LC2C2 | CLOSED — Financial Consumer in existing Sale detail |
-| LC2C | CLOSED |
-| LC2D | CLOSED — Invoice/PostSale operator review |
-| LC3-W1 | CLOSED — existing CLI loopback seam reused |
-| LC3 | CLOSED — existing local composition certified |
-| F-01 | CLOSED — MB-A opaque Financial identities; MB-B recheck PASS |
-| MB-B | PASS — delta-focused whole-repo recheck |
+| Fecha | 2026-10-13 |
+| Rama | impl/v3-b-sales-audit-20261010 |
+| HEAD de producto / QA aceptada | f210efa508f6d97d1faba6131d240a2e2a9befc9 |
 | LOCAL_PRODUCT_READY | YES |
-| NEXT | LOCAL_STABILITY_REVIEW — user decision before external app |
-| LC4 | CLOSED — inherited evidence + minimal compatibility/doc cleanup |
-| F13 | CLOSED LOCAL |
+| LOCAL_PROVIDER_SIMULATION | COMPLETE_CURRENT_SCOPE |
+| LOCAL_STABILITY_CHARACTERIZED | YES |
+| LOCAL_OPERATOR_UX_REVIEW | PASS |
+| LOCAL_DESIGN_STABLE | YES |
+| LOCAL_FIRST_CURRENT_SCOPE | CLOSED |
 | F14 | LOCAL CONTRACT READY |
 | F14 LIVE | DEFERRED_BY_USER_LOCAL_FIRST |
-| KISS-S1 | CLOSED LOCAL — Billing same Work |
 | F15 | PAUSED |
 | F16 | UNAUTHORIZED |
 | REMOTE_WRITES | OFF |
+| NEXT | USER DECISION AFTER LOCAL CLOSURE |
 
-## MLSIM-2 local-first receipt
+## QA y procedencia vigentes
 
-- User sequencing is LOCAL-FIRST: no real Mercado Libre app, OAuth or provider HTTP. F14 LIVE is deferred by user decision; this block does not open F15/F16.
-- Existing MLSIM now has18 finite scenarios covering the seven current registry operations. Ten additions close pack/billing-info HTTP gaps and successful OAuth callback composition. Pack members resolve independently; billing-info proves COMPLETE/MISSING/UNKNOWN/UNAVAILABLE without buyer/shipping substitution or fiscal persistence.
-- Only productive delta: existing Routes callback uses MELI_TEST_BASE_URL with APP_ENV=test, literal HTTP127.0.0.1 and valid port; outside test it is ignored. Same client/owners/cipher/Work;0 new classes/services/repos/tables/migrations/Work types/dependencies/queues/runners. Three existing test files extended.
-- Connect uses generated state/company binding/PKCE and synthetic callback code, then Curl POST token + GET users.me in loopback. Bootstrap/Routes run in-process with PSR-7, not a browser/hosting certification. Replay0calls; refresh1POST and reread0POST. Lock/error/401 fakes remain the useful proofs for those equivalence classes.
-- Pack/billing-info have contracts but no productive fetch consumer. For billing-info404 the client exception and normalizer UNAVAILABLE branch are tested explicitly without claiming nonexistent consumer wiring. This does not certify real provider semantics/quotas/grants.
-- Fresh QA: MLSIM31/594; OAuth/CLI/F14 neighbors101/723; full648/5519, skip1 (existing Windows symlink limitation), failures0/errors0/deprecations0. Composer strict/PHPStan/syntax178/diff PASS;182 source/config hashes match. No functional changes after QA. MariaDB stopped; simulator processes/temp dirs0.
-- Evidence/actual patch: storage/exports/mlsim-2/. R-02 history read cost, R-03 instance pacing/multiprocess coverage limit, R-04 soft-time/backlog remain report-only; C-06 external gate deferred. REAL_MELI_HTTP=0, real OAuth0, production DB0, remote writes0/OFF.
+- Producto/test al HEAD indicado: full PHPUnit 656 tests / 5624 assertions / 1 skip (limitación Windows existente); 0 failures/errors/deprecations. Composer, PHPStan, sintaxis y diff PASS. GREEN focal 29/353; smoke de empresa/rol 2/44 PASS.
+- Recheck UX focal independiente PASS: OP-01 resuelto; J2–J6 PASS por procedencia de owners sin cambio. Este cierre sólo actualiza documentación; no repite PHPUnit ni certifica proveedor real.
 
-## MB-B targeted recheck receipt — historical, superseded for current QA/sequence
+## Riesgos y límites actuales
 
-- MB-A closed the confirmed local P1 F-01 in the existing FinancialReadModel only, with two existing Financial test files. Enumerated/emitted order, pack and detail identities reuse exact string values; strict matching, associations, sorting, money, tenancy and pure-read behavior remain coherent. No identity-bearing raw-key enumeration remains; membership-only maps are retained.
-- MB-B independently checked that delta and the applicable audit/MB-A artifact hashes. Prior whole-repo conclusions remain valid for unaffected code; no new local P0/P1, product/wiring gaps, critical unknowns, patch stacks, architecture regressions, critical integrity/test gaps, security or operability blockers were found within that coverage.
-- QA applicable to MB-B was MB-A: focal36 tests/383 assertions; full634 tests/5213 assertions, skip1 (existing Windows symlink limitation), failures0/errors0/deprecations0. Composer strict/PHPStan PASS; syntax178 files0failures; diff check PASS. Tested source hashes match; no product/test changes followed that QA, so MB-B reuses it without a full rerun. MariaDB remains stopped.
-- R-02 Billing-history read cost and R-04 soft-time/backlog remain structural risks; R-03 instance pacing remains a coverage limit/structural risk, not a proven429 defect. They are deferred without optimization. C-06 remains the external F14 gate. README's obsolete F13 recap was corrected against the current mapped100-product local rehearsal; no other documentation cleanup.
-- MB-B changes only README and this checkpoint in one docs commit. No product/test/schema/dependency/route/Work/OAuth changes, new architecture, evidence framework or committed exports. Evidence: `storage/exports/mb-b-targeted-recheck/`; MB-A QA/patch: `storage/exports/mb-a-financial-opaque-id/`; prior audits: `storage/exports/whole-repo-audit/` and `storage/exports/whole-repo-audit-deep/`.
+- R-02: costo medido de lectura de historial Billing/Financial en 100/1000/10000 filas; riesgo de crecimiento pendiente, sin optimización especulativa.
+- R-03: separación de pacing entre procesos no garantizada; observación local aceptada, no defecto 429 probado del proveedor.
+- R-04: `maxSeconds` es presupuesto blando; el claim en ejecución termina y no se toma otro tras agotarlo. Semántica aceptada; no garantiza drenaje completo de backlog.
+- Truth: UNKNOWN no es 0; CONFLICT explícito; PACK_MEMBERSHIP_UNVERIFIED fail-closed. billing-info/buyer_id no son autoridad fiscal; Billing CREDIT_NOTE no es artifact de factura/nota crédito del cliente.
+- OP-02/OP-03, flujo OAuth transitorio tenant-bound y cambios de membresías con selector abierto siguen diferidos/no bloqueantes.
+- Gates externos abiertos: #3 runtime Hostinger + protección main; #5 app dedicada Mercado Libre ERP2 + OAuth productivo. Sin hosting/cron productivo, cuotas reales ni deploy certificados; F14 LIVE y F16 no autorizados por este cierre.
 
-LOCAL_PRODUCT_READY=YES means the local core passed its applicable local gates. NEXT is LOCAL_STABILITY_REVIEW; an external app and bounded F14 LIVE READ certification require a later user decision. It does not certify production readiness, hosting/cron installation, real-provider quotas, deployment or F16 authorization. F14 was not executed in MB-B; real Mercado Libre business writes remain0/OFF.
+## Evidencia aceptada
 
-## Evidence and remaining gates
+- `storage/exports/mlsim-2/`: simulación local completa del alcance actual.
+- `storage/exports/local-stability-r02-r03-r04/`: mediciones y límites de estabilidad.
+- `storage/exports/local-operator-ux-final-review/`: J2–J6 y truth boundaries originales.
+- `storage/exports/mb-op-01-explicit-company-selection/`: fix y QA del HEAD de producto.
+- `storage/exports/post-mb-op-01-focal-ux-recheck/`: aceptación UX independiente.
+- `storage/exports/post-ux-local-closure/`: cierre documental y sincronización de rama de trabajo.
 
-- [Durable authority](ERP2_AUTHORITY.md): current domain/operator contracts.
-- [MLSIM design](MLSIM_0_LOCAL_MELI_SIMULATOR_DESIGN.md): existing local HTTP fixtures and composition limits.
-- [LC0 audit](LC0_LOCAL_COMPLETENESS_AUDIT.md): historical findings; code/current checkpoint determine current closures.
-
-LOCAL_PRODUCT_READY=YES. LOCAL_PROVIDER_SIMULATION=COMPLETE_CURRENT_SCOPE. MLSIM-2=PASS. LC3=CLOSED. LC4=CLOSED. NEXT=LOCAL_STABILITY_REVIEW. F14 LIVE=DEFERRED_BY_USER_LOCAL_FIRST, F15=PAUSED, F16=UNAUTHORIZED, REMOTE_WRITES=OFF. Git retains prior checkpoint receipts.
-
-STOP — MLSIM-2 local-first certification passed; F14 LIVE, F15 and F16 not executed.
+[Contratos durables](ERP2_AUTHORITY.md). Git conserva la historia; NEXT requiere decisión del usuario.
