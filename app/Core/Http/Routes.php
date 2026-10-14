@@ -45,7 +45,10 @@ final class Routes
     /** @param App<ContainerInterface|null> $app */
     public static function register(App $app, AppConfig $config): void
     {
-        $app->get('/', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->get('/', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             try {
                 $context = new CompanyContext(Connection::fromConfig($config));
                 $context->assertActiveUser();
@@ -59,7 +62,10 @@ final class Routes
             }
         });
 
-        $app->get('/health', static function (ServerRequestInterface $request, ResponseInterface $response): ResponseInterface {
+        $app->get('/health', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ): ResponseInterface {
             $response->getBody()->write('{"ok":true}');
             return $response->withHeader('Content-Type', 'application/json');
         });
@@ -78,9 +84,15 @@ final class Routes
             return (new UserManagementController(Connection::fromConfig($config)))->handle($request,$response,(string)$args['action'],(int)$args['id']);
         });
 
-        $app->post('/webhooks/mercadolibre', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->post('/webhooks/mercadolibre', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $payload = $request->getParsedBody();
-            if (!is_array($payload)) { return $response->withStatus(200); }
+            if (!is_array($payload)) {
+                return $response->withStatus(200);
+            }
+
             $pdo = Connection::fromConfig($config);
             $settings = new SystemSettingsRepository($pdo);
             $runtimeSettings = $settings->get();
@@ -91,42 +103,110 @@ final class Routes
                 $runtimeSettings->debugMaxMb * 1024 * 1024,
                 normalLogger: new AppLogger($root . '/storage/logs'),
             );
-            $receiver = new OrderWebhookReceiver($pdo, new WorkRepository($pdo), $config->meliClientId, $debugRecorder);
+            $receiver = new OrderWebhookReceiver(
+                $pdo,
+                new WorkRepository($pdo),
+                $config->meliClientId,
+                $debugRecorder,
+            );
             $receiver->receive($payload);
+
             return $response->withStatus(200);
         });
 
-        $app->post('/api/products', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->post('/api/products', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             return self::erpApiController($config)->createProduct($request, $response);
         });
-        $app->get('/api/products/{product_id}', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
-            return self::erpApiController($config)->readProduct($response, (string) ($args['product_id'] ?? ''));
-        });
-        $app->get('/api/products/{product_id}/inventory', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
-            return self::erpApiController($config)->readInventory($response, (string) ($args['product_id'] ?? ''));
-        });
-        $app->put('/api/products/{product_id}/inventory', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
-            return self::erpApiController($config)->setInventory($request, $response, (string) ($args['product_id'] ?? ''));
+
+        $app->get('/api/products/{product_id}', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::erpApiController($config)->readProduct(
+                $response,
+                (string) ($args['product_id'] ?? ''),
+            );
         });
 
-        $app->get('/api/integrations/v1/invoicing/sources', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->get('/api/products/{product_id}/inventory', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::erpApiController($config)->readInventory(
+                $response,
+                (string) ($args['product_id'] ?? ''),
+            );
+        });
+
+        $app->put('/api/products/{product_id}/inventory', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::erpApiController($config)->setInventory(
+                $request,
+                $response,
+                (string) ($args['product_id'] ?? ''),
+            );
+        });
+
+        $app->get('/api/integrations/v1/invoicing/sources', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             return self::invoicingBridgeController($config)->listSources($request, $response);
         });
-        $app->post('/api/integrations/v1/invoicing/sources/{order_id:[0-9]+}/artifact', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
-            return self::invoicingBridgeController($config)->acceptArtifact($request, $response, (string) ($args['order_id'] ?? ''), 'INVOICE');
-        });
-        $app->post('/api/integrations/v1/invoicing/sources/{order_id:[0-9]+}/credit-note', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
-            return self::invoicingBridgeController($config)->acceptArtifact($request, $response, (string) ($args['order_id'] ?? ''), 'CREDIT_NOTE');
+
+        $app->post('/api/integrations/v1/invoicing/sources/{order_id:[0-9]+}/artifact', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::invoicingBridgeController($config)->acceptArtifact(
+                $request,
+                $response,
+                (string) ($args['order_id'] ?? ''),
+                'INVOICE',
+            );
         });
 
-        $app->get('/mercadolibre/accounts', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
-            return (new MeliAccountController(Connection::fromConfig($config), $config))->index($request, $response);
+        $app->post('/api/integrations/v1/invoicing/sources/{order_id:[0-9]+}/credit-note', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return self::invoicingBridgeController($config)->acceptArtifact(
+                $request,
+                $response,
+                (string) ($args['order_id'] ?? ''),
+                'CREDIT_NOTE',
+            );
         });
 
-        $app->get('/oauth/mercadolibre/connect', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->get('/mercadolibre/accounts', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return (new MeliAccountController(
+                Connection::fromConfig($config),
+                $config,
+            ))->index($request, $response);
+        });
+
+        $app->get('/oauth/mercadolibre/connect', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $userId = $_SESSION['user_id'] ?? null;
             $companyId = $_SESSION['company_id'] ?? null;
-            if (!is_int($userId) || $userId < 1 || !is_int($companyId) || $companyId < 1) { return $response->withStatus(403); }
+            if (!is_int($userId) || $userId < 1 || !is_int($companyId) || $companyId < 1) {
+                return $response->withStatus(403);
+            }
 
             $pdo = Connection::fromConfig($config);
             try {
@@ -150,14 +230,27 @@ final class Routes
             }
 
             $redirectUri = rtrim($config->appUrl, '/') . '/oauth/mercadolibre/callback';
-            $flow = new OAuthAuthorizationFlow($config->meliClientId, $redirectUri, $authorizationUrl);
+            $flow = new OAuthAuthorizationFlow(
+                $config->meliClientId,
+                $redirectUri,
+                $authorizationUrl,
+            );
             $session =& $_SESSION;
-            $authorization = $flow->begin($session, new DateTimeImmutable('now', new DateTimeZone('UTC')));
+            $authorization = $flow->begin(
+                $session,
+                new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            );
             $_SESSION['meli_oauth_company_id'] = $companyId;
-            return $response->withHeader('Location', $authorization['url'])->withStatus(302);
+
+            return $response
+                ->withHeader('Location', $authorization['url'])
+                ->withStatus(302);
         });
 
-        $app->get('/oauth/mercadolibre/callback', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->get('/oauth/mercadolibre/callback', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $query = $request->getQueryParams();
             $authorizationCode = is_string($query['code'] ?? null) ? trim($query['code']) : '';
             $returnedState = is_string($query['state'] ?? null) ? trim($query['state']) : '';
@@ -183,10 +276,18 @@ final class Routes
             }
 
             $redirectUri = rtrim($config->appUrl, '/') . '/oauth/mercadolibre/callback';
-            $flow = new OAuthAuthorizationFlow($config->meliClientId, $redirectUri, 'https://auth.mercadolibre.com.co/authorization');
+            $flow = new OAuthAuthorizationFlow(
+                $config->meliClientId,
+                $redirectUri,
+                'https://auth.mercadolibre.com.co/authorization',
+            );
             $session =& $_SESSION;
             try {
-                $codeVerifier = $flow->consume($session, $returnedState, new DateTimeImmutable('now', new DateTimeZone('UTC')));
+                $codeVerifier = $flow->consume(
+                    $session,
+                    $returnedState,
+                    new DateTimeImmutable('now', new DateTimeZone('UTC')),
+                );
             } catch (RuntimeException) {
                 unset($_SESSION['meli_oauth_company_id']);
                 return $response->withStatus(400);
@@ -209,7 +310,6 @@ final class Routes
                     return $response->withStatus(503);
                 }
             }
-
             $client = new MeliClient(
                 new CurlMeliTransport(new RemoteHostPolicy(), $config->appEnv),
                 $settings,
@@ -228,41 +328,81 @@ final class Routes
             );
 
             try {
-                $connect->connectAuthorizationCode($boundCompanyId, $authorizationCode, $codeVerifier, new DateTimeImmutable('now', new DateTimeZone('UTC')));
+                $connect->connectAuthorizationCode(
+                    $boundCompanyId,
+                    $authorizationCode,
+                    $codeVerifier,
+                    new DateTimeImmutable('now', new DateTimeZone('UTC')),
+                );
             } catch (RuntimeException) {
                 return $response->withStatus(502);
             }
+
             return $response->withHeader('Location', '/sales')->withStatus(303);
         });
 
-        $app->get('/catalog', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->get('/catalog', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             return (new CatalogController(Connection::fromConfig($config)))->index($request, $response);
         });
-        $app->post('/catalog', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+
+        $app->post('/catalog', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             return (new CatalogController(Connection::fromConfig($config)))->create($request, $response);
         });
-        $app->post('/catalog/{product_id:[0-9]+}/inventory', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
-            return (new CatalogController(Connection::fromConfig($config)))->setInventory($request, $response, (string) ($args['product_id'] ?? ''));
+
+        $app->post('/catalog/{product_id:[0-9]+}/inventory', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return (new CatalogController(Connection::fromConfig($config)))->setInventory(
+                $request, $response, (string) ($args['product_id'] ?? ''),
+            );
         });
 
         $app->get('/billing', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
             return (new BillingController(Connection::fromConfig($config)))->index($request, $response);
         });
+
         $app->post('/billing/syncs', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
             return (new BillingController(Connection::fromConfig($config)))->sync($request, $response);
         });
 
-        $app->get('/sales', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->get('/sales', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             return (new SalesListController(Connection::fromConfig($config)))->show($request, $response);
         });
-        $app->post('/sales/audits', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+
+        $app->post('/sales/audits', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             return (new SalesListController(Connection::fromConfig($config)))->startAudit($request, $response);
         });
-        $app->get('/sales/{order_id:[0-9]+}', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
-            return (new SalesListController(Connection::fromConfig($config)))->detail($request, $response, (string) ($args['order_id'] ?? ''));
+
+        $app->get('/sales/{order_id:[0-9]+}', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return (new SalesListController(Connection::fromConfig($config)))->detail(
+                $request,
+                $response,
+                (string) ($args['order_id'] ?? ''),
+            );
         });
 
-        $app->get('/login', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->get('/login', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $token = (new Csrf())->token();
             $html = '<h1>' . htmlspecialchars($config->appName, ENT_QUOTES, 'UTF-8') . '</h1><h2>Ingresar</h2><form method="post" action="/login">'
                 . '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">'
@@ -273,35 +413,62 @@ final class Routes
             return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
         });
 
-        $app->post('/login', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->post('/login', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $body = $request->getParsedBody();
             $body = is_array($body) ? $body : [];
-            try { (new Csrf())->assertValid((string) ($body['csrf_token'] ?? '')); }
-            catch (RuntimeException) { return $response->withStatus(419); }
+
+            try {
+                (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
+            } catch (RuntimeException) {
+                return $response->withStatus(419);
+            }
+
             $auth = new AuthService(Connection::fromConfig($config));
-            if (!$auth->login((string) ($body['username'] ?? ''), (string) ($body['password'] ?? ''))) { return $response->withStatus(401); }
+            if (!$auth->login((string) ($body['username'] ?? ''), (string) ($body['password'] ?? ''))) {
+                return $response->withStatus(401);
+            }
+
             return $response->withHeader('Location', '/')->withStatus(303);
         });
 
-        $app->post('/logout', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->post('/logout', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $body = $request->getParsedBody();
             $body = is_array($body) ? $body : [];
-            try { (new Csrf())->assertValid((string) ($body['csrf_token'] ?? '')); }
-            catch (RuntimeException) { return $response->withStatus(419); }
+            try {
+                (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
+            } catch (RuntimeException) {
+                return $response->withStatus(419);
+            }
+
             (new AuthService(Connection::fromConfig($config)))->logout();
             return $response->withHeader('Location', '/login')->withStatus(303);
         });
 
-        $app->get('/company/select', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->get('/company/select', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $context = new CompanyContext(Connection::fromConfig($config));
             try {
                 $companies = $context->memberships();
                 $company = null;
                 try { $company=$context->company(); }
                 catch (\DomainException $exception) { if (isset($_SESSION['company_id'])) { throw $exception; } }
-            } catch (\DomainException) { return $response->withStatus(403); }
-            if ($companies === []) { return $context->isSystemAdmin() ? $response->withHeader('Location','/system/companies')->withStatus(303) : $response->withStatus(403); }
-            if ($company !== null && count($companies) < 2) { return $response->withHeader('Location', '/sales')->withStatus(303); }
+            } catch (\DomainException) {
+                return $response->withStatus(403);
+            }
+            if ($companies === []) {
+                return $context->isSystemAdmin() ? $response->withHeader('Location','/system/companies')->withStatus(303) : $response->withStatus(403);
+            }
+            if ($company !== null && count($companies) < 2) {
+                return $response->withHeader('Location', '/sales')->withStatus(303);
+            }
             $csrfToken = (new Csrf())->token();
             ob_start();
             require __DIR__ . '/views/company-select.php';
@@ -309,31 +476,70 @@ final class Routes
             return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
         });
 
-        $app->post('/company/select', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->post('/company/select', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $body = $request->getParsedBody();
             $body = is_array($body) ? $body : [];
-            try { (new Csrf())->assertValid((string) ($body['csrf_token'] ?? '')); }
-            catch (RuntimeException) { return $response->withStatus(419); }
+            try {
+                (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
+            } catch (RuntimeException) {
+                return $response->withStatus(419);
+            }
+
             $companyId = filter_var($body['company_id'] ?? null, FILTER_VALIDATE_INT);
-            if ($companyId === false || $companyId < 1) { return $response->withStatus(422); }
-            try { (new CompanyContext(Connection::fromConfig($config)))->select($companyId); }
-            catch (\DomainException) { return $response->withStatus(403); }
+            if ($companyId === false || $companyId < 1) {
+                return $response->withStatus(422);
+            }
+
+            try {
+                (new CompanyContext(Connection::fromConfig($config)))->select($companyId);
+            } catch (\DomainException) {
+                return $response->withStatus(403);
+            }
+
             return $response->withHeader('Location', '/')->withStatus(303);
         });
 
-        $app->map(['GET', 'POST'], '/settings/mercadolibre', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
-            return (new MeliAppSettingsController(Connection::fromConfig($config), $config, dirname(__DIR__, 3)))->handle($request, $response);
+        $app->map(['GET', 'POST'], '/settings/mercadolibre', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return (new MeliAppSettingsController(
+                Connection::fromConfig($config),
+                $config,
+                dirname(__DIR__, 3),
+            ))->handle($request, $response);
         });
 
-        $app->map(['GET', 'POST'], '/settings/system', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+        $app->map(['GET', 'POST'], '/settings/system', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
             $controller = self::systemSettingsController($config);
-            return $request->getMethod() === 'POST' ? $controller->update($request, $response) : $controller->show($request, $response);
+
+            return $request->getMethod() === 'POST'
+                ? $controller->update($request, $response)
+                : $controller->show($request, $response);
         });
-        $app->post('/settings/system/debug/clear', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
-            return self::systemSettingsController($config)->clearDebug($request, $response);
+
+        $app->post('/settings/system/debug/clear', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            $controller = self::systemSettingsController($config);
+
+            return $controller->clearDebug($request, $response);
         });
-        $app->post('/settings/system/debug/export', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
-            return self::systemSettingsController($config)->exportDebug($request, $response);
+
+        $app->post('/settings/system/debug/export', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            $controller = self::systemSettingsController($config);
+
+            return $controller->exportDebug($request, $response);
         });
     }
 
@@ -346,6 +552,7 @@ final class Routes
         if (!is_string($value) || trim($value) === '') {
             throw new RuntimeException('MELI_LOCAL_SIM_BASE_URL is required in local mode.');
         }
+
         return self::literalLoopbackBaseUrl(trim($value), 'MELI_LOCAL_SIM_BASE_URL');
     }
 
@@ -354,6 +561,7 @@ final class Routes
         if (preg_match('~\Ahttp://127\.0\.0\.1:([1-9][0-9]{0,4})\z~', $value, $port) !== 1 || (int) $port[1] > 65535) {
             throw new RuntimeException($name . ' must be an HTTP literal loopback URL with a valid port.');
         }
+
         return $value;
     }
 
@@ -363,6 +571,7 @@ final class Routes
         $root = dirname(__DIR__, 3);
         $debugDirectory = $root . '/storage/debug';
         $exportDirectory = $root . '/storage/exports';
+
         return new SystemSettingsController(
             $pdo,
             new SystemSettingsRepository($pdo),
@@ -380,7 +589,10 @@ final class Routes
     private static function invoicingBridgeController(AppConfig $config): InvoicingBridgeController
     {
         $root = dirname(__DIR__, 3);
-        $storageDirectory = $config->appEnv === 'test' ? sys_get_temp_dir() . '/erp-meli2-invoicing-test' : $root . '/storage/invoices';
+        $storageDirectory = $config->appEnv === 'test'
+            ? sys_get_temp_dir() . '/erp-meli2-invoicing-test'
+            : $root . '/storage/invoices';
+
         return new InvoicingBridgeController(Connection::fromConfig($config), $storageDirectory);
     }
 }
