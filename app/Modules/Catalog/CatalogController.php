@@ -35,7 +35,12 @@ final class CatalogController
         } catch (DomainException) {
             return $response->withStatus(403);
         }
-        $canOperate = in_array($company['role'], ['admin', 'operator'], true);
+        try {
+            $context->companyForRoles('admin', 'operator');
+            $canOperate = true;
+        } catch (DomainException) {
+            $canOperate = false;
+        }
         $repository = new ProductRepository($this->pdo);
         $query = $request->getQueryParams();
         $input = $query['product_id'] ?? '';
