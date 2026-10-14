@@ -31,6 +31,20 @@ final class CompanyContext
         return $this->company()['id'];
     }
 
+    public function isSystemAdmin(): bool
+    {
+        $userId = $_SESSION['user_id'] ?? null;
+        if (!is_int($userId) || $userId < 1) { return false; }
+        $statement = $this->pdo->prepare("SELECT 1 FROM users WHERE id=? AND status='active' AND is_system_admin=1");
+        $statement->execute([$userId]);
+        return $statement->fetchColumn() !== false;
+    }
+
+    public function assertSystemAdmin(): void
+    {
+        if (!$this->isSystemAdmin()) { throw new DomainException('System administrator required.'); }
+    }
+
     /** @return array{id:int,name:string,role:string} */
     public function company(): array
     {
@@ -48,7 +62,7 @@ final class CompanyContext
         $this->assertActiveUser();
         $statement = $this->pdo->prepare(
             'SELECT c.id,c.name,cu.role FROM company_users cu INNER JOIN companies c ON c.id = cu.company_id '
-            . 'WHERE cu.user_id = ? ORDER BY c.name,c.id'
+            . 'WHERE cu.user_id = ? AND c.archived_at IS NULL ORDER BY c.name,c.id'
         );
         $statement->execute([$_SESSION['user_id']]);
         return array_map(static fn (array $row): array => [
@@ -69,17 +83,23 @@ final class CompanyContext
     }
 
     /** @return array{id:int,name:string,role:string} */
-    private function membership(int $userId, int $companyId): array
+    public function membership(int $userId, int $companyId): array
     {
         $this->assertActiveUser();
+        if ($userId !== $_SESSION['user_id']) { throw new DomainException('Company access denied.'); }
         $stmt = $this->pdo->prepare(
             'SELECT c.id,c.name,cu.role FROM company_users cu INNER JOIN companies c ON c.id = cu.company_id '
-            . 'WHERE cu.user_id = ? AND cu.company_id = ? LIMIT 1'
+            . 'WHERE cu.user_id = ? AND cu.company_id = ? AND c.archived_at IS NULL LIMIT 1'
         );
         $stmt->execute([$userId, $companyId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!is_array($row) || !is_string($row['role']) || $row['role'] === '') {
+            $archived = $this->pdo->prepare('SELECT 1 FROM companies WHERE id=? AND archived_at IS NOT NULL');
+            $archived->execute([$companyId]);
+            if ($archived->fetchColumn() !== false && ($_SESSION['company_id'] ?? null) === $companyId) {
+                unset($_SESSION['company_id'], $_SESSION['role']);
+            }
             throw new DomainException('Company access denied.');
         }
 

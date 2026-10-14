@@ -111,10 +111,24 @@ La dirección validada determina el modo: HTTP o HTTPS en `localhost`/`127.0.0.1
 
 El instalador requiere una DB vacía y dedicada. Probar conexión observa servidor compatible y verifica CREATE/ALTER/índice/DROP en una tabla aleatoria reservada con cleanup; no toca datos de negocio. La prueba queda ligada a host, puerto, base, usuario y contraseña actuales; cambiar cualquier valor la invalida. La acción final vuelve a comprobar destino, permisos y frescura. Cualquier tabla preexistente o residuo de migración sin marker requiere recuperación explícita, sin borrar tablas ni reparar automáticamente. Restaurar o recrear una DB vacía dedicada y volver a instalar es una recuperación operativa aceptada, no un motor de migración alternativo.
 
-Login usa username canónico y contraseña; display_name es el nombre informativo y `users.email` conserva contacto/recuperación. Los usernames nuevos usan 3–80 caracteres minúsculos, números, punto, guion o guion bajo; los usuarios previos conservan su email canónico como username y la columna admite su ancho anterior. El administrador inicial tiene sólo la membresía admin de su empresa, sin autoridad global añadida ni entrega de password reset.
+Login usa username canónico y contraseña; display_name es el nombre informativo y `users.email` conserva contacto/recuperación. Los usernames nuevos usan 3–80 caracteres minúsculos, números, punto, guion o guion bajo; los usuarios previos conservan su email canónico como username y la columna admite su ancho anterior. El administrador inicial conserva la membresía admin de su empresa y tiene autoridad System Admin de la instalación. Son autoridades independientes; no se añade entrega de password reset.
 
 El bootstrap CLI sigue disponible como provisión manual del núcleo, con las variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` configuradas. No crea el marker/configuración web ni sustituye el wizard; no debe ejecutarse para preparar la DB que éste exige vacía:
 
 ```text
 php bin/bootstrap-admin.php "Primera Empresa" "primera-empresa" "admin@example.test"
 ```
+
+### Autoridad de instalación y gestión de empresas
+
+System Admin se comprueba en users mediante el ID entero de la sesión, status active e is_system_admin=1. Company admin es una membresía tenant independiente. El hint de sesión sólo controla visibilidad: nunca concede permisos. El bootstrap inicial crea ambas autoridades; al actualizar una DB previa sólo se promueve al único admin si existe exactamente una empresa y exactamente una membresía admin. Un caso ambiguo no promueve a nadie ni infiere identidad por ID, correo o nombre.
+
+CompanyContext es la autoridad tenant. Sólo empresas con archived_at NULL aparecen en membresías o pueden seleccionarse/usarse; una selección archivada pierde company_id y role. Un usuario normal necesita alguna membresía activa para ingresar; System Admin puede ingresar sin empresa activa y acceder a empresas/settings globales. La raíz conduce a ERP con empresa válida, selector con membresías activas o gestión global para System Admin sin ellas; el resto falla cerrado.
+
+La gestión de empresas es System-Admin-only, con CSRF en toda mutación. Crear empresa y membresía admin del actor es una sola transacción sin seleccionar automáticamente; editar sólo permite nombre/identificador, incluso en empresa archivada. No gestiona usuarios ni cuentas Meli.
+
+Archivar conserva toda historia y fija archived_at en UTC. Se rechaza si hay Work pending/running para company_id, cuenta Meli distinta de disabled o key de facturación active. No cancela Work, deshabilita cuentas/tokens ni revoca claves. Reactivar sólo elimina archived_at, sin seleccionar, reiniciar ni reconectar. OAuth comprueba empresa activa antes de llamar al proveedor y vuelve a comprobarla con lock al persistir para no crear cuenta activa en una empresa archivada.
+
+Eliminar definitivamente sólo admite empresa ya archivada, sin cuentas Meli, productos, Work, service keys ni uso API por company:<id> o company:<id>:account:<id>, y con la única membresía admin del actor. Los cooldowns app:<family> son globales y no se atribuyen a una empresa. Se eliminan únicamente membresía y empresa en una transacción; el usuario permanece. Cualquier FK que rechace el borrado causa rollback y conflicto, sin cascada ni force delete.
+
+system_settings y sus acciones update/debug requieren System Admin activo comprobado en CompanyContext, aun sin empresa seleccionada. Un Company admin sin esa autoridad recibe 403. Las escrituras remotas permanecen OFF hasta su autorización específica.

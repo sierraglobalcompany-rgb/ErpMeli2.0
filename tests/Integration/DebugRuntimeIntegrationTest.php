@@ -129,7 +129,7 @@ final class DebugRuntimeIntegrationTest extends TestCase
     private function seedAdmin(\PDO $pdo): void
     {
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Debug Admin','debug-admin')");
-        $pdo->exec("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'debug-admin@example.test','debug-admin@example.test','debug-admin@example.test','unused','active')");
+        $pdo->exec("INSERT INTO users(id,username,display_name,email,password_hash,status,is_system_admin) VALUES (1,'debug-admin@example.test','debug-admin@example.test','debug-admin@example.test','unused','active',1)");
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin')");
     }
 

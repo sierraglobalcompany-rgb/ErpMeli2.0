@@ -92,6 +92,7 @@ final class DebugExportTest extends TestCase
         self::assertNotSame('', (string) $response->getBody());
 
         $pdo->exec("UPDATE company_users SET role='member' WHERE company_id=1 AND user_id=1");
+        $pdo->exec('UPDATE users SET is_system_admin=0 WHERE id=1');
         $forbidden = $controller->exportDebug($request, (new ResponseFactory())->createResponse());
         self::assertSame(403, $forbidden->getStatusCode());
 
@@ -102,7 +103,7 @@ final class DebugExportTest extends TestCase
     {
         $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Debug Admin','debug-admin')");
         $pdo->exec(
-            "INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'debug-admin@example.test','debug-admin@example.test','debug-admin@example.test','unused','active')"
+            "INSERT INTO users(id,username,display_name,email,password_hash,status,is_system_admin) VALUES (1,'debug-admin@example.test','debug-admin@example.test','debug-admin@example.test','unused','active',1)"
         );
         $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'admin')");
     }

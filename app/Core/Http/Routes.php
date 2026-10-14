@@ -49,15 +49,15 @@ final class Routes
         ) use ($config): ResponseInterface {
             try {
                 $context = new CompanyContext(Connection::fromConfig($config));
-                if (!isset($_SESSION['company_id'])) {
-                    $context->assertActiveUser();
-                    return $response->withHeader('Location', '/company/select')->withStatus(303);
-                }
-                $context->companyId();
+                $context->assertActiveUser();
+                try { $context->companyId(); return $response->withHeader('Location','/sales')->withStatus(303); }
+                catch (\DomainException $exception) { if (isset($_SESSION['company_id'])) { throw $exception; } }
+                if ($context->memberships() !== []) { return $response->withHeader('Location','/company/select')->withStatus(303); }
+                $context->assertSystemAdmin();
+                return $response->withHeader('Location','/system/companies')->withStatus(303);
             } catch (\DomainException) {
                 return $response->withStatus(403);
             }
-            return $response->withHeader('Location', '/sales')->withStatus(303);
         });
 
         $app->get('/health', static function (
@@ -66,6 +66,13 @@ final class Routes
         ): ResponseInterface {
             $response->getBody()->write('{"ok":true}');
             return $response->withHeader('Content-Type', 'application/json');
+        });
+
+        $app->map(['GET','POST'], '/system/companies', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+            return (new CompanyManagementController(Connection::fromConfig($config)))->handle($request,$response);
+        });
+        $app->post('/system/companies/{id:[0-9]+}/{action:update|archive|reactivate|delete}', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
+            return (new CompanyManagementController(Connection::fromConfig($config)))->handle($request,$response,(string)$args['action'],(int)$args['id']);
         });
 
         $app->post('/webhooks/mercadolibre', static function (
@@ -183,16 +190,10 @@ final class Routes
             }
 
             $pdo = Connection::fromConfig($config);
-            $membership = $pdo->prepare(
-                "SELECT 1 FROM company_users WHERE user_id = :user_id AND company_id = :company_id AND role = 'admin' LIMIT 1"
-            );
-            $membership->execute([
-                'user_id' => $userId,
-                'company_id' => $companyId,
-            ]);
-            if ($membership->fetchColumn() === false) {
-                return $response->withStatus(403);
-            }
+            try {
+                $company = (new CompanyContext($pdo))->membership($userId,$companyId);
+                if ($company['role'] !== 'admin') { return $response->withStatus(403); }
+            } catch (\DomainException) { return $response->withStatus(403); }
 
             if ($config->meliClientId === '') {
                 $response->getBody()->write('Mercado Libre no está configurado.');
@@ -236,14 +237,10 @@ final class Routes
             }
 
             $pdo = Connection::fromConfig($config);
-            $membership = $pdo->prepare(
-                "SELECT 1 FROM company_users WHERE user_id = :user_id AND company_id = :company_id AND role = 'admin' LIMIT 1"
-            );
-            $membership->execute([
-                'user_id' => $userId,
-                'company_id' => $boundCompanyId,
-            ]);
-            if ($membership->fetchColumn() === false) {
+            try {
+                $company = (new CompanyContext($pdo))->membership($userId,$boundCompanyId);
+                if ($company['role'] !== 'admin') { throw new \DomainException('Company admin required.'); }
+            } catch (\DomainException) {
                 unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
                 return $response->withStatus(403);
             }
@@ -427,12 +424,14 @@ final class Routes
             $context = new CompanyContext(Connection::fromConfig($config));
             try {
                 $companies = $context->memberships();
-                $company = isset($_SESSION['company_id']) ? $context->company() : null;
+                $company = null;
+                try { $company=$context->company(); }
+                catch (\DomainException $exception) { if (isset($_SESSION['company_id'])) { throw $exception; } }
             } catch (\DomainException) {
                 return $response->withStatus(403);
             }
             if ($companies === []) {
-                return $response->withStatus(403);
+                return $context->isSystemAdmin() ? $response->withHeader('Location','/system/companies')->withStatus(303) : $response->withStatus(403);
             }
             if ($company !== null && count($companies) < 2) {
                 return $response->withHeader('Location', '/sales')->withStatus(303);

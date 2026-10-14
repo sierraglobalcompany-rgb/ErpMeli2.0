@@ -36,6 +36,7 @@ final class OAuthConnectService
             throw new RuntimeException('Mercado Libre OAuth authorization input is incomplete.');
         }
 
+        $this->assertActiveCompany($companyId);
         $tokenBody = http_build_query([
             'grant_type' => 'authorization_code',
             'client_id' => $this->clientId,
@@ -98,6 +99,8 @@ final class OAuthConnectService
 
         $this->pdo->beginTransaction();
         try {
+            // Archive and persistence serialize on this row without holding a lock during HTTP.
+            $this->assertActiveCompany($companyId, true);
             $account = $this->pdo->prepare(
                 'INSERT INTO meli_accounts '
                 . '(company_id, external_user_id, site_id, nickname, status) '
@@ -147,5 +150,12 @@ final class OAuthConnectService
             }
             throw $exception;
         }
+    }
+
+    private function assertActiveCompany(int $companyId, bool $lock = false): void
+    {
+        $statement = $this->pdo->prepare('SELECT id FROM companies WHERE id=? AND archived_at IS NULL' . ($lock ? ' FOR UPDATE' : ''));
+        $statement->execute([$companyId]);
+        if ($statement->fetchColumn() === false) { throw new RuntimeException('An active Company is required for OAuth.'); }
     }
 }

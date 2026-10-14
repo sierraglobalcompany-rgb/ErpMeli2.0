@@ -45,8 +45,8 @@ final class OperatorFoundationTest extends TestCase
         self::assertStringContainsString('href="/settings/system"', $html);
         self::assertStringContainsString('action="/logout"', $html);
         $this->pdo->exec("UPDATE company_users SET role='member'");
-        $_SESSION['role'] = 'admin'; // stale role must not grant settings navigation
-        self::assertStringNotContainsString('href="/settings/system"', (string) $this->request('GET', '/sales')->getBody());
+        $_SESSION['role'] = 'admin'; // Company role does not control installation settings.
+        self::assertStringContainsString('href="/settings/system"', (string) $this->request('GET', '/sales')->getBody());
         $this->pdo->exec("UPDATE users SET status='disabled'");
         self::assertSame(403, $this->request('GET', '/')->getStatusCode());
         self::assertSame(403, $this->request('GET', '/sales')->getStatusCode());
@@ -107,9 +107,10 @@ final class OperatorFoundationTest extends TestCase
         self::assertStringContainsString('Main &lt;Company&gt;', $html);
         self::assertStringContainsString('Second', $html);
         self::assertStringNotContainsString('<p>Empresa:', $html, 'An uncommitted option is not an active company.');
-        foreach (['/sales','/catalog','/billing','/settings/system'] as $path) {
+        foreach (['/sales','/catalog','/billing'] as $path) {
             self::assertSame(403, $this->request('GET', $path)->getStatusCode());
         }
+        self::assertSame(200,$this->request('GET','/settings/system')->getStatusCode());
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
     }
 
@@ -137,7 +138,7 @@ final class OperatorFoundationTest extends TestCase
     public static function explicitCompanyChoices(): iterable
     {
         yield 'admin' => [1,'admin','Main &lt;Company&gt;',200];
-        yield 'member' => [2,'member','Second',403];
+        yield 'member' => [2,'member','Second',200];
     }
 
     #[DataProvider('rejectedCompanyChoices')]
@@ -254,7 +255,8 @@ final class OperatorFoundationTest extends TestCase
     public function testOperatorCanReturnFromSettingsAndLoginInputsAreLabelled(): void
     {
         $html = (string) $this->request('GET', '/settings/system')->getBody();
-        self::assertStringContainsString('href="/sales"', $html);
+        self::assertStringContainsString('href="/"', $html);
+        self::assertStringContainsString('href="/system/companies"', $html);
         $html = (string) $this->request('GET', '/login')->getBody();
         self::assertStringContainsString('<label', $html);
         self::assertStringContainsString('Usuario', $html);

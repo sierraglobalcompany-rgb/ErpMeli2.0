@@ -172,6 +172,50 @@ final class OAuthConnectServiceTest extends TestCase
         self::assertSame(0, (int) $pdo->query('SELECT COUNT(*) FROM meli_accounts')->fetchColumn());
     }
 
+    public function testMissingCompanyIsRejectedBeforeProviderCall(): void
+    {
+        $pdo = TestDatabase::reset();
+        $transport = new OAuthQueueTransport([]);
+        try {
+            $this->service($pdo,$transport,new TokenCipher('test-app-secret'))->connectAuthorizationCode(999,'code','verifier',new DateTimeImmutable('2026-10-13T00:00:00Z'));
+            self::fail('A missing company must reject OAuth.');
+        } catch (RuntimeException) {
+            self::assertCount(0,$transport->requests);
+        }
+    }
+
+    public function testArchivedCompanyIsRejectedBeforeProviderCall(): void
+    {
+        $pdo = TestDatabase::reset();
+        $id = $this->seedCompany($pdo);
+        $pdo->exec('UPDATE companies SET archived_at=UTC_TIMESTAMP(3)');
+        $transport = new OAuthQueueTransport([]);
+        try {
+            $this->service($pdo,$transport,new TokenCipher('test-app-secret'))->connectAuthorizationCode($id,'code','verifier',new DateTimeImmutable('2026-10-13T00:00:00Z'));
+            self::fail('An archived company must reject OAuth.');
+        } catch (RuntimeException) {
+            self::assertCount(0,$transport->requests);
+        }
+        self::assertSame(0,(int)$pdo->query('SELECT COUNT(*) FROM meli_accounts')->fetchColumn());
+    }
+
+    public function testArchiveDuringProviderExchangeCannotPersistConnectedAccount(): void
+    {
+        $pdo=TestDatabase::reset(); $id=$this->seedCompany($pdo);
+        $transport=new OAuthQueueTransport([
+            new MeliTransportResponse(200,[], '{"access_token":"synthetic","refresh_token":"synthetic","expires_in":100}'),
+            new MeliTransportResponse(200,[], '{"id":123,"site_id":"MCO"}'),
+        ]);
+        $transport->beforeSend=static function () use ($pdo): void { $pdo->exec('UPDATE companies SET archived_at=UTC_TIMESTAMP(3)'); };
+        try {
+            $this->service($pdo,$transport,new TokenCipher('test-app-secret'))->connectAuthorizationCode($id,'code','verifier',new DateTimeImmutable('2026-10-13T00:00:00Z'));
+            self::fail('Archival during exchange must reject persistence.');
+        } catch (RuntimeException) {
+            self::assertSame(0,(int)$pdo->query('SELECT COUNT(*) FROM meli_accounts')->fetchColumn());
+            self::assertSame(0,(int)$pdo->query('SELECT COUNT(*) FROM meli_tokens')->fetchColumn());
+        }
+    }
+
     private function service(PDO $pdo, OAuthQueueTransport $transport, TokenCipher $cipher): OAuthConnectService
     {
         /** @var array<string,array{method:string,path:string,family:string,classification:string,official_doc_url:string,verified_at:string}> $operations */
@@ -204,6 +248,7 @@ final class OAuthConnectServiceTest extends TestCase
 
 final class OAuthQueueTransport implements MeliTransport
 {
+    public ?\Closure $beforeSend = null;
     /** @var list<MeliTransportResponse|RuntimeException> */
     private array $queue;
 
@@ -219,6 +264,7 @@ final class OAuthQueueTransport implements MeliTransport
     /** @param array<string,string> $headers */
     public function send(string $method, string $url, array $headers, ?string $body): MeliTransportResponse
     {
+        if ($this->beforeSend !== null) { ($this->beforeSend)(); $this->beforeSend=null; }
         $this->requests[] = compact('method', 'url', 'headers', 'body');
         $next = array_shift($this->queue);
         if ($next instanceof RuntimeException) {

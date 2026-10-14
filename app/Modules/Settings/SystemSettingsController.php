@@ -192,18 +192,6 @@ final class SystemSettingsController
 
     private function isAdmin(): bool
     {
-        $userId = $_SESSION['user_id'] ?? null;
-        $companyId = $_SESSION['company_id'] ?? null;
-        if (!is_int($userId) || !is_int($companyId)) {
-            return false;
-        }
-
-        $stmt = $this->pdo->prepare(
-            "SELECT COUNT(*) FROM company_users
-             WHERE user_id = ? AND company_id = ? AND role = 'admin'"
-        );
-        $stmt->execute([$userId, $companyId]);
-
-        return (int) $stmt->fetchColumn() === 1;
+        return (new \App\Core\Tenancy\CompanyContext($this->pdo))->isSystemAdmin();
     }
 }

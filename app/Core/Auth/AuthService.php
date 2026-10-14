@@ -45,7 +45,7 @@ final class AuthService
             $company = $this->pdo->prepare('INSERT INTO companies(name,slug) VALUES (?,?)');
             $company->execute([$companyName, $slug]);
             $companyId = (int) $this->pdo->lastInsertId();
-            $user = $this->pdo->prepare("INSERT INTO users(email,password_hash,status,username,display_name) VALUES (?,?,'active',?,?)");
+            $user = $this->pdo->prepare("INSERT INTO users(email,password_hash,status,username,display_name,is_system_admin) VALUES (?,?,'active',?,?,1)");
             $user->execute([$email, $hash, $username, $displayName]);
             $userId = (int) $this->pdo->lastInsertId();
             $membership = $this->pdo->prepare("INSERT INTO company_users(company_id,user_id,role) VALUES (?,?,'admin')");
@@ -60,7 +60,7 @@ final class AuthService
     public function login(string $username, string $password): bool
     {
         $stmt = $this->pdo->prepare(
-            "SELECT id, password_hash, display_name FROM users
+            "SELECT id, password_hash, display_name, is_system_admin FROM users
              WHERE username = ? AND status = 'active' LIMIT 1"
         );
         $stmt->execute([mb_strtolower(trim($username))]);
@@ -70,22 +70,21 @@ final class AuthService
             return false;
         }
 
-        $membership = $this->pdo->prepare(
-            'SELECT company_id, role FROM company_users WHERE user_id = ? LIMIT 2'
-        );
-        $membership->execute([(int) $user['id']]);
-        $memberships = $membership->fetchAll(PDO::FETCH_ASSOC);
-        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role'], $_SESSION['display_name']);
+        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role'], $_SESSION['display_name'], $_SESSION['is_system_admin']);
+        $_SESSION['user_id'] = (int) $user['id'];
+        $memberships = (new \App\Core\Tenancy\CompanyContext($this->pdo))->memberships();
 
-        if ($memberships === []) {
+        if ($memberships === [] && (int)$user['is_system_admin'] !== 1) {
+            unset($_SESSION['user_id']);
             return false;
         }
 
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['display_name'] = (string) $user['display_name'];
+        $_SESSION['is_system_admin'] = (int)$user['is_system_admin'] === 1;
         if (count($memberships) === 1) {
-            $_SESSION['company_id'] = (int) $memberships[0]['company_id'];
+            $_SESSION['company_id'] = $memberships[0]['id'];
             $_SESSION['role'] = (string) $memberships[0]['role'];
         }
 
@@ -94,7 +93,7 @@ final class AuthService
 
     public function logout(): void
     {
-        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role'], $_SESSION['csrf_token'], $_SESSION['display_name']);
+        unset($_SESSION['user_id'], $_SESSION['company_id'], $_SESSION['role'], $_SESSION['csrf_token'], $_SESSION['display_name'], $_SESSION['is_system_admin']);
         session_regenerate_id(true);
     }
 

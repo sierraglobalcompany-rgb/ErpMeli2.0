@@ -14,7 +14,7 @@ $help = ['server'=>'Prepararemos la configuración y tu empresa inicial. Primero
     'database'=>'Estos datos los entrega tu hosting o tu instalación local de MariaDB. Usa una base vacía y dedicada al ERP.',
     'application'=>'Elige el nombre que verás al ingresar y la dirección desde la que usarás el ERP.',
     'company'=>'El identificador es un nombre corto para reconocer a la empresa. Si lo dejas vacío, lo sugerimos a partir de su nombre.',
-    'administrator'=>'Será administrador de la empresa inicial. Usa una contraseña de 12 a 72 bytes y conserva tus datos de acceso.',
+    'administrator'=>'Será administrador de la empresa inicial y del sistema. Usa una contraseña de 12 a 72 bytes y conserva tus datos de acceso.',
     'install'=>'Comprueba estos datos. Al instalar se crearán las tablas y un único administrador; no se conectará a Mercado Libre.',
     'success'=>'ERP Meli 2.0 se instaló correctamente. Ya puedes iniciar sesión.'];
 $fields = match ($step) {
