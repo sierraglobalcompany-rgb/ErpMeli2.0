@@ -63,7 +63,7 @@ final class UserManagementController
 
         $this->pdo->beginTransaction();
         try {
-            $this->change($action, $id, $body, $actorId);
+            $this->change($action, $id, $body);
             $this->pdo->commit();
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
@@ -131,14 +131,13 @@ final class UserManagementController
     }
 
     /** @param array<mixed> $body */
-    private function change(string $action, int $id, array $body, int $actorId): void
+    private function change(string $action, int $id, array $body): void
     {
         if ($action === '') {
             [$username, $displayName, $email] = $this->identity($body);
             $password = $this->password($body['password'] ?? null);
             $isSystemAdmin = ($body['is_system_admin'] ?? null) === '1' ? 1 : 0;
-            $companyInput = $body['company_id'] ?? null;
-            $companyId = $this->optionalPositiveId($companyInput);
+            $companyId = $this->optionalPositiveId($body['company_id'] ?? null);
             $role = $companyId === null ? null : $this->role($body['role'] ?? null);
             if ($companyId !== null) {
                 $this->assertCompanyExists($companyId);
@@ -244,9 +243,7 @@ final class UserManagementController
         if ($id < 1) {
             throw new OutOfBoundsException();
         }
-        $statement = $this->pdo->prepare(
-            'SELECT id,status,is_system_admin FROM users WHERE id=? FOR UPDATE'
-        );
+        $statement = $this->pdo->prepare('SELECT id,status,is_system_admin FROM users WHERE id=? FOR UPDATE');
         $statement->execute([$id]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         if (!is_array($row)) {
@@ -257,10 +254,7 @@ final class UserManagementController
 
     private function assertAnotherActiveSystemAdmin(int $excludingUserId): void
     {
-        $statement = $this->pdo->prepare(
-            "SELECT id FROM users WHERE status='active' AND is_system_admin=1 ORDER BY id FOR UPDATE"
-        );
-        $statement->execute();
+        $statement = $this->pdo->query("SELECT id FROM users WHERE status='active' AND is_system_admin=1 ORDER BY id FOR UPDATE");
         $ids = array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
         if (array_values(array_filter($ids, static fn (int $id): bool => $id !== $excludingUserId)) === []) {
             throw new DomainException('At least one active System Admin is required.');
@@ -289,7 +283,10 @@ final class UserManagementController
         }
     }
 
-    /** @param array<mixed> $body @return array{string,string,string} */
+    /**
+     * @param array<mixed> $body
+     * @return array{string,string,string}
+     */
     private function identity(array $body): array
     {
         $username = $body['username'] ?? null;
