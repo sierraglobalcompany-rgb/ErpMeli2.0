@@ -209,6 +209,17 @@ final class Routes
             ))->disconnect($request, $response, (int) ($args['account_id'] ?? 0));
         });
 
+        $app->post('/mercadolibre/accounts/{account_id:[0-9]+}/reauthorize', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use ($config): ResponseInterface {
+            return (new MeliAccountController(
+                Connection::fromConfig($config),
+                $config,
+            ))->reauthorize($request, $response, (int) ($args['account_id'] ?? 0));
+        });
+
         $app->get('/oauth/mercadolibre/connect', static function (
             ServerRequestInterface $request,
             ResponseInterface $response
@@ -225,7 +236,26 @@ final class Routes
                 if ($company['role'] !== 'admin') { return $response->withStatus(403); }
             } catch (\DomainException) { return $response->withStatus(403); }
 
+            $query = $request->getQueryParams();
+            $reauthorize = ($query['reauthorize'] ?? null) === '1';
+            if (!$reauthorize) {
+                unset($_SESSION['meli_oauth_reauthorize_account_id']);
+            } else {
+                $expectedAccountId = $_SESSION['meli_oauth_reauthorize_account_id'] ?? null;
+                if (!is_int($expectedAccountId) || $expectedAccountId < 1) {
+                    unset($_SESSION['meli_oauth_reauthorize_account_id']);
+                    return $response->withStatus(400);
+                }
+                $target = $pdo->prepare('SELECT id FROM meli_accounts WHERE id=? AND company_id=?');
+                $target->execute([$expectedAccountId, $companyId]);
+                if ($target->fetchColumn() === false) {
+                    unset($_SESSION['meli_oauth_reauthorize_account_id']);
+                    return $response->withStatus(404);
+                }
+            }
+
             if ($config->meliClientId === '') {
+                if ($reauthorize) { unset($_SESSION['meli_oauth_reauthorize_account_id']); }
                 $response->getBody()->write('Mercado Libre no está configurado.');
                 return $response->withStatus(503);
             }
@@ -235,6 +265,7 @@ final class Routes
                 try {
                     $authorizationUrl = self::localMeliSimBaseUrl() . '/authorization';
                 } catch (RuntimeException) {
+                    if ($reauthorize) { unset($_SESSION['meli_oauth_reauthorize_account_id']); }
                     $response->getBody()->write('Configura un simulador local de Mercado Libre antes de conectar una cuenta.');
                     return $response->withStatus(503);
                 }
@@ -267,13 +298,15 @@ final class Routes
             $returnedState = is_string($query['state'] ?? null) ? trim($query['state']) : '';
             $userId = $_SESSION['user_id'] ?? null;
             $boundCompanyId = $_SESSION['meli_oauth_company_id'] ?? null;
+            $expectedAccountId = $_SESSION['meli_oauth_reauthorize_account_id'] ?? null;
 
             if (!is_int($userId) || $userId < 1) {
-                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id'], $_SESSION['meli_oauth_reauthorize_account_id']);
                 return $response->withStatus(403);
             }
-            if (!is_int($boundCompanyId) || $boundCompanyId < 1 || $authorizationCode === '' || $returnedState === '') {
-                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+            if (!is_int($boundCompanyId) || $boundCompanyId < 1 || $authorizationCode === '' || $returnedState === '' ||
+                ($expectedAccountId !== null && (!is_int($expectedAccountId) || $expectedAccountId < 1))) {
+                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id'], $_SESSION['meli_oauth_reauthorize_account_id']);
                 return $response->withStatus(400);
             }
 
@@ -282,7 +315,7 @@ final class Routes
                 $company = (new CompanyContext($pdo))->membership($userId,$boundCompanyId);
                 if ($company['role'] !== 'admin') { throw new \DomainException('Company admin required.'); }
             } catch (\DomainException) {
-                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id']);
+                unset($_SESSION['meli_oauth'], $_SESSION['meli_oauth_company_id'], $_SESSION['meli_oauth_reauthorize_account_id']);
                 return $response->withStatus(403);
             }
 
@@ -300,7 +333,7 @@ final class Routes
                     new DateTimeImmutable('now', new DateTimeZone('UTC')),
                 );
             } catch (RuntimeException) {
-                unset($_SESSION['meli_oauth_company_id']);
+                unset($_SESSION['meli_oauth_company_id'], $_SESSION['meli_oauth_reauthorize_account_id']);
                 return $response->withStatus(400);
             }
             unset($_SESSION['meli_oauth_company_id']);
@@ -318,6 +351,7 @@ final class Routes
                 try {
                     $baseUrl = self::localMeliSimBaseUrl();
                 } catch (RuntimeException) {
+                    unset($_SESSION['meli_oauth_reauthorize_account_id']);
                     return $response->withStatus(503);
                 }
             }
@@ -344,10 +378,13 @@ final class Routes
                     $authorizationCode,
                     $codeVerifier,
                     new DateTimeImmutable('now', new DateTimeZone('UTC')),
+                    $expectedAccountId,
                 );
             } catch (RuntimeException) {
+                unset($_SESSION['meli_oauth_reauthorize_account_id']);
                 return $response->withStatus(502);
             }
+            unset($_SESSION['meli_oauth_reauthorize_account_id']);
 
             return $response->withHeader('Location', '/sales')->withStatus(303);
         });
