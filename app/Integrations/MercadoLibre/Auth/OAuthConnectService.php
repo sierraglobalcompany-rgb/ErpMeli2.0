@@ -31,12 +31,18 @@ final class OAuthConnectService
         string $authorizationCode,
         string $codeVerifier,
         DateTimeImmutable $issuedAt,
+        ?int $expectedAccountId = null,
     ): int {
-        if ($companyId < 1 || $authorizationCode === '' || $codeVerifier === '') {
+        if ($companyId < 1 || $authorizationCode === '' || $codeVerifier === '' ||
+            ($expectedAccountId !== null && $expectedAccountId < 1)) {
             throw new RuntimeException('Mercado Libre OAuth authorization input is incomplete.');
         }
 
         $this->assertActiveCompany($companyId);
+        if ($expectedAccountId !== null) {
+            $this->reauthorizationExternalUserId($companyId, $expectedAccountId);
+        }
+
         $tokenBody = http_build_query([
             'grant_type' => 'authorization_code',
             'client_id' => $this->clientId,
@@ -102,36 +108,48 @@ final class OAuthConnectService
             // Archive and persistence serialize on this row without holding a lock during HTTP.
             $this->assertActiveCompany($companyId, true);
 
-            // external_user_id is installation-global. The duplicate path intentionally mutates no account data;
-            // LAST_INSERT_ID only returns the canonical row id so ownership can be checked before any update.
-            $account = $this->pdo->prepare(
-                'INSERT INTO meli_accounts '
-                . '(company_id, external_user_id, site_id, nickname, status) '
-                . "VALUES (:company_id, :external_user_id, :site_id, :nickname, 'connected') "
-                . 'ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)'
-            );
-            $account->execute([
-                'company_id' => $companyId,
-                'external_user_id' => $externalUserId,
-                'site_id' => $siteId,
-                'nickname' => $nickname,
-            ]);
+            if ($expectedAccountId !== null) {
+                $expectedExternalUserId = $this->reauthorizationExternalUserId(
+                    $companyId,
+                    $expectedAccountId,
+                    true,
+                );
+                if (!hash_equals($expectedExternalUserId, $externalUserId)) {
+                    throw new RuntimeException('Mercado Libre reauthorization must match the selected canonical seller.');
+                }
+                $accountId = $expectedAccountId;
+            } else {
+                // external_user_id is installation-global. The duplicate path intentionally mutates no account data;
+                // LAST_INSERT_ID only returns the canonical row id so ownership can be checked before any update.
+                $account = $this->pdo->prepare(
+                    'INSERT INTO meli_accounts '
+                    . '(company_id, external_user_id, site_id, nickname, status) '
+                    . "VALUES (:company_id, :external_user_id, :site_id, :nickname, 'connected') "
+                    . 'ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)'
+                );
+                $account->execute([
+                    'company_id' => $companyId,
+                    'external_user_id' => $externalUserId,
+                    'site_id' => $siteId,
+                    'nickname' => $nickname,
+                ]);
 
-            $accountId = (int) $this->pdo->lastInsertId();
-            if ($accountId < 1) {
-                throw new RuntimeException('Mercado Libre account could not be persisted.');
-            }
+                $accountId = (int) $this->pdo->lastInsertId();
+                if ($accountId < 1) {
+                    throw new RuntimeException('Mercado Libre account could not be persisted.');
+                }
 
-            $owner = $this->pdo->prepare(
-                'SELECT company_id FROM meli_accounts WHERE id = :account_id FOR UPDATE'
-            );
-            $owner->execute(['account_id' => $accountId]);
-            $ownerCompanyId = $owner->fetchColumn();
-            if ($ownerCompanyId === false) {
-                throw new RuntimeException('Mercado Libre account could not be persisted.');
-            }
-            if ((int) $ownerCompanyId !== $companyId) {
-                throw new RuntimeException('This Mercado Libre seller is already linked to another Company.');
+                $owner = $this->pdo->prepare(
+                    'SELECT company_id FROM meli_accounts WHERE id = :account_id FOR UPDATE'
+                );
+                $owner->execute(['account_id' => $accountId]);
+                $ownerCompanyId = $owner->fetchColumn();
+                if ($ownerCompanyId === false) {
+                    throw new RuntimeException('Mercado Libre account could not be persisted.');
+                }
+                if ((int) $ownerCompanyId !== $companyId) {
+                    throw new RuntimeException('This Mercado Libre seller is already linked to another Company.');
+                }
             }
 
             $metadata = $this->pdo->prepare(
@@ -171,6 +189,20 @@ final class OAuthConnectService
             }
             throw $exception;
         }
+    }
+
+    private function reauthorizationExternalUserId(int $companyId, int $accountId, bool $lock = false): string
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT external_user_id FROM meli_accounts WHERE id=? AND company_id=?' . ($lock ? ' FOR UPDATE' : '')
+        );
+        $statement->execute([$accountId, $companyId]);
+        $externalUserId = $statement->fetchColumn();
+        if (!is_string($externalUserId) || $externalUserId === '') {
+            throw new RuntimeException('Mercado Libre reauthorization target is unavailable.');
+        }
+
+        return $externalUserId;
     }
 
     private function assertActiveCompany(int $companyId, bool $lock = false): void
