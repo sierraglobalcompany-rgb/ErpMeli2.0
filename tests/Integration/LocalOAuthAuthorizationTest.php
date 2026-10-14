@@ -18,7 +18,7 @@ final class LocalOAuthAuthorizationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        foreach (['APP_ENV','APP_URL','MELI_CLIENT_ID','MELI_CLIENT_SECRET','MELI_LOCAL_SIM_BASE_URL'] as $key) {
+        foreach (['APP_ENV','APP_URL','MELI_CLIENT_ID','MELI_CLIENT_SECRET','MELI_LOCAL_SIM_BASE_URL','MELI_TEST_BASE_URL'] as $key) {
             $this->before[$key] = getenv($key);
         }
 
@@ -37,6 +37,7 @@ final class LocalOAuthAuthorizationTest extends TestCase
         $this->setEnv('MELI_CLIENT_ID', 'synthetic-client');
         $this->setEnv('MELI_CLIENT_SECRET', 'synthetic-secret');
         $this->clearEnv('MELI_LOCAL_SIM_BASE_URL');
+        $this->clearEnv('MELI_TEST_BASE_URL');
     }
 
     protected function tearDown(): void
@@ -54,6 +55,18 @@ final class LocalOAuthAuthorizationTest extends TestCase
 
     public function testLocalModeWithoutSimulatorFailsClosedBeforeOAuthState(): void
     {
+        $response = $this->connect();
+
+        self::assertSame(503, $response->getStatusCode());
+        self::assertSame('', $response->getHeaderLine('Location'));
+        self::assertArrayNotHasKey('meli_oauth', $_SESSION);
+        self::assertArrayNotHasKey('meli_oauth_company_id', $_SESSION);
+    }
+
+    public function testLocalModeDoesNotTreatTestBaseUrlAsSimulatorConfiguration(): void
+    {
+        $this->setEnv('MELI_TEST_BASE_URL', 'http://127.0.0.1:18080');
+
         $response = $this->connect();
 
         self::assertSame(503, $response->getStatusCode());
