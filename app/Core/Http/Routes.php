@@ -75,6 +75,13 @@ final class Routes
             return (new CompanyManagementController(Connection::fromConfig($config)))->handle($request,$response,(string)$args['action'],(int)$args['id']);
         });
 
+        $app->map(['GET','POST'], '/system/users', static function (ServerRequestInterface $request, ResponseInterface $response) use ($config): ResponseInterface {
+            return (new UserManagementController(Connection::fromConfig($config)))->handle($request,$response);
+        });
+        $app->post('/system/users/{id:[0-9]+}/{action:update|status|system-admin|password|membership|remove-membership}', static function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($config): ResponseInterface {
+            return (new UserManagementController(Connection::fromConfig($config)))->handle($request,$response,(string)$args['action'],(int)$args['id']);
+        });
+
         $app->post('/webhooks/mercadolibre', static function (
             ServerRequestInterface $request,
             ResponseInterface $response
