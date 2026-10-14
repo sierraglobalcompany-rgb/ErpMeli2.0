@@ -6,6 +6,8 @@ namespace App\Core\Auth;
 
 final class PasswordService
 {
+    public const int MIN_LENGTH = 6;
+
     public function hash(string $password): string
     {
         return password_hash($password, PASSWORD_DEFAULT);
