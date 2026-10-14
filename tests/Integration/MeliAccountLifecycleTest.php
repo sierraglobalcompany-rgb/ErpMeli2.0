@@ -112,12 +112,94 @@ final class MeliAccountLifecycleTest extends TestCase
         self::assertSame(1, $this->tokenCount(101));
     }
 
+    public function testHardDeleteRemovesOnlyDisabledPristineAccount(): void
+    {
+        $this->insertDisabledAccount(301, '3001');
+
+        $response = $this->post('/mercadolibre/accounts/301/delete');
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame('/mercadolibre/accounts', $response->getHeaderLine('Location'));
+        self::assertSame(0, $this->accountCount(301));
+    }
+
+    public function testHardDeleteRejectsConnectedAccountAndExistingToken(): void
+    {
+        self::assertSame(409, $this->post('/mercadolibre/accounts/101/delete')->getStatusCode());
+        self::assertSame(1, $this->accountCount(101));
+        self::assertSame(1, $this->tokenCount(101));
+
+        $this->insertDisabledAccount(301, '3001');
+        $this->pdo->exec("INSERT INTO meli_tokens(account_id,access_token_cipher,refresh_token_cipher,expires_at) VALUES(301,'A','R',DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 1 HOUR))");
+        self::assertSame(409, $this->post('/mercadolibre/accounts/301/delete')->getStatusCode());
+        self::assertSame(1, $this->accountCount(301));
+        self::assertSame(1, $this->tokenCount(301));
+    }
+
+    public function testHardDeleteRejectsAllPersistedAccountHistoryWithoutCleaningIt(): void
+    {
+        $this->insertDisabledAccount(301, '3001');
+        $this->insertWork(301, 'done');
+
+        $this->insertDisabledAccount(302, '3002');
+        $this->pdo->exec("INSERT INTO orders(company_id,account_id,external_order_id,status,currency_id) VALUES(10,302,'9002','paid','COP')");
+
+        $this->insertDisabledAccount(303, '3003');
+        $this->pdo->exec("INSERT INTO sales_audit_runs(company_id,account_id,period_key,contract_version,status) VALUES(10,303,'2026-10-01','l7-test','valid')");
+
+        $this->insertDisabledAccount(304, '3004');
+        $this->pdo->exec("INSERT INTO billing_periods(company_id,account_id,period_key,document_type) VALUES(10,304,'2026-10-01','BILL')");
+
+        $this->insertDisabledAccount(305, '3005');
+        $this->pdo->exec("INSERT INTO webhook_events(event_id,topic,resource,external_user_id) VALUES('l7-delete-event','orders_v2','/orders/9005','3005')");
+
+        $this->insertDisabledAccount(306, '3006');
+        $this->pdo->exec("INSERT INTO api_usage_daily(usage_date,scope_key,operation_key,requests) VALUES(UTC_DATE(),'company:10:account:306','users.me',1)");
+
+        foreach ([301, 302, 303, 304, 305, 306] as $accountId) {
+            self::assertSame(409, $this->post('/mercadolibre/accounts/' . $accountId . '/delete')->getStatusCode(), (string) $accountId);
+            self::assertSame(1, $this->accountCount($accountId), (string) $accountId);
+        }
+
+        self::assertSame(1, $this->workCount(301));
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM orders WHERE account_id=302")->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM sales_audit_runs WHERE account_id=303")->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM billing_periods WHERE account_id=304")->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM webhook_events WHERE external_user_id='3005'")->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM api_usage_daily WHERE scope_key='company:10:account:306'")->fetchColumn());
+    }
+
+    public function testHardDeleteIsCompanyScopedAndCsrfProtected(): void
+    {
+        $this->pdo->exec('DELETE FROM meli_tokens WHERE account_id=201');
+        $this->pdo->exec("UPDATE meli_accounts SET status='disabled' WHERE id=201");
+        self::assertSame(404, $this->post('/mercadolibre/accounts/201/delete')->getStatusCode());
+        self::assertSame(1, $this->accountCount(201));
+
+        $this->insertDisabledAccount(301, '3001');
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/mercadolibre/accounts/301/delete')
+            ->withParsedBody(['csrf_token' => 'wrong']);
+        $response = Bootstrap::create()->handle($request);
+
+        self::assertSame(419, $response->getStatusCode());
+        self::assertSame(1, $this->accountCount(301));
+    }
+
     private function post(string $path): ResponseInterface
     {
         $request = (new ServerRequestFactory())
             ->createServerRequest('POST', $path)
             ->withParsedBody(['csrf_token' => str_repeat('c', 64)]);
         return Bootstrap::create()->handle($request);
+    }
+
+    private function insertDisabledAccount(int $accountId, string $externalUserId): void
+    {
+        $statement = $this->pdo->prepare(
+            "INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,nickname,status) VALUES(?,10,?,'MCO','DELETE TEST','disabled')"
+        );
+        $statement->execute([$accountId, $externalUserId]);
     }
 
     private function insertWork(int $accountId, string $status): void
@@ -137,6 +219,13 @@ final class MeliAccountLifecycleTest extends TestCase
             $running ? gmdate('Y-m-d H:i:s') : null,
             $terminal ? gmdate('Y-m-d H:i:s') : null,
         ]);
+    }
+
+    private function accountCount(int $id): int
+    {
+        $statement = $this->pdo->prepare('SELECT COUNT(*) FROM meli_accounts WHERE id=?');
+        $statement->execute([$id]);
+        return (int) $statement->fetchColumn();
     }
 
     private function accountStatus(int $id): string
