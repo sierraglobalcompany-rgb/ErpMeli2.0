@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Core\Install;
 
 use App\Core\Auth\AuthService;
+use App\Core\Auth\PasswordService;
 use App\Core\Config\AppConfig;
 use App\Core\Config\Environment;
 use App\Core\Database\Connection;
@@ -161,8 +162,8 @@ final class WebInstaller
             $data['username'] = strtolower(trim($data['username'])); $data['email'] = trim($data['email']);
             if ($data['password'] !== $this->input($body,'confirm_password')) { throw new \InvalidArgumentException('Las contraseñas no coinciden.'); }
             if (trim($data['display_name']) === '' || mb_strlen($data['display_name']) > 191 || preg_match('/^[a-z0-9._-]{3,80}$/D',$data['username']) !== 1
-                || filter_var($data['email'],FILTER_VALIDATE_EMAIL) === false || strlen($data['email']) > 191 || strlen($data['password']) < 12 || strlen($data['password']) > 72) {
-                throw new \InvalidArgumentException('Revisa nombre, usuario de 3 a 80 caracteres, correo y contraseña de 12 a 72 bytes.');
+                || filter_var($data['email'],FILTER_VALIDATE_EMAIL) === false || strlen($data['email']) > 191 || strlen($data['password']) < PasswordService::MIN_LENGTH || strlen($data['password']) > 72) {
+                throw new \InvalidArgumentException('Revisa nombre, usuario de 3 a 80 caracteres, correo y contraseña de '.PasswordService::MIN_LENGTH.' a 72 bytes.');
             }
         }
         return $data;
