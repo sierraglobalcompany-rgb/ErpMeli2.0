@@ -112,4 +112,37 @@ final class MeliAccountController
             ->withHeader('Location', '/mercadolibre/accounts')
             ->withStatus(303);
     }
+
+    public function reauthorize(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        int $accountId,
+    ): ResponseInterface {
+        try {
+            $company = (new CompanyContext($this->pdo))->companyForRoles('admin');
+        } catch (DomainException) {
+            return $response->withStatus(403);
+        }
+
+        $body = $request->getParsedBody();
+        $body = is_array($body) ? $body : [];
+        try {
+            (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
+        } catch (RuntimeException) {
+            return $response->withStatus(419);
+        }
+
+        unset($_SESSION['meli_oauth_reauthorize_account_id']);
+        $account = $this->pdo->prepare('SELECT id FROM meli_accounts WHERE id=? AND company_id=?');
+        $account->execute([$accountId, $company['id']]);
+        if ($account->fetchColumn() === false) {
+            return $response->withStatus(404);
+        }
+
+        $_SESSION['meli_oauth_reauthorize_account_id'] = $accountId;
+
+        return $response
+            ->withHeader('Location', '/oauth/mercadolibre/connect?reauthorize=1')
+            ->withStatus(303);
+    }
 }
