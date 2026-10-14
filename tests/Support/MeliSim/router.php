@@ -170,7 +170,11 @@ try {
     while (($line = fgets($handle)) !== false) {
         if (trim($line) !== '') { $seq++; }
     }
-    $step = $steps[$seq - 1] ?? null;
+    $stepIndex = $seq - 1;
+    if ($scenario === 'OAUTH_CONNECT' && $steps !== []) {
+        $stepIndex %= count($steps);
+    }
+    $step = $steps[$stepIndex] ?? null;
     $expectedQuery = is_array($step) ? ($step['query'] ?? []) : [];
     ksort($expectedQuery);
     $formValid = true;
@@ -198,7 +202,7 @@ try {
     $record = ['seq'=>$seq,'method'=>$method,'operation'=>$operation,
         'path'=>$operation === 'UNKNOWN' ? 'UNKNOWN' : $path,'query'=>$query,
         'authorization_present'=>isset($_SERVER['HTTP_AUTHORIZATION']),
-        'scenario'=>$scenario,'step'=>$seq,'status'=>$status,'matched'=>$matched];
+        'scenario'=>$scenario,'step'=>$stepIndex + 1,'status'=>$status,'matched'=>$matched];
     $line = json_encode($record, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n";
     if (fwrite($handle, $line) !== strlen($line) || !fflush($handle)) {
         throw new RuntimeException('MLSIM_TRACE_WRITE_FAILED');
