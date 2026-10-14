@@ -85,6 +85,33 @@ final class MeliAccountLifecycleTest extends TestCase
         self::assertSame(1, $this->tokenCount(101));
     }
 
+    public function testReauthorizeBindsSelectedCanonicalAccountBeforeExistingOAuthFlow(): void
+    {
+        $response = $this->post('/mercadolibre/accounts/101/reauthorize');
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame('/oauth/mercadolibre/connect?reauthorize=1', $response->getHeaderLine('Location'));
+        self::assertSame(101, $_SESSION['meli_oauth_reauthorize_account_id'] ?? null);
+        self::assertSame('connected', $this->accountStatus(101));
+        self::assertSame(1, $this->tokenCount(101));
+    }
+
+    public function testReauthorizeIsCompanyScopedAndCsrfProtected(): void
+    {
+        self::assertSame(404, $this->post('/mercadolibre/accounts/201/reauthorize')->getStatusCode());
+        self::assertArrayNotHasKey('meli_oauth_reauthorize_account_id', $_SESSION);
+
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/mercadolibre/accounts/101/reauthorize')
+            ->withParsedBody(['csrf_token' => 'wrong']);
+        $response = Bootstrap::create()->handle($request);
+
+        self::assertSame(419, $response->getStatusCode());
+        self::assertArrayNotHasKey('meli_oauth_reauthorize_account_id', $_SESSION);
+        self::assertSame('connected', $this->accountStatus(101));
+        self::assertSame(1, $this->tokenCount(101));
+    }
+
     private function post(string $path): ResponseInterface
     {
         $request = (new ServerRequestFactory())
