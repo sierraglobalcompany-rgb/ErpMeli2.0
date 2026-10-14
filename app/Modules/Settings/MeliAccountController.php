@@ -11,6 +11,8 @@ use DomainException;
 use PDO;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use RuntimeException;
+use Throwable;
 
 final class MeliAccountController
 {
@@ -49,5 +51,65 @@ final class MeliAccountController
         return $response
             ->withHeader('Cache-Control', 'no-store')
             ->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function disconnect(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        int $accountId,
+    ): ResponseInterface {
+        try {
+            $company = (new CompanyContext($this->pdo))->companyForRoles('admin');
+        } catch (DomainException) {
+            return $response->withStatus(403);
+        }
+
+        $body = $request->getParsedBody();
+        $body = is_array($body) ? $body : [];
+        try {
+            (new Csrf())->assertValid((string) ($body['csrf_token'] ?? ''));
+        } catch (RuntimeException) {
+            return $response->withStatus(419);
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $account = $this->pdo->prepare(
+                'SELECT id FROM meli_accounts WHERE id=? AND company_id=? FOR UPDATE'
+            );
+            $account->execute([$accountId, $company['id']]);
+            if ($account->fetchColumn() === false) {
+                $this->pdo->rollBack();
+                return $response->withStatus(404);
+            }
+
+            $activeWork = $this->pdo->prepare(
+                "SELECT EXISTS(SELECT 1 FROM work_items WHERE account_id=? AND status IN ('pending','running'))"
+            );
+            $activeWork->execute([$accountId]);
+            if ((int) $activeWork->fetchColumn() !== 0) {
+                $this->pdo->rollBack();
+                return $response->withStatus(409);
+            }
+
+            $tokens = $this->pdo->prepare('DELETE FROM meli_tokens WHERE account_id=?');
+            $tokens->execute([$accountId]);
+
+            $disable = $this->pdo->prepare(
+                "UPDATE meli_accounts SET status='disabled', updated_at=UTC_TIMESTAMP(6) WHERE id=? AND company_id=?"
+            );
+            $disable->execute([$accountId, $company['id']]);
+
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
+
+        return $response
+            ->withHeader('Location', '/mercadolibre/accounts')
+            ->withStatus(303);
     }
 }
