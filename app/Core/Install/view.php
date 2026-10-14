@@ -9,12 +9,13 @@ declare(strict_types=1);
 /** @var array<string,string> $data */
 /** @var bool $databaseVerified */
 $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$passwordMin = \App\Core\Auth\PasswordService::MIN_LENGTH;
 $titles = ['server'=>'Bienvenido a tu ERP','database'=>'Conecta tu base de datos','application'=>'Personaliza tu ERP','company'=>'Crea la empresa inicial','administrator'=>'Crea tu administrador','install'=>'Revisa antes de instalar','success'=>'Instalación completada'];
 $help = ['server'=>'Prepararemos la configuración y tu empresa inicial. Primero comprobamos que este servidor pueda ejecutar el ERP.',
     'database'=>'Estos datos los entrega tu hosting o tu instalación local de MariaDB. Usa una base vacía y dedicada al ERP.',
     'application'=>'Elige el nombre que verás al ingresar y la dirección desde la que usarás el ERP.',
     'company'=>'El identificador es un nombre corto para reconocer a la empresa. Si lo dejas vacío, lo sugerimos a partir de su nombre.',
-    'administrator'=>'Será administrador de la empresa inicial y del sistema. Usa una contraseña de 12 a 72 bytes y conserva tus datos de acceso.',
+    'administrator'=>'Será administrador de la empresa inicial y del sistema. Usa una contraseña de '.$passwordMin.' a 72 bytes y conserva tus datos de acceso.',
     'install'=>'Comprueba estos datos. Al instalar se crearán las tablas y un único administrador; no se conectará a Mercado Libre.',
     'success'=>'ERP Meli 2.0 se instaló correctamente. Ya puedes iniciar sesión.'];
 $fields = match ($step) {
@@ -53,7 +54,7 @@ $mode = isset($data['APP_ENV']) ? ($data['APP_ENV'] === 'production' ? 'Producci
 <input type="hidden" name="csrf_token" value="<?= $escape($csrf) ?>"><input type="hidden" name="step" value="<?= $escape($step) ?>">
 <?php foreach ($fields as $key=>$label): $secret=in_array($key,['DB_PASSWORD','MELI_CLIENT_SECRET','password','confirm_password'],true); ?>
 <?php if ($key === 'MELI_CLIENT_ID'): ?><details><summary>Mercado Libre · Opcional</summary><p>Puedes configurarlo ahora o más adelante. Completa ambas credenciales o deja ambas vacías.</p><?php endif; ?>
-<label for="<?= $escape($key) ?>"><?= $escape($label) ?></label><input id="<?= $escape($key) ?>" name="<?= $escape($key) ?>" type="<?= $secret ? 'password' : ($key==='email' ? 'email' : 'text') ?>" value="<?= $secret ? '' : $escape($data[$key] ?? ($key==='APP_NAME' ? 'ERP Meli 2.0' : ($key==='DB_PORT' ? '3306' : ''))) ?>" <?= in_array($key,['company_slug','DB_PASSWORD','MELI_CLIENT_ID','MELI_CLIENT_SECRET'],true) ? '' : 'required' ?>>
+<label for="<?= $escape($key) ?>"><?= $escape($label) ?></label><input id="<?= $escape($key) ?>" name="<?= $escape($key) ?>" type="<?= $secret ? 'password' : ($key==='email' ? 'email' : 'text') ?>" value="<?= $secret ? '' : $escape($data[$key] ?? ($key==='APP_NAME' ? 'ERP Meli 2.0' : ($key==='DB_PORT' ? '3306' : ''))) ?>" <?= in_array($key,['password','confirm_password'],true) ? 'minlength="'.$passwordMin.'" maxlength="72"' : '' ?> <?= in_array($key,['company_slug','DB_PASSWORD','MELI_CLIENT_ID','MELI_CLIENT_SECRET'],true) ? '' : 'required' ?>>
 <?php if ($secret && $key !== 'confirm_password' && ($data[$key] ?? '') !== ''): ?><small>Configurado. El valor no se muestra.</small><?php endif; ?>
 <?php if ($key==='MELI_CLIENT_SECRET'): ?>
 <?php if (($data['MELI_CLIENT_SECRET'] ?? '') !== ''): ?><label><input type="checkbox" name="keep_meli" value="1"> Conservar la credencial configurada si no cambia el Client ID</label><?php endif; ?>
