@@ -83,6 +83,17 @@ final class MeliAccountManagementTest extends TestCase
         self::assertStringContainsString('sólo puede estar vinculada a una empresa a la vez', $html);
     }
 
+    public function testAccountsPageUsesOperatorVisualStructure(): void
+    {
+        $html = (string) $this->request()->getBody();
+
+        self::assertStringContainsString('class="page-header"', $html);
+        self::assertStringContainsString('class="toolbar"', $html);
+        self::assertStringContainsString('class="table-wrap"', $html);
+        self::assertStringContainsString('class="status-chip status-connected"', $html);
+        self::assertStringContainsString('class="row-actions"', $html);
+    }
+
     public function testOperatorAndViewerAreDenied(): void
     {
         foreach (['operator', 'viewer'] as $role) {
