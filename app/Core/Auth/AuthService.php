@@ -25,10 +25,13 @@ final class AuthService
         if ($companyName === '' || mb_strlen($companyName) > 160
             || preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/D', $slug) !== 1 || strlen($slug) > 120
             || filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 191
-            || strlen($password) < 12 || strlen($password) > 72
+            || strlen($password) < PasswordService::MIN_LENGTH || strlen($password) > 72
             || $displayName === '' || mb_strlen($displayName) > 191
             || (!$legacyUsername && preg_match('/^[a-z0-9._-]{3,80}$/D', $username) !== 1)) {
-            throw new \InvalidArgumentException('Invalid bootstrap input: company, slug, email and password (12-72 bytes) required.');
+            throw new \InvalidArgumentException(
+                'Invalid bootstrap input: company, slug, email and password ('
+                . PasswordService::MIN_LENGTH . '-72 bytes) required.'
+            );
         }
         $hash = $this->passwords->hash($password);
         $this->pdo->beginTransaction();
