@@ -71,8 +71,6 @@ OAUTH_CALLBACK=https://erpmeli.bodegadigitalmedellin.com/oauth/mercadolibre/call
 WEBHOOK=https://erpmeli.bodegadigitalmedellin.com/webhooks/mercadolibre
 ```
 
-La comprobación web desde ChatGPT no pudo alcanzar el subdominio mediante su navegador externo; eso **no prueba fallo de HTTPS** y queda para medición directa en F14-A.
-
 Sólo después de F14-A GREEN puede abrirse un siguiente microbloque para autorización ERP2 fresca de **un seller** y GET reales controlados. No reutilizar tokens ERP1. No refresh/polling/retries automáticos. No POST/PUT/DELETE remotos.
 
 ## Alcance futuro de calibración READ-only
