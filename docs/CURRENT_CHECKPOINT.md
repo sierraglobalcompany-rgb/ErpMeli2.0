@@ -1,8 +1,8 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / NEXT UI-DM4 PRODUCTS-INVENTORY / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / NEXT UI-DM5 BILLING-FINANCIAL / STOP-SAFE**
 
-> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. No reconstruir por intuición. Retomar exactamente desde `NEXT`.
+> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
 
 ## 1. REPOSITORY AUTHORITY
 
@@ -16,8 +16,8 @@ FOUNDATION_BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=866ff5d70e7b556531ed81bed977b73b3ee54ffd
-CERTIFIED_ACTIONS_RUN=38820335428
+LATEST_CERTIFIED_CODE_HEAD=f7c06f119d2d17e246e2e6b8028c59021faa8f6c
+CERTIFIED_ACTIONS_RUN=38822686688
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -90,36 +90,54 @@ Desktop and mobile `Inicio` point directly to `/dashboard` and use `/dashboard` 
 
 **STATE=GREEN**
 
-Implemented and certified at current HEAD:
-
-- responsive Sales list;
-- responsive Sales detail;
-- one factual row/data family, not duplicated desktop/mobile datasets;
-- mobile recomposition via responsive markup/CSS;
+- responsive Sales list and detail;
+- one factual data family, not duplicated desktop/mobile datasets;
+- mobile recomposition via shared responsive rules;
 - company scope preserved;
-- `UNKNOWN` preserved;
-- Sales Audit status contract preserved;
-- Financial consumer contract preserved;
-- PostSale/Invoice consumer contract preserved.
+- Sales Audit, Financial, PostSale and Invoice factual contracts preserved;
+- `UNKNOWN` preserved.
 
-Relevant recovery commits include:
+Certified previously on PHP 8.3 / 8.4 / 8.5.
 
-```text
-bc99a7b... = responsive sale detail
-9cca0cac... = responsive sales presentation styles
-383a6db9... = preserve factual audit status contract
-866ff5d7... = preserve financial and post-sale consumer contracts
-```
+## 8. UI-DM4 — PRODUCTS / CATALOG + INVENTORY
 
-Full Actions run `38820335428` at `866ff5d70e7b556531ed81bed977b73b3ee54ffd`:
+**STATE=GREEN**
+
+TDD evidence:
 
 ```text
-PHP 8.3 PASS
-PHP 8.4 PASS
-PHP 8.5 PASS
+RED_COMMIT=8c8b4f8e12c1eb4134a29cb8c358c12966ea6c71
+RED_RESULT=expected CatalogDesignMasterUiTest failure because approved responsive structure did not exist
+GREEN_COMMIT=f7c06f119d2d17e246e2e6b8028c59021faa8f6c
+ACTIONS_RUN=38822686688
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
 ```
 
-## 8. BACKEND GUARDRAILS STILL CLOSED
+Implementation ruling:
+
+```text
+ONE HUMAN PRODUCT AREA
+ONE EXISTING /catalog OWNER
+NO SEPARATE /inventory ROUTE OR BACKEND MODULE
+NO DUPLICATE MOBILE DATASET
+NO NEW CSS FAMILY
+NO N+1 INVENTORY READS
+```
+
+Changes:
+
+- responsive `Catálogo e inventario` presentation;
+- existing shared `panel`, `settings-grid` and responsive-table patterns reused;
+- product rows recompose for mobile from the same data;
+- selected product inventory remains in the same `/catalog` owner;
+- missing inventory remains `Sin definir`;
+- zero remains zero;
+- inventory mutation remains `POST /catalog/{product_id}/inventory`;
+- CatalogController, repositories, routes, Work, MELI, Billing, Financial and OAuth were not modified for UI-DM4.
+
+## 9. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -136,9 +154,7 @@ REMOTE_WRITES=OFF
 
 ERP1 failure patterns must not return.
 
-## 9. PRODUCT SEQUENCE
-
-Demo and Hostinger remain deferred:
+## 10. PRODUCT SEQUENCE
 
 ```text
 ERP COMPLETE
@@ -154,46 +170,28 @@ ERP COMPLETE
 → later explicitly authorized phases
 ```
 
-## 10. NEXT — UI-DM4 PRODUCTS / CATALOG + INVENTORY
+Demo, Hostinger and cron remain deferred.
+
+## 11. NEXT — UI-DM5 BILLING / FINANCIAL
 
 ```text
-NEXT=UI-DM4 PRODUCTS-INVENTORY
+NEXT=UI-DM5 BILLING-FINANCIAL
 ```
 
-Authoritative KISS ruling:
+Before changing production code:
 
-```text
-ONE HUMAN PRODUCT AREA
-ONE EXISTING /catalog OWNER
-NO SEPARATE INVENTORY BACKEND/ROUTE JUST FOR VISUAL IA
-NO DUPLICATE MOBILE DATASET
-NO N+1 INVENTORY READS
-```
+1. inspect current Billing view, Financial consumer/read model and focal tests;
+2. prove the presentation boundary;
+3. add RED structural UI test only for the approved Billing/Financial presentation;
+4. do not modify Billing period scheduling/cursor/429 behavior;
+5. do not create a parallel ledger, reconciliation engine or profitability calculator;
+6. preserve `UNKNOWN` / `CONFLICT` and currency truth;
+7. use existing shared Design Master components;
+8. run focal Billing/Financial/429/Work regressions;
+9. run full QA PHP 8.3/8.4/8.5;
+10. persist checkpoint before opening Mercado Libre/Admin.
 
-Current contract to preserve:
-
-- `/catalog` lists max 100 company-scoped product identities;
-- plain list does not read inventory per row;
-- `/catalog?product_id=<id>` selects one product and reads inventory for that product only;
-- missing inventory = `Sin definir`, never zero;
-- zero remains exactly zero;
-- inventory mutation stays `POST /catalog/{product_id}/inventory`;
-- CSRF + company role authorization remain mandatory;
-- Work/API usage delta remains zero.
-
-Execution order:
-
-1. add RED structural tests for approved responsive Products presentation;
-2. certify expected RED;
-3. redesign `catalog.php` plus shared CSS only unless code evidence proves another owner must change;
-4. preserve all Product/Inventory behavioral contracts;
-5. run focal Catalog/Inventory/API tests;
-6. run full QA PHP 8.3/8.4/8.5;
-7. audit KISS/noise/patches;
-8. update this checkpoint to UI-DM4 GREEN;
-9. only then open Billing/Financial.
-
-## 11. ABSOLUTE NO-GO NOW
+## 12. ABSOLUTE NO-GO NOW
 
 ```text
 NO demo seed
@@ -204,5 +202,5 @@ NO REMOTE_WRITES
 NO F15
 NO F16
 NO merge PR #19
-NO Billing/Financial redesign until UI-DM4 checkpoint is GREEN
+NO Mercado Libre/Admin redesign until UI-DM5 checkpoint is GREEN
 ```
