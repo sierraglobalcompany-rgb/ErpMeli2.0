@@ -16,7 +16,6 @@ declare(strict_types=1);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ventas</title>
-    <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
     <?php require dirname(__DIR__, 4) . '/Core/Http/views/navigation.php'; ?>
