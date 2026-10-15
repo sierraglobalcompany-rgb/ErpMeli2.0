@@ -1,8 +1,8 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=UI-1 STATIC CLEAN / CODEX BROWSER-QA PROMPT READY / AWAITING EVIDENCE / STOP**
+**CURRENT=MASTER PRODUCT DESIGN DISCOVERY COMPLETE / UI-1 FINAL QA FROZEN / AWAITING DESIGN APPROVAL / STOP**
 
-> Autoridad operativa para recuperar el proyecto si este chat termina. Retomar exactamente desde `NEXT`; no reabrir bloques ya certificados ni reconstruir estado por intuición.
+> Autoridad operativa para recuperar el proyecto si el chat termina. No reconstruir por intuición. Retomar desde `NEXT`.
 
 ## 1. REPOSITORY AUTHORITY
 
@@ -14,46 +14,29 @@ STABLE_SHA=d56183584840187e215e225942831f40ec9a04ae
 UI_BRANCH=ui/operator-shell-v1-20261014
 PR=18 feat(ui): modernize operator workspace
 PR_STATE=OPEN / DRAFT / NOT MERGED / MERGEABLE
-PR_HEAD_BEFORE_THIS_DOC_CHECKPOINT=f0b52e6e2063dd9f9514e896f86e73672f04d616
+PR_HEAD_BEFORE_THIS_CHECKPOINT=34c2f4e69de3584134f7dd60d03e42fbc02023bc
 LATEST_CERTIFIED_PRODUCT_UI_SOURCE=f9c7c0b00f17727dea749068d2a43e486fb1df91
 LATEST_PRODUCT_UI_QA=Actions #814 PASS PHP 8.3/8.4/8.5
 HOSTINGER_UI_DEPLOYED=NO
-REAL_MELI= CLOSED
+REAL_MELI=CLOSED
 REMOTE_WRITES=OFF
 ```
 
-Stable no se mueve sin autorización explícita del usuario.
+No mergear ni desplegar PR #18 todavía.
 
-## 2. LEYES
+## 2. LAWS
 
 ```text
-KISS
-- A→B
-- simple, eficiente, optimizado
-- sin arquitectura/frontend innecesariamente complejos
-
-ANTI-RUIDO
-- un artefacto estándar por lote
-- no duplicar CSS, navegación, handoffs o evidencia
-- eliminar sólo con evidencia; si no, unir/simplificar/optimizar
-
-ANTI-PARCHE
-- corregir owner/causa raíz
-- no encadenar workarounds
+KISS=A→B, simple, eficiente, optimizado, arquitectura mínima; diseño puede y debe ser premium.
+ANTI_NOISE=eliminar sólo con evidencia; si no, unir, simplificar, optimizar o conservar.
+ANTI_PATCH=corregir owner/causa raíz; no apilar workarounds.
 ```
 
 Metodología:
 
 ```text
-un microbloque
-→ RED si aplica
-→ GREEN mínimo
-→ QA
-→ checkpoint
-→ STOP
+microbloque → QA/auditoría → checkpoint → STOP
 ```
-
-Un `continua` autoriza sólo el `NEXT` actual.
 
 ## 3. PRODUCT / PHASE STATE
 
@@ -74,7 +57,7 @@ F15 Cutover=PAUSED
 F16 Remote Writes=UNAUTHORIZED
 ```
 
-Functional RC histórico:
+Historical functional RC:
 
 ```text
 SOURCE=f05377cb17afc3971997f686102ddf29dfbe6bc0
@@ -84,272 +67,189 @@ SHA256=0167DB7634FAD882DA8E4C5673C6E2C221FCC99B4B3A8BDC0DC544419B20A587
 
 ## 4. HOSTINGER / EXTERNAL
 
-ERP2 ya fue instalado live y el usuario reportó smoke funcional previo sin errores en login, Companies, Users, Configuration y Sales.
+ERP2 ya fue instalado live; smoke previo reportado OK en login, Companies, Users, Configuration y Sales. La UI de PR #18 NO está desplegada.
 
-La rama UI actual NO está desplegada.
-
-Target conocido:
+G8 HOSTINGER_REALITY sigue NO CERTIFIED hasta evidencia de cuotas, cron, PHP web/CLI, HTTPS y document root.
 
 ```text
-https://erpmeli.bodegadigitalmedellin.com/
-/home/u390570745/domains/bodegadigitalmedellin.com/public_html/erpmeli2
-```
-
-G8 `HOSTINGER_REALITY` sigue NO CERTIFIED hasta evidencia real de:
-
-```text
-HOST_DISK_QUOTA
-HOST_DB_QUOTA
-HOST_INODE_QUOTA
-HOST_CRON_CAPACITY
-HOST_MIN_CRON_INTERVAL
-WEB_PHP_VERSION
-CLI_PHP_VERSION
-HTTPS_STATUS
-SUBDOMAIN_DOCUMENT_ROOT
-```
-
-Guardrails externos:
-
-```text
-no deploy UI
-no Hostinger mutation
-no real MELI OAuth/API
-no ERP1 token migration
+REAL_MELI OAuth/API=CLOSED
 remote writes=OFF
-F15 paused
-F16 unauthorized
+F15=PAUSED
+F16=UNAUTHORIZED
 ```
 
-## 5. ERP1 FAILURE MODES ERP2 MUST KEEP AVOIDING
+## 5. ERP1 → ERP2 DESIGN AUDIT FINDING
+
+ERP1 (`sierraglobalcompany-rgb/ErpMeli`) posee una arquitectura de navegación mucho más amplia que la UI actual de ERP2. Su shell incluye sidebar, topbar, empresa, cuenta, rango de fechas, notificaciones, estado/safety, tabs contextuales y dashboard. Su navegación agrupa Ventas, Productos, Finanzas, Operación y Administración, con subflujos como sincronización, logística, atención al cliente, inventario, vinculación, reportes, conciliación, alertas e integraciones.
+
+ERP2 UI actual expone principalmente:
 
 ```text
-ERP1: 429 storms / FIFO-HOL blocking / gRPC-batches-jobs desync
-ERP2 safeguards:
-- WorkRepository::claimNext ignores deferred/future and orders eligible available_at,id
-- durable family-scoped cooldown
-- one physical HTTP request / no inline retry
-- follow-up during cooldown = 0 requests
-- BillingPeriodSyncHandler reuses same Work row; no child/page explosion
-- FinancialReadModel local SQL: HTTP=0 / Work=0 / Queue=0 / ledger=0
-- unknown poison work terminal failed
-- no gRPC / RabbitMQ / Redis / broker / parallel queue
+Sales
+Catalog
+Billing
+MELI Accounts
+Companies
+Users
+Settings
+MELI App Settings
 ```
 
-No UI block may weaken these safeguards.
+ERP2 ya contiene módulos backend adicionales como Financial, Inventory e Invoicing, pero la navegación actual no representa todavía un producto/UX completo.
 
-## 6. UI-1 COVERAGE
+### DECISION
 
-PR #18 cubre:
+PR #18 deja de considerarse `FINAL UI` y pasa a clasificarse como:
 
 ```text
-navigation/operator shell
-login
-guest / redirect
-sales list
-sales detail
-catalog
-billing
-companies
-users
-system settings
-company selector
-installer
-MELI accounts
-MELI global app settings
-/assets/app.css delivery
-stylesheet dedup cleanup
+UI-1 = VISUAL FOUNDATION / TECHNICAL PROTOTYPE
 ```
 
-Deliberate certified non-visual changes included:
+Se conserva como trabajo útil, pero no se certifica visualmente como diseño final ni se despliega antes de aprobar el Design Master.
+
+El prompt Codex de browser QA generado anteriormente queda **FROZEN / DO NOT RUN YET**, porque certificar visualmente UI-1 ahora puede producir trabajo descartable.
+
+## 6. MASTER DESIGN DIRECTION — PROPOSED, NOT YET APPROVED
+
+La opción recomendada es NO copiar ERP1 y NO seguir parchando PR #18. Se propone diseñar primero una arquitectura de producto única y responsive, y luego adaptar lo ya construido.
+
+### Target information architecture
 
 ```text
-guest GET / → 303 /login
-invalid/disabled integer session still authority validation → 403
-DB_HOST default localhost
-DB_PORT default 3306
-APP_URL autodetect when empty
-/assets/app.css fixed READ-only route
+HOME / RESUMEN
+- atención prioritaria
+- ventas del periodo
+- salud de sincronización
+- cuentas MELI
+- tareas/problemas reales
+
+OPERACIÓN
+- Ventas
+- Detalle de venta
+- Logística / packs / envíos (cuando el backend correspondiente esté disponible)
+- Postventa / atención (cuando corresponda)
+
+PRODUCTOS
+- Catálogo
+- Inventario
+- Vinculación / consistencia (cuando corresponda)
+
+FINANZAS
+- Facturación
+- Conciliación
+- Rentabilidad/reportes cuando estén soportados
+
+MERCADO LIBRE
+- Centro de conexión
+- Cuentas
+- Estado OAuth
+- Webhook
+- Sincronización
+- Salud API / problemas que requieren atención
+
+ADMINISTRACIÓN
+- Empresas
+- Usuarios y permisos
+- Configuración
+- Sistema/diagnóstico sólo para administradores
 ```
 
-## 7. CERTIFIED QA HISTORY
+### Device model
 
 ```text
-#780 PASS PHP 8.3/8.4/8.5 — installer DB defaults/test alignment
-#783 PASS PHP 8.3/8.4/8.5 — APP_URL autodetect
-#788 PASS PHP 8.3/8.4/8.5 — installer visual shell
-#794 PASS PHP 8.3/8.4/8.5 — MELI accounts UI
-#799 PASS PHP 8.3/8.4/8.5 — global MELI settings UI
-#807 PASS PHP 8.3/8.4/8.5 — sales detail final
-#814 PASS PHP 8.3/8.4/8.5 — stylesheet dedup anti-noise cleanup
+DESKTOP: sidebar persistente + topbar contextual + tablas completas + drawers/panels.
+TABLET: sidebar colapsable/rail + 1-2 columnas + tablas reducidas + touch-first.
+MOBILE: composición propia; listas/cards operativas, bottom navigation de áreas principales, filtros en sheet/drawer; no tablas desktop comprimidas.
 ```
 
-Latest certified product/UI source:
+### Design system target
 
 ```text
-f9c7c0b00f17727dea749068d2a43e486fb1df91
+one shell
+one page header
+one filter/action bar
+one table/list family
+one form family
+one status system
+one alert system
+one drawer/modal pattern
+one empty/loading/error pattern
+one responsive rule-set
 ```
 
-## 8. STATIC FINAL AUDIT
+No framework frontend nuevo salvo evidencia fuerte de necesidad.
 
-PR #18 vs stable fue auditado file-by-file.
-
-No se encontraron cambios accidentales en:
+## 7. THREE APPROACHES CONSIDERED
 
 ```text
-schema / migrations
-business repositories/queries
-WorkRunner / queues
-Billing handlers
-Sales processors
-invoicing
-reconciliation business logic
-OAuth services
-real MELI transport
-remote-write implementation
-F15/F16
+A. Seguir evolucionando PR #18 pantalla por pantalla
+   + rápido a corto plazo
+   - alto riesgo de volver a parchado/inconsistencia
+   VERDICT=NO RECOMMENDED
+
+B. Congelar PR #18 como foundation + aprobar Design Master + implementar por módulos
+   + KISS, reutiliza trabajo, evita rehacer pantalla por pantalla
+   + permite desktop/tablet/mobile coherentes
+   VERDICT=RECOMMENDED
+
+C. Portar ERP1 visualmente y luego limpiar
+   + parte de una UI conocida
+   - arrastra precisamente complejidad, ruido y navegación excesiva de ERP1
+   VERDICT=REJECT
 ```
 
-Findings cerrados:
+## 8. UI-1 CERTIFIED CODE HISTORY
 
 ```text
-A. duplicate /assets/app.css references=CLOSED
-   RED=db6ebf7632e70c2ff01cb67c84ff6fe68d4852a3 / Actions #810 expected failures
-   GREEN=f9c7c0b00f17727dea749068d2a43e486fb1df91 / Actions #814 PASS
-
-B. PR #18 body documentation drift=CLOSED
-   PR body now enumerates installer defaults, APP_URL autodetect, MELI screens,
-   sales detail, app.css route, dedup cleanup, QA and remaining browser gate.
+#780 PASS — installer DB defaults
+#783 PASS — APP_URL autodetect
+#788 PASS — installer visual shell
+#794 PASS — MELI accounts UI
+#799 PASS — MELI global settings UI
+#807 PASS — sales detail UI
+#814 PASS — stylesheet dedup
 ```
 
-Current law verdict:
+Estos PASS certifican comportamiento/código del bloque, no convierten el diseño en UX final.
+
+## 9. ERP1 FAILURE MODES ERP2 MUST STILL AVOID
 
 ```text
-KISS=PASS
-ANTI_PATCH=PASS
-ANTI_NOISE_STATIC=PASS
-BUSINESS_LOGIC_REGRESSION_STATICALLY_FOUND=NO
-UNEXPECTED_REMOTE_WRITE=NO
-MELI_REAL_OPENED=NO
+429 storms
+FIFO/HOL blocking
+gRPC/batches/jobs desync
+child/page job explosion
+inline retries
 ```
 
-## 9. BROWSER VISUAL QA — CURRENT STATUS
-
-ChatGPT no dispone en este hilo de navegador interactivo local capaz de producir la evidencia visual requerida.
-
-Por ello se generó un único prompt descargable para Codex:
-
-```text
-ERP_MELI_2_0_PROMPT_CODEX_UI1_QA_VISUAL_REAL_2026-10-15.md
-```
-
-El prompt ordena QA únicamente, sin cambios de producto:
-
-```text
-local/test only
-REAL_MELI_HTTP=0
-remote writes=OFF
-no Hostinger
-no real MELI
-no commits/push/merge/deploy
-worktree unchanged
-browser desktop=1440x900
-browser mobile=390x844
-```
-
-Matriz obligatoria:
-
-```text
-/login
-operator navigation shell
-/sales
-/sales/{id}
-/catalog
-/billing
-/companies
-/users
-/settings
-/company/select
-/mercadolibre/accounts
-/settings/mercadolibre
-installer isolated/local
-```
-
-Comprobaciones obligatorias:
-
-```text
-/assets/app.css HTTP 200
-single app.css reference on relevant rendered views
-console errors
-failed assets
-404/500
-horizontal overflow
-mobile clipping/overlap
-no unexpected external MELI requests
-```
-
-Codex debe producir fuera del repo un único ZIP de evidencia con:
-
-```text
-UI1_VISUAL_QA_REPORT.md
-screenshots/
-browser-console/
-network/
-runtime/
-```
-
-Resultados válidos:
-
-```text
-PASS
-FAIL
-BLOCKED
-```
-
-Codex NO está autorizado a corregir findings en esa ejecución.
+Safeguards ERP2 ya cerrados no pueden debilitarse por el rediseño.
 
 ## 10. GUARDRAILS CURRENT
 
 ```text
 NO merge PR #18
-NO stable mutation
-NO UI deploy
-NO Hostinger
-REAL_MELI_HTTP=0
-NO real MELI OAuth/API
+NO deploy UI
+NO Hostinger mutation
+NO real MELI OAuth/API yet
+REAL_MELI_HTTP=0 in local work
 remote writes=OFF
 NO F15/F16
-NO secrets in chat/Git/logs
-NO product fixes during browser-QA run
+NO UI implementation until Design Master approved
+NO browser visual certification of provisional UI yet
 ```
 
-## 11. RECOVERY AUTHORITY
+## 11. NEXT — EXACTLY ONE STAGE
 
-Si el chat termina:
+Esperar aprobación/corrección del usuario sobre el **Master Design Direction**.
 
-1. Leer este archivo completo.
-2. Verificar PR #18 y rama `ui/operator-shell-v1-20261014` contra GitHub.
-3. No reabrir static audit ni UI implementation ya certificada.
-4. Pedir/recibir únicamente el resultado y ZIP/reporte de Codex browser QA.
-5. Auditar esa evidencia.
-6. Si `PASS`, solicitar autorización explícita antes de merge/deploy.
-7. Si `FAIL`, abrir sólo el primer finding verificable como microbloque bounded.
-8. Si `BLOCKED`, resolver únicamente el blocker de entorno/evidencia.
-
-## 12. NEXT — EXACTLY ONE MICROBLOCK
+Si el usuario aprueba:
 
 ```text
-WAIT FOR CODEX UI1_BROWSER_VISUAL_QA EVIDENCE
-
-User action:
-- run the downloadable Codex prompt
-- return Codex final result and preferably upload the evidence ZIP/report
-
-Then ChatGPT:
-- audit report + screenshots/evidence
-- confirm PASS / FAIL / BLOCKED independently
-- update checkpoint
-- STOP
+1. escribir Design Master spec formal en docs/superpowers/specs/
+2. incluir mapa completo de pantallas, IA, responsive PC/tablet/mobile, design system, flujo Centro Mercado Libre y criterios de aceptación
+3. self-review de la spec
+4. presentar spec al usuario
+5. STOP para aprobación escrita
 ```
 
-No merge/deploy is authorized by `continua` at this checkpoint.
+Sólo después de aprobar la spec se crea el implementation plan. No tocar código antes.
