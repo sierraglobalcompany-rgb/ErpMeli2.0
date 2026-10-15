@@ -35,6 +35,8 @@ h1, h2, h3 { color: #10283f; line-height: 1.2; margin-top: 0; }
 h1 { font-size: clamp(1.8rem, 3vw, 2.35rem); letter-spacing: -.03em; margin-bottom: 22px; }
 h2 { font-size: 1.2rem; margin-bottom: 14px; }
 p { color: var(--muted); }
+.muted { color: var(--muted); }
+code { overflow-wrap: anywhere; }
 
 .app-nav {
     position: fixed;
@@ -134,6 +136,31 @@ main > section,
     padding: 22px;
     margin: 18px 0;
 }
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    align-items: start;
+}
+.settings-grid .panel { margin: 0; }
+.settings-grid .panel-full { grid-column: 1 / -1; }
+.settings-list {
+    display: grid;
+    grid-template-columns: minmax(150px, .55fr) minmax(0, 1.45fr);
+    margin: 0;
+}
+.settings-list dt,
+.settings-list dd {
+    margin: 0;
+    padding: 10px 0;
+    border-bottom: 1px solid #e7edf1;
+}
+.settings-list dt { color: #4a5a68; font-weight: 700; }
+.settings-list dd { overflow-wrap: anywhere; }
+.settings-form { display: grid; gap: 14px; margin: 0; }
+.settings-form label { display: grid; gap: 6px; }
+.settings-form input { width: 100%; }
 
 form { margin: 14px 0; }
 label { color: #304254; font-weight: 650; }
@@ -302,6 +329,11 @@ main > p:only-child {
 @media (max-width: 620px) {
     .app-nav { grid-template-columns: 1fr; }
     .app-context { display: none; }
+    .settings-grid { grid-template-columns: 1fr; }
+    .settings-grid .panel-full { grid-column: auto; }
+    .settings-list { grid-template-columns: 1fr; }
+    .settings-list dt { padding-bottom: 2px; border-bottom: 0; }
+    .settings-list dd { padding-top: 2px; }
     main > section, .panel { padding: 16px; }
     th, td { padding: 10px 11px; }
 }
