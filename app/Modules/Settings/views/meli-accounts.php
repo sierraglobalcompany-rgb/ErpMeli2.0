@@ -15,6 +15,12 @@ $statusLabels = [
     'reauth_required' => 'Debes volver a autorizar',
     'disabled' => 'Desconectada',
 ];
+$statusClasses = [
+    'connected' => 'status-connected',
+    'attention' => 'status-attention',
+    'reauth_required' => 'status-attention',
+    'disabled' => 'status-disabled',
+];
 ?>
 <!doctype html>
 <html lang="es">
@@ -22,55 +28,75 @@ $statusLabels = [
 <body>
 <?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
 <main>
-    <h1>Cuentas Mercado Libre</h1>
-    <p>Una empresa puede tener varias cuentas Mercado Libre.</p>
-    <p>Cada cuenta Mercado Libre sólo puede estar vinculada a una empresa a la vez. El nickname de Mercado Libre no es la razón social de la empresa.</p>
+    <header class="page-header">
+        <h1>Cuentas Mercado Libre</h1>
+        <p>Administra las cuentas vendedoras vinculadas a esta empresa.</p>
+    </header>
 
-    <?php if ($appConfigured): ?>
-        <p><a href="/oauth/mercadolibre/connect">Conectar otra cuenta Mercado Libre</a></p>
-    <?php else: ?>
-        <p role="status">La aplicación Mercado Libre aún no está configurada. Contacta al Administrador del sistema.</p>
-        <?php if ($systemAdmin): ?><p><a href="/settings/mercadolibre">Configurar aplicación Mercado Libre</a></p><?php endif; ?>
-    <?php endif; ?>
+    <section aria-labelledby="meli-account-help-title">
+        <h2 id="meli-account-help-title">Vinculación de cuentas</h2>
+        <p>Una empresa puede tener varias cuentas Mercado Libre.</p>
+        <p>Cada cuenta Mercado Libre sólo puede estar vinculada a una empresa a la vez. El nickname de Mercado Libre no es la razón social de la empresa.</p>
+    </section>
+
+    <div class="toolbar">
+        <?php if ($appConfigured): ?>
+            <a class="button" href="/oauth/mercadolibre/connect">Conectar otra cuenta Mercado Libre</a>
+        <?php else: ?>
+            <p class="notice" role="status">La aplicación Mercado Libre aún no está configurada. Contacta al Administrador del sistema.</p>
+            <?php if ($systemAdmin): ?><a class="button" href="/settings/mercadolibre">Configurar aplicación Mercado Libre</a><?php endif; ?>
+        <?php endif; ?>
+    </div>
 
     <?php if ($accounts === []): ?>
-        <p>No hay cuentas Mercado Libre vinculadas a esta empresa.</p>
+        <section>
+            <h2>Cuentas vinculadas</h2>
+            <p>No hay cuentas Mercado Libre vinculadas a esta empresa.</p>
+        </section>
     <?php else: ?>
-        <table>
-            <thead><tr><th>Cuenta</th><th>Seller ID</th><th>Sitio</th><th>Estado</th><th>Actualizada</th><th>Acciones</th></tr></thead>
-            <tbody>
-            <?php foreach ($accounts as $account): ?>
-                <?php $accountId = (int) $account['id']; ?>
-                <tr>
-                    <td><?= htmlspecialchars($account['nickname'] ?? 'Sin nickname', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($account['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($account['site_id'], ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($statusLabels[$account['status']] ?? 'Estado desconocido', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($account['updated_at'], ENT_QUOTES, 'UTF-8') ?></td>
-                    <td>
-                        <?php if ($account['status'] === 'connected'): ?>
-                            <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/disconnect">
-                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                <button type="submit">Desconectar</button>
-                            </form>
-                        <?php endif; ?>
-                        <?php if ($appConfigured && in_array($account['status'], ['attention', 'reauth_required', 'disabled'], true)): ?>
-                            <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/reauthorize">
-                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                <button type="submit">Reautorizar</button>
-                            </form>
-                        <?php endif; ?>
-                        <?php if ($account['status'] === 'disabled' && $account['can_hard_delete']): ?>
-                            <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/delete">
-                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                <button type="submit">Eliminar</button>
-                            </form>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+        <section aria-labelledby="meli-accounts-title">
+            <h2 id="meli-accounts-title">Cuentas vinculadas</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Cuenta</th><th>Seller ID</th><th>Sitio</th><th>Estado</th><th>Actualizada</th><th>Acciones</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($accounts as $account): ?>
+                        <?php $accountId = (int) $account['id']; ?>
+                        <?php $statusClass = $statusClasses[$account['status']] ?? 'status-neutral'; ?>
+                        <tr>
+                            <td><?= htmlspecialchars($account['nickname'] ?? 'Sin nickname', ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($account['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($account['site_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><span class="status-chip <?= $statusClass ?>"><?= htmlspecialchars($statusLabels[$account['status']] ?? 'Estado desconocido', ENT_QUOTES, 'UTF-8') ?></span></td>
+                            <td><?= htmlspecialchars($account['updated_at'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td>
+                                <div class="row-actions">
+                                    <?php if ($account['status'] === 'connected'): ?>
+                                        <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/disconnect">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                            <button type="submit">Desconectar</button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <?php if ($appConfigured && in_array($account['status'], ['attention', 'reauth_required', 'disabled'], true)): ?>
+                                        <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/reauthorize">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                            <button type="submit">Reautorizar</button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <?php if ($account['status'] === 'disabled' && $account['can_hard_delete']): ?>
+                                        <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/delete">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                            <button class="danger" type="submit">Eliminar</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     <?php endif; ?>
 </main>
 </body>
