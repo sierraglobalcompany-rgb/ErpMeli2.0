@@ -129,7 +129,7 @@ declare(strict_types=1);
                             <tr data-mobile-card="audit-row">
                                 <td data-label="Cuenta"><?= htmlspecialchars((string) $run['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Período"><?= htmlspecialchars((string) $run['period_key'], ENT_QUOTES, 'UTF-8') ?></td>
-                                <td data-label="Estado"><?= htmlspecialchars(strtoupper((string) $run['status']), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars(strtoupper((string) $run['status']), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Inicio (UTC)"><?= htmlspecialchars((string) $run['started_at'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Fin (UTC)"><?= htmlspecialchars((string) ($run['completed_at'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Ventas locales"><?= htmlspecialchars((string) ($run['canonical_count'] ?? 'Sin determinar'), ENT_QUOTES, 'UTF-8') ?></td>
