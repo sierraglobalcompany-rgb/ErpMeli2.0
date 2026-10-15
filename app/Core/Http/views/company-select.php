@@ -8,11 +8,13 @@ declare(strict_types=1);
 ?>
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Seleccionar empresa</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Seleccionar empresa</title><link rel="stylesheet" href="/assets/app.css"></head>
 <body>
 <?php if ($company !== null) { require __DIR__ . '/navigation.php'; } ?>
-<main>
+<main<?= $company === null ? ' class="simple-page"' : '' ?>>
 <h1>Seleccionar empresa</h1>
+<p>Elige la empresa con la que vas a trabajar en esta sesión.</p>
+<section>
 <form method="post" action="/company/select">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
     <label>Empresa <select name="company_id" required>
@@ -20,8 +22,9 @@ declare(strict_types=1);
             <option value="<?= $option['id'] ?>" <?= $company !== null && $option['id'] === $company['id'] ? 'selected' : '' ?>><?= htmlspecialchars($option['name'], ENT_QUOTES, 'UTF-8') ?></option>
         <?php endforeach; ?>
     </select></label>
-    <button type="submit">Seleccionar</button>
+    <button type="submit">Trabajar con esta empresa</button>
 </form>
+</section>
 </main>
 </body>
 </html>
