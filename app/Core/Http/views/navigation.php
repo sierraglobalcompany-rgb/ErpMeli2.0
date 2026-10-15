@@ -78,7 +78,7 @@ $isActive = static fn (string $path): bool => $path === '/'
         <nav class="sidebar-nav" aria-label="Áreas del ERP">
             <div class="sidebar-group">
                 <span class="sidebar-label">General</span>
-                <a class="<?= $isActive('/') ? 'is-active' : '' ?>" href="/"><?= $icons['home'] ?><span>Inicio / Resumen</span></a>
+                <a class="<?= $isActive('/dashboard') ? 'is-active' : '' ?>" href="/dashboard"><?= $icons['home'] ?><span>Inicio / Resumen</span></a>
             </div>
 
             <div class="sidebar-group">
@@ -121,7 +121,7 @@ $isActive = static fn (string $path): bool => $path === '/'
     </aside>
 
     <nav class="mobile-bottom-nav" aria-label="Navegación móvil">
-        <a data-mobile-nav-item="inicio" class="<?= $isActive('/') ? 'is-active' : '' ?>" href="/">
+        <a data-mobile-nav-item="inicio" class="<?= $isActive('/dashboard') ? 'is-active' : '' ?>" href="/dashboard">
             <span class="mobile-nav-icon"><?= $icons['home'] ?></span><span>Inicio</span>
         </a>
         <a data-mobile-nav-item="operacion" class="<?= $isActive('/sales') ? 'is-active' : '' ?>" href="/sales">
