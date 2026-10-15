@@ -60,7 +60,7 @@ declare(strict_types=1);
             </div>
         </section>
 
-        <section id="reconciliation" class="panel">
+        <section id="reconciliation">
             <h2>Reconciliación</h2>
             <p>Ámbito: <?= htmlspecialchars((string) $reconciliation['scope']['type'], ENT_QUOTES, 'UTF-8') ?></p>
             <?php if ($reconciliation['scope']['pack_id'] !== null): ?>
@@ -110,7 +110,7 @@ declare(strict_types=1);
             </ul>
         </section>
 
-        <section id="invoice-review" class="panel">
+        <section id="invoice-review">
             <h2>Factura / Postventa</h2>
             <dl class="settings-list">
                 <dt>Readiness</dt><dd><?= htmlspecialchars((string) $invoiceReview['readiness'], ENT_QUOTES, 'UTF-8') ?></dd>
