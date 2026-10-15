@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=SALES DETAIL UI AUDITED / DESIGN PENDING APPROVAL / RECOVERY CHECKPOINT / STOP**
+**CURRENT=UI-1 CONTENT SWEEP GREEN CERTIFIED / SALES DETAIL CLOSED / RECOVERY CHECKPOINT / STOP**
 
 > Autoridad operativa para recuperar el hilo si el chat se corta. Retomar desde `NEXT` y no reconstruir estado por intuición.
 
@@ -15,8 +15,7 @@
 | Rama UI | `ui/operator-shell-v1-20261014` |
 | PR UI | `#18 feat(ui): modernize operator workspace` |
 | PR #18 | OPEN / DRAFT / NOT MERGED |
-| Source UI certificado | `aed0668fa99226917bbab918e63b3c8ddeb2166f` |
-| Checkpoint previo | `eb59ba2444bec228dd1650db933d9b68cec2b93f` |
+| Source UI certificado actual | `60ba4013a4ff83c07012746b94b740e09b43ecce` |
 | Hostinger | ERP2 instalado; rama UI NO desplegada |
 | Mercado Libre real | CERRADO |
 | Remote writes | OFF |
@@ -81,14 +80,15 @@ F16 Remote Writes=UNAUTHORIZED
 real MELI OAuth/API=CLOSED
 ```
 
-## 4. UI-1 — CERTIFIED SO FAR
+## 4. UI-1 — CODE COVERAGE CURRENTLY CLOSED
 
-PR #18 ya cubre:
+PR #18 cubre ahora el barrido visual identificado de:
 
 ```text
 - navegación operador
 - login
 - ventas listado
+- detalle de venta
 - catálogo
 - facturación
 - empresas
@@ -107,7 +107,7 @@ GET / guest → 303 /login
 sesión integer inválida/deshabilitada conserva authority validation → 403
 ```
 
-Installer ya certificado:
+Installer certificado:
 
 ```text
 DB_HOST default=localhost
@@ -125,20 +125,12 @@ QA relevantes:
 #788 PASS PHP 8.3/8.4/8.5
 #794 PASS PHP 8.3/8.4/8.5
 #799 PASS PHP 8.3/8.4/8.5
+#807 PASS PHP 8.3/8.4/8.5
 ```
 
-Último bloque cerrado:
+No se conocen huecos de contenido UI pendientes dentro del barrido estático actual. **Aún falta QA visual real en navegador antes de declarar UI-1 final y antes de merge/deploy.**
 
-```text
-/settings/mercadolibre = GREEN CERTIFIED
-source = aed0668fa99226917bbab918e63b3c8ddeb2166f
-Actions #799 / run_id 38756645337
-PHP 8.3=PASS
-PHP 8.4=PASS
-PHP 8.5=PASS
-```
-
-## 5. CURRENT AUDIT — /sales/{id}
+## 5. CLOSED MICROBLOCK — /sales/{id}
 
 Owner:
 
@@ -146,166 +138,186 @@ Owner:
 app/Modules/Sales/ViewSales/views/detail.php
 ```
 
-Test funcional existente:
+Test usado:
 
 ```text
 tests/Integration/SalesDetailHttpRouteTest.php
 ```
 
-Hallazgo principal:
+### Auditoría previa
+
+Se comprobó que `detail.php` ya incluía `navigation.php` y, por esa vía, `/assets/app.css`.
+
+Conclusión KISS:
 
 ```text
-detail.php YA incluye navigation.php
-navigation.php YA carga /assets/app.css
-por tanto NO hace falta otro shell, stylesheet ni navegación paralela
-el hueco es únicamente estructural/presentacional dentro de <main>
+NO nuevo shell
+NO nueva navegación
+NO nuevo stylesheet
+NO framework
+sólo reestructurar el contenido existente con primitivas compartidas
 ```
 
-Datos/contratos visibles que deben preservarse exactamente:
+### RED
+
+Commit test-only:
 
 ```text
-- ID de venta
-- cuenta seller
-- estado
-- total + moneda
-- fecha creada / actualizada
-- productos: título, SKU, cantidad, precio
-- reconciliación: scope, pack, order_ids
-- comisión operativa y cobertura
-- item_count / currency
-- billing identity
-- receiver shipping / seller shipping
-- official reference
-- hechos facturados Billing
-- evidencia envío receptor
-- factura/postventa readiness
-- factura registrada
-- nota crédito registrada
-- post_sale_status
+fc379760fd75641c88310d95601daf482ec4eb20
 ```
 
-El test actual ya protege:
+Actions:
 
 ```text
-- venta de empresa seleccionada = 200
-- ID / producto / SKU visibles
-- datos de otra empresa ausentes
-- venta de otra empresa = 404
+#804 / run_id 38759036418
+PHP 8.3 confirmó RED exacto
+776 tests / 1 failure
+único fallo=SalesDetailHttpRouteTest::testOrderDetailIsVisibleOnlyInsideSelectedCompany
+causa esperada=ausencia de class="page-header"
+PHPStan=PASS
+Syntax=PASS
 ```
 
-No existe todavía contrato visual específico para detail.php.
-
-## 6. DESIGN BOUNDED PROPUESTO — PENDIENTE DE APROBACIÓN
-
-Sin cambiar lógica ni datos:
+Contrato visual útil:
 
 ```text
-1. page-header
-   - link ← Ventas
-   - título Venta {external_order_id}
-   - estado como status-chip neutral
-
-2. panel Resumen de venta
-   - Cuenta
-   - Estado
-   - Total
-   - Creada
-   - Actualizada
-   - reutilizar lista clave/valor existente; no crear tarjetas complejas
-
-3. panel Productos
-   - table-wrap alrededor de la tabla existente
-   - mismas columnas y valores
-
-4. panel Reconciliación
-   - conservar id="reconciliation"
-   - agrupar scope/cobertura/operación legiblemente
-   - hechos Billing dentro de table-wrap
-   - evidencia shipping conservada sin cambiar semántica
-
-5. panel Factura / Postventa
-   - conservar id="invoice-review"
-   - readiness / factura / nota crédito / postventa como lista clave/valor
+page-header
+panel sales-summary
+table-wrap
 ```
 
-Preferencia KISS:
+### GREEN inicial y regresión detectada
+
+Commit inicial de presentación:
 
 ```text
-reutilizar page-header, panel, table-wrap, status-chip y primitivas clave/valor existentes
-no añadir framework
-no tocar controller
-no tocar reconciliación
-no tocar Billing
-no tocar invoice logic
-no crear navegación nueva
-CSS nuevo sólo si una necesidad visual real no puede resolverse con primitivas existentes
+35b385eacbbb0d0ba35dccb5e7f4fb9218c75b39
 ```
 
-## 7. TDD PROPUESTO — NO EJECUTADO AÚN
+Actions `#805` NO certificó GREEN.
 
-Con aprobación, añadir a `SalesDetailHttpRouteTest.php` un contrato visual mínimo que exija únicamente estructura estable, por ejemplo:
+PHP 8.3 y 8.5 detectaron un único fallo funcional preexistente:
 
 ```text
-class="page-header"
-class="panel"
-class="table-wrap"
-id="reconciliation"
-id="invoice-review"
-status-chip
+InvoicePostSaleConsumerHttpRouteTest::testReviewIsPureReadAndDoesNotExposeArtifactDetailsOrAddControls
 ```
 
-Después:
+Causa raíz:
 
 ```text
-RED esperado
-→ GREEN sólo detail.php y CSS genérico mínimo si indispensable
-→ QA PHP 8.3/8.4/8.5
-→ checkpoint
-→ STOP
+el test funcional protege la forma exacta:
+<section id="invoice-review">...</section>
+
+el GREEN inicial añadió class="panel" al mismo <section>,
+rompiendo el selector contractual aunque la lógica de invoice siguiera intacta.
 ```
 
-## 8. NO TOCADO EN ESTE MICROBLOQUE
+No se modificó el test funcional de factura para hacerlo pasar.
+
+### Corrección KISS / anti-parche
+
+Test visual saneado para no exigir clases redundantes sobre los `section id` protegidos:
 
 ```text
-NO cambios de producto
-NO cambios de tests
-NO CSS
-NO controller
-NO OAuth
-NO MELI real
-NO Hostinger
-NO deploy
-NO merge
+53409b0c1f37392f60814ca8311883e36d20f017
 ```
 
-## 9. GUARDRAILS
+Producto corregido preservando exactamente:
+
+```text
+<section id="reconciliation">
+<section id="invoice-review">
+```
+
+Commit final de producto:
+
+```text
+60ba4013a4ff83c07012746b94b740e09b43ecce
+```
+
+No hizo falta CSS nuevo porque `app.css` ya estiliza `main > section`.
+
+### Resultado visual final
+
+```text
+- page-header con retorno a Ventas + ID + explicación
+- panel Resumen de venta
+- estado como status-chip neutral
+- lista clave/valor para cuenta/estado/total/fechas
+- Productos dentro de table-wrap
+- Reconciliación conserva scope, pack, cobertura, Billing y shipping
+- tabla Billing dentro de table-wrap
+- Factura/Postventa conserva readiness y sus cuatro campos protegidos
+- aislamiento por empresa sigue intacto
+```
+
+No se tocaron:
+
+```text
+controllers
+queries
+reconciliación de negocio
+Billing logic
+invoice/post-sale logic
+OAuth
+MELI real
+tenancy
+rutas
+CSS compartido
+```
+
+## 6. FINAL CERTIFICATION — SALES DETAIL
+
+Source certificado:
+
+```text
+60ba4013a4ff83c07012746b94b740e09b43ecce
+```
+
+Actions:
+
+```text
+#807 / run_id 38760172783
+PHP 8.3=PASS
+PHP 8.4=PASS
+PHP 8.5=PASS
+```
+
+El step completo `QA` terminó SUCCESS en las tres versiones, incluyendo sintaxis, PHPStan y PHPUnit.
+
+`/sales/{id}` queda **GREEN CERTIFIED**.
+
+## 7. GUARDRAILS
 
 ```text
 no merge a stable todavía
 no deploy UI todavía
-no tocar Hostinger en el próximo microbloque
-REAL_MELI_HTTP=0
+REAL_MELI_HTTP=0 para QA local/CI
 no OAuth/API MELI real
 remote writes=OFF
 no F15/F16
 no secretos en chat/Git/logs
+no tocar Hostinger sin microbloque explícito
 Codex sólo para trabajo que ChatGPT no pueda ejecutar: Windows/runtime/DB/browser/hPanel/portal/evidencia
 ```
 
-## 10. NEXT — EXACTLY ONE MICROBLOCK
+## 8. NEXT — EXACTLY ONE MICROBLOCK
 
-**Esperar aprobación del diseño.**
+Esperar nuevo `continua`.
 
-Si el usuario responde `continua`, eso autoriza únicamente:
+Siguiente prioridad recomendada:
 
 ```text
-/sales/{id}
-→ crear RED visual mínimo en SalesDetailHttpRouteTest.php
-→ confirmar RED esperado
-→ GREEN mínimo en detail.php (y CSS sólo si indispensable)
-→ QA PHP 8.3/8.4/8.5
-→ actualizar este checkpoint
-→ STOP
+AUDITORÍA ESTÁTICA FINAL PR #18
+- revisar diff/archivos del PR completo contra stable
+- buscar ruido, duplicación, parches, huecos o cambios funcionales accidentales
+- verificar que el barrido UI está realmente completo
+- NO merge
+- NO deploy
+- NO Hostinger
+- NO MELI real
+- actualizar checkpoint
+- STOP
 ```
 
-No abrir merge/deploy/Hostinger/F14/F15/F16 en el mismo bloque.
+Después de esa auditoría, si queda limpia, el siguiente bloque separado será **QA visual real en navegador** antes de solicitar autorización de merge/deploy.
