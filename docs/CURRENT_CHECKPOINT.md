@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / UI-DM5 BILLING-FINANCIAL GREEN / UI-DM6A MELI-ACCOUNTS GREEN / UI-DM6B MELI-APP-SETTINGS GREEN / NEXT UI-DM7 ADMINISTRATION / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / UI-DM5 BILLING-FINANCIAL GREEN / UI-DM6 MELI GREEN / UI-DM7A COMPANIES GREEN / NEXT UI-DM7B USERS / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
 
@@ -16,8 +16,8 @@ FOUNDATION_BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_HEAD=ebf7f00ff1b320ea0ebcc676d969b58d99d5cfaa
-CERTIFIED_ACTIONS_RUN=38825552488
+LATEST_CERTIFIED_CODE_HEAD=67121c8f1afad3a7c5b58aa9f25dc8c6f4fee2d4
+CERTIFIED_ACTIONS_RUN=38826341046
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -48,50 +48,47 @@ UI-DM4 PRODUCTS/CATALOG+INVENTORY=GREEN
 UI-DM5 BILLING/FINANCIAL=GREEN
 UI-DM6A MERCADO LIBRE COMPANY ACCOUNTS=GREEN
 UI-DM6B GLOBAL MELI DEVELOPER APP SETTINGS=GREEN
+UI-DM7A COMPANIES=GREEN
 ```
 
-## 4. UI-DM6B — GLOBAL MELI DEVELOPER APP SETTINGS
+## 4. UI-DM7A — COMPANIES
 
 **STATE=GREEN**
 
-### TDD evidence
-
 ```text
-RED_COMMIT=59361f2b8deebfb98463d524ed3bd19ed6120e3d
-RED_RUN=38825048573
-RED_RESULT=793 tests / 6627 assertions / exactly 1 expected failure
-PRODUCTION_GREEN_COMMIT=44a1f551203ba6df8251f7c930034a9a91899443
-ANTI_PATCH_TEST_CORRECTION_COMMIT=bad5e939d8dc38974cb8b8e55220ab88f49db011
-VISUAL_ASSERTION_ALIGNMENT_COMMIT=ebf7f00ff1b320ea0ebcc676d969b58d99d5cfaa
-GREEN_RUN=38825552488
+RED_COMMIT=9aa082e6d931a8f12a264acdd1ae1a5367507700
+RED_RUN=38826014191
+RED_RESULT=794 tests / 6639 assertions / exactly 1 expected failure in CompanyDesignMasterUiTest
+GREEN_COMMIT=67121c8f1afad3a7c5b58aa9f25dc8c6f4fee2d4
+GREEN_RUN=38826341046
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-### Authoritative boundary
+Authoritative boundary preserved:
 
 ```text
-/settings/mercadolibre = global Developer app owner
+/system/companies = existing company-management owner
 SYSTEM_ADMIN_ONLY=YES
-/mercadolibre/accounts = separate company seller-account owner
-NO owner merge
-NO fake health/sync routes
-NO direct company-account link added from global page solely to satisfy a test
+NO controller rewrite
+NO new company domain
+NO new permission model
 NO new CSS family
-NO controller/runtime-policy/OAuth/Work/429/route/remote-write changes
 ```
 
-Security/behavior preserved:
+Behavior preserved:
 
-- effective Client ID visible;
-- Client Secret never rendered;
-- server-managed credentials remain read-only;
-- blank secret preserves existing secret only when Client ID is unchanged;
-- Client ID change without new secret fails closed;
-- clear remains explicit;
-- CSRF remains required;
-- no Work/API side effects added.
+- DB-backed system-admin authority;
+- CSRF on all writes;
+- atomic create/update;
+- archive blocks pending/running Work, live MELI accounts and active invoicing keys;
+- archive preserves operational owners/history;
+- hard delete only for archived pristine company with sole creator admin membership;
+- hard delete never deletes the user;
+- active company session is cleared on archive/delete when needed.
+
+Presentation now uses the shared Design Master family with one administration surface and company cards; existing actions and owners are unchanged.
 
 ## 5. BACKEND GUARDRAILS STILL CLOSED
 
@@ -128,32 +125,26 @@ ERP COMPLETE
 
 Demo, Hostinger and cron remain deferred.
 
-## 7. NEXT — UI-DM7 ADMINISTRATION
+## 7. NEXT — UI-DM7B USERS / PERMISSIONS
 
 ```text
-NEXT=UI-DM7 ADMINISTRATION
+NEXT=UI-DM7B USERS
 ```
 
-Split into short microblocks:
+Execution boundary:
 
-```text
-UI-DM7A = Companies
-UI-DM7B = Users / permissions
-UI-DM7C = System settings / diagnostics presentation
-```
-
-Execution rules:
-
-1. inspect current views/controllers/tests before changing production;
-2. preserve all role/authorization/CSRF/tenancy behavior;
-3. reuse existing Design Master component families only;
-4. no new admin domain or permission model;
-5. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint for each microblock;
-6. do not chain DM7A+B+C without checkpoints.
+1. inspect `users.php`, `UserManagementController.php`, `UserManagementTest.php` and role authorization tests;
+2. preserve DB-backed authority, memberships, status lifecycle, password rules and CSRF;
+3. do not invent a new roles/permissions domain;
+4. adapt presentation only with existing Design Master components;
+5. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint;
+6. only then open UI-DM7C System Settings / diagnostics.
 
 ## 8. ABSOLUTE NO-GO NOW
 
 ```text
+NO UI-DM7C until Users is GREEN
+NO UI-DM8 completeness work until all UI-DM7 is GREEN
 NO demo seed
 NO Hostinger work
 NO cron
@@ -162,5 +153,4 @@ NO REMOTE_WRITES
 NO F15
 NO F16
 NO merge PR #19
-NO UI-DM8 completeness work until UI-DM7 is GREEN
 ```
