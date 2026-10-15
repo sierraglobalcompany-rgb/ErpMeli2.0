@@ -8,7 +8,7 @@ declare(strict_types=1);
 ?>
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Seleccionar empresa</title><link rel="stylesheet" href="/assets/app.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Seleccionar empresa</title><?php if ($company === null): ?><link rel="stylesheet" href="/assets/app.css"><?php endif; ?></head>
 <body>
 <?php if ($company !== null) { require __DIR__ . '/navigation.php'; } ?>
 <main<?= $company === null ? ' class="simple-page"' : '' ?>>
