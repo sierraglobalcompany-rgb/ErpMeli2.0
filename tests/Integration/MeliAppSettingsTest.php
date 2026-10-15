@@ -92,15 +92,16 @@ final class MeliAppSettingsTest extends TestCase
         self::assertStringContainsString('http://localhost/webhooks/mercadolibre', $html);
     }
 
-    public function testMeliSettingsUsesSharedOperatorVisualStructure(): void
+    public function testMeliSettingsUsesSharedGlobalVisualStructure(): void
     {
         $html = (string) $this->request('GET')->getBody();
 
         self::assertStringContainsString('href="/assets/app.css"', $html);
-        self::assertStringContainsString('class="app-nav"', $html);
+        self::assertStringContainsString('class="simple-page"', $html);
+        self::assertStringContainsString('class="simple-nav"', $html);
         self::assertStringContainsString('class="page-header"', $html);
         self::assertStringContainsString('class="settings-grid"', $html);
-        self::assertStringContainsString('class="panel"', $html);
+        self::assertStringContainsString('class="panel', $html);
     }
 
     public function testGlobalAdminNavigationMakesMeliSettingsDiscoverable(): void
