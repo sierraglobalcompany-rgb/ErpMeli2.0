@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=UI COVERAGE AUDIT COMPLETE / NEXT MELI ACCOUNTS ONLY / STOP**
+**CURRENT=MELI ACCOUNTS UI RED CREATED / RED CONFIRMED PHP 8.3 / GREEN NOT APPLIED / STOP**
 
 | Campo | Estado |
 |---|---|
@@ -8,81 +8,95 @@
 | Stable | `impl/v3-b-sales-audit-20261010` — INTACTO |
 | Rama UI | `ui/operator-shell-v1-20261014` |
 | Último source visual certificado | `6ed576283e6e9c4dbcd9d3bacd0ccd9e4d57934f` |
+| RED actual | `9cb97be5f22be286a4fb73dae59fca6afe7b93a4` |
 | Hostinger | ERP2 instalado; SIN cambios en este bloque |
 | Mercado Libre real | NO abierto |
 | Remote writes | OFF |
 | UI-1 | EN PROGRESO |
 
-## Microbloque cerrado
+## Microbloque actual
 
-Se hizo únicamente una auditoría de cobertura visual del PR #18. No se modificó código de producto.
+Alcance aprobado: modernizar únicamente **Cuentas Mercado Libre** en:
 
-### Cubierto por el shell UI actual
+`app/Modules/Settings/views/meli-accounts.php`
+
+Sin cambiar rutas, OAuth, CSRF, permisos, estados ni lógica de cuentas. Se reutilizará el shell existente y `public/assets/app.css`; no se añadirá framework ni arquitectura paralela.
+
+## Diseño aprobado
 
 ```text
-- navegación principal compartida
-- login
-- ventas — listado
-- catálogo
-- facturación
-- empresas
-- usuarios
-- configuración del sistema
-- selector de empresa
-- instalador
+- encabezado de página
+- acción principal dentro del shell existente
+- ayuda/estado claramente agrupados
+- tabla responsive usando table-wrap
+- estados como status-chip
+- acciones de fila agrupadas con row-actions
 ```
 
-### Huecos visuales confirmados
+## TDD — RED
+
+Commit test-only:
 
 ```text
-1. /mercadolibre/accounts
-   owner: app/Modules/Settings/views/meli-accounts.php
-   estado: usa navegación nueva pero contenido principal sigue HTML crudo
-
-2. /settings/mercadolibre
-   owner: app/Modules/Settings/views/mercadolibre.php
-   estado: conserva navegación/CSS inline antiguos y no usa el shell compartido
-
-3. /sales/{id}
-   owner: app/Modules/Sales/ViewSales/views/detail.php
-   estado: usa navegación nueva pero detalle, tablas y secciones siguen sin estructura visual del shell
+9cb97be5f22be286a4fb73dae59fca6afe7b93a4
 ```
 
-## Prioridad
+Se añadió únicamente:
 
-Orden KISS recomendado:
+`MeliAccountManagementTest::testAccountsPageUsesOperatorVisualStructure`
+
+Contrato visual exigido:
 
 ```text
-1. Cuentas Mercado Libre
-2. Configuración Mercado Libre
-3. Detalle de venta
+class="page-header"
+class="toolbar"
+class="table-wrap"
+class="status-chip status-connected"
+class="row-actions"
 ```
 
-Razón: Cuentas Mercado Libre será la siguiente pantalla operativa crítica cuando se abra el flujo MELI real; conviene dejarla clara antes de OAuth externo.
-
-## Ya certificado
+Actions:
 
 ```text
-Actions #788:
-PHP 8.3=PASS
-PHP 8.4=PASS
-PHP 8.5=PASS
-PHPStan=PASS
-Syntax=PASS
+#791
+PHP 8.3 = FAIL esperado confirmado
+775 tests / 1 failure
+único fallo = MeliAccountManagementTest::testAccountsPageUsesOperatorVisualStructure
+primera ausencia confirmada = class="page-header"
+PHPStan = PASS
+Syntax = PASS
+PHP 8.4 / 8.5 = estaban aún en ejecución al congelar este checkpoint; no declarar resultado final todavía
+```
 
-Instalador:
-DB_HOST=localhost
-DB_PORT=3306
-APP_URL=autodetectado cuando está vacío
-shell visual=certificado
+El fallo observado es exactamente el esperado: la vista actual sigue sin la estructura visual aprobada.
+
+## NO realizado todavía
+
+```text
+NO GREEN aplicado
+NO cambios en app/Modules/Settings/views/meli-accounts.php
+NO cambios adicionales en public/assets/app.css
+NO cambios OAuth
+NO llamadas reales a Mercado Libre
+NO deploy Hostinger
+NO merge a stable
+```
+
+## Huecos UI que quedan después de este bloque
+
+No tocar aún:
+
+```text
+/settings/mercadolibre
+/sales/{id}
 ```
 
 ## 3 reglas
 
 ```text
-KISS: modificar el owner visual existente, sin framework nuevo
-ANTI-RUIDO: reutilizar public/assets/app.css y navigation.php
-ANTI-PARCHE: no crear CSS/página paralela ni duplicar navegación
+KISS: owner visual existente, cambios mínimos
+ANTI-RUIDO: reutilizar navigation.php + app.css; no duplicar estilos
+ANTI-PARCHE: no alterar lógica para resolver presentación
 ```
 
 ## Guardrails
@@ -99,6 +113,4 @@ no F15/F16
 
 ## NEXT — un solo microbloque
 
-**Modernizar únicamente `app/Modules/Settings/views/meli-accounts.php` reutilizando el shell/CSS compartido → RED visual mínimo → GREEN → QA → checkpoint → STOP.**
-
-No tocar `/settings/mercadolibre`, detalle de venta ni OAuth real en ese mismo bloque.
+**Revisar el resultado final de Actions #791 sólo para confirmar que el RED sigue siendo limpio en la matriz; luego aplicar GREEN mínimo exclusivamente a `meli-accounts.php` y, únicamente si resulta indispensable, clases genéricas mínimas en `public/assets/app.css` → QA → checkpoint → STOP.**
