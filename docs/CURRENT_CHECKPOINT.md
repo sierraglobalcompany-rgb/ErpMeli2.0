@@ -14,12 +14,12 @@
 | LOCAL_PRODUCT_READY | YES |
 | L1–L9 | CLOSED / GREEN |
 | L10 External-gate decision | CLOSED — GO sólo para preflight/certificación READ-only |
-| F14 READ-only external certification | PREFLIGHT OPEN — todavía sin OAuth/API real ejecutado |
+| F14 READ-only external certification | F14-A PREFLIGHT OPEN — todavía sin OAuth/API real ejecutado |
 | HOSTINGER_REALITY G8 | NOT CERTIFIED |
 | F15 Cutover | PAUSED |
 | F16 Remote Writes | UNAUTHORIZED |
 | REMOTE_WRITES | OFF |
-| NEXT | F14-A: certificar runtime/HTTPS/document-root y aplicación ERP2 antes de cualquier GET real |
+| NEXT | Ejecutar F14-A de realidad externa; STOP antes de OAuth/API real |
 
 ## Base certificada
 
@@ -38,7 +38,7 @@ LOCAL_PRODUCT_READY=YES
 
 La evidencia local es suficiente para **abrir únicamente el preflight de certificación externa READ-only**. Esta decisión no autoriza por sí sola OAuth real, requests a la API real, deploy/cutover ni ninguna escritura remota.
 
-La nomenclatura operativa vigente sigue el roadmap actual: F14 es la certificación externa READ-only. `docs/F14_READ_CERTIFICATION.md` conserva evidencia histórica de cierre contractual local y una referencia antigua a `F15 Stage 0`; esa referencia no renumera el roadmap vigente.
+La nomenclatura operativa vigente sigue el roadmap actual: F14 es la certificación externa READ-only. `docs/F14_READ_CERTIFICATION.md` conserva evidencia histórica del cierre contractual local y una referencia antigua a `F15 Stage 0`; esa referencia no renumera el roadmap vigente.
 
 ## F14-A — preflight obligatorio antes de API real
 
@@ -71,11 +71,13 @@ OAUTH_CALLBACK=https://erpmeli.bodegadigitalmedellin.com/oauth/mercadolibre/call
 WEBHOOK=https://erpmeli.bodegadigitalmedellin.com/webhooks/mercadolibre
 ```
 
+La comprobación web desde ChatGPT no pudo alcanzar el subdominio mediante su navegador externo; eso **no prueba fallo de HTTPS** y queda para medición directa en F14-A.
+
 Sólo después de F14-A GREEN puede abrirse un siguiente microbloque para autorización ERP2 fresca de **un seller** y GET reales controlados. No reutilizar tokens ERP1. No refresh/polling/retries automáticos. No POST/PUT/DELETE remotos.
 
 ## Alcance futuro de calibración READ-only
 
-El contrato local ya preparado exige, cuando se autorice el bloque de GET reales, calibrar únicamente lo necesario para cerrar evidencia externa pendiente, incluyendo según el flujo real disponible:
+Cuando se autorice el bloque posterior de GET reales, calibrar sólo lo necesario para cerrar evidencia externa pendiente, incluyendo según el flujo real disponible:
 
 - identidad seller/account;
 - `GET /orders/{order_id}`;
@@ -100,6 +102,6 @@ no main move ni cutover sin autorización explícita
 
 ## NEXT — un solo microbloque
 
-**F14-A External Reality Preflight.** Obtener únicamente evidencia de runtime/HTTPS/document-root/cuotas y configuración de la app ERP2. Si algo falla, corregir primero ambiente/configuración; no añadir complejidad al producto. STOP antes de OAuth/API real.
+**F14-A External Reality Preflight.** Codex sólo mide hPanel/runtime/CLI/cuotas/configuración de app ERP2 porque ChatGPT no puede acceder a esas superficies privadas. No deploy, no OAuth seller, no API real. STOP al devolver PASS/BLOCKED.
 
 Los contratos durables siguen en [`ERP2_AUTHORITY.md`](ERP2_AUTHORITY.md). La evidencia local F14 previa sigue en [`F14_READ_CERTIFICATION.md`](F14_READ_CERTIFICATION.md).
