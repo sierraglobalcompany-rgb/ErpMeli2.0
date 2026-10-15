@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / NEXT UI-DM3 SALES / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / NEXT UI-DM3 SALES REDESIGN / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. No reconstruir por intuición. Retomar desde `NEXT`.
 
@@ -16,7 +16,7 @@ FOUNDATION_BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-HEAD_AT_CHECKPOINT=b5ccf1730a7c90ccf2b2f3b90be2a8bdddc4af53
+LATEST_CERTIFIED_CODE_HEAD=5574f703a4743f4850137c62c5b5ec45dcd17562
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
@@ -24,18 +24,13 @@ HOSTINGER_UI_DEPLOYED=NO
 
 Do not merge PR #19 or deploy before the later explicit acceptance gate.
 
-## 2. NON-NEGOTIABLE LAWS
+## 2. LAWS / EXECUTION DISCIPLINE
 
 ```text
 KISS=A→B; simple, efficient, optimized, effective, minimum architecture.
 ANTI_NOISE=delete only with evidence; otherwise merge, simplify, optimize, or preserve.
 ANTI_PATCH=fix owner/root cause; no workaround stacks.
-```
-
-Execution discipline:
-
-```text
-microblock → CI/QA → audit → checkpoint → next microblock
+MICROBLOCK=microblock → RED → GREEN → full CI → audit → checkpoint → next.
 ```
 
 ## 3. APPROVED DESIGN AUTHORITY
@@ -57,19 +52,18 @@ No React/Vue/SPA or new frontend framework unless later evidence proves necessit
 
 **STATE=GREEN**
 
-Implemented on `ui/design-master-v1-20261015`:
-
+Implemented:
 - responsive shell foundation;
-- desktop sidebar/topbar structure;
+- desktop sidebar/topbar;
 - mobile fixed bottom navigation;
 - central Apps launcher;
-- minimal `public/assets/app.js` interaction;
-- evolved shared CSS/tokens;
+- minimal vanilla `public/assets/app.js`;
+- shared CSS/tokens;
 - authorization-aware destinations;
 - no fake routes for deferred capabilities;
 - responsive structural contract tests.
 
-Important rule: launcher/navigation may show only implemented + authorized + usable destinations.
+Launcher/navigation rule: show only implemented + authorized + usable destinations.
 
 ## 5. UI-DM2 — FACTUAL DASHBOARD
 
@@ -86,48 +80,66 @@ Dashboard view
 DashboardHttpRouteTest
 ```
 
-Certified behavior:
-
+Certified:
 - active company required;
 - company scoped;
 - bounded date range;
 - invalid/unbounded range → 422;
 - local persisted facts only;
-- no Work enqueue caused by dashboard GET;
+- dashboard GET does not enqueue Work;
 - no live MELI HTTP required to render;
-- sales totals remain separated by currency;
-- profitability remains explicit UNKNOWN when facts are insufficient;
+- currencies remain separated;
+- profitability stays explicit UNKNOWN when facts are insufficient;
 - account states remain factual.
 
-### Recovery history for UI-DM2
+Recovery commits:
 
 ```text
-e49d641... = partial Dashboard implementation; CI RED
-7656185... = fix PHPStan impossible int===false comparison
-3185aa3... = wire DashboardController in Routes.php and root landing
-fbc8a24... = update FreshInstall landing contract
-b5ccf173... = update OperatorFoundation landing contract
+e49d641... = partial Dashboard implementation / CI RED
+7656185... = PHPStan fix only
+3185aa3... = wire /dashboard + root landing
+fbc8a24... = FreshInstall landing contract
+b5ccf173... = OperatorFoundation landing contract
 ```
 
-### QA proof at HEAD `b5ccf173...`
-
-GitHub Actions run `38817394804`:
+QA at `b5ccf173...`, Actions run `38817394804`:
 
 ```text
-PHP 8.3 = PASS
-PHP 8.4 = PASS
-PHP 8.5 = PASS
-composer validate = PASS
-PHP syntax = PASS
-PHPStan = PASS
-full PHPUnit = PASS
+PHP 8.3 PASS
+PHP 8.4 PASS
+PHP 8.5 PASS
+Composer PASS
+Syntax PASS
+PHPStan PASS
+Full PHPUnit PASS
 ```
 
-The previous RED run reached 785 tests; failures were only stale `/sales` landing assertions after Dashboard became the approved landing. They were corrected as test-authority drift, not by reverting product behavior.
+## 6. R3 — DIRECT HOME DESTINATION
 
-## 6. SAFETY / BACKEND GUARDRAILS STILL CLOSED
+**STATE=GREEN**
 
-The design work must not weaken:
+TDD history:
+
+```text
+3dec3d14... = RED test: /dashboard must be direct Inicio destination and active owner
+RED proof = 786 tests / 6553 assertions / exactly 1 expected failure
+5574f703... = GREEN: desktop + mobile Inicio now href=/dashboard and active on /dashboard
+```
+
+GitHub Actions run `38818383063` at `5574f703...`:
+
+```text
+PHP 8.3 PASS
+PHP 8.4 PASS
+PHP 8.5 PASS
+full QA PASS
+```
+
+No other navigation behavior changed.
+
+## 7. SAFETY / BACKEND GUARDRAILS STILL CLOSED
+
+The redesign must not weaken:
 
 ```text
 429 durable defer/cooldown
@@ -142,17 +154,11 @@ Billing cursor/period behavior
 remote writes OFF
 ```
 
-ERP1 failure patterns must not return:
+ERP1 failure patterns must not return: 429 storms, FIFO/HOL blocking, gRPC/batch/job desynchronization.
 
-```text
-429 storms
-FIFO/HOL blocking
-gRPC/batch/job desynchronization
-```
+## 8. PRODUCT SEQUENCE — USER CORRECTION
 
-## 7. PRODUCT SEQUENCE — USER CORRECTION
-
-Demo and Hostinger are intentionally deferred.
+Demo and Hostinger remain deferred.
 
 ```text
 ERP COMPLETE
@@ -168,21 +174,30 @@ ERP COMPLETE
 → later explicitly authorized phases
 ```
 
-Do **not** create demo data now.
-Do **not** test/deploy Hostinger now.
-Do **not** configure cron now.
+Do not create demo data, test/deploy Hostinger, or configure cron now.
 
-## 8. CURRENT PR #19 SCOPE
+## 9. UI-DM3 AUDIT PREP
 
-At this checkpoint the branch changes include the responsive shell foundation plus factual Dashboard. It is still a draft integration branch, not a release branch.
+Current Sales findings before code changes:
 
-No merge authorization exists.
+```text
+SalesListController = factual/company-scoped owner; no redesign need identified in controller.
+list.php = foundation-level UI; two desktop tables/forms; no real mobile card composition yet.
+detail.php = stronger foundation; preserves Financial/Billing/Invoice/PostSale facts but tables still need responsive composition.
+SalesListHttpRouteTest = basic company-scope truth only.
+SalesDetailHttpRouteTest = company-scope + basic presentation markers.
+```
 
-## 9. KNOWN SMALL DESIGN CLEANUP
+KISS design ruling for UI-DM3:
 
-The shared navigation still uses `/` as the visible Home link while `/` redirects to `/dashboard`. Functionally valid, but the UI-DM2 cleanup should prefer `/dashboard` as the direct Home destination and active-state owner so `Inicio / Resumen` is active while viewing the dashboard.
-
-This is a presentation cleanup, not a backend blocker. Handle with a small test-first microblock before or at the start of UI-DM3.
+```text
+ONE DATASET / ONE HTML ROW FAMILY
+Desktop = table
+Mobile = same rows recomposed as cards/list via responsive CSS + data labels
+NO duplicate backend query
+NO duplicate mobile data view
+NO controller rewrite unless proven necessary
+```
 
 ## 10. NEXT — EXACTLY ONE MICROBLOCK
 
@@ -190,17 +205,16 @@ This is a presentation cleanup, not a backend blocker. Handle with a small test-
 NEXT=UI-DM3 SALES LIST + SALES DETAIL REDESIGN
 ```
 
-Before redesigning Sales:
-
-1. close the direct `/dashboard` Home link/active-state cleanup test-first;
-2. inspect current Sales list/detail view contracts;
-3. write only the RED presentation/responsive assertions required by D-01/M-01;
-4. preserve all Sales/Audit/Billing/Financial/PostSale factual behavior;
-5. implement desktop table + mobile list/card composition from the same dataset;
-6. run focal Sales/Financial tests;
-7. run full QA matrix;
-8. write the next checkpoint;
-9. STOP before Products/Inventory if CI is not fully GREEN.
+Execution order:
+1. add RED structural tests for approved Sales presentation/mobile composition;
+2. watch expected failure;
+3. redesign `list.php` and `detail.php` only plus shared CSS as needed;
+4. preserve Sales/Audit/Billing/Financial/PostSale facts and UNKNOWN semantics;
+5. run focal Sales + Financial/PostSale tests;
+6. run full QA PHP 8.3/8.4/8.5;
+7. audit KISS/noise/patches;
+8. persist checkpoint;
+9. do not start Products/Inventory until UI-DM3 is fully GREEN.
 
 ## 11. ABSOLUTE NO-GO NOW
 
