@@ -85,22 +85,22 @@ El detalle verificable de estado, QA y gates vive en `docs/CURRENT_CHECKPOINT.md
 
 ### Local Product Readiness antes de F14
 
-El cierre del núcleo local no equivale a producto operable completo. Antes de abrir Hostinger/F14 deben cerrarse, en este orden y un bloque a la vez:
+El cierre del núcleo local no equivale a abrir gates externos. El producto local ya quedó certificado; la siguiente decisión sigue separada y requiere autorización explícita.
 
 ```text
-L1 Web Installer humano/local-first/DB-safe      ✅ cerrado en el checkpoint actual
-L2 Company management
-L3 Users + roles/memberships
-L4 Mercado Libre application settings
-L5 Mercado Libre account management
-L6 local MLSIM account linking
-L7 account lifecycle
-L8 human E2E local desde instalación vacía
-L9 Local Release Candidate + package
-L10 decisión explícita para gates externos
+L1 Web Installer humano/local-first/DB-safe      ✅ closed
+L2 Company management                           ✅ closed
+L3 Users + roles/memberships                    ✅ closed
+L4 Mercado Libre application settings           ✅ closed
+L5 Mercado Libre account management             ✅ closed
+L6 local MLSIM account linking                  ✅ closed
+L7 account lifecycle                            ✅ closed
+L8 human E2E local desde instalación vacía      ✅ closed / green
+L9 Local Release Candidate + package            ✅ closed / green
+L10 decisión explícita para gates externos      pendiente
 ```
 
-Mientras `LOCAL_PRODUCT_READY=NO` en `docs/CURRENT_CHECKPOINT.md`, Hostinger, OAuth real y F14 LIVE permanecen diferidos aunque el core técnico o la app de Mercado Libre ya existan.
+`LOCAL_PRODUCT_READY=YES` no autoriza Hostinger, OAuth real, F14 LIVE ni escrituras remotas. Esos gates continúan cerrados hasta una decisión L10 explícita y separada.
 
 ### Continuidad local después de R0
 
