@@ -73,7 +73,7 @@ final class DashboardController
         }
 
         $days = $from->diff($to)->days;
-        if ($days === false || $days > 365) {
+        if ($days > 365) {
             return null;
         }
 
