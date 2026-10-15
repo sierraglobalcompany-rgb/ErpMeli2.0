@@ -14,7 +14,7 @@ declare(strict_types=1);
 ?>
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Catálogo local</title><link rel="stylesheet" href="/assets/app.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Catálogo local</title></head>
 <body>
 <?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
 <main>
