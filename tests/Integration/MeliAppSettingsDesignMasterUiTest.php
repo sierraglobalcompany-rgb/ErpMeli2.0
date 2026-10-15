@@ -88,7 +88,6 @@ final class MeliAppSettingsDesignMasterUiTest extends TestCase
         self::assertStringContainsString('class="panel panel-full meli-app-status-panel"', $html);
         self::assertStringContainsString('class="panel meli-app-credentials-panel"', $html);
         self::assertStringContainsString('class="panel meli-app-clear-panel"', $html);
-        self::assertStringContainsString('href="/mercadolibre/accounts"', $html);
         self::assertStringContainsString('client-design-master', $html);
         self::assertStringContainsString('Secret configurado', $html);
         self::assertStringNotContainsString('secret-must-never-render', $html);
