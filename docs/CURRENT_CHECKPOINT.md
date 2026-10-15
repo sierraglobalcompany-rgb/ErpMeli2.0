@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / UI-DM5 BILLING-FINANCIAL GREEN / NEXT UI-DM6 MERCADO-LIBRE / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / UI-DM5 BILLING-FINANCIAL GREEN / UI-DM6A MELI-ACCOUNTS GREEN / NEXT UI-DM6B MELI-APP-SETTINGS / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
 
@@ -16,8 +16,8 @@ FOUNDATION_BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=2de2b50b730c566f41163c3c0e81c42080845400
-CERTIFIED_ACTIONS_RUN=38823564752
+LATEST_CERTIFIED_CODE_HEAD=9df8c23d7260b3df42a8c0f31be11025c256a4c7
+CERTIFIED_ACTIONS_RUN=38824607991
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -125,12 +125,9 @@ NO N+1 INVENTORY READS
 
 **STATE=GREEN**
 
-TDD evidence:
-
 ```text
 RED_COMMIT=f135880ef5f632b4f11e67625bc750a1f9b95556
 RED_RUN=38823181176
-RED_RESULT=791 tests / 6587 assertions / exactly 1 expected failure in BillingDesignMasterUiTest
 GREEN_COMMIT=2de2b50b730c566f41163c3c0e81c42080845400
 GREEN_RUN=38823564752
 PHP_8_3=PASS
@@ -151,17 +148,45 @@ NO new reconciliation engine
 NO invented profitability calculator
 ```
 
+## 10. UI-DM6A — MERCADO LIBRE COMPANY ACCOUNTS
+
+**STATE=GREEN**
+
+TDD evidence:
+
+```text
+RED_COMMIT=c4d07183c16af35743276830df6c4cc24b30d817
+RED_RUN=38824233998
+RED_RESULT=792 tests / 6603 assertions / exactly 1 expected failure in MeliAccountsDesignMasterUiTest
+PRODUCTION_GREEN_COMMIT=1e906f0e26fa24330a49da4d6e10bdfa75e70f00
+VISUAL_TEST_ALIGNMENT_COMMIT=9df8c23d7260b3df42a8c0f31be11025c256a4c7
+GREEN_RUN=38824607991
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+```
+
+Authoritative boundary:
+
+```text
+/mercadolibre/accounts = company seller-account connection center
+/settings/mercadolibre = separate system-admin Developer app owner
+NO merge of both owners
+NO fake health/sync/webhook routes
+NO remote-write expansion
+```
+
 Implementation:
 
-- Billing now follows the approved Design Master component family;
-- responsive periods table uses the same data rows for desktop/mobile;
-- selected period and sync request are presented as shared panels;
-- existing message remains explicit: requesting sync only registers pending Work and does not query Mercado Libre from the page;
-- no new CSS family was created;
-- `BillingController`, `BillingPeriodSyncHandler`, Billing cursor/period behavior, Work, 429, `FinancialReadModel`, OAuth and routes were not modified for UI-DM5;
-- existing Financial `UNKNOWN` / `CONFLICT` / currency truth remains unchanged.
+- company accounts page is now `Centro de conexión` using shared Design Master components;
+- one responsive account table is reused for desktop/mobile;
+- factual labels remain `Conectada`, `Requiere revisión`, `Debes volver a autorizar`, `Desconectada`;
+- existing Connect / Disconnect / Reauthorize / Delete forms and CSRF remain unchanged;
+- lifecycle authorization and company scoping remain protected by existing tests;
+- no new CSS family;
+- no lifecycle controller, OAuth service, Work, 429 or route change.
 
-## 10. BACKEND GUARDRAILS STILL CLOSED
+## 11. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -178,7 +203,7 @@ REMOTE_WRITES=OFF
 
 ERP1 failure patterns must not return.
 
-## 11. PRODUCT SEQUENCE
+## 12. PRODUCT SEQUENCE
 
 ```text
 ERP COMPLETE
@@ -196,26 +221,25 @@ ERP COMPLETE
 
 Demo, Hostinger and cron remain deferred.
 
-## 12. NEXT — UI-DM6 MERCADO LIBRE
+## 13. NEXT — UI-DM6B GLOBAL MELI DEVELOPER APP SETTINGS
 
 ```text
-NEXT=UI-DM6 MERCADO-LIBRE
+NEXT=UI-DM6B MELI-APP-SETTINGS
 ```
 
-Before changing production code:
+Execution boundary:
 
-1. inspect `meli-accounts.php`, `mercadolibre.php`, account/OAuth lifecycle tests and authorization rules;
-2. define the human connection-center boundary without inventing health engines or remote-write actions;
-3. preserve human states already backed by facts: `Conectada`, `Requiere revisión`, `Debes volver a autorizar`, `Desconectada`;
-4. preserve Connect / Disconnect / Reauthorize / Delete only where currently authorized;
-5. add RED structural UI test;
-6. redesign with existing Design Master components only;
-7. no real MELI HTTP and no remote-write expansion;
-8. run focal MELI lifecycle/OAuth/authorization tests;
-9. run full QA PHP 8.3/8.4/8.5;
-10. persist checkpoint before Administration.
+1. keep `/settings/mercadolibre` system-admin only;
+2. preserve effective Client ID visibility and never render Client Secret;
+3. preserve server-managed read-only mode;
+4. preserve save / blank-secret keep / explicit clear / fail-closed on client change;
+5. preserve CSRF and no Work/API side effects;
+6. adapt only presentation to the shared Design Master shell/components;
+7. do not merge this global owner into company accounts;
+8. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint;
+9. only then open Administration.
 
-## 13. ABSOLUTE NO-GO NOW
+## 14. ABSOLUTE NO-GO NOW
 
 ```text
 NO demo seed
@@ -226,5 +250,5 @@ NO REMOTE_WRITES
 NO F15
 NO F16
 NO merge PR #19
-NO Administration redesign until UI-DM6 checkpoint is GREEN
+NO Administration redesign until UI-DM6B checkpoint is GREEN
 ```
