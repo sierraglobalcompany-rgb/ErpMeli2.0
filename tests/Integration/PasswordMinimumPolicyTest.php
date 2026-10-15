@@ -62,6 +62,31 @@ final class PasswordMinimumPolicyTest extends TestCase
         ])->getStatusCode());
     }
 
+    public function testBootstrapAdminAcceptsSixCharactersAndRejectsFive(): void
+    {
+        $pdo = TestDatabase::reset();
+        (new AuthService($pdo))->bootstrapAdmin(
+            'Six Company',
+            'six-company',
+            'six@example.test',
+            'abc123',
+            'Six Admin',
+            'six-admin',
+        );
+        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn());
+
+        $pdo = TestDatabase::reset();
+        $this->expectException(\InvalidArgumentException::class);
+        (new AuthService($pdo))->bootstrapAdmin(
+            'Five Company',
+            'five-company',
+            'five@example.test',
+            'abc12',
+            'Five Admin',
+            'five-admin',
+        );
+    }
+
     public function testInstallerAcceptsSixCharactersAndRejectsFive(): void
     {
         TestDatabase::resetSession();
