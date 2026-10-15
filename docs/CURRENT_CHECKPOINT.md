@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=L10 CLOSED — F14 READ-ONLY PREFLIGHT OPEN**
+**CURRENT=F14-A BLOCKED — HOSTINGER TARGET NOT DEPLOYED**
 
 | Campo | Estado actual |
 |---|---|
@@ -14,12 +14,12 @@
 | LOCAL_PRODUCT_READY | YES |
 | L1–L9 | CLOSED / GREEN |
 | L10 External-gate decision | CLOSED — GO sólo para preflight/certificación READ-only |
-| F14 READ-only external certification | F14-A PREFLIGHT OPEN — todavía sin OAuth/API real ejecutado |
+| F14 READ-only external certification | F14-A BLOCKED — target Hostinger todavía no contiene ERP2 |
 | HOSTINGER_REALITY G8 | NOT CERTIFIED |
 | F15 Cutover | PAUSED |
 | F16 Remote Writes | UNAUTHORIZED |
 | REMOTE_WRITES | OFF |
-| NEXT | Ejecutar F14-A de realidad externa; STOP antes de OAuth/API real |
+| NEXT | Autorizar o rechazar deploy controlado del RC certificado a Hostinger; después repetir F14-A |
 
 ## Base certificada
 
@@ -36,53 +36,46 @@ LOCAL_PRODUCT_READY=YES
 
 ## L10 — decisión cerrada
 
-La evidencia local es suficiente para **abrir únicamente el preflight de certificación externa READ-only**. Esta decisión no autoriza por sí sola OAuth real, requests a la API real, deploy/cutover ni ninguna escritura remota.
+La evidencia local es suficiente para abrir únicamente la certificación externa READ-only por microbloques. L10 no autoriza OAuth real, requests a la API real, cutover ni escrituras remotas.
 
-La nomenclatura operativa vigente sigue el roadmap actual: F14 es la certificación externa READ-only. `docs/F14_READ_CERTIFICATION.md` conserva evidencia histórica del cierre contractual local y una referencia antigua a `F15 Stage 0`; esa referencia no renumera el roadmap vigente.
+## F14-A — resultado real
 
-## F14-A — preflight obligatorio antes de API real
-
-Primero certificar hechos externos que no pueden demostrarse localmente:
+Codex ejecutó el preflight externo sin mutaciones y devolvió:
 
 ```text
-HOSTINGER_RUNTIME=MEASURED
-WEB_PHP_VERSION=8.3|8.4|8.5
-CLI_PHP_VERSION=8.3|8.4|8.5
-HTTPS_STATUS=PASS
-SUBDOMAIN_DOCUMENT_ROOT=SAFE
-STORAGE_SOURCE_NOT_WEB_EXPOSED=PASS
-HOST_DB_QUOTA=KNOWN
-HOST_DISK_QUOTA=KNOWN
-HOST_INODE_QUOTA=KNOWN
-HOST_CRON_CAPACITY=KNOWN
-HOST_MIN_CRON_INTERVAL=KNOWN
-MELI_APP_CREATED=YES
-REDIRECT_URI_MATCH=YES
-CLIENT_SECRET_STORED_OUTSIDE_GIT=YES
-NOTIFICATION_CALLBACK_REACHABLE=YES
-REMOTE_WRITES=OFF
+F14A_RESULT=BLOCKED
+BLOCKER=BLOCKED_NOT_DEPLOYED
+HTTPS_STATUS=200
+PUBLIC_PAGE=Hostinger default page
+WEB_PHP_VERSION=8.3.35
+/bin/runtime-preflight.php=404
+.env=403
+.git/config=403
+other_private_paths_checked=404
+MUTATIONS=0
 ```
 
-Target documentado:
+Conclusión: el subdominio/HTTPS existen, pero ERP2 todavía no está desplegado en el target. Por tanto no es posible certificar todavía CLI PHP, runtime ERP2, cuotas/cron desde el contexto de la aplicación ni completar G8.
+
+La ausencia del deploy no es un defecto del producto y no se corrige con código ni con más pruebas locales.
+
+## Puerta siguiente
+
+Antes de repetir F14-A hace falta una autorización separada para desplegar **exactamente el RC L9 certificado** en Hostinger.
+
+Ese deploy debe conservar:
 
 ```text
-PUBLIC_URL=https://erpmeli.bodegadigitalmedellin.com/
-OAUTH_CALLBACK=https://erpmeli.bodegadigitalmedellin.com/oauth/mercadolibre/callback
-WEBHOOK=https://erpmeli.bodegadigitalmedellin.com/webhooks/mercadolibre
+remote writes=OFF
+no OAuth seller real
+no API Mercado Libre real
+no token ERP1
+no POST/PUT/DELETE remotos
+no cutover
+no F16
 ```
 
-Sólo después de F14-A GREEN puede abrirse un siguiente microbloque para autorización ERP2 fresca de **un seller** y GET reales controlados. No reutilizar tokens ERP1. No refresh/polling/retries automáticos. No POST/PUT/DELETE remotos.
-
-## Alcance futuro de calibración READ-only
-
-Cuando se autorice el bloque posterior de GET reales, calibrar sólo lo necesario para cerrar evidencia externa pendiente, incluyendo según el flujo real disponible:
-
-- identidad seller/account;
-- `GET /orders/{order_id}`;
-- `GET /packs/{pack_id}` cuando exista un pack real aplicable;
-- `GET /orders/billing-info/{site_id}/{billing_info_id}` cuando exista referencia real aplicable;
-- billing period details sólo dentro del contrato READ existente;
-- persistencia/snapshot únicamente si el owner actual ya la define; no inventar schema ni servicio nuevo.
+Después del deploy se repite únicamente F14-A para medir runtime real, document-root, exposición web, CLI PHP, cuotas/cron y configuración de la app ERP2. Sólo si F14-A queda GREEN se considera un bloque separado para OAuth fresco de un seller y GET reales controlados.
 
 ## Guardrails permanentes
 
@@ -100,6 +93,6 @@ no main move ni cutover sin autorización explícita
 
 ## NEXT — un solo microbloque
 
-**F14-A External Reality Preflight.** Codex sólo mide hPanel/runtime/CLI/cuotas/configuración de app ERP2 porque ChatGPT no puede acceder a esas superficies privadas. No deploy, no OAuth seller, no API real. STOP al devolver PASS/BLOCKED.
+**Decisión de deploy controlado del RC certificado a Hostinger.** No preparar ni ejecutar el deploy hasta autorización explícita del usuario. Si se autoriza, usar el artefacto L9 certificado y detenerse otra vez antes de OAuth/API real.
 
 Los contratos durables siguen en [`ERP2_AUTHORITY.md`](ERP2_AUTHORITY.md). La evidencia local F14 previa sigue en [`F14_READ_CERTIFICATION.md`](F14_READ_CERTIFICATION.md).
