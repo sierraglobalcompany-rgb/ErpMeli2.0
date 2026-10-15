@@ -70,7 +70,7 @@ $isActive = static fn (string $path): bool => $path === '/'
         <div class="sidebar-company">
             <span>Empresa activa</span>
             <strong><?= htmlspecialchars($companyName, ENT_QUOTES, 'UTF-8') ?></strong>
-            <?php if (count($companies ?? []) > 1): ?>
+            <?php if (count($companies) > 1): ?>
                 <a href="/company/select"><?= $icons['switch'] ?><span>Cambiar empresa</span></a>
             <?php endif; ?>
         </div>
