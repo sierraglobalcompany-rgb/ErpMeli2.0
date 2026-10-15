@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / NEXT UI-DM5 BILLING-FINANCIAL / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / UI-DM5 BILLING-FINANCIAL GREEN / NEXT UI-DM6 MERCADO-LIBRE / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
 
@@ -16,8 +16,8 @@ FOUNDATION_BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=f7c06f119d2d17e246e2e6b8028c59021faa8f6c
-CERTIFIED_ACTIONS_RUN=38822686688
+LATEST_CERTIFIED_CODE_HEAD=2de2b50b730c566f41163c3c0e81c42080845400
+CERTIFIED_ACTIONS_RUN=38823564752
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -97,17 +97,12 @@ Desktop and mobile `Inicio` point directly to `/dashboard` and use `/dashboard` 
 - Sales Audit, Financial, PostSale and Invoice factual contracts preserved;
 - `UNKNOWN` preserved.
 
-Certified previously on PHP 8.3 / 8.4 / 8.5.
-
 ## 8. UI-DM4 — PRODUCTS / CATALOG + INVENTORY
 
 **STATE=GREEN**
 
-TDD evidence:
-
 ```text
 RED_COMMIT=8c8b4f8e12c1eb4134a29cb8c358c12966ea6c71
-RED_RESULT=expected CatalogDesignMasterUiTest failure because approved responsive structure did not exist
 GREEN_COMMIT=f7c06f119d2d17e246e2e6b8028c59021faa8f6c
 ACTIONS_RUN=38822686688
 PHP_8_3=PASS
@@ -115,7 +110,7 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Implementation ruling:
+Ruling preserved:
 
 ```text
 ONE HUMAN PRODUCT AREA
@@ -126,18 +121,47 @@ NO NEW CSS FAMILY
 NO N+1 INVENTORY READS
 ```
 
-Changes:
+## 9. UI-DM5 — BILLING / FINANCIAL
 
-- responsive `Catálogo e inventario` presentation;
-- existing shared `panel`, `settings-grid` and responsive-table patterns reused;
-- product rows recompose for mobile from the same data;
-- selected product inventory remains in the same `/catalog` owner;
-- missing inventory remains `Sin definir`;
-- zero remains zero;
-- inventory mutation remains `POST /catalog/{product_id}/inventory`;
-- CatalogController, repositories, routes, Work, MELI, Billing, Financial and OAuth were not modified for UI-DM4.
+**STATE=GREEN**
 
-## 9. BACKEND GUARDRAILS STILL CLOSED
+TDD evidence:
+
+```text
+RED_COMMIT=f135880ef5f632b4f11e67625bc750a1f9b95556
+RED_RUN=38823181176
+RED_RESULT=791 tests / 6587 assertions / exactly 1 expected failure in BillingDesignMasterUiTest
+GREEN_COMMIT=2de2b50b730c566f41163c3c0e81c42080845400
+GREEN_RUN=38823564752
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+```
+
+Authoritative boundary:
+
+```text
+/billing = human Billing surface
+FinancialReadModel = factual authority consumed from sale detail
+NO /financial route
+NO /reconciliation route
+NO /profitability route
+NO parallel ledger
+NO new reconciliation engine
+NO invented profitability calculator
+```
+
+Implementation:
+
+- Billing now follows the approved Design Master component family;
+- responsive periods table uses the same data rows for desktop/mobile;
+- selected period and sync request are presented as shared panels;
+- existing message remains explicit: requesting sync only registers pending Work and does not query Mercado Libre from the page;
+- no new CSS family was created;
+- `BillingController`, `BillingPeriodSyncHandler`, Billing cursor/period behavior, Work, 429, `FinancialReadModel`, OAuth and routes were not modified for UI-DM5;
+- existing Financial `UNKNOWN` / `CONFLICT` / currency truth remains unchanged.
+
+## 10. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -154,7 +178,7 @@ REMOTE_WRITES=OFF
 
 ERP1 failure patterns must not return.
 
-## 10. PRODUCT SEQUENCE
+## 11. PRODUCT SEQUENCE
 
 ```text
 ERP COMPLETE
@@ -172,26 +196,26 @@ ERP COMPLETE
 
 Demo, Hostinger and cron remain deferred.
 
-## 11. NEXT — UI-DM5 BILLING / FINANCIAL
+## 12. NEXT — UI-DM6 MERCADO LIBRE
 
 ```text
-NEXT=UI-DM5 BILLING-FINANCIAL
+NEXT=UI-DM6 MERCADO-LIBRE
 ```
 
 Before changing production code:
 
-1. inspect current Billing view, Financial consumer/read model and focal tests;
-2. prove the presentation boundary;
-3. add RED structural UI test only for the approved Billing/Financial presentation;
-4. do not modify Billing period scheduling/cursor/429 behavior;
-5. do not create a parallel ledger, reconciliation engine or profitability calculator;
-6. preserve `UNKNOWN` / `CONFLICT` and currency truth;
-7. use existing shared Design Master components;
-8. run focal Billing/Financial/429/Work regressions;
+1. inspect `meli-accounts.php`, `mercadolibre.php`, account/OAuth lifecycle tests and authorization rules;
+2. define the human connection-center boundary without inventing health engines or remote-write actions;
+3. preserve human states already backed by facts: `Conectada`, `Requiere revisión`, `Debes volver a autorizar`, `Desconectada`;
+4. preserve Connect / Disconnect / Reauthorize / Delete only where currently authorized;
+5. add RED structural UI test;
+6. redesign with existing Design Master components only;
+7. no real MELI HTTP and no remote-write expansion;
+8. run focal MELI lifecycle/OAuth/authorization tests;
 9. run full QA PHP 8.3/8.4/8.5;
-10. persist checkpoint before opening Mercado Libre/Admin.
+10. persist checkpoint before Administration.
 
-## 12. ABSOLUTE NO-GO NOW
+## 13. ABSOLUTE NO-GO NOW
 
 ```text
 NO demo seed
@@ -202,5 +226,5 @@ NO REMOTE_WRITES
 NO F15
 NO F16
 NO merge PR #19
-NO Mercado Libre/Admin redesign until UI-DM5 checkpoint is GREEN
+NO Administration redesign until UI-DM6 checkpoint is GREEN
 ```
