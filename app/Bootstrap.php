@@ -69,6 +69,18 @@ final class Bootstrap
         $app->addRoutingMiddleware();
         $app->addErrorMiddleware(false, true, true);
 
+        $app->get('/assets/app.css', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+        ): ResponseInterface {
+            $css = file_get_contents(dirname(__DIR__) . '/public/assets/app.css');
+            if ($css === false) {
+                return $response->withStatus(404);
+            }
+            $response->getBody()->write($css);
+            return $response->withHeader('Content-Type', 'text/css; charset=utf-8');
+        });
+
         Routes::register($app, $config);
         return $app;
     }

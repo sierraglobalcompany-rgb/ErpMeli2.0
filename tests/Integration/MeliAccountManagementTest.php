@@ -61,12 +61,12 @@ final class MeliAccountManagementTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('Cuentas Mercado Libre', $html);
         self::assertStringContainsString('TIENDA UNO', $html);
-        self::assertStringContainsString('1001', $html);
+        self::assertStringContainsString('<td>1001</td>', $html);
         self::assertStringContainsString('TIENDA DOS', $html);
-        self::assertStringContainsString('1003', $html);
+        self::assertStringContainsString('<td>1003</td>', $html);
         self::assertStringContainsString('TIENDA CUATRO', $html);
         self::assertStringNotContainsString('OTRA EMPRESA', $html);
-        self::assertStringNotContainsString('2001', $html);
+        self::assertStringNotContainsString('<td>2001</td>', $html);
         self::assertStringNotContainsString('ACCESS_SECRET_BYTES', $html);
         self::assertStringNotContainsString('REFRESH_SECRET_BYTES', $html);
     }
@@ -81,6 +81,17 @@ final class MeliAccountManagementTest extends TestCase
         self::assertStringContainsString('Desconectada', $html);
         self::assertStringContainsString('Una empresa puede tener varias cuentas Mercado Libre', $html);
         self::assertStringContainsString('sólo puede estar vinculada a una empresa a la vez', $html);
+    }
+
+    public function testAccountsPageUsesOperatorVisualStructure(): void
+    {
+        $html = (string) $this->request()->getBody();
+
+        self::assertStringContainsString('class="page-header"', $html);
+        self::assertStringContainsString('class="toolbar"', $html);
+        self::assertStringContainsString('class="table-wrap"', $html);
+        self::assertStringContainsString('class="status-chip status-connected"', $html);
+        self::assertStringContainsString('class="row-actions"', $html);
     }
 
     public function testOperatorAndViewerAreDenied(): void

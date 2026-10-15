@@ -19,6 +19,7 @@ declare(strict_types=1);
 <?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
 <main>
     <h1>Catálogo local</h1>
+    <p>Administra productos e inventario local de la empresa seleccionada.</p>
     <?php if ($error !== ''): ?><p role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
     <?php if ($canOperate): ?>
     <section aria-labelledby="create-product-title">

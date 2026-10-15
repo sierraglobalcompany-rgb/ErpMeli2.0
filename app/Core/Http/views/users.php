@@ -14,15 +14,11 @@ $passwordMin = \App\Core\Auth\PasswordService::MIN_LENGTH;
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Usuarios — ERP Meli 2.0</title>
-<style>
-body{font:16px/1.5 system-ui,sans-serif;max-width:1100px;margin:32px auto;padding:16px;color:#172839}
-nav{display:flex;gap:18px;flex-wrap:wrap}section{border:1px solid #ccd5dd;border-radius:8px;padding:18px;margin:18px 0}
-label{display:inline-block;margin:7px}input,select,button{font:inherit;padding:7px}form{margin:10px 0}.danger{color:#9b241b}.muted{color:#526273}
-</style>
-</head><body><main>
-<nav><a href="/">Inicio</a><a href="/system/companies">Empresas</a><a href="/system/users">Usuarios</a><a href="/settings/system">Configuración del sistema</a><a href="/settings/mercadolibre">Mercado Libre</a></nav>
+<link rel="stylesheet" href="/assets/app.css">
+</head><body><main class="simple-page">
+<nav class="simple-nav"><a href="/">Inicio</a><a href="/system/companies">Empresas</a><a href="/system/users">Usuarios</a><a href="/settings/system">Configuración</a><a href="/settings/mercadolibre">Mercado Libre</a></nav>
 <h1>Usuarios</h1>
-<p>El Administrador del sistema gestiona identidad, acceso global y membresías. Los roles por empresa son: Administrador, Operador y Consulta.</p>
+<p>Administra identidad, acceso global y membresías. Los roles por empresa son Administrador, Operador y Consulta.</p>
 <section>
 <h2>Crear usuario</h2>
 <form method="post" action="/system/users">
@@ -41,7 +37,7 @@ label{display:inline-block;margin:7px}input,select,button{font:inherit;padding:7
 <?php foreach ($users as $user): $id=(int)$user['id']; $active=$user['status']==='active'; $systemAdmin=(int)$user['is_system_admin']===1; ?>
 <section>
 <h2><?= $e((string)$user['display_name']) ?></h2>
-<p>Usuario: <strong><?= $e((string)$user['username']) ?></strong> · Estado: <?= $active?'Activo':'Desactivado' ?> · Administrador del sistema: <?= $systemAdmin?'Sí':'No' ?></p>
+<p>Usuario: <strong><?= $e((string)$user['username']) ?></strong> · Estado: <strong><?= $active?'Activo':'Desactivado' ?></strong> · Administrador del sistema: <strong><?= $systemAdmin?'Sí':'No' ?></strong></p>
 <form method="post" action="/system/users/<?= $id ?>/update">
 <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
 <label>Usuario <input name="username" value="<?= $e((string)$user['username']) ?>" minlength="3" maxlength="80" pattern="[a-z0-9._-]+" required></label>

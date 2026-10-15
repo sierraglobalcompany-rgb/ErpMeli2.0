@@ -51,7 +51,9 @@ final class OperatorFoundationTest extends TestCase
         self::assertSame(403, $this->request('GET', '/')->getStatusCode());
         self::assertSame(403, $this->request('GET', '/sales')->getStatusCode());
         $_SESSION = [];
-        self::assertSame(403, $this->request('GET', '/')->getStatusCode());
+        $guestRoot = $this->request('GET', '/');
+        self::assertSame(303, $guestRoot->getStatusCode());
+        self::assertSame('/login', $guestRoot->getHeaderLine('Location'));
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
     }
 

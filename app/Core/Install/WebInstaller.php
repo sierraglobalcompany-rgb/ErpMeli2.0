@@ -73,6 +73,10 @@ final class WebInstaller
         $checks = (new RuntimePreflight())->installerChecks($this->root);
         /** @var array<string,string> $data */
         $data = $_SESSION['installer']['data'] ?? [];
+        if ($step === 'application' && ($data['APP_URL'] ?? '') === '') {
+            $uri = $request->getUri();
+            $data['APP_URL'] = $uri->getScheme().'://'.$uri->getAuthority();
+        }
         $databaseVerified = isset($_SESSION['installer']['db_proof']);
         ob_start(); require __DIR__.'/view.php';
         $response->getBody()->write((string)ob_get_clean());
