@@ -16,11 +16,13 @@ declare(strict_types=1);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ventas</title>
+    <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
     <?php require dirname(__DIR__, 4) . '/Core/Http/views/navigation.php'; ?>
     <main>
         <h1>Ventas</h1>
+        <p>Consulta las ventas almacenadas localmente y controla las auditorías históricas de cada cuenta.</p>
         <form method="get" action="/sales">
             <label>ID exacto de venta <input name="order_id" inputmode="numeric" pattern="[0-9]{1,32}" value="<?= htmlspecialchars($orderId, ENT_QUOTES, 'UTF-8') ?>"></label>
             <button type="submit">Buscar venta</button>
@@ -63,8 +65,7 @@ declare(strict_types=1);
 
         <section aria-labelledby="audit-results-title">
             <h2 id="audit-results-title">Estado y resultados de auditoría (últimas 25)</h2>
-            <p>CAPTURING, REPAIRING y CONFIRMING indican auditoría pendiente o en curso.
-                VALID, ATTENTION y UNAVAILABLE son los estados finales registrados. Actualice la página para consultar cambios.</p>
+            <p>CAPTURING, REPAIRING y CONFIRMING indican auditoría pendiente o en curso. VALID, ATTENTION y UNAVAILABLE son los estados finales registrados. Actualiza la página para consultar cambios.</p>
             <?php if ($auditRuns === []): ?>
                 <p>No hay auditorías para esta empresa.</p>
             <?php else: ?>
