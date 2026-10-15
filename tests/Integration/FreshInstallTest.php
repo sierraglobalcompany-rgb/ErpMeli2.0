@@ -92,7 +92,7 @@ final class FreshInstallTest extends TestCase
         self::assertSame('/', $login->getHeaderLine('Location'));
         self::assertSame('admin', $_SESSION['role']);
         $root = $app->handle($factory->createServerRequest('GET', '/'));
-        self::assertSame('/sales', $root->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $root->getHeaderLine('Location'));
         $sales = $app->handle($factory->createServerRequest('GET', '/sales'));
         self::assertSame(200, $sales->getStatusCode());
         self::assertStringContainsString('CLI Company', (string) $sales->getBody());
