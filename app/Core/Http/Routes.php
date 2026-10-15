@@ -466,11 +466,16 @@ final class Routes
             ResponseInterface $response
         ) use ($config): ResponseInterface {
             $token = (new Csrf())->token();
-            $html = '<h1>' . htmlspecialchars($config->appName, ENT_QUOTES, 'UTF-8') . '</h1><h2>Ingresar</h2><form method="post" action="/login">'
-                . '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">'
-                . '<label>Usuario <input name="username" type="text" autocomplete="username" required></label>'
-                . '<label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>'
-                . '<button type="submit">Ingresar</button></form>';
+            $appName = htmlspecialchars($config->appName, ENT_QUOTES, 'UTF-8');
+            $csrfToken = htmlspecialchars($token, ENT_QUOTES, 'UTF-8');
+            $html = '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+                . '<title>Ingresar — ' . $appName . '</title><link rel="stylesheet" href="/assets/app.css"></head>'
+                . '<body class="auth-page"><main class="auth-card"><h1>' . $appName . '</h1><h2>Acceso al sistema</h2>'
+                . '<p>Ingresa con tu usuario para continuar.</p><form method="post" action="/login">'
+                . '<input type="hidden" name="csrf_token" value="' . $csrfToken . '">'
+                . '<label>Usuario<input name="username" type="text" autocomplete="username" required autofocus></label>'
+                . '<label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>'
+                . '<button type="submit">Ingresar</button></form></main></body></html>';
             $response->getBody()->write($html);
             return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
         });
