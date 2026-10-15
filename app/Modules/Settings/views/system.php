@@ -51,7 +51,7 @@
     </section>
 
     <section>
-        <h2>Uso de debug</h2>
+        <h2>Uso debug</h2>
         <p><?= $debugUsage['total_bytes'] ?> bytes almacenados.</p>
 
         <?php if ($debugCapReached): ?>
