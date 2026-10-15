@@ -20,24 +20,35 @@ declare(strict_types=1);
 <body>
     <?php require dirname(__DIR__, 4) . '/Core/Http/views/navigation.php'; ?>
     <main>
-        <h1>Ventas</h1>
-        <p>Consulta las ventas almacenadas localmente y controla las auditorías históricas de cada cuenta.</p>
-        <form method="get" action="/sales">
-            <label>ID exacto de venta <input name="order_id" inputmode="numeric" pattern="[0-9]{1,32}" value="<?= htmlspecialchars($orderId, ENT_QUOTES, 'UTF-8') ?>"></label>
+        <header class="page-header sales-page-header">
+            <span class="eyebrow">Operación</span>
+            <h1>Ventas</h1>
+            <p>Consulta las ventas almacenadas localmente y controla las auditorías históricas de cada cuenta.</p>
+        </header>
+
+        <form class="toolbar sales-search-toolbar" method="get" action="/sales">
+            <label>ID exacto de venta <input name="order_id" inputmode="numeric" pattern="[0-9]{1,32}" value="<?= htmlspecialchars($orderId, ENT_QUOTES, 'UTF-8') ?>" placeholder="Ej. 200000000101"></label>
             <button type="submit">Buscar venta</button>
-            <a href="/sales">Ver ventas recientes</a>
+            <a class="button-secondary" href="/sales">Ver ventas recientes</a>
         </form>
+
         <?php if ($orders === []): ?>
-            <p><?= $orderId === '' ? 'No hay ventas locales.' : 'No se encontró la venta en esta empresa.' ?></p>
+            <p class="empty-state"><?= $orderId === '' ? 'No hay ventas locales.' : 'No se encontró la venta en esta empresa.' ?></p>
         <?php endif; ?>
 
         <?php if ($canStartAudit): ?>
-            <section aria-labelledby="sales-audit-title">
-                <h2 id="sales-audit-title">Auditoría histórica</h2>
+            <section class="panel sales-audit-start" aria-labelledby="sales-audit-title">
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">Control</span>
+                        <h2 id="sales-audit-title">Auditoría histórica</h2>
+                    </div>
+                    <p>Compara un mes cerrado contra la fuente autorizada sin alterar las ventas locales.</p>
+                </div>
                 <?php if ($auditAccounts === []): ?>
-                    <p>No hay cuentas de Mercado Libre conectadas para auditar.</p>
+                    <p class="empty-state">No hay cuentas de Mercado Libre conectadas para auditar.</p>
                 <?php else: ?>
-                    <form method="post" action="/sales/audits">
+                    <form class="sales-audit-form" method="post" action="/sales/audits">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                         <label>
                             Cuenta
@@ -62,53 +73,74 @@ declare(strict_types=1);
             </section>
         <?php endif; ?>
 
-        <section aria-labelledby="audit-results-title">
-            <h2 id="audit-results-title">Estado y resultados de auditoría (últimas 25)</h2>
-            <p>CAPTURING, REPAIRING y CONFIRMING indican auditoría pendiente o en curso. VALID, ATTENTION y UNAVAILABLE son los estados finales registrados. Actualiza la página para consultar cambios.</p>
-            <?php if ($auditRuns === []): ?>
-                <p>No hay auditorías para esta empresa.</p>
-            <?php else: ?>
-                <table>
-                    <thead><tr><th>Cuenta</th><th>Período</th><th>Estado</th><th>Inicio (UTC)</th><th>Fin (UTC)</th><th>Ventas locales</th><th>Ventas remotas</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($auditRuns as $run): ?>
-                        <tr>
-                            <td><?= htmlspecialchars((string) $run['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string) $run['period_key'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars(strtoupper((string) $run['status']), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string) $run['started_at'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string) ($run['completed_at'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string) ($run['canonical_count'] ?? 'Sin determinar'), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string) ($run['remote_total'] ?? 'Sin determinar'), ENT_QUOTES, 'UTF-8') ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
+        <section class="panel sales-orders-panel" aria-labelledby="sales-orders-title">
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">Actividad</span>
+                    <h2 id="sales-orders-title"><?= $orderId === '' ? 'Ventas recientes' : 'Resultado de búsqueda' ?></h2>
+                </div>
+                <p><?= $orders === [] ? 'Sin resultados para mostrar.' : 'Hasta 100 ventas locales, ordenadas de la más reciente a la más antigua.' ?></p>
+            </div>
+
+            <?php if ($orders !== []): ?>
+                <div class="table-wrap">
+                    <table class="responsive-table" data-responsive-table="sales-orders">
+                        <thead>
+                            <tr>
+                                <th>Venta</th>
+                                <th>Cuenta</th>
+                                <th>Estado</th>
+                                <th>Total</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($orders as $order): ?>
+                            <tr data-mobile-card="sale-row">
+                                <td data-label="Venta"><a class="primary-record-link" href="/sales/<?= rawurlencode((string) $order['external_order_id']) ?>"><?= htmlspecialchars((string) $order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></a></td>
+                                <td data-label="Cuenta"><?= htmlspecialchars((string) $order['account_external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Estado"><span class="status-chip status-neutral"><?= htmlspecialchars((string) $order['status'], ENT_QUOTES, 'UTF-8') ?></span></td>
+                                <td data-label="Total" class="numeric-value"><?= htmlspecialchars((string) $order['total_amount'], ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars((string) $order['currency_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Fecha"><?= htmlspecialchars((string) ($order['date_created'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             <?php endif; ?>
         </section>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Venta</th>
-                    <th>Cuenta</th>
-                    <th>Estado</th>
-                    <th>Total</th>
-                    <th>Fecha</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($orders as $order): ?>
-                <tr>
-                    <td><a href="/sales/<?= rawurlencode((string) $order['external_order_id']) ?>"><?= htmlspecialchars((string) $order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></a></td>
-                    <td><?= htmlspecialchars((string) $order['account_external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars((string) $order['status'], ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars((string) $order['total_amount'], ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars((string) $order['currency_id'], ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars((string) ($order['date_created'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+        <section class="panel sales-audit-results" aria-labelledby="audit-results-title">
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">Evidencia</span>
+                    <h2 id="audit-results-title">Estado y resultados de auditoría</h2>
+                </div>
+                <p>Últimas 25. CAPTURING, REPAIRING y CONFIRMING están en curso; VALID, ATTENTION y UNAVAILABLE son estados finales registrados.</p>
+            </div>
+            <?php if ($auditRuns === []): ?>
+                <p class="empty-state">No hay auditorías para esta empresa.</p>
+            <?php else: ?>
+                <div class="table-wrap">
+                    <table class="responsive-table" data-responsive-table="sales-audits">
+                        <thead><tr><th>Cuenta</th><th>Período</th><th>Estado</th><th>Inicio (UTC)</th><th>Fin (UTC)</th><th>Ventas locales</th><th>Ventas remotas</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($auditRuns as $run): ?>
+                            <tr data-mobile-card="audit-row">
+                                <td data-label="Cuenta"><?= htmlspecialchars((string) $run['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Período"><?= htmlspecialchars((string) $run['period_key'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Estado"><?= htmlspecialchars(strtoupper((string) $run['status']), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Inicio (UTC)"><?= htmlspecialchars((string) $run['started_at'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Fin (UTC)"><?= htmlspecialchars((string) ($run['completed_at'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Ventas locales"><?= htmlspecialchars((string) ($run['canonical_count'] ?? 'Sin determinar'), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Ventas remotas"><?= htmlspecialchars((string) ($run['remote_total'] ?? 'Sin determinar'), ENT_QUOTES, 'UTF-8') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </section>
     </main>
 </body>
 </html>
