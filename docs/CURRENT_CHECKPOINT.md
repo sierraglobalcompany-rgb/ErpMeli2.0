@@ -1,98 +1,66 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=F14-A BLOCKED — HOSTINGER TARGET NOT DEPLOYED**
+**CURRENT=UI-1 — RED VERIFICADO PARA CSS COMPARTIDO**
 
-| Campo | Estado actual |
+| Campo | Estado |
 |---|---|
-| Fecha | 2026-10-14 |
-| Rama activa | `impl/v3-b-sales-audit-20261010` |
-| Functional source certificado | `f05377cb17afc3971997f686102ddf29dfbe6bc0` |
-| Integración estable | COMPLETED con autorización explícita del usuario |
-| Último QA código | Actions `#758` — PASS PHP 8.3 / 8.4 / 8.5 |
-| PHP 8.3 | 767 tests / 6450 assertions / 0 failures |
-| LOCAL_CORE_CONTRACTS_READY | YES |
-| LOCAL_PRODUCT_READY | YES |
-| L1–L9 | CLOSED / GREEN |
-| L10 External-gate decision | CLOSED — GO sólo para preflight/certificación READ-only |
-| F14 READ-only external certification | F14-A BLOCKED — target Hostinger todavía no contiene ERP2 |
-| HOSTINGER_REALITY G8 | NOT CERTIFIED |
-| F15 Cutover | PAUSED |
-| F16 Remote Writes | UNAUTHORIZED |
-| REMOTE_WRITES | OFF |
-| NEXT | Autorizar o rechazar deploy controlado del RC certificado a Hostinger; después repetir F14-A |
+| Fecha | 2026-10-15 |
+| Stable | `impl/v3-b-sales-audit-20261010` |
+| Rama UI | `ui/operator-shell-v1-20261014` |
+| Código UI checkpoint | `cbcc44ede76c9c32a1fe6a0ce8e87dd2fcea3891` |
+| Hostinger | ERP2 instalado; smoke login/empresas/usuarios/configuración/ventas PASS |
+| Mercado Libre real | NO abierto |
+| Remote writes | OFF |
+| UI-1 | EN PROGRESO |
+| NEXT | GREEN mínimo para `/assets/app.css` y STOP |
 
-## Base certificada
+## Cerrado antes de este checkpoint
 
-L8 cerró instalación humana/local, MLSIM OAuth, lifecycle y evidencia visual. L9 cerró el RC autocontenido y corrigió en causa raíz la política duplicada de contraseña.
+- L1–L10 local readiness cerrado.
+- RC L9 certificado y desplegado manualmente en Hostinger.
+- Login y pantallas principales abren sin error.
+- `/` sin sesión: causa raíz identificada y hotfix TDD certificado por Actions #767.
+- PR #18 contiene el rediseño UI aislado; stable todavía no recibe estos cambios.
+
+## UI-1 actual
+
+Se creó un sistema visual KISS con un único CSS compartido, sin framework frontend nuevo. Se trabajaron navegación, Ventas, Catálogo, Facturación, Empresas, Usuarios, Configuración y selector de empresa.
+
+Actions #768 encontró sólo una incompatibilidad textual (`Uso debug`); se corrigió preservando el contrato existente.
+
+Durante la auditoría se detectó una causa raíz adicional: las vistas apuntan a `/assets/app.css`, pero el runtime no sirve todavía esa ruta. Se añadió una prueba RED específica.
+
+Actions #770 confirma el RED esperado en PHP 8.3/8.4/8.5:
 
 ```text
-FUNCTIONAL_SOURCE=f05377cb17afc3971997f686102ddf29dfbe6bc0
-Actions #758=PASS PHP 8.3 / 8.4 / 8.5
-PHP 8.3=767 tests / 6450 assertions / 0 failures
-RC=ERP_MELI_2_0_RC_L9_f05377cb.zip
-RC_SHA256=0167DB7634FAD882DA8E4C5673C6E2C221FCC99B4B3A8BDC0DC544419B20A587
-LOCAL_PRODUCT_READY=YES
+GET /assets/app.css
+EXPECTED=200 text/css
+ACTUAL=404
 ```
 
-## L10 — decisión cerrada
+No hay que tocar tests para hacerlo pasar. El siguiente bloque debe implementar la ruta estática mínima y segura para ese único CSS compartido, manteniendo bloqueado `/public` y el source privado.
 
-La evidencia local es suficiente para abrir únicamente la certificación externa READ-only por microbloques. L10 no autoriza OAuth real, requests a la API real, cutover ni escrituras remotas.
-
-## F14-A — resultado real
-
-Codex ejecutó el preflight externo sin mutaciones y devolvió:
+## 3 reglas
 
 ```text
-F14A_RESULT=BLOCKED
-BLOCKER=BLOCKED_NOT_DEPLOYED
-HTTPS_STATUS=200
-PUBLIC_PAGE=Hostinger default page
-WEB_PHP_VERSION=8.3.35
-/bin/runtime-preflight.php=404
-.env=403
-.git/config=403
-other_private_paths_checked=404
-MUTATIONS=0
+KISS: camino mínimo y arquitectura simple
+ANTI-RUIDO: reutilizar/unir/simplificar; no duplicar soluciones
+ANTI-PARCHE: corregir owner/causa raíz; no workaround sobre workaround
 ```
 
-Conclusión: el subdominio/HTTPS existen, pero ERP2 todavía no está desplegado en el target. Por tanto no es posible certificar todavía CLI PHP, runtime ERP2, cuotas/cron desde el contexto de la aplicación ni completar G8.
-
-La ausencia del deploy no es un defecto del producto y no se corrige con código ni con más pruebas locales.
-
-## Puerta siguiente
-
-Antes de repetir F14-A hace falta una autorización separada para desplegar **exactamente el RC L9 certificado** en Hostinger.
-
-Ese deploy debe conservar:
+## Guardrails
 
 ```text
-remote writes=OFF
-no OAuth seller real
+no merge a stable todavía
+no deploy UI todavía
+no OAuth real
 no API Mercado Libre real
-no token ERP1
-no POST/PUT/DELETE remotos
-no cutover
-no F16
-```
-
-Después del deploy se repite únicamente F14-A para medir runtime real, document-root, exposición web, CLI PHP, cuotas/cron y configuración de la app ERP2. Sólo si F14-A queda GREEN se considera un bloque separado para OAuth fresco de un seller y GET reales controlados.
-
-## Guardrails permanentes
-
-```text
-KISS: simple, eficiente, optimizado, eficaz; sin arquitectura innecesaria
-NOISE: eliminar/simplificar/unir antes de añadir
-ANTI-PATCH: corregir causa raíz, no workaround sobre workaround
-F14=READ-only certification
 remote writes=OFF
-no token ERP1 migration/reuse
-no POST/PUT/DELETE reales
-no retry/polling framework nuevo
-no main move ni cutover sin autorización explícita
+no F15/F16
 ```
 
 ## NEXT — un solo microbloque
 
-**Decisión de deploy controlado del RC certificado a Hostinger.** No preparar ni ejecutar el deploy hasta autorización explícita del usuario. Si se autoriza, usar el artefacto L9 certificado y detenerse otra vez antes de OAuth/API real.
+**Implementar GREEN mínimo para `/assets/app.css`, ejecutar QA y crear checkpoint. STOP.**
 
-Los contratos durables siguen en [`ERP2_AUTHORITY.md`](ERP2_AUTHORITY.md). La evidencia local F14 previa sigue en [`F14_READ_CERTIFICATION.md`](F14_READ_CERTIFICATION.md).
+No avanzar login/instalador ni más rediseño dentro del mismo bloque.
