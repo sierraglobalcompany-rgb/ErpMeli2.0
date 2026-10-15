@@ -116,17 +116,17 @@ declare(strict_types=1);
                     <p class="empty-state">No hay detalles Billing representables para este ámbito.</p>
                 <?php endif; ?>
                 <div class="table-wrap">
-                    <table class="responsive-table" data-responsive-table="billing-details">
+                    <table class="responsive-table billing-details-table" data-responsive-table="billing-details">
                         <thead><tr><th>Detalle</th><th>Asociado</th><th>Documento</th><th>Tipo</th><th>Subtipo</th><th>Importe</th><th>Moneda</th></tr></thead>
                         <tbody>
                         <?php foreach ($reconciliation['billing']['details'] as $billedDetail): ?>
                             <tr data-mobile-card="billing-row">
-                                <td data-label="Detalle"><?= htmlspecialchars((string) $billedDetail['external_detail_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars((string) $billedDetail['external_detail_id'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Asociado"><?= htmlspecialchars((string) ($billedDetail['associated_detail_id'] ?? 'UNKNOWN'), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Documento"><?= htmlspecialchars((string) $billedDetail['document_type'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Tipo"><?= htmlspecialchars((string) $billedDetail['detail_type'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Subtipo"><?= htmlspecialchars((string) ($billedDetail['detail_sub_type'] ?? 'UNKNOWN'), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td data-label="Importe" class="numeric-value"><?= htmlspecialchars((string) $billedDetail['detail_amount'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars((string) $billedDetail['detail_amount'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Moneda"><?= htmlspecialchars((string) ($billedDetail['currency_id'] ?? 'UNKNOWN'), ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
                         <?php endforeach; ?>
@@ -140,13 +140,13 @@ declare(strict_types=1);
                 <?php else: ?>
                     <ul class="evidence-list">
                         <?php foreach ($reconciliation['shipping']['receiver_shipping'] as $shippingEvidence): ?>
-                        <li><strong>Detalle <?= htmlspecialchars((string) $shippingEvidence['external_detail_id'], ENT_QUOTES, 'UTF-8') ?></strong><span><?= htmlspecialchars((string) $shippingEvidence['value'], ENT_QUOTES, 'UTF-8') ?></span></li>
+                        <li><strong>Detalle <?= htmlspecialchars((string) $shippingEvidence['external_detail_id'], ENT_QUOTES, 'UTF-8') ?>: <?= htmlspecialchars((string) $shippingEvidence['value'], ENT_QUOTES, 'UTF-8') ?></strong></li>
                         <?php endforeach; ?>
                     </ul>
                 <?php endif; ?>
             </section>
 
-            <section class="panel sales-detail-wide" id="invoice-review" aria-labelledby="invoice-review-title">
+            <section id="invoice-review">
                 <div class="section-heading">
                     <div>
                         <span class="eyebrow">Facturación / postventa</span>
