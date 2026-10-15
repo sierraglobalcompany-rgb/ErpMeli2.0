@@ -75,6 +75,19 @@ final class DesignMasterResponsiveContractTest extends TestCase
         self::assertStringContainsString('apps-launcher', (string) $response->getBody());
     }
 
+    public function testStylesheetTransformsResponsiveTablesIntoLabelledMobileCards(): void
+    {
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/assets/app.css'),
+        );
+        $css = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('table[data-responsive-table]', $css);
+        self::assertStringContainsString('content: attr(data-label)', $css);
+        self::assertStringContainsString('[data-mobile-card]', $css);
+    }
+
     private function renderNavigation(string $companyRole, bool $systemAdmin, string $requestUri = '/sales'): string
     {
         $_SESSION = [
