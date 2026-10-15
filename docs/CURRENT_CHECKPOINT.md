@@ -1,43 +1,51 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=UI-1 — CSS COMPARTIDO GREEN / CHECKPOINT**
+**CURRENT=UI-1 — LOGIN VISUAL GREEN / CHECKPOINT**
 
 | Campo | Estado |
 |---|---|
 | Fecha | 2026-10-15 |
 | Stable | `impl/v3-b-sales-audit-20261010` — INTACTO |
 | Rama UI | `ui/operator-shell-v1-20261014` |
-| Source UI certificado | `cec9a4b3abba6d5c945a555cdbae799d4f8fe3c0` |
+| Source login/UI certificado | `9d161b145aab57fbc2db457f7f21950e06adc8f7` |
 | Hostinger | ERP2 instalado; smoke login/empresas/usuarios/configuración/ventas PASS |
 | Mercado Libre real | NO abierto |
 | Remote writes | OFF |
 | UI-1 | EN PROGRESO |
-| NEXT | Login visual únicamente → QA → checkpoint → STOP |
+| NEXT | Instalador: defaults DB `localhost:3306` únicamente → QA → checkpoint → STOP |
 
 ## Cerrado en este microbloque
 
-El RED anterior demostraba:
+Se mantuvo intacto el contrato funcional de autenticación (`POST /login`, `AuthService`, usuario, contraseña y CSRF) y se cambió únicamente la presentación de `GET /login`.
+
+El RED TDD quedó demostrado por Actions `#774`:
 
 ```text
-GET /assets/app.css
-EXPECTED=200 text/css
-ACTUAL=404
+TEST=testLoginUsesSharedAuthShellAndKeepsCredentialsContract
+EXPECTED=/assets/app.css + auth-page + auth-card
+ACTUAL=login HTML básico sin shell visual
+RESULT=FAIL esperado
 ```
 
-Se aplicó el GREEN mínimo en el bootstrap existente, sin framework, controller ni capa adicional:
+GREEN aplicado reutilizando el único CSS compartido ya existente:
 
 ```text
-GET /assets/app.css
-RESULT=200
-CONTENT_TYPE=text/css; charset=utf-8
-AUTH_REQUIRED=NO
+GET /login=200
+CSS=/assets/app.css
+auth-page=YES
+auth-card=YES
+username contract=PRESERVED
+password contract=PRESERVED
+csrf contract=PRESERVED
+POST /login=UNCHANGED
+AuthService=UNCHANGED
 ```
 
-La ruta sirve únicamente el CSS compartido existente en `public/assets/app.css`. No se abrió `/public`, source privado ni rutas adicionales.
+No se añadió framework frontend, controller nuevo, sistema de plantillas nuevo ni dependencia adicional.
 
 ## Certificación
 
-Actions `#772`:
+Actions `#775`:
 
 ```text
 PHP 8.3=PASS
@@ -47,7 +55,7 @@ PHPStan=PASS
 Syntax=PASS
 ```
 
-UI-1 continúa aislado en PR #18. Stable y Hostinger no recibieron este cambio.
+Diff GREEN frente al RED: sólo `app/Core/Http/Routes.php`, 10 adiciones / 5 eliminaciones. UI-1 continúa aislado en PR #18. Stable y Hostinger no recibieron este cambio.
 
 ## 3 reglas
 
@@ -70,6 +78,6 @@ no F15/F16
 
 ## NEXT — un solo microbloque
 
-**Mejorar únicamente el diseño de `/login` usando el CSS compartido ya certificado, ejecutar QA y crear checkpoint. STOP.**
+**Mejorar únicamente los defaults de conexión DB del instalador: host `localhost` y puerto `3306`, manteniendo ambos editables; ejecutar QA y crear checkpoint. STOP.**
 
-No tocar instalador, defaults DB, APP_URL ni otras pantallas en ese mismo bloque.
+No tocar todavía autodetección de APP_URL, rediseño del instalador ni otras pantallas dentro de ese mismo bloque.
