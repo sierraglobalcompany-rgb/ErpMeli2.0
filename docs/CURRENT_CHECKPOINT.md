@@ -1,255 +1,217 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=MASTER PRODUCT DESIGN DISCOVERY COMPLETE / UI-1 FINAL QA FROZEN / AWAITING DESIGN APPROVAL / STOP**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / NEXT UI-DM3 SALES / STOP-SAFE**
 
-> Autoridad operativa para recuperar el proyecto si el chat termina. No reconstruir por intuición. Retomar desde `NEXT`.
+> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. No reconstruir por intuición. Retomar desde `NEXT`.
 
 ## 1. REPOSITORY AUTHORITY
 
 ```text
 DATE=2026-10-15
 REPO=sierraglobalcompany-rgb/ErpMeli2.0
-STABLE_BRANCH=impl/v3-b-sales-audit-20261010
-STABLE_SHA=d56183584840187e215e225942831f40ec9a04ae
-UI_BRANCH=ui/operator-shell-v1-20261014
-PR=18 feat(ui): modernize operator workspace
-PR_STATE=OPEN / DRAFT / NOT MERGED / MERGEABLE
-PR_HEAD_BEFORE_THIS_CHECKPOINT=34c2f4e69de3584134f7dd60d03e42fbc02023bc
-LATEST_CERTIFIED_PRODUCT_UI_SOURCE=f9c7c0b00f17727dea749068d2a43e486fb1df91
-LATEST_PRODUCT_UI_QA=Actions #814 PASS PHP 8.3/8.4/8.5
-HOSTINGER_UI_DEPLOYED=NO
-REAL_MELI=CLOSED
+STABLE_BACKEND_BRANCH=impl/v3-b-sales-audit-20261010
+STABLE_BACKEND_SHA=d56183584840187e215e225942831f40ec9a04ae
+FOUNDATION_BRANCH=ui/operator-shell-v1-20261014
+FOUNDATION_BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
+IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
+PR=19
+PR_STATE=OPEN / DRAFT / NOT MERGED
+HEAD_AT_CHECKPOINT=b5ccf1730a7c90ccf2b2f3b90be2a8bdddc4af53
 REMOTE_WRITES=OFF
+REAL_MELI_HTTP=0 for this development work
+HOSTINGER_UI_DEPLOYED=NO
 ```
 
-No mergear ni desplegar PR #18 todavía.
+Do not merge PR #19 or deploy before the later explicit acceptance gate.
 
-## 2. LAWS
+## 2. NON-NEGOTIABLE LAWS
 
 ```text
-KISS=A→B, simple, eficiente, optimizado, arquitectura mínima; diseño puede y debe ser premium.
-ANTI_NOISE=eliminar sólo con evidencia; si no, unir, simplificar, optimizar o conservar.
-ANTI_PATCH=corregir owner/causa raíz; no apilar workarounds.
+KISS=A→B; simple, efficient, optimized, effective, minimum architecture.
+ANTI_NOISE=delete only with evidence; otherwise merge, simplify, optimize, or preserve.
+ANTI_PATCH=fix owner/root cause; no workaround stacks.
 ```
 
-Metodología:
+Execution discipline:
 
 ```text
-microbloque → QA/auditoría → checkpoint → STOP
+microblock → CI/QA → audit → checkpoint → next microblock
 ```
 
-## 3. PRODUCT / PHASE STATE
+## 3. APPROVED DESIGN AUTHORITY
 
 ```text
-LOCAL_PRODUCT_READY=YES
-L1 Installer=CLOSED
-L2 Companies=CLOSED
-L3 Users/Roles/Memberships=CLOSED
-L4 Meli App Settings=CLOSED funcionalmente
-L5A Seller Identity=CLOSED
-L5B Account Management=CLOSED
-L6 OAuth/MLSIM=CLOSED local
-L7 Account Lifecycle=CLOSED
-L8 Human Local E2E=CLOSED
-L9 RC/package=CLOSED
-L10=GO sólo certificación externa READ-only por microbloques
-F15 Cutover=PAUSED
-F16 Remote Writes=UNAUTHORIZED
+DESIGN_MASTER_V1=APPROVED
+DESKTOP=D-01 approved light ERP dashboard
+MOBILE=M-01 approved mobile shell
+MOBILE_BOTTOM_NAV=Inicio | Operación | Apps | Productos | Mercado Libre
+APPS=central launcher
+TABLET=responsive derivation, not a third UI
+ONE_PRODUCT=YES
+ONE_DESIGN_SYSTEM=YES
 ```
 
-Historical functional RC:
+No React/Vue/SPA or new frontend framework unless later evidence proves necessity.
+
+## 4. UI-DM1 — FOUNDATION
+
+**STATE=GREEN**
+
+Implemented on `ui/design-master-v1-20261015`:
+
+- responsive shell foundation;
+- desktop sidebar/topbar structure;
+- mobile fixed bottom navigation;
+- central Apps launcher;
+- minimal `public/assets/app.js` interaction;
+- evolved shared CSS/tokens;
+- authorization-aware destinations;
+- no fake routes for deferred capabilities;
+- responsive structural contract tests.
+
+Important rule: launcher/navigation may show only implemented + authorized + usable destinations.
+
+## 5. UI-DM2 — FACTUAL DASHBOARD
+
+**STATE=GREEN**
+
+Implemented:
 
 ```text
-SOURCE=f05377cb17afc3971997f686102ddf29dfbe6bc0
-FILE=ERP_MELI_2_0_RC_L9_f05377cb.zip
-SHA256=0167DB7634FAD882DA8E4C5673C6E2C221FCC99B4B3A8BDC0DC544419B20A587
+GET /dashboard
+active-company GET / → 303 /dashboard
+DashboardController
+DashboardReadModel
+Dashboard view
+DashboardHttpRouteTest
 ```
 
-## 4. HOSTINGER / EXTERNAL
+Certified behavior:
 
-ERP2 ya fue instalado live; smoke previo reportado OK en login, Companies, Users, Configuration y Sales. La UI de PR #18 NO está desplegada.
+- active company required;
+- company scoped;
+- bounded date range;
+- invalid/unbounded range → 422;
+- local persisted facts only;
+- no Work enqueue caused by dashboard GET;
+- no live MELI HTTP required to render;
+- sales totals remain separated by currency;
+- profitability remains explicit UNKNOWN when facts are insufficient;
+- account states remain factual.
 
-G8 HOSTINGER_REALITY sigue NO CERTIFIED hasta evidencia de cuotas, cron, PHP web/CLI, HTTPS y document root.
+### Recovery history for UI-DM2
 
 ```text
-REAL_MELI OAuth/API=CLOSED
-remote writes=OFF
-F15=PAUSED
-F16=UNAUTHORIZED
+e49d641... = partial Dashboard implementation; CI RED
+7656185... = fix PHPStan impossible int===false comparison
+3185aa3... = wire DashboardController in Routes.php and root landing
+fbc8a24... = update FreshInstall landing contract
+b5ccf173... = update OperatorFoundation landing contract
 ```
 
-## 5. ERP1 → ERP2 DESIGN AUDIT FINDING
+### QA proof at HEAD `b5ccf173...`
 
-ERP1 (`sierraglobalcompany-rgb/ErpMeli`) posee una arquitectura de navegación mucho más amplia que la UI actual de ERP2. Su shell incluye sidebar, topbar, empresa, cuenta, rango de fechas, notificaciones, estado/safety, tabs contextuales y dashboard. Su navegación agrupa Ventas, Productos, Finanzas, Operación y Administración, con subflujos como sincronización, logística, atención al cliente, inventario, vinculación, reportes, conciliación, alertas e integraciones.
-
-ERP2 UI actual expone principalmente:
+GitHub Actions run `38817394804`:
 
 ```text
-Sales
-Catalog
-Billing
-MELI Accounts
-Companies
-Users
-Settings
-MELI App Settings
+PHP 8.3 = PASS
+PHP 8.4 = PASS
+PHP 8.5 = PASS
+composer validate = PASS
+PHP syntax = PASS
+PHPStan = PASS
+full PHPUnit = PASS
 ```
 
-ERP2 ya contiene módulos backend adicionales como Financial, Inventory e Invoicing, pero la navegación actual no representa todavía un producto/UX completo.
+The previous RED run reached 785 tests; failures were only stale `/sales` landing assertions after Dashboard became the approved landing. They were corrected as test-authority drift, not by reverting product behavior.
 
-### DECISION
+## 6. SAFETY / BACKEND GUARDRAILS STILL CLOSED
 
-PR #18 deja de considerarse `FINAL UI` y pasa a clasificarse como:
+The design work must not weaken:
 
 ```text
-UI-1 = VISUAL FOUNDATION / TECHNICAL PROTOTYPE
+429 durable defer/cooldown
+Work durable execution
+no inline retry storm
+no FIFO/HOL resurrection
+no child/page work explosion
+OAuth lifecycle
+company/account scoping
+Financial UNKNOWN/CONFLICT semantics
+Billing cursor/period behavior
+remote writes OFF
 ```
 
-Se conserva como trabajo útil, pero no se certifica visualmente como diseño final ni se despliega antes de aprobar el Design Master.
-
-El prompt Codex de browser QA generado anteriormente queda **FROZEN / DO NOT RUN YET**, porque certificar visualmente UI-1 ahora puede producir trabajo descartable.
-
-## 6. MASTER DESIGN DIRECTION — PROPOSED, NOT YET APPROVED
-
-La opción recomendada es NO copiar ERP1 y NO seguir parchando PR #18. Se propone diseñar primero una arquitectura de producto única y responsive, y luego adaptar lo ya construido.
-
-### Target information architecture
-
-```text
-HOME / RESUMEN
-- atención prioritaria
-- ventas del periodo
-- salud de sincronización
-- cuentas MELI
-- tareas/problemas reales
-
-OPERACIÓN
-- Ventas
-- Detalle de venta
-- Logística / packs / envíos (cuando el backend correspondiente esté disponible)
-- Postventa / atención (cuando corresponda)
-
-PRODUCTOS
-- Catálogo
-- Inventario
-- Vinculación / consistencia (cuando corresponda)
-
-FINANZAS
-- Facturación
-- Conciliación
-- Rentabilidad/reportes cuando estén soportados
-
-MERCADO LIBRE
-- Centro de conexión
-- Cuentas
-- Estado OAuth
-- Webhook
-- Sincronización
-- Salud API / problemas que requieren atención
-
-ADMINISTRACIÓN
-- Empresas
-- Usuarios y permisos
-- Configuración
-- Sistema/diagnóstico sólo para administradores
-```
-
-### Device model
-
-```text
-DESKTOP: sidebar persistente + topbar contextual + tablas completas + drawers/panels.
-TABLET: sidebar colapsable/rail + 1-2 columnas + tablas reducidas + touch-first.
-MOBILE: composición propia; listas/cards operativas, bottom navigation de áreas principales, filtros en sheet/drawer; no tablas desktop comprimidas.
-```
-
-### Design system target
-
-```text
-one shell
-one page header
-one filter/action bar
-one table/list family
-one form family
-one status system
-one alert system
-one drawer/modal pattern
-one empty/loading/error pattern
-one responsive rule-set
-```
-
-No framework frontend nuevo salvo evidencia fuerte de necesidad.
-
-## 7. THREE APPROACHES CONSIDERED
-
-```text
-A. Seguir evolucionando PR #18 pantalla por pantalla
-   + rápido a corto plazo
-   - alto riesgo de volver a parchado/inconsistencia
-   VERDICT=NO RECOMMENDED
-
-B. Congelar PR #18 como foundation + aprobar Design Master + implementar por módulos
-   + KISS, reutiliza trabajo, evita rehacer pantalla por pantalla
-   + permite desktop/tablet/mobile coherentes
-   VERDICT=RECOMMENDED
-
-C. Portar ERP1 visualmente y luego limpiar
-   + parte de una UI conocida
-   - arrastra precisamente complejidad, ruido y navegación excesiva de ERP1
-   VERDICT=REJECT
-```
-
-## 8. UI-1 CERTIFIED CODE HISTORY
-
-```text
-#780 PASS — installer DB defaults
-#783 PASS — APP_URL autodetect
-#788 PASS — installer visual shell
-#794 PASS — MELI accounts UI
-#799 PASS — MELI global settings UI
-#807 PASS — sales detail UI
-#814 PASS — stylesheet dedup
-```
-
-Estos PASS certifican comportamiento/código del bloque, no convierten el diseño en UX final.
-
-## 9. ERP1 FAILURE MODES ERP2 MUST STILL AVOID
+ERP1 failure patterns must not return:
 
 ```text
 429 storms
 FIFO/HOL blocking
-gRPC/batches/jobs desync
-child/page job explosion
-inline retries
+gRPC/batch/job desynchronization
 ```
 
-Safeguards ERP2 ya cerrados no pueden debilitarse por el rediseño.
+## 7. PRODUCT SEQUENCE — USER CORRECTION
 
-## 10. GUARDRAILS CURRENT
+Demo and Hostinger are intentionally deferred.
 
 ```text
-NO merge PR #18
-NO deploy UI
-NO Hostinger mutation
-NO real MELI OAuth/API yet
-REAL_MELI_HTTP=0 in local work
-remote writes=OFF
-NO F15/F16
-NO UI implementation until Design Master approved
-NO browser visual certification of provisional UI yet
+ERP COMPLETE
+→ full automated QA
+→ final visual/responsive QA
+→ local demo
+→ manual E2E
+→ user approval
+→ Hostinger
+→ Hostinger runtime certification
+→ cron / Work Runner
+→ real MELI READ-only gates
+→ later explicitly authorized phases
 ```
 
-## 11. NEXT — EXACTLY ONE STAGE
+Do **not** create demo data now.
+Do **not** test/deploy Hostinger now.
+Do **not** configure cron now.
 
-Esperar aprobación/corrección del usuario sobre el **Master Design Direction**.
+## 8. CURRENT PR #19 SCOPE
 
-Si el usuario aprueba:
+At this checkpoint the branch changes include the responsive shell foundation plus factual Dashboard. It is still a draft integration branch, not a release branch.
+
+No merge authorization exists.
+
+## 9. KNOWN SMALL DESIGN CLEANUP
+
+The shared navigation still uses `/` as the visible Home link while `/` redirects to `/dashboard`. Functionally valid, but the UI-DM2 cleanup should prefer `/dashboard` as the direct Home destination and active-state owner so `Inicio / Resumen` is active while viewing the dashboard.
+
+This is a presentation cleanup, not a backend blocker. Handle with a small test-first microblock before or at the start of UI-DM3.
+
+## 10. NEXT — EXACTLY ONE MICROBLOCK
 
 ```text
-1. escribir Design Master spec formal en docs/superpowers/specs/
-2. incluir mapa completo de pantallas, IA, responsive PC/tablet/mobile, design system, flujo Centro Mercado Libre y criterios de aceptación
-3. self-review de la spec
-4. presentar spec al usuario
-5. STOP para aprobación escrita
+NEXT=UI-DM3 SALES LIST + SALES DETAIL REDESIGN
 ```
 
-Sólo después de aprobar la spec se crea el implementation plan. No tocar código antes.
+Before redesigning Sales:
+
+1. close the direct `/dashboard` Home link/active-state cleanup test-first;
+2. inspect current Sales list/detail view contracts;
+3. write only the RED presentation/responsive assertions required by D-01/M-01;
+4. preserve all Sales/Audit/Billing/Financial/PostSale factual behavior;
+5. implement desktop table + mobile list/card composition from the same dataset;
+6. run focal Sales/Financial tests;
+7. run full QA matrix;
+8. write the next checkpoint;
+9. STOP before Products/Inventory if CI is not fully GREEN.
+
+## 11. ABSOLUTE NO-GO NOW
+
+```text
+NO demo seed
+NO Hostinger work
+NO cron
+NO real MELI mutation
+NO REMOTE_WRITES
+NO F15
+NO F16
+NO merge PR #19
+NO Products/Inventory implementation until UI-DM3 checkpoint is GREEN
+```
