@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=MELI APP SETTINGS UI GREEN APPLIED / QA #799 PARTIAL PASS / RECOVERY CHECKPOINT / STOP**
+**CURRENT=MELI APP SETTINGS UI GREEN CERTIFIED / RECOVERY CHECKPOINT / STOP**
 
 > Este archivo es la autoridad operativa para recuperar el hilo si el chat se corta. Retomar desde `NEXT` y no reconstruir estado por intuición.
 
@@ -15,7 +15,8 @@
 | Rama UI | `ui/operator-shell-v1-20261014` |
 | PR UI | `#18 feat(ui): modernize operator workspace` |
 | PR #18 | OPEN / DRAFT / NOT MERGED / mergeable |
-| Head previo a este checkpoint | `00a7e8eeccddd5924af8e8f39ed671109e51ce12` |
+| Head antes de este checkpoint | `09e3b06c42d143b5369cfa76e3d3b99a55d636ce` |
+| Source UI actualmente certificado | `aed0668fa99226917bbab918e63b3c8ddeb2166f` |
 | Main histórico | NO tocar |
 | Hostinger | ERP2 instalado; esta rama UI NO desplegada |
 | Mercado Libre real | CERRADO |
@@ -109,7 +110,7 @@ PR #18 incluye el shell visual compartido y presentación para:
 - selector de empresa
 - instalador
 - cuentas Mercado Libre
-- configuración global de aplicación Mercado Libre (GREEN aplicado, QA #799 aún no cerrado)
+- configuración global de aplicación Mercado Libre
 ```
 
 Además la rama UI parte del fix de guest root redirect previamente certificado:
@@ -132,16 +133,17 @@ APP_URL sigue editable y no se persiste hasta continuar
 installer visual shell modernizado sin cambiar lógica
 ```
 
-Últimos QA relevantes previos:
+QA relevantes:
 
 ```text
 Actions #780=PASS PHP 8.3/8.4/8.5 (flake MELI test saneado)
 Actions #783=PASS PHP 8.3/8.4/8.5 (APP_URL autodetect)
 Actions #788=PASS PHP 8.3/8.4/8.5 (installer visual)
 Actions #794=PASS PHP 8.3/8.4/8.5 (Cuentas Mercado Libre UI)
+Actions #799=PASS PHP 8.3/8.4/8.5 (Configuración Mercado Libre UI)
 ```
 
-## 6. CURRENT MICROBLOCK — /settings/mercadolibre
+## 6. CLOSED MICROBLOCK — /settings/mercadolibre
 
 Objetivo bounded: modernizar únicamente `/settings/mercadolibre` sin cambiar comportamiento, OAuth, CSRF, secretos, persistencia ni autorización.
 
@@ -195,9 +197,9 @@ settings-grid
 panel
 ```
 
-PHP 8.3 y 8.4 confirmaron FAIL esperado en #797 antes del GREEN.
+PHP 8.3 y 8.4 confirmaron FAIL esperado antes del GREEN.
 
-### GREEN aplicado
+### GREEN
 
 ```text
 15c481b74d1631e8977d7f236b8e134a52c08d08  feat(ui): modernize MELI application settings
@@ -232,44 +234,42 @@ rutas
 API Mercado Libre real
 ```
 
-## 7. QA #799 — EXACT STATE AT THIS CHECKPOINT
+## 7. CERTIFICATION
 
-Commit bajo certificación:
+Commit certificado:
 
 ```text
 aed0668fa99226917bbab918e63b3c8ddeb2166f
 ```
 
-Actions run:
+Actions:
 
 ```text
 #799 / run_id 38756645337
-PHP 8.3=PASS COMPLETED
-PHP 8.5=PASS COMPLETED
-PHP 8.4=IN PROGRESS (step QA)
+PHP 8.3=PASS
+PHP 8.4=PASS
+PHP 8.5=PASS
 ```
 
-En 8.3 y 8.5 el step completo QA terminó SUCCESS, incluyendo sintaxis, PHPStan y PHPUnit.
+El step completo `QA` terminó SUCCESS en las tres versiones, incluyendo sintaxis, PHPStan y PHPUnit.
 
-**NO declarar todavía #799 GREEN completo ni `/settings/mercadolibre` certificado hasta que PHP 8.4 termine.**
+`/settings/mercadolibre` queda **GREEN CERTIFIED**.
 
-## 8. UI GAP REMAINING AFTER #799 CLOSES
-
-Único hueco visual ya identificado:
+## 8. ONLY UI GAP REMAINING
 
 ```text
 /sales/{id}
 owner: app/Modules/Sales/ViewSales/views/detail.php
 ```
 
-No tocarlo antes de cerrar #799 y crear un nuevo microbloque.
+Ese es el único hueco visual identificado pendiente dentro del barrido UI actual.
 
 ## 9. GUARDRAILS
 
 ```text
 no merge a stable todavía
 no deploy UI todavía
-no tocar Hostinger en este bloque
+no tocar Hostinger en el próximo microbloque
 no OAuth real
 no API Mercado Libre real
 REAL_MELI_HTTP=0 para QA local/CI
@@ -282,18 +282,15 @@ Codex sólo cuando haga falta Windows/runtime/DB/browser/hPanel/portal/evidencia
 
 ## 10. NEXT — EXACTLY ONE MICROBLOCK
 
+Esperar un nuevo `continua`.
+
+Después:
+
 ```text
-1. Revisar exclusivamente Actions #799.
-2. Si PHP 8.4=PASS:
-   - declarar #799 PASS PHP 8.3/8.4/8.5
-   - cerrar /settings/mercadolibre como GREEN certificado
-   - actualizar este mismo checkpoint
-   - STOP
-3. Si PHP 8.4=FAIL:
-   - diagnosticar únicamente ese fallo
-   - no abrir /sales/{id}
-   - actualizar este mismo checkpoint
-   - STOP
+1. Auditar únicamente `/sales/{id}` y su test existente.
+2. Presentar diseño bounded corto.
+3. No tocar código hasta aprobación.
+4. Con aprobación: RED visual mínimo → GREEN → QA PHP 8.3/8.4/8.5 → checkpoint → STOP.
 ```
 
-Después, y sólo con un nuevo `continua`, abrir el último hueco UI `/sales/{id}` como microbloque independiente.
+No abrir merge/deploy/Hostinger/F14/F15/F16 en el mismo bloque.
