@@ -17,11 +17,13 @@ declare(strict_types=1);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Facturación</title>
+    <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
     <?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
     <main>
         <h1>Facturación</h1>
+        <p>Controla las solicitudes de sincronización y el progreso persistido por cuenta y período.</p>
         <?php if ($error !== null): ?><p role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
         <?php if ($company['role'] === 'admin'): ?>
         <form method="post" action="/billing/syncs">
@@ -42,6 +44,7 @@ declare(strict_types=1);
         <?php endif; ?>
 
         <?php if ($selection !== null): ?>
+        <section>
         <h2>Solicitud seleccionada</h2>
         <p>Cuenta <?= $selection['account_id'] ?> · <?= htmlspecialchars($selection['period_key'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($selection['document_type'], ENT_QUOTES, 'UTF-8') ?></p>
         <?php if (($requestState['status'] ?? null) === 'failed'): ?>
@@ -58,10 +61,11 @@ declare(strict_types=1);
             <dt>Última lectura persistida (UTC)</dt><dd><?= htmlspecialchars((string) ($progress['last_synced_at'] ?? 'Sin lectura confirmada'), ENT_QUOTES, 'UTF-8') ?></dd>
         </dl>
         <?php endif; ?>
+        </section>
         <?php endif; ?>
 
         <h2>Períodos registrados</h2>
-        <p>Hasta 100 períodos. Actualice la página para consultar el progreso persistido.</p>
+        <p>Hasta 100 períodos. Actualiza la página para consultar el progreso persistido.</p>
         <table>
             <thead><tr><th>Cuenta</th><th>Período</th><th>Tipo</th><th>Progreso persistido</th><th>Última lectura (UTC)</th></tr></thead>
             <tbody>
