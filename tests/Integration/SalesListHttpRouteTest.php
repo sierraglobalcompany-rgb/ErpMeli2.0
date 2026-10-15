@@ -44,4 +44,30 @@ final class SalesListHttpRouteTest extends TestCase
         self::assertStringNotContainsString('200000000202', $html);
         self::assertStringNotContainsString('999999', $html);
     }
+
+    public function testSalesListUsesOneResponsiveRowPerSale(): void
+    {
+        $pdo = TestDatabase::reset();
+        $hash = (new PasswordService())->hash('secret');
+        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main')");
+        $stmt = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'member@example.test','Member','member@example.test',?,'active')");
+        $stmt->execute([$hash]);
+        $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'member')");
+        $pdo->exec("INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,status) VALUES (10,1,'700000101','MCO','connected')");
+        $pdo->exec("INSERT INTO orders(company_id,account_id,external_order_id,status,last_updated,date_created,total_amount,currency_id) VALUES (1,10,'200000000101','paid','2026-10-09 01:00:00.000000','2026-10-09 01:00:00.000000',123456.0000,'COP')");
+
+        $_SESSION['user_id'] = 1;
+        $_SESSION['company_id'] = 1;
+
+        $response = Bootstrap::create()->handle((new ServerRequestFactory())->createServerRequest('GET', '/sales'));
+        $html = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('class="page-header sales-page-header"', $html);
+        self::assertStringContainsString('data-responsive-table="sales-orders"', $html);
+        self::assertStringContainsString('data-mobile-card="sale-row"', $html);
+        self::assertStringContainsString('data-label="Venta"', $html);
+        self::assertStringContainsString('class="status-chip', $html);
+        self::assertSame(1, substr_count($html, 'href="/sales/200000000101"'), 'Responsive mobile presentation must reuse the same sale row instead of duplicating sale markup.');
+    }
 }
