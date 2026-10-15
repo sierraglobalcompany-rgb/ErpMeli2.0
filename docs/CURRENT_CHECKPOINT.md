@@ -1,121 +1,149 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=MELI ACCOUNTS UI GREEN CERTIFIED / CHECKPOINT / STOP**
+**CURRENT=MELI APP SETTINGS UI GREEN APPLIED / QA #799 RUNNING / CHECKPOINT / STOP**
 
 | Campo | Estado |
 |---|---|
 | Fecha | 2026-10-15 |
 | Stable | `impl/v3-b-sales-audit-20261010` — INTACTO |
 | Rama UI | `ui/operator-shell-v1-20261014` |
-| Source UI certificado | `81f65e9b5d2db4cecc851ca2f02031e480d2eb09` |
-| RED | `9cb97be5f22be286a4fb73dae59fca6afe7b93a4` |
+| Último source UI previamente certificado | `81f65e9b5d2db4cecc851ca2f02031e480d2eb09` |
+| GREEN actual pendiente de certificación | `aed0668fa99226917bbab918e63b3c8ddeb2166f` |
 | Hostinger | ERP2 instalado; SIN cambios en este bloque |
 | Mercado Libre real | NO abierto |
 | Remote writes | OFF |
 | UI-1 | EN PROGRESO |
 
-## Microbloque cerrado
+## Microbloque actual
 
-Se modernizó exclusivamente **Cuentas Mercado Libre**.
+Objetivo bounded: modernizar únicamente `/settings/mercadolibre` sin cambiar comportamiento, OAuth, CSRF, secretos, persistencia ni autorización.
 
-Archivos de producto tocados:
+Owners de producto tocados:
 
 ```text
-app/Modules/Settings/views/meli-accounts.php
+app/Modules/Settings/views/mercadolibre.php
 public/assets/app.css
 ```
 
-No se cambiaron rutas, OAuth, CSRF, permisos, estados de negocio, controllers ni lógica de cuentas.
+Test tocado:
+
+```text
+tests/Integration/MeliAppSettingsTest.php
+```
 
 ## TDD — RED
 
-Commit test-only:
+Primer contrato visual test-only:
 
 ```text
-9cb97be5f22be286a4fb73dae59fca6afe7b93a4
+87af4dbb28cf761e87e04b1461340a95380dc756
+Actions #796
 ```
 
-Contrato visual:
+PHP 8.3 confirmó RED exacto:
 
 ```text
-class="page-header"
-class="toolbar"
-class="table-wrap"
-class="status-chip status-connected"
-class="row-actions"
-```
-
-Actions `#791`:
-
-```text
-PHP 8.3=FAIL
-PHP 8.4=FAIL
-PHP 8.5=FAIL
-```
-
-En PHP 8.3 se verificó el RED exacto:
-
-```text
-775 tests / 1 failure
-único fallo=MeliAccountManagementTest::testAccountsPageUsesOperatorVisualStructure
-causa esperada=ausencia de class="page-header"
+776 tests / 1 failure
+único fallo=MeliAppSettingsTest::testMeliSettingsUsesSharedOperatorVisualStructure
+causa=la vista antigua no cargaba /assets/app.css ni shell compartido
 PHPStan=PASS
 Syntax=PASS
 ```
 
+Durante la revisión del owner se detectó que exigir `app-nav` era incorrecto: `navigation.php` requiere contexto de empresa, mientras `/settings/mercadolibre` es una pantalla global de system admin. Forzarlo habría ampliado tenancy sólo por presentación.
+
+Contrato RED corregido KISS/anti-parche:
+
+```text
+e317aac6053c753154bc3002bc4c0ce07cfbb64e
+Actions #797
+```
+
+Exige el shell global ya existente:
+
+```text
+/assets/app.css
+simple-page
+simple-nav
+page-header
+settings-grid
+panel
+```
+
+Al congelar este checkpoint, PHP 8.3 y PHP 8.4 de #797 habían confirmado FAIL esperado. No declarar aquí el resultado final de PHP 8.5 sin evidencia posterior.
+
 ## GREEN aplicado
 
-Commits de producto del microbloque:
+Commits de producto:
 
 ```text
-5f4ec3fce30b8534271d29081b9955e3d5e65f2f  feat(ui): polish Mercado Libre accounts
-81f65e9b5d2db4cecc851ca2f02031e480d2eb09  style(ui): add shared account status primitives
+15c481b74d1631e8977d7f236b8e134a52c08d08  feat(ui): modernize MELI application settings
+aed0668fa99226917bbab918e63b3c8ddeb2166f  style(ui): add shared settings layout primitives
 ```
 
-Resultado visual estructural:
+Resultado estructural:
 
 ```text
-- encabezado de página
-- bloque explicativo de vinculación
-- toolbar para conectar/configurar aplicación
-- tabla responsive
-- estados con chips semánticos
-- acciones de fila agrupadas
-- acción Eliminar diferenciada como destructiva
+- elimina CSS inline legado de mercadolibre.php
+- reutiliza /assets/app.css
+- usa simple-page + simple-nav para contexto global
+- page-header para explicación
+- settings-grid para Estado / Guardar / Limpiar
+- paneles compartidos
+- settings-list para estado y callbacks
+- settings-form para credenciales
+- responsive móvil
 ```
 
-Los textos contractuales previos sobre relación empresa/cuenta se conservaron.
-
-## Certificación GREEN
-
-Actions `#794`:
+No se tocaron:
 
 ```text
-PHP 8.3=PASS
-PHP 8.4=PASS
-PHP 8.5=PASS
+MeliAppSettingsController
+OAuth
+CSRF
+Client Secret behavior
+runtime persistence
+system-admin authorization
+callbacks
+rutas
+API Mercado Libre real
 ```
 
-El step completo `QA` terminó SUCCESS en las tres versiones, incluyendo sintaxis, PHPStan y PHPUnit.
+## QA actual
 
-## Huecos UI restantes
-
-No tocar en este checkpoint:
+Commit bajo certificación:
 
 ```text
-1. /settings/mercadolibre
-   owner: app/Modules/Settings/views/mercadolibre.php
-
-2. /sales/{id}
-   owner: app/Modules/Sales/ViewSales/views/detail.php
+aed0668fa99226917bbab918e63b3c8ddeb2166f
 ```
+
+Actions:
+
+```text
+#799
+estado al congelar=IN PROGRESS
+PHP 8.3=IN PROGRESS
+PHP 8.4=IN PROGRESS
+PHP 8.5=IN PROGRESS
+```
+
+**NO declarar GREEN certificado todavía.**
+
+## Hueco UI restante después de cerrar este bloque
+
+```text
+/sales/{id}
+owner: app/Modules/Sales/ViewSales/views/detail.php
+```
+
+No tocar aún.
 
 ## 3 reglas
 
 ```text
-KISS: vista existente + CSS compartido; sin framework nuevo
-ANTI-RUIDO: status/table/action primitives quedan reutilizables, no CSS paralelo
-ANTI-PARCHE: presentación corregida en el owner visual sin alterar lógica MELI
+KISS: reutilizar shell global existente; sin introducir contexto de empresa artificial
+ANTI-RUIDO: se elimina CSS inline legado y se usan primitivas compartidas
+ANTI-PARCHE: presentación resuelta en la vista/CSS; no se altera tenancy ni controlador
 ```
 
 ## Guardrails
@@ -132,4 +160,4 @@ no F15/F16
 
 ## NEXT — un solo microbloque
 
-**Esperar nuevo `continua`. Siguiente prioridad recomendada: modernizar únicamente `/settings/mercadolibre` → diseño bounded corto → RED → GREEN → QA → checkpoint → STOP.**
+**Revisar exclusivamente Actions #799. Si PHP 8.3/8.4/8.5 terminan PASS, cerrar `/settings/mercadolibre` como GREEN certificado → checkpoint → STOP. Si falla, diagnosticar únicamente ese fallo → checkpoint → STOP.**
