@@ -1,59 +1,77 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=INSTALLER APP_URL AUTODETECTION CERTIFIED / CHECKPOINT**
+**CURRENT=INSTALLER VISUAL SHELL RED CREATED / QA #786 IN PROGRESS / STOP**
 
 | Campo | Estado |
 |---|---|
 | Fecha | 2026-10-15 |
 | Stable | `impl/v3-b-sales-audit-20261010` — INTACTO |
 | Rama UI | `ui/operator-shell-v1-20261014` |
-| Source APP_URL certificado | `b345566f1a242a1aaa9546571f103a8895cecb95` |
+| Último source certificado | `b345566f1a242a1aaa9546571f103a8895cecb95` |
+| RED visual source | `05ded1c18d9ad6b3520f8e1141b598c2c9a285da` |
 | Hostinger | ERP2 instalado; SIN cambios en este bloque |
 | Mercado Libre real | NO abierto |
 | Remote writes | OFF |
 | UI-1 | EN PROGRESO |
-| NEXT | Definir siguiente microbloque UI/instalador; no abrirlo hasta nuevo `continua` |
+| NEXT | Revisar únicamente Actions #786; confirmar RED visual esperado y luego aplicar GREEN mínimo sólo en `app/Core/Install/view.php` → QA → checkpoint → STOP |
 
-## Cerrado en este microbloque
+## Estado exacto del microbloque
 
-Se certificó la autodetección de `APP_URL` desde la URL real donde se ejecuta el instalador.
+Se abrió únicamente el microbloque **diseño visual del instalador**. No se ha modificado todavía código de producto ni `view.php`.
 
-Contrato:
+Se añadió una prueba visual mínima:
 
-```text
-si step=application y APP_URL está vacío:
-    APP_URL = request.scheme + "://" + request.authority
-```
+`tests/Integration/WebInstallerVisualShellTest.php`
 
-Características:
+Contrato RED:
 
 ```text
-- conserva HTTPS/HTTP según request real
-- conserva puerto no estándar
-- no sobrescribe APP_URL ya guardado
-- el campo sigue editable
-- no persiste el valor hasta continuar
-- no cambia validación APP_URL
-- no toca OAuth ni Mercado Libre
+GET /install debe renderizar:
+class="install-page"
+class="install-shell"
+class="install-brand"
+class="install-card"
 ```
 
-## TDD
+La intención es mejorar sólo la estructura visual del instalador, conservando su CSS inline para que funcione antes de existir configuración o assets externos.
 
-RED — Actions `#782`:
+## RED actual
+
+Commit test-only:
 
 ```text
-EXPECTED value="https://erp.example.test:8443"
-ACTUAL   value=""
-RESULT   FAIL esperado
+05ded1c18d9ad6b3520f8e1141b598c2c9a285da
 ```
 
-GREEN source:
+Actions:
 
 ```text
-b345566f1a242a1aaa9546571f103a8895cecb95
+#786 = EN EJECUCIÓN al crear este checkpoint
 ```
 
-## Certificación
+No declarar RED confirmado hasta revisar el resultado final de #786.
+
+## No realizado todavía
+
+```text
+NO GREEN visual aplicado
+NO cambios en app/Core/Install/view.php
+NO cambios de lógica del instalador
+NO cambios DB
+NO cambios APP_URL
+NO cambios login
+NO cambios Mercado Libre
+NO deploy a Hostinger
+NO merge a stable
+```
+
+## Ya certificado antes de este bloque
+
+```text
+DB_HOST=localhost
+DB_PORT=3306
+APP_URL=autodetectado desde request cuando está vacío
+```
 
 Actions `#783`:
 
@@ -63,14 +81,6 @@ PHP 8.4=PASS
 PHP 8.5=PASS
 PHPStan=PASS
 Syntax=PASS
-```
-
-## Instalador ya certificado en bloques previos
-
-```text
-DB_HOST=localhost
-DB_PORT=3306
-APP_URL=autodetectado desde request cuando está vacío
 ```
 
 ## 3 reglas
@@ -93,6 +103,6 @@ remote writes=OFF
 no F15/F16
 ```
 
-## NEXT
+## NEXT — un solo microbloque
 
-**Esperar nuevo `continua` y abrir un único microbloque. STOP.**
+**Revisar exclusivamente Actions #786. Si confirma el RED visual esperado, aplicar el GREEN mínimo únicamente en `app/Core/Install/view.php`, ejecutar QA y crear checkpoint. STOP.**
