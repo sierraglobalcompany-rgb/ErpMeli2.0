@@ -1,61 +1,69 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=UI-1 — LOGIN VISUAL GREEN / CHECKPOINT**
+**CURRENT=INSTALLER DB DEFAULTS GREEN / FULL QA BLOCKED BY TEST FLAKE**
 
 | Campo | Estado |
 |---|---|
 | Fecha | 2026-10-15 |
 | Stable | `impl/v3-b-sales-audit-20261010` — INTACTO |
 | Rama UI | `ui/operator-shell-v1-20261014` |
-| Source login/UI certificado | `9d161b145aab57fbc2db457f7f21950e06adc8f7` |
-| Hostinger | ERP2 instalado; smoke login/empresas/usuarios/configuración/ventas PASS |
+| Source DB-defaults | `b51084126488004e77c85c9e5478a6685dc7a9d7` |
+| Hostinger | ERP2 instalado; sin cambios en este bloque |
 | Mercado Libre real | NO abierto |
 | Remote writes | OFF |
 | UI-1 | EN PROGRESO |
-| NEXT | Instalador: defaults DB `localhost:3306` únicamente → QA → checkpoint → STOP |
+| NEXT | Corregir únicamente flake test-only en `MeliAccountManagementTest` → QA completo → checkpoint → STOP |
 
-## Cerrado en este microbloque
+## Cerrado funcionalmente en este microbloque
 
-Se mantuvo intacto el contrato funcional de autenticación (`POST /login`, `AuthService`, usuario, contraseña y CSRF) y se cambió únicamente la presentación de `GET /login`.
-
-El RED TDD quedó demostrado por Actions `#774`:
+El instalador conserva los campos editables y ahora prellena los valores estándar cuando todavía no existe un valor guardado:
 
 ```text
-TEST=testLoginUsesSharedAuthShellAndKeepsCredentialsContract
-EXPECTED=/assets/app.css + auth-page + auth-card
-ACTUAL=login HTML básico sin shell visual
+DB_HOST=localhost
+DB_PORT=3306
+```
+
+`DB_PORT=3306` ya existía. El GREEN mínimo añadió únicamente el default faltante de `DB_HOST=localhost` en `app/Core/Install/view.php`. No se modificó conexión, validación, credenciales, APP_URL ni diseño general del instalador.
+
+## TDD
+
+RED — Actions `#777`:
+
+```text
+EXPECTED DB_HOST=localhost
+ACTUAL DB_HOST=""
+DB_PORT=3306 ya PASS
 RESULT=FAIL esperado
 ```
 
-GREEN aplicado reutilizando el único CSS compartido ya existente:
+GREEN source:
 
 ```text
-GET /login=200
-CSS=/assets/app.css
-auth-page=YES
-auth-card=YES
-username contract=PRESERVED
-password contract=PRESERVED
-csrf contract=PRESERVED
-POST /login=UNCHANGED
-AuthService=UNCHANGED
+b51084126488004e77c85c9e5478a6685dc7a9d7
 ```
 
-No se añadió framework frontend, controller nuevo, sistema de plantillas nuevo ni dependencia adicional.
-
-## Certificación
-
-Actions `#775`:
+Actions `#778`:
 
 ```text
 PHP 8.3=PASS
-PHP 8.4=PASS
 PHP 8.5=PASS
-PHPStan=PASS
+PHP 8.4=FAIL en prueba ajena al cambio
+PHPStan=PASS antes de PHPUnit
 Syntax=PASS
 ```
 
-Diff GREEN frente al RED: sólo `app/Core/Http/Routes.php`, 10 adiciones / 5 eliminaciones. UI-1 continúa aislado en PR #18. Stable y Hostinger no recibieron este cambio.
+## Bloqueo QA identificado
+
+El único fallo de PHP 8.4 fue:
+
+```text
+Tests\Integration\MeliAccountManagementTest::testCompanyAdminSeesOnlySelectedCompanyAccountsAndNeverTokens
+assertStringNotContainsString('2001', $html)
+```
+
+No es un defecto del producto ni del instalador. El token CSRF aleatorio renderizado en esa ejecución contenía accidentalmente la secuencia `2001` (`...f200139...`), por lo que una aserción sobre todo el HTML produjo un falso positivo.
+
+La prueba debe endurecerse en un microbloque separado para verificar el seller/row ajeno de forma estructurada o con un marcador no contaminable por CSRF. No tocar producto para hacerla pasar.
 
 ## 3 reglas
 
@@ -78,6 +86,6 @@ no F15/F16
 
 ## NEXT — un solo microbloque
 
-**Mejorar únicamente los defaults de conexión DB del instalador: host `localhost` y puerto `3306`, manteniendo ambos editables; ejecutar QA y crear checkpoint. STOP.**
+**Corregir exclusivamente la aserción flaky test-only de `MeliAccountManagementTest`, ejecutar QA completo y crear checkpoint. STOP.**
 
-No tocar todavía autodetección de APP_URL, rediseño del instalador ni otras pantallas dentro de ese mismo bloque.
+No tocar APP_URL, rediseño del instalador ni producto dentro de ese bloque.
