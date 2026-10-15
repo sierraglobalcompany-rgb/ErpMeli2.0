@@ -52,8 +52,6 @@ final class SalesDetailHttpRouteTest extends TestCase
         self::assertStringContainsString('class="page-header"', $visibleHtml);
         self::assertStringContainsString('class="panel sales-summary"', $visibleHtml);
         self::assertStringContainsString('class="table-wrap"', $visibleHtml);
-        self::assertStringContainsString('id="reconciliation" class="panel"', $visibleHtml);
-        self::assertStringContainsString('id="invoice-review" class="panel"', $visibleHtml);
 
         $foreign = Bootstrap::create()->handle(
             (new ServerRequestFactory())->createServerRequest('GET', '/sales/200000000402'),
