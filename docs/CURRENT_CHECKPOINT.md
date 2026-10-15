@@ -1,69 +1,60 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=INSTALLER DB DEFAULTS GREEN / FULL QA BLOCKED BY TEST FLAKE**
+**CURRENT=INSTALLER DB DEFAULTS CERTIFIED / FLAKE TEST FIXED**
 
 | Campo | Estado |
 |---|---|
 | Fecha | 2026-10-15 |
 | Stable | `impl/v3-b-sales-audit-20261010` — INTACTO |
 | Rama UI | `ui/operator-shell-v1-20261014` |
-| Source DB-defaults | `b51084126488004e77c85c9e5478a6685dc7a9d7` |
+| Source UI actual certificado | `423ee4d57f09afe1966fa371feae1130745c33de` |
+| Source DB-defaults funcional | `b51084126488004e77c85c9e5478a6685dc7a9d7` |
 | Hostinger | ERP2 instalado; sin cambios en este bloque |
 | Mercado Libre real | NO abierto |
 | Remote writes | OFF |
 | UI-1 | EN PROGRESO |
-| NEXT | Corregir únicamente flake test-only en `MeliAccountManagementTest` → QA completo → checkpoint → STOP |
+| NEXT | Autodetectar únicamente `APP_URL` en el instalador → QA → checkpoint → STOP |
 
-## Cerrado funcionalmente en este microbloque
+## Cerrado en este microbloque
 
-El instalador conserva los campos editables y ahora prellena los valores estándar cuando todavía no existe un valor guardado:
+Se corrigió exclusivamente la prueba flaky `MeliAccountManagementTest::testCompanyAdminSeesOnlySelectedCompanyAccountsAndNeverTokens`.
+
+Antes buscaba la secuencia `2001` en todo el HTML, por lo que un token CSRF aleatorio podía producir un falso positivo. Ahora el contrato comprueba el Seller ID dentro de su celda HTML:
+
+```text
+<td>1001</td> = PRESENTE
+<td>1003</td> = PRESENTE
+<td>2001</td> = AUSENTE
+OTRA EMPRESA = AUSENTE
+TOKENS = AUSENTES
+```
+
+No se modificó código de producto en este microbloque.
+
+## Instalador DB — ya certificado
+
+El instalador mantiene los campos editables y prellena:
 
 ```text
 DB_HOST=localhost
 DB_PORT=3306
 ```
 
-`DB_PORT=3306` ya existía. El GREEN mínimo añadió únicamente el default faltante de `DB_HOST=localhost` en `app/Core/Install/view.php`. No se modificó conexión, validación, credenciales, APP_URL ni diseño general del instalador.
+El cambio funcional permanece en `app/Core/Install/view.php` y no altera conexión, validación ni credenciales.
 
-## TDD
+## Certificación
 
-RED — Actions `#777`:
-
-```text
-EXPECTED DB_HOST=localhost
-ACTUAL DB_HOST=""
-DB_PORT=3306 ya PASS
-RESULT=FAIL esperado
-```
-
-GREEN source:
-
-```text
-b51084126488004e77c85c9e5478a6685dc7a9d7
-```
-
-Actions `#778`:
+Actions `#780` sobre source `423ee4d57f09afe1966fa371feae1130745c33de`:
 
 ```text
 PHP 8.3=PASS
+PHP 8.4=PASS
 PHP 8.5=PASS
-PHP 8.4=FAIL en prueba ajena al cambio
-PHPStan=PASS antes de PHPUnit
+PHPStan=PASS
 Syntax=PASS
 ```
 
-## Bloqueo QA identificado
-
-El único fallo de PHP 8.4 fue:
-
-```text
-Tests\Integration\MeliAccountManagementTest::testCompanyAdminSeesOnlySelectedCompanyAccountsAndNeverTokens
-assertStringNotContainsString('2001', $html)
-```
-
-No es un defecto del producto ni del instalador. El token CSRF aleatorio renderizado en esa ejecución contenía accidentalmente la secuencia `2001` (`...f200139...`), por lo que una aserción sobre todo el HTML produjo un falso positivo.
-
-La prueba debe endurecerse en un microbloque separado para verificar el seller/row ajeno de forma estructurada o con un marcador no contaminable por CSRF. No tocar producto para hacerla pasar.
+Con esto queda cerrada también la recertificación completa del cambio DB-defaults.
 
 ## 3 reglas
 
@@ -86,6 +77,6 @@ no F15/F16
 
 ## NEXT — un solo microbloque
 
-**Corregir exclusivamente la aserción flaky test-only de `MeliAccountManagementTest`, ejecutar QA completo y crear checkpoint. STOP.**
+**Autodetectar únicamente `APP_URL` desde la URL real donde se está ejecutando el instalador, mantenerla editable, ejecutar QA y crear checkpoint. STOP.**
 
-No tocar APP_URL, rediseño del instalador ni producto dentro de ese bloque.
+No rediseñar todavía el instalador ni tocar Mercado Libre real dentro de ese mismo bloque.
