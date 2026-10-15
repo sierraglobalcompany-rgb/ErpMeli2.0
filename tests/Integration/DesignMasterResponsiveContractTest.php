@@ -32,6 +32,15 @@ final class DesignMasterResponsiveContractTest extends TestCase
         self::assertSame(1, substr_count($html, 'href="/assets/app.css"'));
     }
 
+    public function testDashboardIsDirectHomeDestinationAndOwnsActiveHomeState(): void
+    {
+        $html = $this->renderNavigation('admin', true, '/dashboard');
+
+        self::assertSame(2, substr_count($html, 'href="/dashboard"'));
+        self::assertStringContainsString('class="is-active" href="/dashboard"', $html);
+        self::assertStringContainsString('data-mobile-nav-item="inicio" class="is-active" href="/dashboard"', $html);
+    }
+
     public function testShellDoesNotFabricateDeferredDestinations(): void
     {
         $html = $this->renderNavigation('admin', true);
@@ -66,14 +75,14 @@ final class DesignMasterResponsiveContractTest extends TestCase
         self::assertStringContainsString('apps-launcher', (string) $response->getBody());
     }
 
-    private function renderNavigation(string $companyRole, bool $systemAdmin): string
+    private function renderNavigation(string $companyRole, bool $systemAdmin, string $requestUri = '/sales'): string
     {
         $_SESSION = [
             'user_id' => 1,
             'display_name' => 'UI Tester',
             'is_system_admin' => $systemAdmin,
         ];
-        $_SERVER['REQUEST_URI'] = '/sales';
+        $_SERVER['REQUEST_URI'] = $requestUri;
         $company = ['id' => 1, 'name' => 'Empresa Demo', 'role' => $companyRole];
         $companies = [$company];
         $csrfToken = 'test-token';
