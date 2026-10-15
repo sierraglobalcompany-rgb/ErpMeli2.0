@@ -1,8 +1,8 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / NEXT UI-DM3 SALES REDESIGN / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / NEXT UI-DM4 PRODUCTS-INVENTORY / STOP-SAFE**
 
-> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. No reconstruir por intuición. Retomar desde `NEXT`.
+> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. No reconstruir por intuición. Retomar exactamente desde `NEXT`.
 
 ## 1. REPOSITORY AUTHORITY
 
@@ -16,15 +16,17 @@ FOUNDATION_BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=5574f703a4743f4850137c62c5b5ec45dcd17562
+LATEST_CERTIFIED_CODE_HEAD=866ff5d70e7b556531ed81bed977b73b3ee54ffd
+CERTIFIED_ACTIONS_RUN=38820335428
+QA_PHP_8_3=PASS
+QA_PHP_8_4=PASS
+QA_PHP_8_5=PASS
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
 ```
 
-Do not merge PR #19 or deploy before the later explicit acceptance gate.
-
-## 2. LAWS / EXECUTION DISCIPLINE
+## 2. EXECUTION DISCIPLINE
 
 ```text
 KISS=A→B; simple, efficient, optimized, effective, minimum architecture.
@@ -32,6 +34,8 @@ ANTI_NOISE=delete only with evidence; otherwise merge, simplify, optimize, or pr
 ANTI_PATCH=fix owner/root cause; no workaround stacks.
 MICROBLOCK=microblock → RED → GREEN → full CI → audit → checkpoint → next.
 ```
+
+Every completed microblock must update this file before the next microblock starts.
 
 ## 3. APPROVED DESIGN AUTHORITY
 
@@ -44,15 +48,13 @@ APPS=central launcher
 TABLET=responsive derivation, not a third UI
 ONE_PRODUCT=YES
 ONE_DESIGN_SYSTEM=YES
+NO_NEW_FRONTEND_FRAMEWORK=YES
 ```
-
-No React/Vue/SPA or new frontend framework unless later evidence proves necessity.
 
 ## 4. UI-DM1 — FOUNDATION
 
 **STATE=GREEN**
 
-Implemented:
 - responsive shell foundation;
 - desktop sidebar/topbar;
 - mobile fixed bottom navigation;
@@ -60,86 +62,64 @@ Implemented:
 - minimal vanilla `public/assets/app.js`;
 - shared CSS/tokens;
 - authorization-aware destinations;
-- no fake routes for deferred capabilities;
-- responsive structural contract tests.
-
-Launcher/navigation rule: show only implemented + authorized + usable destinations.
+- no fake routes for deferred capabilities.
 
 ## 5. UI-DM2 — FACTUAL DASHBOARD
 
 **STATE=GREEN**
 
-Implemented:
-
-```text
-GET /dashboard
-active-company GET / → 303 /dashboard
-DashboardController
-DashboardReadModel
-Dashboard view
-DashboardHttpRouteTest
-```
-
-Certified:
-- active company required;
+- `GET /dashboard`;
+- active-company `/` → `303 /dashboard`;
 - company scoped;
 - bounded date range;
 - invalid/unbounded range → 422;
 - local persisted facts only;
-- dashboard GET does not enqueue Work;
+- no Work enqueue on render;
 - no live MELI HTTP required to render;
 - currencies remain separated;
-- profitability stays explicit UNKNOWN when facts are insufficient;
+- profitability remains explicit `UNKNOWN` when facts are insufficient;
 - account states remain factual.
 
-Recovery commits:
-
-```text
-e49d641... = partial Dashboard implementation / CI RED
-7656185... = PHPStan fix only
-3185aa3... = wire /dashboard + root landing
-fbc8a24... = FreshInstall landing contract
-b5ccf173... = OperatorFoundation landing contract
-```
-
-QA at `b5ccf173...`, Actions run `38817394804`:
-
-```text
-PHP 8.3 PASS
-PHP 8.4 PASS
-PHP 8.5 PASS
-Composer PASS
-Syntax PASS
-PHPStan PASS
-Full PHPUnit PASS
-```
-
-## 6. R3 — DIRECT HOME DESTINATION
+## 6. R3 — DIRECT HOME
 
 **STATE=GREEN**
 
-TDD history:
+Desktop and mobile `Inicio` point directly to `/dashboard` and use `/dashboard` as active owner.
+
+## 7. UI-DM3 — SALES LIST + DETAIL
+
+**STATE=GREEN**
+
+Implemented and certified at current HEAD:
+
+- responsive Sales list;
+- responsive Sales detail;
+- one factual row/data family, not duplicated desktop/mobile datasets;
+- mobile recomposition via responsive markup/CSS;
+- company scope preserved;
+- `UNKNOWN` preserved;
+- Sales Audit status contract preserved;
+- Financial consumer contract preserved;
+- PostSale/Invoice consumer contract preserved.
+
+Relevant recovery commits include:
 
 ```text
-3dec3d14... = RED test: /dashboard must be direct Inicio destination and active owner
-RED proof = 786 tests / 6553 assertions / exactly 1 expected failure
-5574f703... = GREEN: desktop + mobile Inicio now href=/dashboard and active on /dashboard
+bc99a7b... = responsive sale detail
+9cca0cac... = responsive sales presentation styles
+383a6db9... = preserve factual audit status contract
+866ff5d7... = preserve financial and post-sale consumer contracts
 ```
 
-GitHub Actions run `38818383063` at `5574f703...`:
+Full Actions run `38820335428` at `866ff5d70e7b556531ed81bed977b73b3ee54ffd`:
 
 ```text
 PHP 8.3 PASS
 PHP 8.4 PASS
 PHP 8.5 PASS
-full QA PASS
 ```
 
-No other navigation behavior changed.
-
-## 7. SAFETY / BACKEND GUARDRAILS STILL CLOSED
-
-The redesign must not weaken:
+## 8. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -151,14 +131,14 @@ OAuth lifecycle
 company/account scoping
 Financial UNKNOWN/CONFLICT semantics
 Billing cursor/period behavior
-remote writes OFF
+REMOTE_WRITES=OFF
 ```
 
-ERP1 failure patterns must not return: 429 storms, FIFO/HOL blocking, gRPC/batch/job desynchronization.
+ERP1 failure patterns must not return.
 
-## 8. PRODUCT SEQUENCE — USER CORRECTION
+## 9. PRODUCT SEQUENCE
 
-Demo and Hostinger remain deferred.
+Demo and Hostinger remain deferred:
 
 ```text
 ERP COMPLETE
@@ -174,47 +154,44 @@ ERP COMPLETE
 → later explicitly authorized phases
 ```
 
-Do not create demo data, test/deploy Hostinger, or configure cron now.
-
-## 9. UI-DM3 AUDIT PREP
-
-Current Sales findings before code changes:
+## 10. NEXT — UI-DM4 PRODUCTS / CATALOG + INVENTORY
 
 ```text
-SalesListController = factual/company-scoped owner; no redesign need identified in controller.
-list.php = foundation-level UI; two desktop tables/forms; no real mobile card composition yet.
-detail.php = stronger foundation; preserves Financial/Billing/Invoice/PostSale facts but tables still need responsive composition.
-SalesListHttpRouteTest = basic company-scope truth only.
-SalesDetailHttpRouteTest = company-scope + basic presentation markers.
+NEXT=UI-DM4 PRODUCTS-INVENTORY
 ```
 
-KISS design ruling for UI-DM3:
+Authoritative KISS ruling:
 
 ```text
-ONE DATASET / ONE HTML ROW FAMILY
-Desktop = table
-Mobile = same rows recomposed as cards/list via responsive CSS + data labels
-NO duplicate backend query
-NO duplicate mobile data view
-NO controller rewrite unless proven necessary
+ONE HUMAN PRODUCT AREA
+ONE EXISTING /catalog OWNER
+NO SEPARATE INVENTORY BACKEND/ROUTE JUST FOR VISUAL IA
+NO DUPLICATE MOBILE DATASET
+NO N+1 INVENTORY READS
 ```
 
-## 10. NEXT — EXACTLY ONE MICROBLOCK
+Current contract to preserve:
 
-```text
-NEXT=UI-DM3 SALES LIST + SALES DETAIL REDESIGN
-```
+- `/catalog` lists max 100 company-scoped product identities;
+- plain list does not read inventory per row;
+- `/catalog?product_id=<id>` selects one product and reads inventory for that product only;
+- missing inventory = `Sin definir`, never zero;
+- zero remains exactly zero;
+- inventory mutation stays `POST /catalog/{product_id}/inventory`;
+- CSRF + company role authorization remain mandatory;
+- Work/API usage delta remains zero.
 
 Execution order:
-1. add RED structural tests for approved Sales presentation/mobile composition;
-2. watch expected failure;
-3. redesign `list.php` and `detail.php` only plus shared CSS as needed;
-4. preserve Sales/Audit/Billing/Financial/PostSale facts and UNKNOWN semantics;
-5. run focal Sales + Financial/PostSale tests;
+
+1. add RED structural tests for approved responsive Products presentation;
+2. certify expected RED;
+3. redesign `catalog.php` plus shared CSS only unless code evidence proves another owner must change;
+4. preserve all Product/Inventory behavioral contracts;
+5. run focal Catalog/Inventory/API tests;
 6. run full QA PHP 8.3/8.4/8.5;
 7. audit KISS/noise/patches;
-8. persist checkpoint;
-9. do not start Products/Inventory until UI-DM3 is fully GREEN.
+8. update this checkpoint to UI-DM4 GREEN;
+9. only then open Billing/Financial.
 
 ## 11. ABSOLUTE NO-GO NOW
 
@@ -227,5 +204,5 @@ NO REMOTE_WRITES
 NO F15
 NO F16
 NO merge PR #19
-NO Products/Inventory implementation until UI-DM3 checkpoint is GREEN
+NO Billing/Financial redesign until UI-DM4 checkpoint is GREEN
 ```
