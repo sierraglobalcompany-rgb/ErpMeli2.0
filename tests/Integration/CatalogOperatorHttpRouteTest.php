@@ -153,7 +153,7 @@ final class CatalogOperatorHttpRouteTest extends TestCase
         $html = (string) $this->request('GET', '/catalog', [], ['product_id'=>(string) $id])->getBody();
         self::assertStringContainsString('action="/catalog/' . $id . '/inventory"', $html);
         self::assertStringContainsString('name="quantity"', $html);
-        self::assertStringNotContainsString('<script', $html);
+        self::assertSame(1, substr_count($html, 'src="/assets/app.js"'));
     }
 
     public function testInvalidInventoryForeignMissingAndCsrfFailWithoutMutation(): void
