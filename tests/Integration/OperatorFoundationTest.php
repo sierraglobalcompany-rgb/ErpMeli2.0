@@ -38,7 +38,7 @@ final class OperatorFoundationTest extends TestCase
     {
         $root = $this->request('GET', '/');
         self::assertSame(303, $root->getStatusCode());
-        self::assertSame('/sales', $root->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $root->getHeaderLine('Location'));
         $html = (string) $this->request('GET', '/sales')->getBody();
         self::assertStringContainsString('Main &lt;Company&gt;', $html);
         self::assertStringContainsString('href="/sales"', $html);
@@ -63,7 +63,7 @@ final class OperatorFoundationTest extends TestCase
         $response = $this->request('POST', '/login', ['username'=>'admin@example.test', 'password'=>'test-password-long', 'csrf_token'=>(new Csrf())->token()]);
         self::assertSame(303, $response->getStatusCode());
         self::assertSame('/', $response->getHeaderLine('Location'));
-        self::assertSame('/sales', $this->request('GET', '/')->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $this->request('GET', '/')->getHeaderLine('Location'));
     }
     public function testTenantSelectorUsesMembershipsAndCsrfAndValidDestination(): void
     {
@@ -127,7 +127,7 @@ final class OperatorFoundationTest extends TestCase
         self::assertSame(303, $selected->getStatusCode());
         self::assertSame($companyId, $_SESSION['company_id']);
         self::assertSame($role, $_SESSION['role']);
-        self::assertSame('/sales', $this->request('GET', '/')->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $this->request('GET', '/')->getHeaderLine('Location'));
         foreach (['/sales','/catalog','/billing'] as $path) {
             $response = $this->request('GET', $path);
             self::assertSame(200, $response->getStatusCode());
