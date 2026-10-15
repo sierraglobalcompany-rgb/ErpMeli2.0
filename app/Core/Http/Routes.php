@@ -49,6 +49,9 @@ final class Routes
             ServerRequestInterface $request,
             ResponseInterface $response
         ) use ($config): ResponseInterface {
+            if (!is_int($_SESSION['user_id'] ?? null)) {
+                return $response->withHeader('Location','/login')->withStatus(303);
+            }
             try {
                 $context = new CompanyContext(Connection::fromConfig($config));
                 $context->assertActiveUser();
