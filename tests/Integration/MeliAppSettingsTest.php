@@ -97,7 +97,7 @@ final class MeliAppSettingsTest extends TestCase
         $html = (string) $this->request('GET')->getBody();
 
         self::assertStringContainsString('href="/assets/app.css"', $html);
-        self::assertStringContainsString('class="simple-page"', $html);
+        self::assertStringContainsString('class="simple-page meli-app-settings-workspace"', $html);
         self::assertStringContainsString('class="simple-nav"', $html);
         self::assertStringContainsString('class="page-header"', $html);
         self::assertStringContainsString('class="settings-grid"', $html);
