@@ -12,6 +12,19 @@ use Tests\Support\TestDatabase;
 
 final class SalesDetailHumanFirstUiTest extends TestCase
 {
+    public function testMobileSaleDetailPrioritizesFinancialMeaningWithoutDuplicateSummary(): void
+    {
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/assets/app.css'),
+        );
+        self::assertSame(200, $response->getStatusCode());
+
+        preg_match('/@media\s*\(\s*max-width\s*:\s*760px\s*\)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/s', (string) $response->getBody(), $mobile);
+        self::assertArrayHasKey(1, $mobile, 'The mobile breakpoint must be served by the application.');
+        self::assertMatchesRegularExpression('/\.sales-summary\s*\{\s*display\s*:\s*none\s*;?\s*\}/', $mobile[1]);
+        self::assertMatchesRegularExpression('/\.financial-human-summary\s*\{\s*order\s*:\s*-1\s*;?\s*\}/', $mobile[1]);
+    }
+
     public function testConflictSaleDetailIsHumanFirstAndKeepsRawFactsInTechnicalDisclosure(): void
     {
         $pdo = TestDatabase::reset();

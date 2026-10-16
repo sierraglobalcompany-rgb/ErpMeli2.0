@@ -478,6 +478,8 @@ tbody tr:hover { background: #fbfcff; }
     .section-heading { flex-direction: column; gap: 6px; }
     .sales-audit-form { grid-template-columns: 1fr; }
     .sales-detail-grid { grid-template-columns: 1fr; }
+    .sales-summary { display: none; }
+    .financial-human-summary { order: -1; }
     .sales-detail-wide { grid-column: auto; }
     .evidence-list li { flex-direction: column; gap: 3px; }
     .evidence-list li span { text-align: left; }
