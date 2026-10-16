@@ -66,13 +66,17 @@ final class SystemSettingsController
             return $response->withStatus(403);
         }
 
-        $this->settings->updateOperationalToggles(
-            ($body['automation_enabled'] ?? null) === '1',
-            ($body['debug_enabled'] ?? null) === '1',
-            filter_var($body['debug_retention_days'] ?? 7, FILTER_VALIDATE_INT) ?: 7,
-            filter_var($body['debug_max_mb'] ?? 100, FILTER_VALIDATE_INT) ?: 100,
-            $userId,
-        );
+        try {
+            $this->settings->updateOperationalToggles(
+                ($body['automation_enabled'] ?? null) === '1',
+                ($body['debug_enabled'] ?? null) === '1',
+                filter_var($body['debug_retention_days'] ?? 7, FILTER_VALIDATE_INT) ?: 7,
+                filter_var($body['debug_max_mb'] ?? 100, FILTER_VALIDATE_INT) ?: 100,
+                $userId,
+            );
+        } catch (InvalidArgumentException) {
+            return $response->withStatus(422);
+        }
 
         return $response
             ->withHeader('Location', '/settings/system')
