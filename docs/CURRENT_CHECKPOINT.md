@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H2A SKIP-TO-MAIN GREEN / H2B NEXT BUT NOT STARTED / STOP-SAFE**
+**CURRENT=H2B1 TYPOGRAPHY/TOUCH AUDIT DIAGNOSED / H2B2 NEXT / STOP-SAFE**
 
 Autoridad operativa de recuperación. Retomar desde `RESUME_EXACTLY_FROM`.
 
@@ -113,14 +113,60 @@ H1 visual-vs-DOM order audit: NON_BLOCKING / DEFER; product records add no inter
 Evidence: `C:\codex\evidence\erp-meli2\human-first\h2a\` contains source inventory, RED/GREEN/full QA, browser focus states, screenshots and SHA-256 manifest.
 Disposable QA/browser DB containers and local PHP were removed; runtime files/secrets cleared, temporary tabs closed and viewport restored.
 
+## H2B1 — typography and touch audit closed
+
+```text
+H2B1_STARTING_HEAD=891bbddf77cc3a8062b04a50e101827dceaa8fb6
+H2B1_PRODUCT_HEAD_UNCHANGED=3b173b9d72a4383b1db879b59f8132f4fa735b4a
+H2B1_STARTING_CHECKPOINT_CI=38942644768 completed / success
+H2B1_RESULT=DIAGNOSED_FIX_REQUIRED
+H2B1_MEASURED_VIEWPORTS=390x844 / 430x932 / 768x1024
+H2B1_DESKTOP_REFERENCE=1440x900
+H2B1_FINDINGS=H2B1-01 / H2B1-02 / H2B1-03
+H2B2_STARTED=NO
+```
+
+Audit-only: five rendered routes at four sizes, plus Apps at 390/430.
+The optional company selector redirected to Dashboard with the single-company fixture;
+its multi-company controls are not certified. Product, tests and CSS unchanged; no full QA rerun.
+Starting checkpoint CI success was verified at its exact SHA.
+
+- H2B1-01 MINOR: shared body/form text computes to 15px / 23.25px; header copy already 16.32px.
+- H2B1-02 MINOR: common controls compute to 42–42.85px high; Apps close 38x38.
+  Native date fields already 44.85px; use rendered geometry, not source assumptions.
+- H2B1-03 MAJOR usability: critical five-slot navigation labels are 8.5px at 390/430 and 9px at 768.
+  Slots remain >=44x44, exact, unclipped and without page horizontal overflow.
+
+205 visible target exposures across 22 page/Apps states: 103 preferred passes,
+102 below44 but >=24 in both dimensions, zero below24. Mobile/tablet subset:
+140 exposures / 101 passes / 39 preferred misses. Desktop reference: 65 / 2 / 63.
+These are repeated exposures, not unique controls. 15px text and targets below44 do not
+by themselves establish WCAG AA violations; no complete WCAG certification is claimed.
+Form text below16 is a practical readability/zoom risk; iOS/Safari was not tested.
+Apps titles12/subtitles10 and eyebrow10 remain contextual exception candidates.
+Apps open -> dialog initial focus -> Escape -> trigger focus return passed at both mobile sizes.
+Safe-area computes to zero in browser emulation; real nonzero device insets remain untested.
+
+Future correction belongs in existing shared CSS owners: typography/form targets,
+explicit Apps close dimensions and existing five-slot nav rules. No per-page patches,
+new breakpoints, !important or JS sizing. Two shared responsibilities explain most misses,
+but nav and close have explicit component values; do not claim two declarations fix everything.
+Increasing nav text without checking wrapping can exceed the current slot width.
+
+Evidence outside Git: `C:\codex\evidence\erp-meli2\human-first\h2b1\`
+contains source inventory, DOM measurements/summary, detailed report, runtime proof,
+mobile/tablet/desktop screenshots and SHA-256 manifest. Server and disposable DB removed,
+secrets/runtime files cleared, temporary tab closed and viewport restored.
+No unrelated dangerous defect, captured application 5xx or browser console error found.
+
 ## Next / frozen
 
 ```text
-NEXT=H2B MOBILE TYPOGRAPHY / TOUCH TARGET BROWSER AUDIT
-H2B_STARTED=NO
+NEXT=H2B2 SHARED MOBILE TYPOGRAPHY/TOUCH FIX + EXISTING NAV LEGIBILITY; CSS ONLY; PRESERVE FIVE SLOTS
+H2B2_STARTED=NO
 H3..H9=FROZEN
 UI-DM10-B2C2 INVENTORY MISSING-VS-ZERO=MOVED INTO H5
-RESUME_EXACTLY_FROM=H2B AUDIT WHEN AUTHORIZED
+RESUME_EXACTLY_FROM=H2B2 MINIMAL SHARED CSS FIX WHEN AUTHORIZED
 STOP_SAFE=YES
 ```
 
