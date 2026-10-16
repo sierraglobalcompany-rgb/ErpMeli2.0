@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / UI-DM5 BILLING-FINANCIAL GREEN / UI-DM6 MELI GREEN / UI-DM7A COMPANIES GREEN / UI-DM7B USERS GREEN / NEXT UI-DM7C SYSTEM SETTINGS-DIAGNOSTICS / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / UI-DM5 BILLING-FINANCIAL GREEN / UI-DM6 MELI GREEN / UI-DM7A COMPANIES GREEN / UI-DM7B USERS GREEN / UI-DM7C SYSTEM SETTINGS-DIAGNOSTICS GREEN / UI-DM7 ADMINISTRATION GREEN / NEXT UI-DM8 COMPLETENESS AUDIT / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
 
@@ -12,8 +12,8 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=c0cf12efc86e43e88c7147206a3e993f63119442
-CERTIFIED_ACTIONS_RUN=38827105530
+LATEST_CERTIFIED_CODE_HEAD=2563b711ed75bf7f5d31fb8f8fb194bcb8618d98
+CERTIFIED_ACTIONS_RUN=38827929679
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -46,6 +46,8 @@ UI-DM6A MELI ACCOUNTS=GREEN
 UI-DM6B MELI APP SETTINGS=GREEN
 UI-DM7A COMPANIES=GREEN
 UI-DM7B USERS/PERMISSIONS=GREEN
+UI-DM7C SYSTEM SETTINGS/DIAGNOSTICS=GREEN
+UI-DM7 ADMINISTRATION=GREEN
 ```
 
 ## 4. UI-DM7B — USERS / PERMISSIONS
@@ -63,7 +65,7 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Authoritative boundary preserved:
+Preserved boundary:
 
 ```text
 /system/users = existing user-management owner
@@ -81,9 +83,39 @@ NO permission-domain rewrite
 NO new CSS family
 ```
 
-Presentation now uses the shared Design Master family while keeping all existing POST owners and behavior.
+## 5. UI-DM7C — SYSTEM SETTINGS / DIAGNOSTICS
 
-## 5. BACKEND GUARDRAILS STILL CLOSED
+**STATE=GREEN**
+
+```text
+RED_COMMIT=c74652ce4acb9b13687d96a321628c816acd544b
+RED_RUN=38827537279
+RED_RESULT=796 tests / 6669 assertions / exactly 1 expected failure in SystemSettingsDesignMasterUiTest
+GREEN_COMMIT=2563b711ed75bf7f5d31fb8f8fb194bcb8618d98
+GREEN_RUN=38827929679
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+```
+
+Preserved boundary:
+
+```text
+/settings/system = existing owner
+SystemSettingsController = unchanged
+SystemSettingsRepository = unchanged
+SYSTEM_ADMIN_ONLY = preserved
+CSRF = preserved
+DEBUG_RETENTION/CAP = preserved
+DEBUG_EXPORT = preserved
+DEBUG_CLEAR = preserved
+meli_writes_enabled = hidden and non-editable
+REMOTE_WRITES = OFF
+NO new admin domain
+NO new CSS family
+```
+
+## 6. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -98,7 +130,7 @@ Billing cursor/period behavior
 REMOTE_WRITES=OFF
 ```
 
-## 6. PRODUCT SEQUENCE
+## 7. PRODUCT SEQUENCE
 
 ```text
 ERP COMPLETE
@@ -116,26 +148,27 @@ ERP COMPLETE
 
 Demo, Hostinger and cron remain deferred.
 
-## 7. NEXT — UI-DM7C SYSTEM SETTINGS / DIAGNOSTICS
+## 8. NEXT — UI-DM8 COMPLETENESS AUDIT
 
 ```text
-NEXT=UI-DM7C SYSTEM SETTINGS-DIAGNOSTICS
+NEXT=UI-DM8 COMPLETENESS AUDIT
 ```
 
-Execution boundary:
+Resume boundary:
 
-1. inspect `app/Modules/Settings/views/system.php`, `SystemSettingsController.php`, `SystemSettingsTest.php`, `DebugSettingsControllerTest.php` and related debug/runtime tests;
-2. preserve system-admin-only authority, CSRF, automation/debug semantics and fail-closed behavior;
-3. presentation-only unless a separate real defect is proven;
-4. reuse existing Design Master component family; no new admin domain;
-5. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint;
-6. only then open UI-DM8 completeness audit.
+1. do not modify production immediately;
+2. audit completeness of the implemented Design Master against approved IA, responsive contract, capability map and closed UI-DM1..7 blocks;
+3. classify any finding KEEP / MERGE / OPTIMIZE / SIMPLIFY / REMOVE with evidence;
+4. verify no unsupported screen/domain was invented and no backend guardrail was weakened;
+5. if no product gap exists, proceed to final automated QA + visual/responsive QA planning;
+6. if a real gap exists, open one isolated microblock only;
+7. keep PR #19 draft and unmerged until UI-DM8 is closed.
 
-## 8. ABSOLUTE NO-GO NOW
+## 9. ABSOLUTE NO-GO NOW
 
 ```text
-NO UI-DM8 until UI-DM7C is GREEN
-NO demo seed
+NO production change before UI-DM8 audit
+NO demo seed yet
 NO Hostinger
 NO cron
 NO real MELI mutation
@@ -143,4 +176,11 @@ NO REMOTE_WRITES
 NO F15
 NO F16
 NO merge PR #19
+```
+
+## 10. STOP-SAFE
+
+```text
+STOP_NOW=YES
+RESUME_EXACTLY_FROM=UI-DM8 COMPLETENESS AUDIT
 ```
