@@ -169,6 +169,7 @@ $postSaleLabel = match ($postSaleRaw) {
                     <details class="technical-disclosure">
                         <summary>Ver conciliación técnica</summary>
                         <div class="technical-disclosure-body" id="reconciliation">
+                            <h3>Reconciliación técnica</h3>
                             <p class="muted">Los códigos técnicos se conservan aquí para auditoría y soporte. UNKNOWN significa que la evidencia no permite afirmar un valor.</p>
 
                             <div class="reconciliation-scope">
