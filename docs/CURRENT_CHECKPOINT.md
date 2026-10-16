@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=HUMAN-FIRST GOVERNANCE INSTALLED / UX-GOV-AUDIT ACTIVE / PRODUCT FROZEN / STOP-SAFE**
+**CURRENT=HUMAN-FIRST GOVERNANCE GREEN / 10-PASS AUDIT CLOSED / NEW IMPROVEMENT PLAN ACTIVE / H1 BROWSER GATE NEXT / STOP-SAFE**
 
 > Autoridad operativa de recuperación. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
@@ -13,7 +13,7 @@ IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
 CURRENT_PRODUCT_CANDIDATE_HEAD=d48b4464200b321dc309fbebcd56021f08709ba4
-LATEST_GOVERNANCE_HEAD_BEFORE_THIS_CHECKPOINT=7008aad2dbb2491f9a3751e3260bdc7760a33dbf
+AUDIT_PLAN_COMMIT=1ae00b8dd9c352314ffd5e5e88dc43a2db9c6786
 UX_HF1_AUTOMATED_RUN=38924219467
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
@@ -23,36 +23,15 @@ REAL_MELI_HTTP=0
 HOSTINGER_UI_DEPLOYED=NO
 ```
 
-## 2. HUMAN-FIRST GOVERNANCE — INSTALLED
-
-Canonical project law:
+## 2. HUMAN-FIRST GOVERNANCE — GREEN
 
 ```text
-docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md
-```
-
-Mandatory agent law:
-
-```text
-AGENTS.md
-```
-
-Repository skill adapter:
-
-```text
-.github/skills/erp-human-first-ui-ux/SKILL.md
-```
-
-Project Design System source of truth:
-
-```text
-design-system/erp-meli-2-0/MASTER.md
-```
-
-PR quality gate:
-
-```text
-.github/pull_request_template.md
+MASTER=docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md
+AGENT_LAW=AGENTS.md
+REPO_SKILL=.github/skills/erp-human-first-ui-ux/SKILL.md
+PROJECT_DESIGN_MASTER=design-system/erp-meli-2-0/MASTER.md
+PR_GATE=.github/pull_request_template.md
+AUDIT_PLAN=docs/UX_HUMAN_FIRST_MASTER_AUDIT_AND_IMPROVEMENT_PLAN_2026-10-16.md
 ```
 
 Governance commits:
@@ -60,12 +39,13 @@ Governance commits:
 ```text
 7fffa211a56dcd0a94df178a83ce05c068aa6443  Human-First Master law
 e89ae5bf7a75289ec58b45e1ff6bd7eee3725bc0  AGENTS mandatory activation
-863a9c4798971a395acaf019829a8a17f6fb3036  GitHub/Copilot skill adapter
-8214989874279ccdbfce1ecc19a7d69838fc2f38  ERP Meli project Design Master
+863a9c4798971a395acaf019829a8a17f6fb3036  repository skill adapter
+8214989874279ccdbfce1ecc19a7d69838fc2f38  project Design Master
 7008aad2dbb2491f9a3751e3260bdc7760a33dbf  PR Human-First/KISS gate
+1ae00b8dd9c352314ffd5e5e88dc43a2db9c6786  10-pass audit + improvement plan
 ```
 
-No product/backend/runtime code was changed by these governance commits.
+No product/backend/runtime code was changed by governance/audit commits.
 
 ## 3. CLOSED PRODUCT WORK
 
@@ -91,81 +71,145 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Implemented HF1 candidate semantics:
+HF1 candidate:
 
 ```text
 paid -> Pagada
 CONFLICT -> Requiere revisión
 UNKNOWN -> Sin información suficiente
-raw CONFLICT/UNKNOWN inside technical disclosure
-normal product set -> compact records, not primary mini-table
+raw codes -> technical disclosure
+normal product set -> compact records
 empty Billing -> no empty table chrome
-Factura/Postventa -> human labels in primary UI
-raw readiness/post-sale states -> technical disclosure
-Reconciliación técnica -> preserved inside disclosure
-backend owners/queries/Financial semantics unchanged
+Factura/Postventa -> human primary labels
+Reconciliación técnica -> disclosure
+backend semantics unchanged
 ```
 
-## 4. CURRENT TASK — REPO-WIDE HUMAN-FIRST AUDIT
+## 4. 10-PASS HUMAN-FIRST AUDIT — CLOSED
 
-User explicitly requested that the newly installed Master law be executed against the existing ERP work before continuing implementation.
-
-Therefore PRODUCT IS FROZEN while the audit runs.
-
-Required audit:
+Authority:
 
 ```text
-PASS 1  Truth / permissions
-PASS 2  Human comprehension
-PASS 3  Information architecture
-PASS 4  Density / infinite Excel
-PASS 5  Visual design system
-PASS 6  Accessibility
-PASS 7  Interaction / forms / feedback
-PASS 8  Responsive / mobile / tablet
-PASS 9  Data-heavy patterns / performance
-PASS 10 Real browser / cross-page consistency
+docs/UX_HUMAN_FIRST_MASTER_AUDIT_AND_IMPROVEMENT_PLAN_2026-10-16.md
 ```
 
-Deliverables:
+Provisional score:
 
 ```text
-repo inventory
-findings with severity/evidence/law/root cause/disposition
-screen-by-screen scorecard
-cross-page findings
-P0/P1/P2/P3/P4 improvement plan
-microblock sequence
-browser QA needs
-new stop-safe checkpoint
+~80/100
+RULING=GOOD FOUNDATION / HUMAN-FIRST IMPROVEMENT REQUIRED BEFORE ERP COMPLETE
 ```
 
-No broad redesign is authorized without evidence.
-
-## 5. PREVIOUS HF1 BROWSER GATE — PAUSED, NOT CANCELLED
+Pass results:
 
 ```text
-UX_HF1_BROWSER_GREEN=NO
-CODEX_BROWSER_QA=NOT_STARTED
-LOCAL_BROWSER_QA=NOT_STARTED
+PASS 1  Truth / permissions=GREEN
+PASS 2  Human comprehension=RED
+PASS 3  Information architecture=YELLOW
+PASS 4  Density / infinite Excel=YELLOW/RED
+PASS 5  Visual design system=GREEN/YELLOW
+PASS 6  Accessibility=YELLOW
+PASS 7  Interaction / forms / feedback=YELLOW
+PASS 8  Responsive / mobile / tablet=GREEN/YELLOW
+PASS 9  Data-heavy / performance=GREEN/YELLOW
+PASS 10 Browser / cross-page consistency=YELLOW
 ```
 
-The audit must decide whether the existing HF1 browser plan remains sufficient or needs an improved Human-First browser contract.
-
-## 6. FROZEN
+Main remaining findings:
 
 ```text
-PRODUCT_CHANGES=FROZEN DURING UX-GOV-AUDIT
-UI-DM10-B2C2 INVENTORY MISSING-VS-ZERO=FROZEN
-UX-HF2 DASHBOARD=FROZEN PENDING AUDIT PLAN
-UX-HF3 SALES LIST=FROZEN PENDING AUDIT PLAN
-UX-HF4 CATALOG/INVENTORY=FROZEN PENDING AUDIT PLAN
-UX-HF5 BILLING=FROZEN PENDING AUDIT PLAN
-UX-HF6 MELI/ADMIN=FROZEN PENDING AUDIT PLAN
-UX-HF7 CROSS-PAGE AUDIT=REPLACED BY CURRENT 10-PASS GOVERNANCE AUDIT
+HF1 browser certification missing
+Dashboard raw UNKNOWN / architecture wording
+Sales audit technical language + hierarchy competition
+Catalog ID-centric primary workflow
+Billing raw document/cursor/storage language
+Global admin second navigation shell
+Users page all operations expanded simultaneously
+No skip-to-main mechanism
+15px mobile/body baseline needs browser review
+40–42px control baseline below preferred 44px touch target
+Destructive-action UX needs scope/confirmation audit
 ```
 
-## 7. BACKEND GUARDRAILS
+## 5. NEW IMPROVEMENT SEQUENCE
+
+```text
+H0 Governance=CLOSED
+H1 Sale Detail real-browser Human-First certification=NEXT
+H2 Cross-cut accessibility foundation
+H3 Dashboard Human-First
+H4 Sales List Human-First
+H5 Catalog/Inventory Human-First + factual missing-vs-zero browser gate
+H6 Billing Human-First
+H7 Global Admin / Users / destructive-action UX
+H8 MELI / Settings Human-First polish
+H9 Final cross-page 10-pass + 7-viewport + role audit
+H10 Return to ERP-completion / demo / deploy sequence
+```
+
+One root cause / one microblock / one checkpoint.
+
+## 6. H1 — NEXT EXACT MICROBLOCK
+
+Scope only:
+
+```text
+Sale Detail current HF1 candidate
+normal known-fee sale
+financial-conflict sale
+1440x900
+390x844
+```
+
+Browser gate:
+
+```text
+human comprehension in 5–10 seconds
+status/problem obvious
+primary raw machine codes absent
+technical disclosure works
+empty Billing table chrome absent
+normal product case no internal/page horizontal scroll
+mobile nav does not cover content
+keyboard disclosure usable
+console app errors=0
+captured application HTTP 5xx=0
+read-only side effects unchanged
+```
+
+If PASS:
+
+```text
+persist H1 BROWSER GREEN checkpoint
+STOP before H2
+```
+
+If defect:
+
+```text
+capture evidence
+one focused RED→GREEN microblock
+full QA
+browser retest
+checkpoint
+STOP
+```
+
+## 7. FROZEN
+
+```text
+H2=FROZEN UNTIL H1 CHECKPOINT
+H3=FROZEN
+H4=FROZEN
+H5=FROZEN
+H6=FROZEN
+H7=FROZEN
+H8=FROZEN
+H9=FROZEN
+UI-DM10-B2C2 INVENTORY MISSING-VS-ZERO=MOVED INTO H5
+```
+
+## 8. BACKEND GUARDRAILS
 
 ```text
 429 durable defer/cooldown
@@ -179,11 +223,14 @@ Billing cursor/period behavior preserved
 REMOTE_WRITES=OFF
 ```
 
-## 8. ABSOLUTE NO-GO
+## 9. ABSOLUTE NO-GO
 
 ```text
-NO broad UI implementation before audit plan
-NO B2C2 before audit authorizes sequence
+NO H2 before H1 browser checkpoint
+NO broad redesign
+NO backend owner redesign for presentation
+NO frontend framework migration
+NO fake routes/data/metrics
 NO Hostinger
 NO cron
 NO real MELI mutation
@@ -191,20 +238,15 @@ NO REMOTE_WRITES
 NO F15
 NO F16
 NO merge PR #19
-NO frontend framework migration
-NO UI UX Pro Max runtime dependency
-NO fake routes/data/metrics to satisfy design
 ```
 
-## 9. RESUME EXACTLY FROM HERE
+## 10. RESUME EXACTLY FROM HERE
 
 ```text
-RESUME_EXACTLY_FROM=UX-GOV-AUDIT PASS 1 OF 10 — TRUTH / PERMISSIONS — THEN COMPLETE AUDIT AND NEW IMPROVEMENT PLAN
+RESUME_EXACTLY_FROM=VERIFY CURRENT GOVERNANCE/DOC CI THEN H1 UX-HF1 REAL-BROWSER HUMAN-COMPREHENSION CERTIFICATION
 ```
 
-Audit first. Only after the plan is persisted may implementation resume by one microblock at a time.
-
-## 10. STOP-SAFE
+## 11. STOP-SAFE
 
 ```text
 HUMAN_FIRST_MASTER_IN_REPO=YES
@@ -212,7 +254,9 @@ AGENTS_REFERENCES_MASTER=YES
 PROJECT_DESIGN_MASTER=YES
 REPOSITORY_SKILL_ADAPTER=YES
 PR_GATE=YES
-PRODUCT_FROZEN=YES
+10_PASS_AUDIT=CLOSED
+NEW_PLAN=PERSISTED
+PRODUCT_CODE_FROZEN_AT=d48b4464200b321dc309fbebcd56021f08709ba4
 PR_19=DRAFT / NOT MERGED
 REMOTE_WRITES=OFF
 ```
