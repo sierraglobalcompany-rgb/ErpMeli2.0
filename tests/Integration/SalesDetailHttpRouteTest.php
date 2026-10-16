@@ -49,9 +49,10 @@ final class SalesDetailHttpRouteTest extends TestCase
         self::assertStringContainsString('Producto visible', $visibleHtml);
         self::assertStringContainsString('VISIBLE-401', $visibleHtml);
         self::assertStringNotContainsString('Producto ajeno', $visibleHtml);
-        self::assertStringContainsString('class="page-header"', $visibleHtml);
+        self::assertStringContainsString('class="page-header sale-detail-header"', $visibleHtml);
         self::assertStringContainsString('class="panel sales-summary"', $visibleHtml);
-        self::assertStringContainsString('class="table-wrap"', $visibleHtml);
+        self::assertStringContainsString('class="sale-product-list"', $visibleHtml);
+        self::assertStringContainsString('Ver conciliación técnica', $visibleHtml);
 
         $foreign = Bootstrap::create()->handle(
             (new ServerRequestFactory())->createServerRequest('GET', '/sales/200000000402'),
@@ -61,7 +62,7 @@ final class SalesDetailHttpRouteTest extends TestCase
         self::assertStringNotContainsString('Producto ajeno', (string) $foreign->getBody());
     }
 
-    public function testSaleDetailExposesResponsiveFactTablesWithoutDuplicatingProductRows(): void
+    public function testSaleDetailUsesHumanFirstProductRecordsWithoutDuplicatingFacts(): void
     {
         $pdo = TestDatabase::reset();
         $hash = (new PasswordService())->hash('secret');
@@ -81,11 +82,14 @@ final class SalesDetailHttpRouteTest extends TestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('class="sales-detail-grid"', $html);
-        self::assertStringContainsString('data-responsive-table="sale-products"', $html);
-        self::assertStringContainsString('data-mobile-card="product-row"', $html);
-        self::assertStringContainsString('data-responsive-table="billing-details"', $html);
-        self::assertStringContainsString('data-label="Artículo"', $html);
-        self::assertSame(1, substr_count($html, '>Producto visible<'), 'Mobile composition must transform the same product row instead of duplicating product facts.');
-        self::assertStringContainsString('UNKNOWN', $html, 'Factual unknown semantics must remain visible when evidence is missing.');
+        self::assertStringContainsString('class="sale-product-list"', $html);
+        self::assertStringContainsString('data-sale-product="product-row"', $html);
+        self::assertStringNotContainsString('data-responsive-table="sale-products"', $html);
+        self::assertStringContainsString('class="technical-disclosure"', $html);
+        self::assertStringContainsString('Sin detalles de facturación', $html);
+        self::assertStringNotContainsString('data-responsive-table="billing-details"', $html);
+        self::assertSame(1, substr_count($html, '>Producto visible<'), 'Human-first composition must render each product fact once.');
+        self::assertStringContainsString('Sin información suficiente', $html, 'Primary UI must humanize missing evidence.');
+        self::assertStringContainsString('UNKNOWN', $html, 'Raw factual UNKNOWN semantics must remain available inside technical disclosure.');
     }
 }
