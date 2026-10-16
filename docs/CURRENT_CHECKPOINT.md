@@ -1,8 +1,8 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / UI-DM8-A2 GREEN / NEXT UI-DM8-A3 SETTINGS INVALID INPUT REPRODUCTION / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / UI-DM8-A2 GREEN / UI-DM8-A3 GREEN IMPLEMENTED / CI PARTIAL PASS / STOP-SAFE**
 
-> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
+> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
 ## 1. REPOSITORY AUTHORITY
 
@@ -12,11 +12,16 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=d4e7c51f43f61082c3a9ddfe5eb38a93e720b7e5
-CERTIFIED_ACTIONS_RUN=38830267285
-QA_PHP_8_3=PASS
-QA_PHP_8_4=PASS
-QA_PHP_8_5=PASS
+LAST_FULLY_CERTIFIED_HEAD=d4e7c51f43f61082c3a9ddfe5eb38a93e720b7e5
+LAST_FULLY_CERTIFIED_RUN=38830267285
+LAST_FULLY_CERTIFIED_QA_PHP_8_3=PASS
+LAST_FULLY_CERTIFIED_QA_PHP_8_4=PASS
+LAST_FULLY_CERTIFIED_QA_PHP_8_5=PASS
+CURRENT_GREEN_HEAD=5a135a91f7255522c6f1c03eff2f69eddd3cd535
+CURRENT_GREEN_RUN=38831215153
+CURRENT_GREEN_QA_PHP_8_3=PASS
+CURRENT_GREEN_QA_PHP_8_4=IN_PROGRESS
+CURRENT_GREEN_QA_PHP_8_5=IN_PROGRESS
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
@@ -63,7 +68,7 @@ Decisiones activas:
 - Financial permanece como lectura factual consumida por pantallas existentes;
 - Inventory permanece bajo `/catalog`;
 - LC-P1-1..4 históricos están cerrados en el producto actual;
-- follow-ups DM8 restantes: A3 invalid System Settings input, A4 OAuth callback destination review.
+- follow-up DM8 pendiente después de A3: A4 OAuth callback destination review.
 
 ## 5. UI-DM8-A1 — COMPANY SELECT HOME CONSISTENCY
 
@@ -79,13 +84,6 @@ GREEN_RUN=38829270851
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
-```
-
-Cambio cerrado:
-```text
-GET /company/select with one already-active company:
-OLD=/sales
-NEW=/dashboard
 ```
 
 ## 6. UI-DM8-A2 — COMPANY SELECT PRESENTATION
@@ -110,22 +108,57 @@ Change boundary:
 - no route/controller/domain change;
 - memberships, roles, CSRF and zero Work/API side effects preserved.
 
-## 7. NEXT — UI-DM8-A3 SETTINGS INVALID INPUT REPRODUCTION
+## 7. UI-DM8-A3 — SETTINGS INVALID INPUT
+
+**STATE=GREEN IMPLEMENTED / FULL MATRIX NOT YET CERTIFIED**
+
+Proven defect:
+- `SystemSettingsController::update()` passed numeric-but-invalid values to `SystemSettingsRepository::updateOperationalToggles()`;
+- repository correctly threw `InvalidArgumentException`;
+- controller did not translate it, so HTTP became 500.
+
+RED:
 
 ```text
-NEXT=UI-DM8-A3 SETTINGS INVALID INPUT REPRODUCTION
+RED_COMMIT=173b1a3e0e9f1a36f8086d2b6c9cc17deabf1c34
+RED_RUN=38830859209
+RED_RESULT_PHP_8_3=800 tests / 6700 assertions / exactly 2 expected failures
+FAILURE_1=debug_retention_days=5 returned 500, expected 422
+FAILURE_2=debug_max_mb=9 returned 500, expected 422
+PRODUCTION_CHANGED_IN_RED=NO
 ```
 
-Microblock boundary:
-1. inspect `SystemSettingsController` update validation and existing Settings tests;
-2. reproduce any invalid-input path that still returns 500 instead of a bounded human/client error;
-3. do not change production unless a real failure is proven;
-4. if a defect is proven, add one focused RED test and fix only the root validation/translation boundary;
-5. preserve system-admin-only, CSRF, debug export/clear, hidden `meli_writes_enabled`, and `REMOTE_WRITES=OFF`;
-6. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint;
-7. only then open DM8-A4 OAuth callback destination review.
+GREEN:
 
-## 8. BACKEND GUARDRAILS STILL CLOSED
+```text
+GREEN_COMMIT=5a135a91f7255522c6f1c03eff2f69eddd3cd535
+GREEN_RUN=38831215153
+PHP_8_3=PASS
+PHP_8_4=IN_PROGRESS
+PHP_8_5=IN_PROGRESS
+```
+
+Root fix boundary:
+- only `app/Modules/Settings/SystemSettingsController.php` changed;
+- catches repository `InvalidArgumentException` in `update()`;
+- returns bounded HTTP 422;
+- repository validation remains authoritative and unchanged;
+- CSRF, system-admin guard, debug export/clear, hidden `meli_writes_enabled`, and `REMOTE_WRITES=OFF` preserved.
+
+## 8. RESUME EXACTLY
+
+```text
+RESUME_EXACTLY_FROM=UI-DM8-A3 GREEN RUN 38831215153
+```
+
+Al retomar:
+1. revisar el resultado final del run `38831215153`;
+2. si PHP 8.3/8.4/8.5 están PASS, certificar A3 GREEN y actualizar este checkpoint;
+3. sólo después abrir `UI-DM8-A4 OAUTH CALLBACK DESTINATION REVIEW`;
+4. si cualquier job falla, inspeccionar únicamente ese fallo y corregir causa raíz;
+5. no hacer merge de PR #19.
+
+## 9. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -140,7 +173,7 @@ Billing cursor/period behavior
 REMOTE_WRITES=OFF
 ```
 
-## 9. PRODUCT SEQUENCE
+## 10. PRODUCT SEQUENCE
 
 ```text
 UI-DM8 gap closure
@@ -157,10 +190,10 @@ UI-DM8 gap closure
 → later explicitly authorized phases
 ```
 
-## 10. ABSOLUTE NO-GO
+## 11. ABSOLUTE NO-GO
 
 ```text
-NO DM8-A4 until A3 checkpoint closes
+NO DM8-A4 until A3 full matrix PASS
 NO demo seed
 NO Hostinger
 NO cron
@@ -171,9 +204,9 @@ NO F16
 NO merge PR #19
 ```
 
-## 11. STOP-SAFE
+## 12. STOP-SAFE
 
 ```text
-STOP_NOW=NO
-RESUME_EXACTLY_FROM=UI-DM8-A3 SETTINGS INVALID INPUT REPRODUCTION
+STOP_NOW=YES
+RESUME_EXACTLY_FROM=UI-DM8-A3 GREEN RUN 38831215153
 ```
