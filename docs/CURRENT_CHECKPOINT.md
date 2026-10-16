@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..8 GREEN / NEXT UI-DM9 FULL AUTOMATED QA / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..9 GREEN / NEXT UI-DM10-A STATIC VISUAL-RESPONSIVE AUDIT / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
@@ -13,7 +13,8 @@ IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
 LATEST_CERTIFIED_CODE_HEAD=37f7f789b884d1072208783c7509dc999c83a876
-LATEST_CERTIFIED_RUN=38833133356
+LATEST_BRANCH_QA_HEAD=feecd1b4fe6a262f9da305da444cfe0afe085b31
+LATEST_BRANCH_QA_RUN=38833821545
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -32,7 +33,7 @@ MICROBLOCK=RED → GREEN → full CI → audit → checkpoint → next
 CHECKPOINT_CADENCE=small blocks; persist approximately every 10–12 minutes or sooner at a closed/recoverable unit
 ```
 
-## 3. CLOSED PRODUCT BLOCKS
+## 3. CLOSED BLOCKS
 
 ```text
 UI-DM1 FOUNDATION=GREEN
@@ -52,9 +53,10 @@ UI-DM8-A2 COMPANY SELECT PRESENTATION=GREEN
 UI-DM8-A3 SETTINGS INVALID INPUT=GREEN
 UI-DM8-A4 OAUTH CALLBACK DESTINATION/CONTEXT=GREEN
 UI-DM8 COMPLETENESS AUDIT=GREEN
+UI-DM9 FULL AUTOMATED QA=GREEN
 ```
 
-## 4. UI-DM8 COMPLETENESS MAP
+## 4. UI-DM8 RESULT
 
 ```text
 DOC=docs/UI_DM8_COMPLETENESS_AUDIT.md
@@ -62,51 +64,32 @@ MAP_COMMIT=6f14ef35357e112397ba538ddc140454f270cec2
 RESULT=NO EVIDENCE-BACKED PRODUCT GAP REMAINS INSIDE DM8 SCOPE
 ```
 
-Active decisions preserved:
-- do not invent operator screens for Work runner, RuntimePreflight, ERP API, webhooks, Invoicing bridge, Billing C0 or F13 rehearsal;
-- Financial stays a factual read model consumed by existing human surfaces;
-- Inventory stays under `/catalog`;
-- historical LC-P1-1..4 are closed in the current product;
-- no extra module is created merely because a backend class exists.
+Preserved decisions:
+- no invented operator screens for Work runner, RuntimePreflight, ERP API, webhooks, Invoicing bridge, Billing C0 or F13 rehearsal;
+- Financial remains a factual read model consumed by existing surfaces;
+- Inventory remains under `/catalog`;
+- no module exists merely because a backend class exists.
 
-## 5. UI-DM8-A1 — COMPANY SELECT HOME CONSISTENCY
+## 5. UI-DM8 KEY CERTIFICATION
 
+### A1 Company select → Home
 ```text
-STATE=GREEN
-RED_COMMIT=4f8893e1637eb2bd76df202da717b80976d6d5fc
-RED_RUN=38828799463
-GREEN_PRODUCTION_COMMIT=cd69a47f8659bbf685fcee5c00675560692758dc
-GREEN_TEST_ALIGNMENT_COMMIT=5de62e520e5f163103b3cb05ef508aa3a49c8fa5
 GREEN_RUN=38829270851
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-## 6. UI-DM8-A2 — COMPANY SELECT PRESENTATION
-
+### A2 Company selector presentation
 ```text
-STATE=GREEN
-RED_COMMIT=a1bab019588144b929ae717dd469d5aecbc184f7
-RED_RUN=38829656997
-GREEN_COMMIT=d4e7c51f43f61082c3a9ddfe5eb38a93e720b7e5
 GREEN_RUN=38830267285
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Boundary:
-- only `app/Core/Http/views/company-select.php` changed;
-- shared Design Master components reused;
-- memberships, roles, CSRF and zero Work/API side effects preserved.
-
-## 7. UI-DM8-A3 — SETTINGS INVALID INPUT
-
+### A3 Invalid settings boundary
 ```text
-STATE=GREEN
-RED_COMMIT=173b1a3e0e9f1a36f8086d2b6c9cc17deabf1c34
-RED_RUN=38830859209
 GREEN_COMMIT=5a135a91f7255522c6f1c03eff2f69eddd3cd535
 GREEN_RUN=38831215153
 PHP_8_3=PASS
@@ -114,17 +97,8 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Root fix:
-- repository validation remains authoritative;
-- numeric-but-invalid system settings now return HTTP 422 instead of leaking 500;
-- CSRF, system-admin guard, debug export/clear, hidden `meli_writes_enabled`, and `REMOTE_WRITES=OFF` preserved.
-
-## 8. UI-DM8-A4 — OAUTH CALLBACK DESTINATION / COMPANY CONTEXT
-
+### A4 OAuth callback destination/context
 ```text
-STATE=GREEN
-RED_COMMIT=8dc33da62b7afe6405e5edf1a05eae800916488b
-RED_RUN=38832223024
 GREEN_PRODUCTION_COMMIT=14c36eeb4e9878f3ef5d8a882753308d6770d84e
 HISTORICAL_TEST_ALIGNMENT_COMMIT=37f7f789b884d1072208783c7509dc999c83a876
 FINAL_RUN=38833133356
@@ -133,27 +107,61 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Proven root fix:
-- successful OAuth callback restores `$_SESSION['company_id']` to the company bound when OAuth began;
-- successful callback redirects to `/mercadolibre/accounts`, the human owner of the flow;
-- state/PKCE consume-once, seller/company binding, reauthorization guard, encrypted token persistence and replay rejection remain unchanged;
-- `REMOTE_WRITES=OFF` remains unchanged.
+OAuth root fix preserves state/PKCE consume-once, seller/company binding, reauthorization guard, encrypted token persistence, replay rejection and `REMOTE_WRITES=OFF`.
 
-## 9. NEXT — UI-DM9 FULL AUTOMATED QA
+## 6. UI-DM9 — FULL AUTOMATED QA
+
+**STATE=GREEN**
+
+QA authority proven from repository:
 
 ```text
-NEXT=UI-DM9 FULL AUTOMATED QA
+composer qa = PHP lint + PHPStan + full PHPUnit
+phpunit.xml = entire tests/ directory
+phpstan = app + bin + public
+workflow = PHP 8.3 / 8.4 / 8.5 + MariaDB 11.4
+REAL_MELI_HTTP=0
 ```
 
-Small-block execution:
-1. inspect `composer.json`, `phpunit.xml`, `phpstan.neon` and `.github/workflows/*` to prove what the current QA actually covers;
-2. verify the latest certified run is full enough for Design Master completion, not merely a focal suite;
-3. inspect PR #19 diff/file inventory for accidental architecture/noise: duplicate routes, new frameworks, migrations, duplicate data owners, remote-write enablement, fake modules;
-4. verify explicit guardrails: Work/429, Billing, Financial UNKNOWN/CONFLICT, OAuth lifecycle, tenancy/roles, CSRF, responsive contracts;
-5. if a real gap is found, open a separate RED microblock; otherwise certify DM9 without speculative changes;
-6. checkpoint before UI-DM10.
+Final branch run:
 
-## 10. BACKEND GUARDRAILS STILL CLOSED
+```text
+RUN=38833821545
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+```
+
+PR #19 audit result:
+- no migrations added;
+- no new frontend framework or Composer dependency;
+- no Work architecture changes;
+- no BillingPeriodSyncHandler changes;
+- no FinancialReadModel changes;
+- no MELI client/OAuth service changes;
+- Dashboard is bounded local SQL/read-only composition;
+- only one small vanilla JS launcher;
+- product navigation reuses real authorized destinations;
+- guardrail tests for 429/Work/Billing/Financial/OAuth/tenancy/CSRF/responsive are inside the full suite;
+- PR title/body updated to remove stale `UI-DM1 / no dashboard yet` documentation drift.
+
+No evidence-backed code gap was found in DM9.
+
+## 7. NEXT — UI-DM10-A STATIC VISUAL / RESPONSIVE AUDIT
+
+```text
+NEXT=UI-DM10-A STATIC VISUAL-RESPONSIVE AUDIT
+```
+
+Scope for this small block:
+1. audit current shell/views/CSS/JS against D-01/M-01/T-01 contracts;
+2. verify responsive breakpoints, mobile table→card behavior, fixed bottom nav, launcher focus/ESC semantics, authorized/dead destination rules and accessibility markers;
+3. inspect for CSS patch noise (`!important`, duplicate media systems, per-page hacks) and viewport-risk patterns;
+4. do not claim visual certification from static code alone;
+5. if static gap is proven, open a focused RED microblock; otherwise close DM10-A and set `NEXT=UI-DM10-B REAL BROWSER QA`;
+6. DM10-B will require actual rendered-browser evidence at the approved viewport matrix and may be delegated to Codex/local PC because that is the capability boundary.
+
+## 8. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -168,11 +176,11 @@ Billing cursor/period behavior
 REMOTE_WRITES=OFF
 ```
 
-## 11. PRODUCT SEQUENCE
+## 9. PRODUCT SEQUENCE
 
 ```text
-UI-DM9 full automated QA
-→ UI-DM10 final visual/responsive QA
+UI-DM10-A static visual/responsive audit
+→ UI-DM10-B real browser QA
 → ERP COMPLETE
 → local demo
 → manual E2E
@@ -184,7 +192,7 @@ UI-DM9 full automated QA
 → later explicitly authorized phases
 ```
 
-## 12. ABSOLUTE NO-GO
+## 10. ABSOLUTE NO-GO
 
 ```text
 NO demo seed
@@ -197,10 +205,10 @@ NO F16
 NO merge PR #19
 ```
 
-## 13. STOP-SAFE
+## 11. STOP-SAFE
 
 ```text
 STOP_NOW=NO
-RESUME_EXACTLY_FROM=UI-DM9 FULL AUTOMATED QA
-DO_NOT_OPEN_UI_DM10_UNTIL_DM9_CHECKPOINT=YES
+RESUME_EXACTLY_FROM=UI-DM10-A STATIC VISUAL-RESPONSIVE AUDIT
+DO_NOT_OPEN_DM10_B_UNTIL_DM10_A_CHECKPOINT=YES
 ```
