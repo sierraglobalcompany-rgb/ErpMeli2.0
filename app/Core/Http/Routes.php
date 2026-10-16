@@ -407,8 +407,9 @@ final class Routes
                 return $response->withStatus(502);
             }
             unset($_SESSION['meli_oauth_reauthorize_account_id']);
+            $_SESSION['company_id'] = $boundCompanyId;
 
-            return $response->withHeader('Location', '/sales')->withStatus(303);
+            return $response->withHeader('Location', '/mercadolibre/accounts')->withStatus(303);
         });
 
         $app->get('/catalog', static function (
