@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H2B1 TYPOGRAPHY/TOUCH AUDIT DIAGNOSED / H2B2 NEXT / STOP-SAFE**
+**CURRENT=H2B2 SHARED TYPOGRAPHY/TOUCH GREEN / NEXT=H3 DASHBOARD HUMAN-FIRST / STOP-SAFE**
 
 Autoridad operativa de recuperación. Retomar desde `RESUME_EXACTLY_FROM`.
 
@@ -13,8 +13,8 @@ IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
 H1_FIX1_STARTING_HEAD=ce11219158470c7bc122ba56680af7ff144cfbba
-CURRENT_PRODUCT_CANDIDATE_HEAD=3b173b9d72a4383b1db879b59f8132f4fa735b4a
-EXACT_PRODUCT_CI_RUN=38941700937
+CURRENT_PRODUCT_CANDIDATE_HEAD=cbc32e7b8f2ad534a051946cb8a644d62cf84f75
+EXACT_PRODUCT_CI_RUN=38962684020
 EXACT_PRODUCT_CI=completed / success
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
@@ -159,14 +159,68 @@ mobile/tablet/desktop screenshots and SHA-256 manifest. Server and disposable DB
 secrets/runtime files cleared, temporary tab closed and viewport restored.
 No unrelated dangerous defect, captured application 5xx or browser console error found.
 
+## H2B2 — shared readability and touch closed
+
+```text
+H2B2_STARTING_HEAD=c5f180ee902fc8bf822f1018825b5083d4f2281c
+H2B2_PRODUCT_HEAD=cbc32e7b8f2ad534a051946cb8a644d62cf84f75
+H2B2_PRODUCT_CI=38962684020 completed / success; PHP 8.3 / 8.4 / 8.5 PASS
+H2B2_LOCAL_QA=PASS; lint / PHPStan / 810 tests / 6787 assertions / 1 skipped / 0 errors / 0 failures
+H2B1_01=CLOSED
+H2B1_02=CLOSED for audited shared owners; row-actions remains DEFER
+H2B1_03=CLOSED
+BODY_FONT=16px
+SHARED_TOUCH_FLOOR=44px
+APPS_CLOSE=44x44
+MOBILE_NAV_FONT=12px
+MOBILE_NAV_SLOTS=5 EXACT
+390=PASS
+430=PASS
+768=PASS
+1440_REFERENCE=PASS
+H2B3_STARTED=NO
+H3_STARTED=NO
+STOP_SAFE=YES
+```
+
+Three focused RED tests failed on existing body15, input floor42 and competing nav font rules.
+Minimal GREEN replaces existing body/form/button/close values, removes the narrow8.5px
+nav override and raises the existing nav height68->80 for readable12px labels.
+Only app.css and DesignMasterResponsiveContractTest.php changed in the product commit.
+Focused GREEN: 3 tests/18 assertions; full responsive class14 tests/93 assertions.
+No views, JS, backend, route, dependency, breakpoint or row-action changes.
+
+Real-browser certification followed exact product CI success: five routes at each of
+390x844,430x932,768x1024 and1440x900; Apps at390/430.
+Body/form/labels16px; body line-height24.8px (1.55); shared controls>=44px,
+typical44.40px, native dates46.40px, Apps close44x44.
+Five nav targets remain exact and>=44x44; labels12px. Mercado Libre wraps to two
+unclipped lines at390/430, one at768. No label/icon collision or page horizontal overflow.
+Apps cards remain unclipped, central orb48x48 dominant, Escape/focus return PASS.
+H2A smoke390/1440: first Tab exposes skip link, Enter focuses MAIN#main-content,
+next Tab reaches from inside main. Desktop shell/sidebar intact.
+
+Mobile/tablet:140 visible target exposures, all>=44x44. Desktop reference retains45
+exposures of existing sidebar links40px high; those links are outside audited form owners.
+No blanket WCAG certification is claimed; no iOS/Safari or nonzero safe-area device test.
+Micro labels were preserved. Row-actions/textarea not rendered by the minimal fixture;
+textarea shares the tested CSS owner but is not independently browser-certified.
+
+No business form submitted; Work/API/Billing rows remained zero before/after browser QA.
+No captured application5xx or browser console errors. Disposable server/container removed,
+runtime files and secrets cleared, temporary tab closed and viewport restored.
+Evidence: `C:\codex\evidence\erp-meli2\human-first\h2b2\` contains RED/GREEN/full QA,
+exact-head CI, actual patch, browser-after JSON/summary, screenshots, DB before/after,
+review/dispositions, report and SHA-256 manifest. H3 is next per the existing plan, not started.
+
 ## Next / frozen
 
 ```text
-NEXT=H2B2 SHARED MOBILE TYPOGRAPHY/TOUCH FIX + EXISTING NAV LEGIBILITY; CSS ONLY; PRESERVE FIVE SLOTS
-H2B2_STARTED=NO
+NEXT=H3 DASHBOARD HUMAN-FIRST
+H3_STARTED=NO
 H3..H9=FROZEN
 UI-DM10-B2C2 INVENTORY MISSING-VS-ZERO=MOVED INTO H5
-RESUME_EXACTLY_FROM=H2B2 MINIMAL SHARED CSS FIX WHEN AUTHORIZED
+RESUME_EXACTLY_FROM=H3 DASHBOARD HUMAN-FIRST WHEN AUTHORIZED
 STOP_SAFE=YES
 ```
 
