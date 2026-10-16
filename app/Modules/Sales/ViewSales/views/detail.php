@@ -240,7 +240,7 @@ $postSaleLabel = match ($postSaleRaw) {
                     <div class="section-heading">
                         <div>
                             <span class="eyebrow">Facturación / postventa</span>
-                            <h2 id="invoice-review-title">Factura y postventa</h2>
+                            <h2 id="invoice-review-title">Factura / Postventa</h2>
                         </div>
                     </div>
 
