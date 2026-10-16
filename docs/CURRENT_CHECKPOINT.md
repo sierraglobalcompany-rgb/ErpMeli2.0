@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=UI-DM10-B2C1 GREEN / HUMAN-FIRST UX ACTIVE / UX-HF1 RED CERTIFIED / UX-HF1 GREEN CANDIDATE PARTIAL / STOP-SAFE**
+**CURRENT=UI-DM10-B2C1 GREEN / HUMAN-FIRST UX ACTIVE / UX-HF1 AUTOMATED GREEN / UX-HF1 BROWSER QA PENDING / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
@@ -12,15 +12,17 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LAST_KNOWN_BRANCH_HEAD_BEFORE_THIS_CHECKPOINT=2ab34d80cd196dd5dedfdad07b4c8c2a2eef4814
-LATEST_CERTIFIED_PRODUCT_HEAD=a4d74349e5e28e4013a952bd47ea70ef12e1dd9a
-LATEST_CERTIFIED_PRODUCT_RUN=38836597229
+CURRENT_PRODUCT_CANDIDATE_HEAD=d48b4464200b321dc309fbebcd56021f08709ba4
+UX_HF1_AUTOMATED_RUN=38924219467
+QA_PHP_8_3=PASS
+QA_PHP_8_4=PASS
+QA_PHP_8_5=PASS
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0
 HOSTINGER_UI_DEPLOYED=NO
 ```
 
-## 2. CLOSED WORK
+## 2. CLOSED TECHNICAL / BROWSER WORK
 
 ```text
 UI-DM1..UI-DM10-A=GREEN
@@ -30,7 +32,7 @@ UI-DM10-B2B=GREEN
 UI-DM10-B2C1 FINANCIAL CONFLICT=GREEN
 ```
 
-B2C1 authority:
+B2C1 factual authority remains:
 
 ```text
 SOURCE_HEAD=261812f112f29b7ae026f1f5605e94cc03fd4eb2
@@ -44,7 +46,7 @@ READ_ONLY_SIDE_EFFECTS=0
 
 ## 3. HUMAN-FIRST UX AUTHORITY
 
-User explicitly required the ERP to remain human, easy to understand, useful, well composed and not an infinite spreadsheet/debug console.
+User explicitly requires the ERP to be human, easy to understand, useful, well composed and not an infinite spreadsheet/debug console.
 
 External UX reference:
 
@@ -83,82 +85,106 @@ PHP_8_4=FAIL expected
 PHP_8_5=FAIL expected
 SYNTAX=PASS
 PHPSTAN=PASS
-PHPUNIT_PHP_8_3=804 tests / 6725 assertions / exactly 1 failure
-ONLY_FAILURE=SalesDetailHumanFirstUiTest::testConflictSaleDetailIsHumanFirstAndKeepsRawFactsInTechnicalDisclosure
-FIRST_MISSING_EXPECTATION=Pagada
+ONLY_FAILURE=SalesDetailHumanFirstUiTest
 RED_VALID=YES
 ```
 
-The other Slim error-path logs in the run are known deliberate tests and were not PHPUnit failures.
+### GREEN — AUTOMATED CERTIFIED
 
-### GREEN CANDIDATE — IMPLEMENTED BUT NOT CERTIFIED
-
-Production presentation commits:
+Human-First production commits:
 
 ```text
 b2d5c8c5021bd88450f9758f2984bf39c43b6578 = initial Human-First Sale Detail composition
 d12423174613ff99e6835c28f3e8134bf2a8fb9f = reuse existing Design Master components; no new CSS family
-2ab34d80cd196dd5dedfdad07b4c8c2a2eef4814 = preserve existing human "Factura / Postventa" contract
+2ab34d80cd196dd5dedfdad07b4c8c2a2eef4814 = preserve human "Factura / Postventa" contract
+d48b4464200b321dc309fbebcd56021f08709ba4 = preserve historical Reconciliación contract inside technical disclosure
 ```
 
-Implemented presentation direction:
+Test alignment:
+
+```text
+9aca934849cdb9bbce25aaaefb2bcc242fc1f183 = align obsolete Sale Detail table assertions with Human-First layout
+```
+
+Final automated certification:
+
+```text
+RUN=38924219467
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+UX_HF1_AUTOMATED_GREEN=YES
+```
+
+The intermediate run `38923697594` had exactly 3 compatibility failures because old tests required literal `Reconciliación`. Root fix was not to restore machine-first UI; the technical disclosure now contains the explicit heading `Reconciliación técnica`.
+
+### CURRENT PRESENTATION CONTRACT
 
 ```text
 paid -> Pagada in primary UI
 CONFLICT -> Requiere revisión in primary UI
 UNKNOWN -> Sin información suficiente in primary UI
-raw CONFLICT/UNKNOWN remain available in technical disclosure
+raw CONFLICT/UNKNOWN remain in technical disclosure
 financial conflict gets a human attention summary
-products render as compact records instead of the mini-table for the normal case
-empty Billing no longer renders empty table chrome
-Facturación/Postventa primary labels are humanized
-raw readiness/post-sale states remain in "Ver estados técnicos"
-backend owners/queries/financial semantics unchanged
+products render as compact records instead of the normal-case mini-table
+empty Billing does not render empty table chrome
+Factura/Postventa primary states are humanized
+raw readiness/post-sale states remain under Ver estados técnicos
+technical reconciliation remains under Ver conciliación técnica
+backend owners/queries/Financial semantics unchanged
 no CSS framework/new dependency
 no JS change
 no route change
 no migration
 ```
 
-## 5. IMPORTANT — WORK INTERRUPTED BY USER STOP
-
-The attempted next action was to align old UI assertions in:
+## 5. NEXT — UX-HF1 REAL BROWSER HUMAN-COMPREHENSION QA
 
 ```text
-tests/Integration/SalesDetailHttpRouteTest.php
+RESUME_EXACTLY_FROM=UX-HF1 REAL BROWSER HUMAN-COMPREHENSION QA
 ```
 
-That update was NOT completed because the user requested: `crea un checkpoint y para`.
-
-Therefore:
+Required real-browser checks before HF1 may close:
 
 ```text
-UX_HF1_GREEN_CERTIFIED=NO
-CURRENT_PRODUCTION_CANDIDATE_HEAD=2ab34d80cd196dd5dedfdad07b4c8c2a2eef4814
-FULL_CI_AFTER_GREEN=NOT_RUN/NOT_CERTIFIED
-BROWSER_QA_AFTER_GREEN=NOT_RUN
-OLD_UI_ASSERTION_ALIGNMENT=INCOMPLETE
+VIEWPORTS=1440x900 + 390x844
+SCENARIO_A=normal known-fee sale
+SCENARIO_B=financial conflict sale
+PRIMARY_5_TO_10_SECOND_COMPREHENSION=PASS required
+PRIMARY_RAW_MACHINE_CODES=NO
+PROGRESSIVE_DISCLOSURE=works
+EMPTY_BILLING_TABLE_CHROME=NO when zero rows
+PRODUCT_INTERNAL_HORIZONTAL_SCROLL=NO for ordinary 1–5 items
+PAGE_HORIZONTAL_OVERFLOW=NO
+MOBILE_BOTTOM_NAV_OVERLAP=NO
+CONSOLE_APP_ERRORS=NONE
+CAPTURED_HTTP_5XX=NONE
+READ_ONLY_SIDE_EFFECTS=0
 ```
 
-Do NOT claim HF1 GREEN yet.
+Browser QA must judge composition, hierarchy and human comprehension — not just whether HTML technically renders.
 
-## 6. RESUME EXACTLY FROM HERE
+If a visual/comprehension defect is found:
 
 ```text
-RESUME_EXACTLY_FROM=UX-HF1 GREEN CANDIDATE VERIFICATION + TEST ALIGNMENT
+CAPTURE EVIDENCE -> STOP -> open one focused RED/GREEN microblock
 ```
 
-On resume:
+Do not continue automatically to HF2.
 
-1. Inspect branch head first; do not assume chat state.
-2. Confirm `app/Modules/Sales/ViewSales/views/detail.php` at current head contains the Human-First candidate.
-3. Inspect `tests/Integration/SalesDetailHttpRouteTest.php` to confirm the interrupted update did not land.
-4. Align only obsolete presentation assertions; do not weaken factual/backend assertions.
-5. Run full CI PHP 8.3/8.4/8.5.
-6. If failures expose a real semantic regression, fix root cause only.
-7. If automated QA is GREEN, run Sale Detail browser QA at 1440x900 and 390x844.
-8. Verify primary page is human-readable, technical disclosure works, no ordinary product horizontal scroll, no empty Billing table chrome, no page horizontal overflow, no 5xx/app-console errors.
-9. Persist UX-HF1 GREEN checkpoint and STOP before UX-HF2.
+## 6. AFTER UX-HF1
+
+Only after browser PASS + persisted checkpoint:
+
+```text
+UX-HF2 Dashboard
+UX-HF3 Sales List / historical audit
+UX-HF4 Catalog + Inventory workflow
+UX-HF5 Billing
+UX-HF6 MELI/Admin/settings focused audit
+UX-HF7 cross-page responsive/human-comprehension audit
+THEN resume factual gate UI-DM10-B2C2 Inventory missing-vs-zero
+```
 
 ## 7. FROZEN
 
@@ -172,11 +198,26 @@ UX-HF6 MELI/ADMIN=NOT_STARTED
 UX-HF7 CROSS-PAGE AUDIT=NOT_STARTED
 ```
 
-## 8. ABSOLUTE NO-GO
+## 8. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
-NO B2C2 before UX-HF1 GREEN checkpoint
-NO UX-HF2 before UX-HF1 checkpoint
+429 durable defer/cooldown
+Work durable execution
+no inline retry storm
+no FIFO/HOL resurrection
+no child/page Work explosion
+OAuth lifecycle
+company/account scoping
+Financial UNKNOWN/CONFLICT semantics
+Billing cursor/period behavior
+REMOTE_WRITES=OFF
+```
+
+## 9. ABSOLUTE NO-GO
+
+```text
+NO B2C2 before Human-First sequence authorizes it
+NO UX-HF2 before UX-HF1 browser checkpoint
 NO Hostinger
 NO cron
 NO real MELI mutation
@@ -188,13 +229,15 @@ NO frontend framework migration
 NO UI UX Pro Max runtime dependency
 ```
 
-## 9. STOP-SAFE
+## 10. STOP-SAFE
 
 ```text
-STOP_NOW=YES
+STOP_NOW=NO
 PR_19=DRAFT / NOT MERGED
 HUMAN_FIRST_AUDIT=ACTIVE_AUTHORITY
 UX_HF1_RED=CERTIFIED
-UX_HF1_GREEN=CANDIDATE_ONLY
-DO_NOT_CONTINUE_UNTIL_USER_SAYS_CONTINUE=YES
+UX_HF1_AUTOMATED_GREEN=YES
+UX_HF1_BROWSER_GREEN=NO
+B2C2=FROZEN
+DO_NOT_CLAIM_HF1_COMPLETE_BEFORE_BROWSER_PASS=YES
 ```
