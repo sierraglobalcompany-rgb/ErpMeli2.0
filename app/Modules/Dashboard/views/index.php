@@ -14,7 +14,7 @@ require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
 <main id="main-content" tabindex="-1">
     <header class="page-header">
         <h1>Inicio / Resumen</h1>
-        <p>Vista factual de la operación local de <?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?>.</p>
+        <p>Resumen de la operación de <?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?>.</p>
     </header>
 
     <form method="get" action="/dashboard" aria-label="Rango del resumen">
@@ -32,12 +32,12 @@ require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
             <span class="eyebrow">Operación</span>
             <h2>Órdenes del período</h2>
             <strong data-dashboard-kpi="orders"><?= $snapshot['orders'] ?></strong>
-            <p>Órdenes locales de la empresa activa dentro del rango seleccionado.</p>
+            <p>Órdenes de la empresa en el período seleccionado.</p>
         </section>
 
         <section class="panel">
             <span class="eyebrow">Productos</span>
-            <h2>Productos locales</h2>
+            <h2>Productos</h2>
             <strong data-dashboard-kpi="products"><?= $snapshot['products'] ?></strong>
             <p>Productos registrados para esta empresa.</p>
         </section>
@@ -46,7 +46,7 @@ require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
             <span class="eyebrow">Finanzas</span>
             <h2>Ventas por moneda</h2>
             <?php if ($snapshot['sales_by_currency'] === []): ?>
-                <p>Sin ventas representables en este período.</p>
+                <p>No hay ventas en este período.</p>
             <?php else: ?>
                 <dl class="settings-list">
                     <?php foreach ($snapshot['sales_by_currency'] as $currency): ?>
@@ -63,8 +63,8 @@ require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
         <section class="panel">
             <span class="eyebrow">Cobertura financiera</span>
             <h2>Rentabilidad</h2>
-            <strong data-dashboard-profitability="UNKNOWN">UNKNOWN</strong>
-            <p>El ERP todavía no tiene un owner agregado autorizado para calcular rentabilidad global sin perder semántica factual.</p>
+            <strong data-dashboard-profitability="UNKNOWN">No disponible</strong>
+            <p>Aún no hay información suficiente para calcularla con seguridad.</p>
         </section>
 
         <section class="panel">
@@ -101,9 +101,14 @@ require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
                     <thead><tr><th>Venta</th><th>Estado</th><th>Fecha</th><th>Valor</th></tr></thead>
                     <tbody>
                     <?php foreach ($snapshot['recent_orders'] as $order): ?>
+                        <?php $statusLabel = match (strtolower($order['status'])) {
+                            'paid' => 'Pagada',
+                            'cancelled' => 'Cancelada',
+                            default => ucfirst(str_replace('_', ' ', $order['status'])),
+                        }; ?>
                         <tr>
                             <td><a href="/sales/<?= rawurlencode($order['external_order_id']) ?>"><?= htmlspecialchars($order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></a></td>
-                            <td><?= htmlspecialchars($order['status'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-dashboard-order-status="<?= htmlspecialchars($order['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?></td>
                             <td><?= htmlspecialchars($order['date_created'], ENT_QUOTES, 'UTF-8') ?></td>
                             <td><?= htmlspecialchars($order['currency_id'] . ' ' . $order['total_amount'], ENT_QUOTES, 'UTF-8') ?></td>
                         </tr>

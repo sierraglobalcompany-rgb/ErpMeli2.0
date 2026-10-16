@@ -106,4 +106,34 @@ final class DashboardHttpRouteTest extends TestCase
             self::assertSame(422, $response->getStatusCode());
         }
     }
+
+    public function testDashboardPresentsHumanMeaningWhilePreservingRawTruth(): void
+    {
+        $this->pdo->exec("INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,nickname,status) VALUES (10,1,'700000101','MCO','Principal','connected')");
+        $this->pdo->exec(
+            "INSERT INTO orders(company_id,account_id,external_order_id,status,date_created,total_amount,currency_id) VALUES "
+            . "(1,10,'200000000101','paid','2026-10-05 10:00:00.000000',100000.0000,'COP'),"
+            . "(1,10,'200000000102','cancelled','2026-10-06 10:00:00.000000',25.0000,'USD')"
+        );
+
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/dashboard')
+                ->withQueryParams(['from' => '2026-10-01', 'to' => '2026-10-31']),
+        );
+        $html = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringNotContainsString('Vista factual de la operación local', $html);
+        self::assertStringContainsString('Resumen de la operación de Main.', $html);
+        self::assertStringContainsString('data-dashboard-profitability="UNKNOWN">No disponible</strong>', $html);
+        self::assertStringContainsString('Aún no hay información suficiente para calcularla con seguridad.', $html);
+        self::assertStringNotContainsString('>UNKNOWN<', $html);
+        self::assertStringNotContainsString('owner agregado autorizado', $html);
+        self::assertStringContainsString('data-dashboard-order-status="paid">Pagada</td>', $html);
+        self::assertStringContainsString('data-dashboard-order-status="cancelled">Cancelada</td>', $html);
+        self::assertDoesNotMatchRegularExpression('/<td[^>]*>\s*(?:paid|cancelled)\s*<\/td>/', $html);
+        self::assertMatchesRegularExpression('/data-dashboard-sales-currency="COP"[^>]*>COP<\/dt>\s*<dd data-dashboard-sales-amount="100000\.0000"/', $html);
+        self::assertMatchesRegularExpression('/data-dashboard-sales-currency="USD"[^>]*>USD<\/dt>\s*<dd data-dashboard-sales-amount="25\.0000"/', $html);
+        self::assertSame(2, substr_count($html, 'data-dashboard-sales-currency='));
+    }
 }
