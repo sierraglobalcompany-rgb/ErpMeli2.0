@@ -10,6 +10,47 @@ use Slim\Psr7\Factory\ServerRequestFactory;
 
 final class DesignMasterResponsiveContractTest extends TestCase
 {
+    public function testSharedOperationalTypographyUsesHumanFirstSixteenPixelBaseline(): void
+    {
+        $css = $this->servedStylesheet();
+        self::assertMatchesRegularExpression('/\bfont:\s*16px\/1\.55\s/', $this->singleStyleRule($css, 'body'));
+    }
+
+    public function testSharedFormAndLauncherControlsUsePreferredTouchFloor(): void
+    {
+        $css = $this->servedStylesheet();
+        foreach (['input, select, textarea', 'button, .button', '.button-secondary', '.apps-launcher-close'] as $selector) {
+            self::assertMatchesRegularExpression('/\bmin-height:\s*44px\s*;/', $this->singleStyleRule($css, $selector), $selector);
+        }
+        $close = $this->singleStyleRule($css, '.apps-launcher-close');
+        self::assertMatchesRegularExpression('/(?:^|;)\s*width:\s*44px\s*;/', $close);
+        self::assertMatchesRegularExpression('/(?:^|;)\s*height:\s*44px\s*;/', $close);
+    }
+
+    public function testCriticalMobileNavigationLabelsUseReadableTwelvePixelBaseline(): void
+    {
+        $css = $this->servedStylesheet();
+        $rule = $this->singleStyleRule($css, '.mobile-bottom-nav > a, .mobile-bottom-nav > span, .mobile-bottom-nav > button');
+        self::assertMatchesRegularExpression('/\bfont-size:\s*12px\s*;/', $rule);
+    }
+
+    private function servedStylesheet(): string
+    {
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/assets/app.css'),
+        );
+        self::assertSame(200, $response->getStatusCode());
+        return (string) $response->getBody();
+    }
+
+    private function singleStyleRule(string $css, string $selector): string
+    {
+        $css = (string) preg_replace('/\s+/', ' ', $css);
+        preg_match_all('~(?:^|[{}])\s*' . preg_quote($selector, '~') . '\s*\{([^{}]*)\}~', $css, $matches);
+        self::assertCount(1, $matches[1], 'One authoritative rule: ' . $selector);
+        return $matches[1][0];
+    }
+
     public function testSharedNavigationExposesOneSkipLinkBeforePersistentChrome(): void
     {
         $html = $this->renderNavigation('admin', true);
