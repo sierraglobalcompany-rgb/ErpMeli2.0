@@ -145,7 +145,7 @@ $isActive = static fn (string $path): bool => $path === '/'
     </nav>
 
     <div class="apps-launcher" id="apps-launcher" data-apps-launcher hidden>
-        <button class="apps-launcher-backdrop" type="button" data-apps-launcher-close aria-label="Cerrar aplicaciones"></button>
+        <button class="apps-launcher-backdrop" type="button" tabindex="-1" data-apps-launcher-close aria-label="Cerrar aplicaciones"></button>
         <section class="apps-launcher-sheet" role="dialog" aria-modal="true" aria-labelledby="apps-launcher-title" tabindex="-1">
             <div class="apps-launcher-header">
                 <div>
