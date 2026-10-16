@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H2B2 SHARED TYPOGRAPHY/TOUCH GREEN / NEXT=H3 DASHBOARD HUMAN-FIRST / STOP-SAFE**
+**CURRENT=H3 DASHBOARD HUMAN-FIRST GREEN / NEXT=H4 SALES LIST HUMAN-FIRST / STOP-SAFE**
 
 Autoridad operativa de recuperación. Retomar desde `RESUME_EXACTLY_FROM`.
 
@@ -13,8 +13,8 @@ IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
 H1_FIX1_STARTING_HEAD=ce11219158470c7bc122ba56680af7ff144cfbba
-CURRENT_PRODUCT_CANDIDATE_HEAD=cbc32e7b8f2ad534a051946cb8a644d62cf84f75
-EXACT_PRODUCT_CI_RUN=38962684020
+CURRENT_PRODUCT_CANDIDATE_HEAD=78e1ceb3073ffcc847c34cada7dafd550d3d86ce
+EXACT_PRODUCT_CI_RUN=38968197740
 EXACT_PRODUCT_CI=completed / success
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
@@ -213,14 +213,69 @@ Evidence: `C:\codex\evidence\erp-meli2\human-first\h2b2\` contains RED/GREEN/ful
 exact-head CI, actual patch, browser-after JSON/summary, screenshots, DB before/after,
 review/dispositions, report and SHA-256 manifest. H3 is next per the existing plan, not started.
 
+## H3 — Dashboard Human-First closed
+
+```text
+H3_STARTING_HEAD=caf3bf2ee3682fac915caba7f0cf65ce6fc7c96c
+H3_PRODUCT_HEAD=78e1ceb3073ffcc847c34cada7dafd550d3d86ce
+H3_PRODUCT_CI=38968197740 completed / success; PHP 8.3 / 8.4 / 8.5 PASS
+H3_LOCAL_QA=PASS; lint / PHPStan / 811 tests / 6800 assertions / 1 skipped / 0 errors / 0 failures
+UX_002=CLOSED
+UX_003=CLOSED
+PROFITABILITY_RAW=UNKNOWN
+PROFITABILITY_PRIMARY=No disponible
+CURRENCY_SEPARATION=GREEN
+RECENT_PAID=Pagada
+RECENT_CANCELLED=Cancelada
+DESKTOP_1440=PASS
+MOBILE_390=PASS
+H4_STARTED=NO
+STOP_SAFE=YES
+```
+
+Production changes only Dashboard/views/index.php; the existing DashboardHttpRouteTest
+adds one integrated presentation contract. RED failed on the technical introduction.
+Focused GREEN: 1 test / 13 assertions; Dashboard class: 4 tests / 35 assertions.
+No ReadModel, controller, route, navigation, CSS, JS, query or dependency changes.
+
+The introduction now says Resumen de la operación de <empresa>.
+Rentabilidad shows No disponible and explains that information is insufficient for a safe
+calculation; data-dashboard-profitability remains UNKNOWN. Recent paid/cancelled states
+show Pagada/Cancelada, preserving raw tokens in data-dashboard-order-status.
+Other statuses follow the existing Sale Detail token-humanization precedent; no service added.
+Technical/local-storage wording was removed without restructuring the Dashboard.
+
+DashboardReadModel retains company/date scope, counts, account states, recent orders and
+GROUP BY currency_id. No combined-currency total, UNKNOWN-to-zero or profitability calculation.
+Existing company-scoping and read-only tests pass.
+
+Real browser after exact product CI success, at 1440x900 and 390x844: explicit October range,
+2 orders, 0 products, separate COP100000.0000 / USD25.0000, No disponible and its explanation,
+connected account1, attention0, both human statuses and raw DOM metadata verified.
+No page horizontal overflow; five mobile slots at12px preserved; first Tab exposes the
+outlined skip link and Enter focuses MAIN#main-content. Comprehension is an audit heuristic,
+not a participant timing study.
+
+H3-OBS-01 MINOR / NON_BLOCKING / DEFER: the existing mobile recent-sales table has internal
+horizontal scroll (wrapper316px/content468px). Both statuses are visible initially;
+native horizontal scroll exposes values. No page overflow or CSS patch. This does not
+certify a broader redesign of mobile tables.
+
+Selected order/account rows and product/Work/API/Billing counts match before/after browsing.
+No business forms, Work/Billing execution or real MELI writes; app5xx0 and console errors0.
+Server/container removed, own runtime files/secrets cleared, temporary tab closed and viewport
+reset. Evidence: `C:\codex\evidence\erp-meli2\human-first\h3\` contains source audit, patch,
+RED/GREEN/full QA, exact CI, browser text/DOM/geometry/screenshots, DB before/after, review,
+report and SHA-256 manifest. H4 remains unstarted.
+
 ## Next / frozen
 
 ```text
-NEXT=H3 DASHBOARD HUMAN-FIRST
-H3_STARTED=NO
-H3..H9=FROZEN
+NEXT=H4 SALES LIST HUMAN-FIRST
+H4_STARTED=NO
+H4..H9=FROZEN
 UI-DM10-B2C2 INVENTORY MISSING-VS-ZERO=MOVED INTO H5
-RESUME_EXACTLY_FROM=H3 DASHBOARD HUMAN-FIRST WHEN AUTHORIZED
+RESUME_EXACTLY_FROM=H4 SALES LIST HUMAN-FIRST WHEN AUTHORIZED
 STOP_SAFE=YES
 ```
 
