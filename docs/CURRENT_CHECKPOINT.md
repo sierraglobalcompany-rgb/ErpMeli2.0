@@ -1,8 +1,8 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / UI-DM8-A2 RED CREATED / CI RUNNING / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / UI-DM8-A2 GREEN / NEXT UI-DM8-A3 SETTINGS INVALID INPUT REPRODUCTION / STOP-SAFE**
 
-> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
+> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
 
 ## 1. REPOSITORY AUTHORITY
 
@@ -12,13 +12,11 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LAST_FULLY_CERTIFIED_HEAD=5de62e520e5f163103b3cb05ef508aa3a49c8fa5
-LAST_FULLY_CERTIFIED_RUN=38829270851
-LAST_FULLY_CERTIFIED_QA_PHP_8_3=PASS
-LAST_FULLY_CERTIFIED_QA_PHP_8_4=PASS
-LAST_FULLY_CERTIFIED_QA_PHP_8_5=PASS
-CURRENT_RED_HEAD=a1bab019588144b929ae717dd469d5aecbc184f7
-CURRENT_RED_RUN=38829656997
+LATEST_CERTIFIED_CODE_HEAD=d4e7c51f43f61082c3a9ddfe5eb38a93e720b7e5
+CERTIFIED_ACTIONS_RUN=38830267285
+QA_PHP_8_3=PASS
+QA_PHP_8_4=PASS
+QA_PHP_8_5=PASS
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
@@ -50,6 +48,7 @@ UI-DM7B USERS/PERMISSIONS=GREEN
 UI-DM7C SYSTEM SETTINGS/DIAGNOSTICS=GREEN
 UI-DM7 ADMINISTRATION=GREEN
 UI-DM8-A1 COMPANY SELECT HOME CONSISTENCY=GREEN
+UI-DM8-A2 COMPANY SELECT PRESENTATION=GREEN
 ```
 
 ## 4. UI-DM8 COMPLETENESS MAP
@@ -64,7 +63,7 @@ Decisiones activas:
 - Financial permanece como lectura factual consumida por pantallas existentes;
 - Inventory permanece bajo `/catalog`;
 - LC-P1-1..4 históricos están cerrados en el producto actual;
-- follow-ups DM8: A2 selector presentation, A3 invalid System Settings input, A4 OAuth callback destination review.
+- follow-ups DM8 restantes: A3 invalid System Settings input, A4 OAuth callback destination review.
 
 ## 5. UI-DM8-A1 — COMPANY SELECT HOME CONSISTENCY
 
@@ -91,51 +90,42 @@ NEW=/dashboard
 
 ## 6. UI-DM8-A2 — COMPANY SELECT PRESENTATION
 
-**STATE=RED CREATED / PRODUCTION UNCHANGED / CI RUNNING**
-
-Hallazgo confirmado:
-- `company-select.php` es funcional pero usa markup desnudo;
-- no reutiliza explícitamente la familia Design Master `page-header`, `panel`, `settings-form`;
-- esto es un hueco de coherencia visual, no un dominio nuevo.
-
-RED:
+**STATE=GREEN**
 
 ```text
 RED_COMMIT=a1bab019588144b929ae717dd469d5aecbc184f7
-RED_TEST=tests/Integration/CompanySelectorDesignMasterUiTest.php
 RED_RUN=38829656997
-PHP_8_3=IN_PROGRESS
-PHP_8_4=IN_PROGRESS
-PHP_8_5=IN_PROGRESS
-PRODUCTION_CHANGED=NO
+RED_RESULT=798 tests / 6688 assertions / exactly 1 expected failure in CompanySelectorDesignMasterUiTest
+GREEN_COMMIT=d4e7c51f43f61082c3a9ddfe5eb38a93e720b7e5
+GREEN_RUN=38830267285
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
 ```
 
-Contrato RED:
-- `simple-page company-selector-workspace`;
-- `page-header company-select-page-header`;
-- `panel company-select-panel`;
-- `settings-form company-select-form`;
-- mismo POST `/company/select`;
-- ambas empresas visibles;
-- cero Work rows;
-- cero `api_usage_daily` side effects.
+Change boundary:
+- only `app/Core/Http/views/company-select.php` changed;
+- reused shared `simple-page`, `page-header`, `panel`, `settings-form` components;
+- no CSS family added;
+- no route/controller/domain change;
+- memberships, roles, CSRF and zero Work/API side effects preserved.
 
-## 7. RESUME EXACTLY
+## 7. NEXT — UI-DM8-A3 SETTINGS INVALID INPUT REPRODUCTION
 
 ```text
-RESUME_EXACTLY_FROM=UI-DM8-A2 RED RUN 38829656997
+NEXT=UI-DM8-A3 SETTINGS INVALID INPUT REPRODUCTION
 ```
 
-Al retomar:
-1. revisar resultado final del run `38829656997`;
-2. certificar que el fallo sea únicamente el esperado por markup Design Master ausente;
-3. si RED es válido, modificar **sólo** `app/Core/Http/views/company-select.php`;
-4. reutilizar CSS/clases existentes; no crear nueva familia CSS;
-5. ejecutar full QA PHP 8.3/8.4/8.5;
-6. persistir A2 GREEN antes de abrir DM8-A3;
-7. si CI revela otra causa, resolver sólo la causa raíz y checkpoint.
+Microblock boundary:
+1. inspect `SystemSettingsController` update validation and existing Settings tests;
+2. reproduce any invalid-input path that still returns 500 instead of a bounded human/client error;
+3. do not change production unless a real failure is proven;
+4. if a defect is proven, add one focused RED test and fix only the root validation/translation boundary;
+5. preserve system-admin-only, CSRF, debug export/clear, hidden `meli_writes_enabled`, and `REMOTE_WRITES=OFF`;
+6. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint;
+7. only then open DM8-A4 OAuth callback destination review.
 
-## 8. BACKEND GUARDRAILS
+## 8. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -170,7 +160,7 @@ UI-DM8 gap closure
 ## 10. ABSOLUTE NO-GO
 
 ```text
-NO DM8-A3 until A2 checkpoint closes
+NO DM8-A4 until A3 checkpoint closes
 NO demo seed
 NO Hostinger
 NO cron
@@ -184,6 +174,6 @@ NO merge PR #19
 ## 11. STOP-SAFE
 
 ```text
-STOP_NOW=YES
-RESUME_EXACTLY_FROM=UI-DM8-A2 RED RUN 38829656997
+STOP_NOW=NO
+RESUME_EXACTLY_FROM=UI-DM8-A3 SETTINGS INVALID INPUT REPRODUCTION
 ```
