@@ -79,11 +79,9 @@ $postSaleLabel = match ($postSaleRaw) {
 
         <?php if ($hasFinancialConflict): ?>
         <section class="sale-attention" aria-labelledby="sale-attention-title">
-            <div>
-                <span class="status-chip status-attention">Requiere revisión</span>
-                <h2 id="sale-attention-title">Hay datos financieros incompatibles</h2>
-                <p>Hay monedas diferentes dentro del mismo ámbito de la venta. El ERP no consolida esos importes ni los sustituye por cero.</p>
-            </div>
+            <span class="status-chip status-attention">Requiere revisión</span>
+            <h2 id="sale-attention-title">Hay datos financieros incompatibles</h2>
+            <p>Hay monedas diferentes dentro del mismo ámbito de la venta. El ERP no consolida esos importes ni los sustituye por cero.</p>
         </section>
         <?php endif; ?>
 
@@ -121,21 +119,17 @@ $postSaleLabel = match ($postSaleRaw) {
                 <?php else: ?>
                     <div class="sale-product-list">
                         <?php foreach ($items as $item): ?>
-                        <article class="sale-product-item" data-sale-product="product-row">
-                            <div class="sale-product-main">
-                                <strong><?= $escape($item['title']) ?></strong>
-                                <?php if (trim((string) ($item['seller_sku'] ?? '')) !== ''): ?>
-                                <span class="muted">SKU <?= $escape($item['seller_sku']) ?></span>
-                                <?php endif; ?>
+                        <article class="panel sale-product-item" data-sale-product="product-row">
+                            <div class="section-heading">
+                                <div>
+                                    <strong><?= $escape($item['title']) ?></strong>
+                                    <?php if (trim((string) ($item['seller_sku'] ?? '')) !== ''): ?>
+                                    <p class="muted">SKU <?= $escape($item['seller_sku']) ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                <p class="numeric-value"><strong><?= $escape($item['unit_price']) ?> <?= $escape($item['currency_id']) ?></strong></p>
                             </div>
-                            <div class="sale-product-quantity">
-                                <span class="compact-label">Cantidad</span>
-                                <strong><?= $escape($item['quantity']) ?></strong>
-                            </div>
-                            <div class="sale-product-price">
-                                <span class="compact-label">Precio</span>
-                                <strong class="numeric-value"><?= $escape($item['unit_price']) ?> <?= $escape($item['currency_id']) ?></strong>
-                            </div>
+                            <p><strong>Cantidad:</strong> <?= $escape($item['quantity']) ?></p>
                         </article>
                         <?php endforeach; ?>
                     </div>
@@ -151,92 +145,94 @@ $postSaleLabel = match ($postSaleRaw) {
                     <p>Primero mostramos lo necesario para entender la venta. Los datos técnicos siguen disponibles abajo.</p>
                 </div>
 
-                <div class="financial-summary-grid">
-                    <div class="fact-summary-card <?= $commissionRaw === 'CONFLICT' ? 'fact-summary-attention' : '' ?>">
-                        <span>Comisión</span>
-                        <strong><?= $escape($humanFact($commissionRaw)) ?></strong>
-                        <?php if ($commissionRaw === 'CONFLICT'): ?><small>Hay monedas incompatibles; no se calculó un total.</small><?php endif; ?>
+                <div class="settings-grid financial-summary-grid">
+                    <div class="panel fact-summary-card">
+                        <span class="eyebrow">Comisión</span>
+                        <h3><?= $escape($humanFact($commissionRaw)) ?></h3>
+                        <?php if ($commissionRaw === 'CONFLICT'): ?><p>Hay monedas incompatibles; no se calculó un total.</p><?php endif; ?>
                     </div>
-                    <div class="fact-summary-card <?= $scopeCurrencyRaw === 'CONFLICT' ? 'fact-summary-attention' : '' ?>">
-                        <span>Moneda</span>
-                        <strong><?= $escape($humanFact($scopeCurrencyRaw)) ?></strong>
+                    <div class="panel fact-summary-card">
+                        <span class="eyebrow">Moneda</span>
+                        <h3><?= $escape($humanFact($scopeCurrencyRaw)) ?></h3>
                     </div>
-                    <div class="fact-summary-card">
-                        <span>Facturación asociada</span>
-                        <strong><?= $escape($humanFact($billingCoverageRaw)) ?></strong>
+                    <div class="panel fact-summary-card">
+                        <span class="eyebrow">Facturación asociada</span>
+                        <h3><?= $escape($humanFact($billingCoverageRaw)) ?></h3>
                     </div>
-                    <div class="fact-summary-card">
-                        <span>Envío del vendedor</span>
-                        <strong><?= $escape($humanFact($sellerShippingRaw)) ?></strong>
+                    <div class="panel fact-summary-card">
+                        <span class="eyebrow">Envío del vendedor</span>
+                        <h3><?= $escape($humanFact($sellerShippingRaw)) ?></h3>
                     </div>
                 </div>
 
-                <details class="technical-disclosure">
-                    <summary>Ver conciliación técnica</summary>
-                    <div class="technical-disclosure-body" id="reconciliation">
-                        <p class="muted">Los códigos técnicos se conservan aquí para auditoría y soporte. UNKNOWN significa que la evidencia no permite afirmar un valor.</p>
+                <div class="notice">
+                    <details class="technical-disclosure">
+                        <summary>Ver conciliación técnica</summary>
+                        <div class="technical-disclosure-body" id="reconciliation">
+                            <p class="muted">Los códigos técnicos se conservan aquí para auditoría y soporte. UNKNOWN significa que la evidencia no permite afirmar un valor.</p>
 
-                        <div class="reconciliation-scope">
-                            <span class="fact-pill">Ámbito: <?= $escape($reconciliation['scope']['type']) ?></span>
-                            <?php if ($reconciliation['scope']['pack_id'] !== null): ?>
-                                <span class="fact-pill">Pack: <?= $escape($reconciliation['scope']['pack_id']) ?></span>
-                            <?php endif; ?>
-                        </div>
-
-                        <p class="compact-label">Pedidos del ámbito</p>
-                        <ul class="inline-fact-list">
-                            <?php foreach ($reconciliation['scope']['order_ids'] as $scopeOrderId): ?>
-                            <li><?= $escape($scopeOrderId) ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-
-                        <dl class="settings-list reconciliation-facts">
-                            <dt>Comisión operativa</dt><dd><?= $escape($commissionRaw) ?></dd>
-                            <dt>Cobertura de comisión</dt><dd><?= $escape($commissionCoverageRaw) ?></dd>
-                            <dt>Ítems del ámbito</dt><dd><?= $escape($reconciliation['operational']['item_count']) ?></dd>
-                            <dt>Moneda del ámbito</dt><dd><?= $escape($scopeCurrencyRaw) ?></dd>
-                            <dt>Cobertura Billing</dt><dd><?= $escape($billingCoverageRaw) ?></dd>
-                            <dt>Cobertura envío del receptor</dt><dd><?= $escape($reconciliation['coverage']['receiver_shipping']) ?></dd>
-                            <dt>Envío del vendedor</dt><dd><?= $escape($sellerShippingRaw) ?></dd>
-                            <dt>Referencia oficial</dt><dd><?= $escape($officialReferenceRaw) ?></dd>
-                        </dl>
-
-                        <h3>Hechos facturados Billing</h3>
-                        <?php if ($reconciliation['billing']['details'] === []): ?>
-                            <p class="empty-state"><strong>Sin detalles de facturación</strong><br>Todavía no hay información de Billing asociada a este ámbito.</p>
-                        <?php else: ?>
-                            <div class="table-wrap">
-                                <table class="responsive-table billing-details-table" data-responsive-table="billing-details">
-                                    <thead><tr><th>Detalle</th><th>Asociado</th><th>Documento</th><th>Tipo</th><th>Subtipo</th><th>Importe</th><th>Moneda</th></tr></thead>
-                                    <tbody>
-                                    <?php foreach ($reconciliation['billing']['details'] as $billedDetail): ?>
-                                        <tr data-mobile-card="billing-row">
-                                            <td><?= $escape($billedDetail['external_detail_id']) ?></td>
-                                            <td data-label="Asociado"><?= $escape($billedDetail['associated_detail_id'] ?? 'UNKNOWN') ?></td>
-                                            <td data-label="Documento"><?= $escape($billedDetail['document_type']) ?></td>
-                                            <td data-label="Tipo"><?= $escape($billedDetail['detail_type']) ?></td>
-                                            <td data-label="Subtipo"><?= $escape($billedDetail['detail_sub_type'] ?? 'UNKNOWN') ?></td>
-                                            <td><?= $escape($billedDetail['detail_amount']) ?></td>
-                                            <td data-label="Moneda"><?= $escape($billedDetail['currency_id'] ?? 'UNKNOWN') ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                    </tbody>
-                                </table>
+                            <div class="reconciliation-scope">
+                                <span class="fact-pill">Ámbito: <?= $escape($reconciliation['scope']['type']) ?></span>
+                                <?php if ($reconciliation['scope']['pack_id'] !== null): ?>
+                                    <span class="fact-pill">Pack: <?= $escape($reconciliation['scope']['pack_id']) ?></span>
+                                <?php endif; ?>
                             </div>
-                        <?php endif; ?>
 
-                        <h3>Envío del receptor: evidencia</h3>
-                        <?php if ($reconciliation['shipping']['receiver_shipping'] === []): ?>
-                            <p class="empty-state">Sin evidencia disponible de envío del receptor.</p>
-                        <?php else: ?>
-                            <ul class="evidence-list">
-                                <?php foreach ($reconciliation['shipping']['receiver_shipping'] as $shippingEvidence): ?>
-                                <li><strong>Detalle <?= $escape($shippingEvidence['external_detail_id']) ?>: <?= $escape($shippingEvidence['value']) ?></strong></li>
+                            <p class="compact-label">Pedidos del ámbito</p>
+                            <ul class="inline-fact-list">
+                                <?php foreach ($reconciliation['scope']['order_ids'] as $scopeOrderId): ?>
+                                <li><?= $escape($scopeOrderId) ?></li>
                                 <?php endforeach; ?>
                             </ul>
-                        <?php endif; ?>
-                    </div>
-                </details>
+
+                            <dl class="settings-list reconciliation-facts">
+                                <dt>Comisión operativa</dt><dd><?= $escape($commissionRaw) ?></dd>
+                                <dt>Cobertura de comisión</dt><dd><?= $escape($commissionCoverageRaw) ?></dd>
+                                <dt>Ítems del ámbito</dt><dd><?= $escape($reconciliation['operational']['item_count']) ?></dd>
+                                <dt>Moneda del ámbito</dt><dd><?= $escape($scopeCurrencyRaw) ?></dd>
+                                <dt>Cobertura Billing</dt><dd><?= $escape($billingCoverageRaw) ?></dd>
+                                <dt>Cobertura envío del receptor</dt><dd><?= $escape($reconciliation['coverage']['receiver_shipping']) ?></dd>
+                                <dt>Envío del vendedor</dt><dd><?= $escape($sellerShippingRaw) ?></dd>
+                                <dt>Referencia oficial</dt><dd><?= $escape($officialReferenceRaw) ?></dd>
+                            </dl>
+
+                            <h3>Hechos facturados Billing</h3>
+                            <?php if ($reconciliation['billing']['details'] === []): ?>
+                                <p class="empty-state"><strong>Sin detalles de facturación</strong><br>Todavía no hay información de Billing asociada a este ámbito.</p>
+                            <?php else: ?>
+                                <div class="table-wrap">
+                                    <table class="responsive-table billing-details-table" data-responsive-table="billing-details">
+                                        <thead><tr><th>Detalle</th><th>Asociado</th><th>Documento</th><th>Tipo</th><th>Subtipo</th><th>Importe</th><th>Moneda</th></tr></thead>
+                                        <tbody>
+                                        <?php foreach ($reconciliation['billing']['details'] as $billedDetail): ?>
+                                            <tr data-mobile-card="billing-row">
+                                                <td><?= $escape($billedDetail['external_detail_id']) ?></td>
+                                                <td data-label="Asociado"><?= $escape($billedDetail['associated_detail_id'] ?? 'UNKNOWN') ?></td>
+                                                <td data-label="Documento"><?= $escape($billedDetail['document_type']) ?></td>
+                                                <td data-label="Tipo"><?= $escape($billedDetail['detail_type']) ?></td>
+                                                <td data-label="Subtipo"><?= $escape($billedDetail['detail_sub_type'] ?? 'UNKNOWN') ?></td>
+                                                <td><?= $escape($billedDetail['detail_amount']) ?></td>
+                                                <td data-label="Moneda"><?= $escape($billedDetail['currency_id'] ?? 'UNKNOWN') ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
+
+                            <h3>Envío del receptor: evidencia</h3>
+                            <?php if ($reconciliation['shipping']['receiver_shipping'] === []): ?>
+                                <p class="empty-state">Sin evidencia disponible de envío del receptor.</p>
+                            <?php else: ?>
+                                <ul class="evidence-list">
+                                    <?php foreach ($reconciliation['shipping']['receiver_shipping'] as $shippingEvidence): ?>
+                                    <li><strong>Detalle <?= $escape($shippingEvidence['external_detail_id']) ?>: <?= $escape($shippingEvidence['value']) ?></strong></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php endif; ?>
+                        </div>
+                    </details>
+                </div>
             </section>
 
             <section id="invoice-review">
@@ -248,36 +244,38 @@ $postSaleLabel = match ($postSaleRaw) {
                         </div>
                     </div>
 
-                    <div class="invoice-summary-grid">
-                        <div class="fact-summary-card">
-                            <span>Preparación</span>
-                            <strong><?= $escape($readinessLabel) ?></strong>
+                    <div class="settings-grid invoice-summary-grid">
+                        <div class="panel fact-summary-card">
+                            <span class="eyebrow">Preparación</span>
+                            <h3><?= $escape($readinessLabel) ?></h3>
                         </div>
-                        <div class="fact-summary-card">
-                            <span>Factura</span>
-                            <strong><?= $invoiceReview['original_invoice_artifact_present'] ? 'Registrada' : 'Sin registrar' ?></strong>
+                        <div class="panel fact-summary-card">
+                            <span class="eyebrow">Factura</span>
+                            <h3><?= $invoiceReview['original_invoice_artifact_present'] ? 'Registrada' : 'Sin registrar' ?></h3>
                         </div>
-                        <div class="fact-summary-card">
-                            <span>Nota crédito</span>
-                            <strong><?= $invoiceReview['credit_note_artifact_present'] ? 'Registrada' : 'Sin registrar' ?></strong>
+                        <div class="panel fact-summary-card">
+                            <span class="eyebrow">Nota crédito</span>
+                            <h3><?= $invoiceReview['credit_note_artifact_present'] ? 'Registrada' : 'Sin registrar' ?></h3>
                         </div>
-                        <div class="fact-summary-card">
-                            <span>Postventa</span>
-                            <strong><?= $escape($postSaleLabel) ?></strong>
+                        <div class="panel fact-summary-card">
+                            <span class="eyebrow">Postventa</span>
+                            <h3><?= $escape($postSaleLabel) ?></h3>
                         </div>
                     </div>
 
-                    <details class="technical-disclosure invoice-technical-disclosure">
-                        <summary>Ver estados técnicos</summary>
-                        <div class="technical-disclosure-body">
-                            <dl class="settings-list">
-                                <dt>Readiness</dt><dd><?= $escape($readinessRaw) ?></dd>
-                                <dt>Factura registrada</dt><dd><?= $invoiceReview['original_invoice_artifact_present'] ? 'Sí' : 'No' ?></dd>
-                                <dt>Nota crédito registrada</dt><dd><?= $invoiceReview['credit_note_artifact_present'] ? 'Sí' : 'No' ?></dd>
-                                <dt>Postventa</dt><dd><?= $escape($postSaleRaw) ?></dd>
-                            </dl>
-                        </div>
-                    </details>
+                    <div class="notice">
+                        <details class="technical-disclosure invoice-technical-disclosure">
+                            <summary>Ver estados técnicos</summary>
+                            <div class="technical-disclosure-body">
+                                <dl class="settings-list">
+                                    <dt>Readiness</dt><dd><?= $escape($readinessRaw) ?></dd>
+                                    <dt>Factura registrada</dt><dd><?= $invoiceReview['original_invoice_artifact_present'] ? 'Sí' : 'No' ?></dd>
+                                    <dt>Nota crédito registrada</dt><dd><?= $invoiceReview['credit_note_artifact_present'] ? 'Sí' : 'No' ?></dd>
+                                    <dt>Postventa</dt><dd><?= $escape($postSaleRaw) ?></dd>
+                                </dl>
+                            </div>
+                        </details>
+                    </div>
                 </div>
             </section>
         </div>
