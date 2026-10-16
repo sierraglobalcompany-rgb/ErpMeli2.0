@@ -212,14 +212,23 @@ final class OperatorFoundationTest extends TestCase
         self::assertSame(303, $response->getStatusCode());
         self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
         $html = (string) $this->request('GET', '/sales')->getBody();
-        self::assertStringContainsString('<td>CAPTURING</td>', $html);
+        self::assertStringContainsString('data-audit-status="capturing"', $html);
+        self::assertStringContainsString('Recopilando datos', $html);
         self::assertStringContainsString('2026-09-01', $html);
         $this->pdo->exec("INSERT INTO sales_audit_runs(company_id,account_id,period_key,contract_version,status) VALUES(2,2,'2019-02-01','seller-search-v1','attention')");
-        foreach (['repairing', 'confirming', 'valid', 'attention', 'unavailable'] as $status) {
+        $labels = [
+            'repairing' => 'Completando datos',
+            'confirming' => 'Verificando resultados',
+            'valid' => 'Sin diferencias',
+            'attention' => 'Requiere revisión',
+            'unavailable' => 'No disponible',
+        ];
+        foreach ($labels as $status => $label) {
             $statement = $this->pdo->prepare('UPDATE sales_audit_runs SET status=?,canonical_count=7,remote_total=8,completed_at=? WHERE company_id=1');
             $statement->execute([$status, in_array($status, ['valid','attention','unavailable'], true) ? '2026-10-10 12:00:00' : null]);
             $html = (string) $this->request('GET', '/sales')->getBody();
-            self::assertStringContainsString('<td>' . strtoupper($status) . '</td>', $html);
+            self::assertStringContainsString('data-audit-status="' . $status . '"', $html);
+            self::assertStringContainsString($label, $html);
             self::assertStringNotContainsString('2019-02-01', $html);
             self::assertStringNotContainsString('claim_token', $html);
             self::assertStringNotContainsString('work_items', $html);
@@ -229,7 +238,8 @@ final class OperatorFoundationTest extends TestCase
         self::assertSame('pending', $this->pdo->query('SELECT status FROM work_items')->fetchColumn());
         $this->pdo->exec("UPDATE company_users SET role='member' WHERE company_id=1");
         $html = (string) $this->request('GET', '/sales')->getBody();
-        self::assertStringContainsString('<td>UNAVAILABLE</td>', $html);
+        self::assertStringContainsString('data-audit-status="unavailable"', $html);
+        self::assertStringContainsString('No disponible', $html);
         self::assertStringNotContainsString('action="/sales/audits"', $html);
     }
 
@@ -274,7 +284,8 @@ final class OperatorFoundationTest extends TestCase
             $insert->execute(['2026-01-01']);
         }
         $html = (string) $this->request('GET', '/sales')->getBody();
-        self::assertSame(25, substr_count($html, '<td>VALID</td>'));
+        self::assertSame(25, substr_count($html, 'data-audit-status="valid"'));
+        self::assertStringContainsString('Sin diferencias', $html);
         self::assertStringNotContainsString('2000-01-01', $html);
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
     }
