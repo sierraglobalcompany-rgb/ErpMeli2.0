@@ -106,6 +106,18 @@ final class DesignMasterResponsiveContractTest extends TestCase
         self::assertStringContainsString('outline:', $css);
     }
 
+    public function testLauncherTrapHandlesTabFromInitiallyFocusedSheet(): void
+    {
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/assets/app.js'),
+        );
+        $js = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('document.activeElement === sheet', $js);
+        self::assertStringContainsString('(event.shiftKey ? last : first).focus()', $js);
+    }
+
     private function renderNavigation(string $companyRole, bool $systemAdmin, string $requestUri = '/sales'): string
     {
         $_SESSION = [
