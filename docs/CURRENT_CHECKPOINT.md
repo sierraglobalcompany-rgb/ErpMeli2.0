@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1 GREEN / UI-DM2 GREEN / R3 HOME GREEN / UI-DM3 SALES GREEN / UI-DM4 PRODUCTS-INVENTORY GREEN / UI-DM5 BILLING-FINANCIAL GREEN / UI-DM6 MELI GREEN / UI-DM7A COMPANIES GREEN / UI-DM7B USERS GREEN / UI-DM7C SYSTEM SETTINGS-DIAGNOSTICS GREEN / UI-DM7 ADMINISTRATION GREEN / NEXT UI-DM8 COMPLETENESS AUDIT / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / NEXT UI-DM8-A2 COMPANY SELECT PRESENTATION / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
 
@@ -12,8 +12,8 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=2563b711ed75bf7f5d31fb8f8fb194bcb8618d98
-CERTIFIED_ACTIONS_RUN=38827929679
+LATEST_CERTIFIED_CODE_HEAD=5de62e520e5f163103b3cb05ef508aa3a49c8fa5
+CERTIFIED_ACTIONS_RUN=38829270851
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -29,9 +29,8 @@ KISS=A→B
 ANTI_NOISE=KEEP/MERGE/OPTIMIZE/SIMPLIFY/REMOVE only with evidence
 ANTI_PATCH=root owner fix only
 MICROBLOCK=RED → GREEN → full CI → audit → checkpoint → next
+CHECKPOINT_CADENCE=small blocks; persist approximately every 10–12 minutes or sooner at a closed unit
 ```
-
-Every completed microblock must update this file before the next microblock starts.
 
 ## 3. CLOSED BLOCKS
 
@@ -48,72 +47,62 @@ UI-DM7A COMPANIES=GREEN
 UI-DM7B USERS/PERMISSIONS=GREEN
 UI-DM7C SYSTEM SETTINGS/DIAGNOSTICS=GREEN
 UI-DM7 ADMINISTRATION=GREEN
+UI-DM8-A1 COMPANY SELECT HOME CONSISTENCY=GREEN
 ```
 
-## 4. UI-DM7B — USERS / PERMISSIONS
+## 4. UI-DM8 COMPLETENESS MAP
+
+Audit document:
+
+```text
+docs/UI_DM8_COMPLETENESS_AUDIT.md
+MAP_COMMIT=6f14ef35357e112397ba538ddc140454f270cec2
+```
+
+Key decisions:
+
+- Human surfaces already covered: login, dashboard, sales/detail, catalog/inventory, billing, MELI accounts/settings, companies, users, system diagnostics, installer.
+- Do not invent operator screens for Work runner, RuntimePreflight, ERP API, webhooks, Invoicing bridge, Billing C0, F13 rehearsal or other technical-only owners.
+- Financial remains factual and merged into real consumers; no `/financial` ledger engine.
+- Inventory remains under `/catalog`; no duplicate `/inventory` domain.
+- Historical LC-P1-1..4 local operator gaps are closed in current product.
+- Active DM8 follow-ups remain isolated: A2 selector presentation, A3 reproduce invalid System Settings input, A4 OAuth callback destination review.
+
+## 5. UI-DM8-A1 — COMPANY SELECT HOME CONSISTENCY
 
 **STATE=GREEN**
 
 ```text
-RED_COMMIT=aa3400ef8759a39fbc92e6bd13b4bcc29c8e1052
-RED_RUN=38826793754
-RED_RESULT=795 tests / 6652 assertions / exactly 1 expected failure in UserDesignMasterUiTest
-GREEN_COMMIT=c0cf12efc86e43e88c7147206a3e993f63119442
-GREEN_RUN=38827105530
+RED_COMMIT=4f8893e1637eb2bd76df202da717b80976d6d5fc
+RED_RUN=38828799463
+RED_RESULT=797 tests / 6683 assertions / exactly 1 expected failure
+RED_EXPECTED=/dashboard
+RED_ACTUAL=/sales
+GREEN_PRODUCTION_COMMIT=cd69a47f8659bbf685fcee5c00675560692758dc
+GREEN_TEST_ALIGNMENT_COMMIT=5de62e520e5f163103b3cb05ef508aa3a49c8fa5
+GREEN_RUN=38829270851
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Preserved boundary:
+Change boundary:
 
 ```text
-/system/users = existing user-management owner
-UserManagementController = unchanged
-SYSTEM_ADMIN authority = DB-backed
-ROLES = admin / operator / viewer
-LAST_SYSTEM_ADMIN_GUARD = preserved
-LAST_COMPANY_ADMIN_GUARD = preserved
-PASSWORD_RESET_POLICY = preserved
-MEMBERSHIP_MODEL = preserved
-CSRF = preserved
-USER_HARD_DELETE_ROUTE = intentionally absent
-NO /system/roles invention
-NO permission-domain rewrite
-NO new CSS family
+GET /company/select with exactly one already-active company:
+OLD=/sales
+NEW=/dashboard
 ```
 
-## 5. UI-DM7C — SYSTEM SETTINGS / DIAGNOSTICS
+Preserved:
 
-**STATE=GREEN**
-
-```text
-RED_COMMIT=c74652ce4acb9b13687d96a321628c816acd544b
-RED_RUN=38827537279
-RED_RESULT=796 tests / 6669 assertions / exactly 1 expected failure in SystemSettingsDesignMasterUiTest
-GREEN_COMMIT=2563b711ed75bf7f5d31fb8f8fb194bcb8618d98
-GREEN_RUN=38827929679
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
-```
-
-Preserved boundary:
-
-```text
-/settings/system = existing owner
-SystemSettingsController = unchanged
-SystemSettingsRepository = unchanged
-SYSTEM_ADMIN_ONLY = preserved
-CSRF = preserved
-DEBUG_RETENTION/CAP = preserved
-DEBUG_EXPORT = preserved
-DEBUG_CLEAR = preserved
-meli_writes_enabled = hidden and non-editable
-REMOTE_WRITES = OFF
-NO new admin domain
-NO new CSS family
-```
+- memberships/tenant selection;
+- CSRF;
+- foreign-company rejection;
+- no Work enqueue;
+- no controller/domain rewrite;
+- OAuth callback destination unchanged;
+- all backend guardrails unchanged.
 
 ## 6. BACKEND GUARDRAILS STILL CLOSED
 
@@ -133,9 +122,10 @@ REMOTE_WRITES=OFF
 ## 7. PRODUCT SEQUENCE
 
 ```text
-ERP COMPLETE
-→ full automated QA
-→ final visual/responsive QA
+UI-DM8 gap closure
+→ UI-DM9 full automated QA
+→ UI-DM10 final visual/responsive QA
+→ ERP COMPLETE
 → local demo
 → manual E2E
 → user approval
@@ -148,27 +138,27 @@ ERP COMPLETE
 
 Demo, Hostinger and cron remain deferred.
 
-## 8. NEXT — UI-DM8 COMPLETENESS AUDIT
+## 8. NEXT — UI-DM8-A2 COMPANY SELECT PRESENTATION
 
 ```text
-NEXT=UI-DM8 COMPLETENESS AUDIT
+NEXT=UI-DM8-A2 COMPANY SELECT PRESENTATION
 ```
 
-Resume boundary:
+Microblock boundary:
 
-1. do not modify production immediately;
-2. audit completeness of the implemented Design Master against approved IA, responsive contract, capability map and closed UI-DM1..7 blocks;
-3. classify any finding KEEP / MERGE / OPTIMIZE / SIMPLIFY / REMOVE with evidence;
-4. verify no unsupported screen/domain was invented and no backend guardrail was weakened;
-5. if no product gap exists, proceed to final automated QA + visual/responsive QA planning;
-6. if a real gap exists, open one isolated microblock only;
-7. keep PR #19 draft and unmerged until UI-DM8 is closed.
+1. inspect current `company-select.php` against approved Design Master component family;
+2. create one focused RED structural contract only if a real presentation gap is confirmed;
+3. reuse `page-header`, `panel`, `settings-form` and existing shared CSS where sufficient;
+4. no new CSS family and no new route/controller/domain;
+5. preserve multi-company selection, roles, CSRF, active-company semantics and zero Work/API side effects;
+6. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint;
+7. only then open DM8-A3 Settings invalid-input reproduction.
 
-## 9. ABSOLUTE NO-GO NOW
+## 9. ABSOLUTE NO-GO
 
 ```text
-NO production change before UI-DM8 audit
-NO demo seed yet
+NO DM8-A3 until A2 checkpoint closes
+NO demo seed
 NO Hostinger
 NO cron
 NO real MELI mutation
@@ -181,6 +171,6 @@ NO merge PR #19
 ## 10. STOP-SAFE
 
 ```text
-STOP_NOW=YES
-RESUME_EXACTLY_FROM=UI-DM8 COMPLETENESS AUDIT
+STOP_NOW=NO
+RESUME_EXACTLY_FROM=UI-DM8-A2 COMPANY SELECT PRESENTATION
 ```
