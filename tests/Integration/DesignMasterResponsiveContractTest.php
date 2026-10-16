@@ -118,6 +118,20 @@ final class DesignMasterResponsiveContractTest extends TestCase
         self::assertStringContainsString('(event.shiftKey ? last : first).focus()', $js);
     }
 
+    public function testMobileShellAccountsForBottomSafeArea(): void
+    {
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/assets/app.css'),
+        );
+        $css = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('--safe-bottom: env(safe-area-inset-bottom, 0px);', $css);
+        self::assertStringContainsString('bottom: calc(12px + var(--safe-bottom));', $css);
+        self::assertStringContainsString('padding: calc(var(--topbar) + 22px) 0 calc(106px + var(--safe-bottom));', $css);
+        self::assertStringContainsString('margin-bottom: calc(88px + var(--safe-bottom));', $css);
+    }
+
     private function renderNavigation(string $companyRole, bool $systemAdmin, string $requestUri = '/sales'): string
     {
         $_SESSION = [
