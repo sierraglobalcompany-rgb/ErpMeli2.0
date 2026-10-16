@@ -13,7 +13,7 @@
     let lastFocus = null;
 
     const focusable = () => Array.from(launcher.querySelectorAll(
-        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        'a[href], button:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])'
     )).filter((element) => !element.hasAttribute('hidden'));
 
     const openLauncher = () => {
