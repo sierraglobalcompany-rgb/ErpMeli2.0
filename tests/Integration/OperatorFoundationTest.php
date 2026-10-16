@@ -67,7 +67,7 @@ final class OperatorFoundationTest extends TestCase
     }
     public function testTenantSelectorUsesMembershipsAndCsrfAndValidDestination(): void
     {
-        self::assertSame('/sales', $this->request('GET', '/company/select')->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $this->request('GET', '/company/select')->getHeaderLine('Location'));
         self::assertStringNotContainsString('href="/company/select"', (string) $this->request('GET', '/sales')->getBody());
         $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Second','second'),(3,'Foreign','foreign')");
         $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(2,1,'member')");
