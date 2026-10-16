@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..9 GREEN / NEXT UI-DM10-A STATIC VISUAL-RESPONSIVE AUDIT / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..9 GREEN / UI-DM10-A1 GREEN IMPLEMENTED / CI PENDING / STOP NOW**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
@@ -12,12 +12,11 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=37f7f789b884d1072208783c7509dc999c83a876
-LATEST_BRANCH_QA_HEAD=feecd1b4fe6a262f9da305da444cfe0afe085b31
-LATEST_BRANCH_QA_RUN=38833821545
-QA_PHP_8_3=PASS
-QA_PHP_8_4=PASS
-QA_PHP_8_5=PASS
+LATEST_CERTIFIED_BRANCH_HEAD=feecd1b4fe6a262f9da305da444cfe0afe085b31
+LATEST_CERTIFIED_BRANCH_RUN=38833821545
+LATEST_GREEN_IMPLEMENTATION_HEAD=7f4312e0d828bb7007a384166e4ddf490003b646
+CURRENT_GREEN_RUN=38834828976
+CURRENT_GREEN_RUN_STATE=IN_PROGRESS at checkpoint creation
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
@@ -30,7 +29,6 @@ KISS=A→B
 ANTI_NOISE=KEEP/MERGE/OPTIMIZE/SIMPLIFY/REMOVE only with evidence
 ANTI_PATCH=root owner fix only
 MICROBLOCK=RED → GREEN → full CI → audit → checkpoint → next
-CHECKPOINT_CADENCE=small blocks; persist approximately every 10–12 minutes or sooner at a closed/recoverable unit
 ```
 
 ## 3. CLOSED BLOCKS
@@ -44,86 +42,12 @@ UI-DM4 PRODUCTS/CATALOG+INVENTORY=GREEN
 UI-DM5 BILLING/FINANCIAL=GREEN
 UI-DM6A MELI ACCOUNTS=GREEN
 UI-DM6B MELI APP SETTINGS=GREEN
-UI-DM7A COMPANIES=GREEN
-UI-DM7B USERS/PERMISSIONS=GREEN
-UI-DM7C SYSTEM SETTINGS/DIAGNOSTICS=GREEN
 UI-DM7 ADMINISTRATION=GREEN
-UI-DM8-A1 COMPANY SELECT HOME CONSISTENCY=GREEN
-UI-DM8-A2 COMPANY SELECT PRESENTATION=GREEN
-UI-DM8-A3 SETTINGS INVALID INPUT=GREEN
-UI-DM8-A4 OAUTH CALLBACK DESTINATION/CONTEXT=GREEN
 UI-DM8 COMPLETENESS AUDIT=GREEN
 UI-DM9 FULL AUTOMATED QA=GREEN
 ```
 
-## 4. UI-DM8 RESULT
-
-```text
-DOC=docs/UI_DM8_COMPLETENESS_AUDIT.md
-MAP_COMMIT=6f14ef35357e112397ba538ddc140454f270cec2
-RESULT=NO EVIDENCE-BACKED PRODUCT GAP REMAINS INSIDE DM8 SCOPE
-```
-
-Preserved decisions:
-- no invented operator screens for Work runner, RuntimePreflight, ERP API, webhooks, Invoicing bridge, Billing C0 or F13 rehearsal;
-- Financial remains a factual read model consumed by existing surfaces;
-- Inventory remains under `/catalog`;
-- no module exists merely because a backend class exists.
-
-## 5. UI-DM8 KEY CERTIFICATION
-
-### A1 Company select → Home
-```text
-GREEN_RUN=38829270851
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
-```
-
-### A2 Company selector presentation
-```text
-GREEN_RUN=38830267285
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
-```
-
-### A3 Invalid settings boundary
-```text
-GREEN_COMMIT=5a135a91f7255522c6f1c03eff2f69eddd3cd535
-GREEN_RUN=38831215153
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
-```
-
-### A4 OAuth callback destination/context
-```text
-GREEN_PRODUCTION_COMMIT=14c36eeb4e9878f3ef5d8a882753308d6770d84e
-HISTORICAL_TEST_ALIGNMENT_COMMIT=37f7f789b884d1072208783c7509dc999c83a876
-FINAL_RUN=38833133356
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
-```
-
-OAuth root fix preserves state/PKCE consume-once, seller/company binding, reauthorization guard, encrypted token persistence, replay rejection and `REMOTE_WRITES=OFF`.
-
-## 6. UI-DM9 — FULL AUTOMATED QA
-
-**STATE=GREEN**
-
-QA authority proven from repository:
-
-```text
-composer qa = PHP lint + PHPStan + full PHPUnit
-phpunit.xml = entire tests/ directory
-phpstan = app + bin + public
-workflow = PHP 8.3 / 8.4 / 8.5 + MariaDB 11.4
-REAL_MELI_HTTP=0
-```
-
-Final branch run:
+UI-DM9 certified branch run:
 
 ```text
 RUN=38833821545
@@ -132,34 +56,81 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-PR #19 audit result:
-- no migrations added;
-- no new frontend framework or Composer dependency;
-- no Work architecture changes;
-- no BillingPeriodSyncHandler changes;
-- no FinancialReadModel changes;
-- no MELI client/OAuth service changes;
-- Dashboard is bounded local SQL/read-only composition;
-- only one small vanilla JS launcher;
-- product navigation reuses real authorized destinations;
-- guardrail tests for 429/Work/Billing/Financial/OAuth/tenancy/CSRF/responsive are inside the full suite;
-- PR title/body updated to remove stale `UI-DM1 / no dashboard yet` documentation drift.
+## 4. UI-DM10-A1 — LAUNCHER KEYBOARD ACCESSIBILITY
 
-No evidence-backed code gap was found in DM9.
-
-## 7. NEXT — UI-DM10-A STATIC VISUAL / RESPONSIVE AUDIT
+### RED
 
 ```text
-NEXT=UI-DM10-A STATIC VISUAL-RESPONSIVE AUDIT
+RED_COMMIT=b6293b9ece63b60b725f729a2fb379b9e9013508
+RED_RUN=38834252391
+RED_CERTIFIED_PHP_8_3=YES
+TESTS=801
+ASSERTIONS=6712
+FAILURES=1
+EXPECTED_FAILURE=DesignMasterResponsiveContractTest::testLauncherBackdropIsOutsideKeyboardTabOrderAndKeyboardFocusIsVisible
 ```
 
-Scope for this small block:
-1. audit current shell/views/CSS/JS against D-01/M-01/T-01 contracts;
-2. verify responsive breakpoints, mobile table→card behavior, fixed bottom nav, launcher focus/ESC semantics, authorized/dead destination rules and accessibility markers;
-3. inspect for CSS patch noise (`!important`, duplicate media systems, per-page hacks) and viewport-risk patterns;
-4. do not claim visual certification from static code alone;
-5. if static gap is proven, open a focused RED microblock; otherwise close DM10-A and set `NEXT=UI-DM10-B REAL BROWSER QA`;
-6. DM10-B will require actual rendered-browser evidence at the approved viewport matrix and may be delegated to Codex/local PC because that is the capability boundary.
+The RED was clean and attributable only to the new accessibility contract.
+
+### GREEN IMPLEMENTED
+
+```text
+MARKUP_COMMIT=ab08b705d0e4e185bb7df0fe96574653c5a9e5f5
+FOCUS_TRAP_COMMIT=4f722a0a9fa2a1913637731c83fb7e2c90be6279
+FOCUS_VISIBLE_COMMIT=7f4312e0d828bb7007a384166e4ddf490003b646
+GREEN_RUN=38834828976
+GREEN_RUN_STATE=IN_PROGRESS at checkpoint creation
+```
+
+Root fix implemented:
+- launcher backdrop has `tabindex="-1"` and remains mouse/touch clickable;
+- JS focus-trap excludes buttons with `tabindex="-1"`, so the backdrop is not recycled programmatically into the tab loop;
+- shared Design Master CSS now provides visible `:focus-visible` outlines for links and buttons;
+- only `navigation.php`, `app.js` and `app.css` changed in GREEN;
+- no routes, backend, database, Work, Billing, Financial, MELI client, OAuth services or remote-write behavior changed.
+
+## 5. EXACT RESUME POINT
+
+```text
+RESUME_EXACTLY_FROM=CHECK WORKFLOW RUN 38834828976
+```
+
+When work resumes:
+1. inspect run `38834828976` only;
+2. require PASS on PHP 8.3, 8.4 and 8.5;
+3. if all PASS, mark UI-DM10-A1 GREEN/CERTIFIED;
+4. if any FAIL, inspect only that failure and fix root cause;
+5. after A1 certification, continue the remaining UI-DM10-A static audit;
+6. do NOT open UI-DM10-B real-browser QA until UI-DM10-A is checkpointed complete.
+
+## 6. UI-DM10-A REMAINING STATIC AUDIT
+
+After A1 is certified, continue only static review of:
+- D-01 / M-01 / T-01 shell contracts;
+- responsive breakpoints and viewport-risk patterns;
+- mobile table → card behavior;
+- fixed mobile bottom navigation;
+- launcher ESC/focus semantics;
+- authorized destinations / no fabricated routes;
+- CSS patch noise, duplicate media systems and unnecessary `!important` usage;
+- accessibility markers that can be proven statically.
+
+Do not claim real visual certification from source inspection alone.
+
+## 7. NEXT AFTER STATIC AUDIT
+
+```text
+UI-DM10-A static visual/responsive audit
+→ UI-DM10-B real browser QA
+→ ERP COMPLETE candidate
+→ local demo
+→ manual E2E
+→ user approval
+→ Hostinger
+→ runtime certification
+→ cron / Work Runner
+→ real MELI READ-only gates
+```
 
 ## 8. BACKEND GUARDRAILS STILL CLOSED
 
@@ -176,23 +147,7 @@ Billing cursor/period behavior
 REMOTE_WRITES=OFF
 ```
 
-## 9. PRODUCT SEQUENCE
-
-```text
-UI-DM10-A static visual/responsive audit
-→ UI-DM10-B real browser QA
-→ ERP COMPLETE
-→ local demo
-→ manual E2E
-→ user approval
-→ Hostinger
-→ Hostinger runtime certification
-→ cron / Work Runner
-→ real MELI READ-only gates
-→ later explicitly authorized phases
-```
-
-## 10. ABSOLUTE NO-GO
+## 9. ABSOLUTE NO-GO
 
 ```text
 NO demo seed
@@ -205,10 +160,12 @@ NO F16
 NO merge PR #19
 ```
 
-## 11. STOP-SAFE
+## 10. STOP-SAFE
 
 ```text
-STOP_NOW=NO
-RESUME_EXACTLY_FROM=UI-DM10-A STATIC VISUAL-RESPONSIVE AUDIT
-DO_NOT_OPEN_DM10_B_UNTIL_DM10_A_CHECKPOINT=YES
+STOP_NOW=YES
+CHECKPOINT_CREATED_AT=2026-10-16
+RESUME_EXACTLY_FROM=CHECK WORKFLOW RUN 38834828976
+DO_NOT_OPEN_NEW_MICROBLOCK_BEFORE_RESULT=YES
+DO_NOT_MERGE_PR_19=YES
 ```
