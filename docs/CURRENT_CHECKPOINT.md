@@ -1,10 +1,10 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H1 DIAGNOSED / MOBILE SALE DETAIL HIERARCHY DEFECT CONFIRMED / H1-FIX1 NEXT / H2 FROZEN / STOP-SAFE**
+**CURRENT=H1 BROWSER GREEN / H1-001 CLOSED / H2 NEXT BUT NOT STARTED / STOP-SAFE**
 
-> Autoridad operativa de recuperación. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
+Autoridad operativa de recuperación. Retomar desde `RESUME_EXACTLY_FROM`.
 
-## 1. REPOSITORY AUTHORITY
+## Repository authority
 
 ```text
 DATE=2026-10-16
@@ -12,11 +12,10 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-H1_DIAGNOSTIC_HEAD=63a15fde5b12a0d16d9fe9219dfcc05be1b0a933
-CURRENT_PRODUCT_CANDIDATE_HEAD=d48b4464200b321dc309fbebcd56021f08709ba4
-GOVERNANCE_CI_RUN=38929435054
-GOVERNANCE_CI=PASS exact head
-UX_HF1_AUTOMATED_RUN=38924219467
+H1_FIX1_STARTING_HEAD=ce11219158470c7bc122ba56680af7ff144cfbba
+CURRENT_PRODUCT_CANDIDATE_HEAD=1c1abcadec033231bc662507e2eac3b9c6869caf
+EXACT_PRODUCT_CI_RUN=38933239893
+EXACT_PRODUCT_CI=completed / success
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -25,203 +24,75 @@ REAL_MELI_HTTP=0
 HOSTINGER_UI_DEPLOYED=NO
 ```
 
-## 2. HUMAN-FIRST GOVERNANCE
+## Required governance
 
-```text
-MASTER=docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md
-AGENT_LAW=AGENTS.md
-REPO_SKILL=.github/skills/erp-human-first-ui-ux/SKILL.md
-PROJECT_DESIGN_MASTER=design-system/erp-meli-2-0/MASTER.md
-PR_GATE=.github/pull_request_template.md
-AUDIT_PLAN=docs/UX_HUMAN_FIRST_MASTER_AUDIT_AND_IMPROVEMENT_PLAN_2026-10-16.md
+Read `AGENTS.md`, `docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md`,
+`design-system/erp-meli-2-0/MASTER.md`, any relevant page override, and
+`docs/UX_HUMAN_FIRST_MASTER_AUDIT_AND_IMPROVEMENT_PLAN_2026-10-16.md`.
+Sale Detail has no page override. Truth and authorization outrank presentation.
+
+## H1-FIX1 — closed
+
+Root cause: mobile repeated the hero facts in `.sales-summary` and placed products before financial meaning.
+The correction adds only two rules inside the existing `max-width: 760px` breakpoint:
+
+```css
+.sales-summary { display: none; }
+.financial-human-summary { order: -1; }
 ```
 
-## 3. H1 REAL-BROWSER RESULT
+`detail.php`, backend owners, routes, JS, money semantics and desktop CSS remain unchanged.
+One focused test obtains `/assets/app.css` through the application and checks both rules within that breakpoint.
+RED failed only because the responsive hierarchy was absent; minimal GREEN passed.
 
 ```text
-H1_RESULT=DIAGNOSED
-H1_BROWSER_GREEN=NO
-FIRST_DEFECT=H1-001
-SEVERITY=MAJOR HUMAN_COMPREHENSION/DENSITY
-SCENARIO=KNOWN FEE
-VIEWPORT=390x844
-ROUTE=/sales/1001
+LOCAL_LINT=PASS
+LOCAL_PHPSTAN=PASS
+LOCAL_PHPUNIT=805 tests / 6744 assertions / 0 errors / 0 failures / 1 skipped
+COMPOSER_QA=PASS; runtime-only COMPOSER_PROCESS_TIMEOUT=0
+H1_BROWSER_GREEN=YES
+H1_001=CLOSED
+KNOWN_FEE_DESKTOP_1440x900=PASS
+KNOWN_FEE_MOBILE_390x844=PASS
+CONFLICT_DESKTOP_1440x900=PASS
+CONFLICT_MOBILE_390x844=PASS
 ```
 
-Desktop known-fee result:
+Known fee remains exactly `9.12500000`; absent facts use human copy and remain `UNKNOWN` in technical disclosure.
+Conflict prominently explains incompatible currencies; raw `CONFLICT` is secondary and never substituted by zero.
+Both scenarios use separate clean disposable DB states. Native disclosure opens/closes by Enter/Space.
+No empty Billing table chrome, primary page horizontal overflow, application console errors or captured application 5xx.
+Products remain available below Finance on mobile. Normal vertical scrolling to technical detail is accepted.
+Work/API/Billing and selected order/item facts match their pre-read baselines.
+Browser scores are audit heuristics, not a timed human-participant study.
+
+Evidence outside Git:
 
 ```text
-score=15/16
-HTTP=200
-page horizontal overflow=NO
-technical disclosure keyboard=PASS
-console app errors=0
-captured app HTTP 5xx=0
-read side effects=0
-known commission=9.12500000 exact
+C:\codex\evidence\erp-meli2\human-first\h1-fix1\
+red.txt
+green-focused.txt
+full-local-qa.txt
+implementation.txt
+browser-summary.txt
+known\fixture-proof.txt / side-effects.txt / browser-evidence.txt / screenshots
+conflict\fixture-proof.txt / side-effects.txt / browser-evidence.txt / screenshots
 ```
 
-Mobile finding:
+Temporary QA containers/DBs, local server and fixture helper were removed; temporary runtime files and secrets cleared.
+
+## Next / frozen
 
 ```text
-hero already shows status + total + account
-Resumen de la venta repeats status + total + account
-Resumen financiero starts around y=910
-viewport height=844
-financial meaning is pushed below initial view
-mobile width overflow=NO (375/375)
-no money corruption
-no UNKNOWN/CONFLICT truth regression
-```
-
-Conflict scenario was correctly NOT RUN after first defect.
-
-## 4. ROOT-CAUSE RULING
-
-```text
-PRODUCT_UX_DEFECT=YES
-BACKEND_DEFECT=NO
-FINANCIAL_TRUTH_DEFECT=NO
-HORIZONTAL_OVERFLOW_DEFECT=NO
-SIDE_EFFECT_DEFECT=NO
-```
-
-Root cause:
-
-```text
-mobile hierarchy preserves a redundant desktop-oriented summary block
-+ mobile stacking keeps Products before the decision-driving Financial summary
-```
-
-KISS correction target:
-
-```text
-MOBILE ONLY:
-- suppress redundant sales-summary block because hero already contains the same facts
-- place financial-human-summary before products
-DESKTOP:
-- preserve current certified layout
-```
-
-Do NOT add a new component, read model, route or duplicate summary engine.
-
-## 5. QA CONTRACT CORRECTION
-
-The previous H1 diagnostic was correct to flag density, but one criterion was too strict.
-
-Human-First requires technical detail to be secondary and discoverable; it does NOT require the technical disclosure trigger itself to fit above the first mobile fold.
-
-Revised mobile first-glance gate:
-
-```text
-MUST understand within ~5–10 seconds:
-1 page/sale identity
-2 status
-3 primary financial meaning OR attention condition
-4 whether a problem requires review
-
-MAY require normal scrolling:
-5 technical evidence entry point
-```
-
-Technical disclosure must still be easy to find, keyboard-operable and truthful.
-
-## 6. NEXT EXACT MICROBLOCK — H1-FIX1
-
-```text
-H1-FIX1 MOBILE SALE DETAIL HIERARCHY
-```
-
-Required sequence:
-
-```text
-READ authorities
-→ RED contract for mobile hierarchy
-→ minimal GREEN
-→ focused tests
-→ full composer qa / CI PHP 8.3, 8.4, 8.5
-→ real-browser H1 retest
-→ known-fee + conflict
-→ 1440x900 + 390x844
-→ checkpoint
-→ STOP before H2
-```
-
-Allowed product files only if evidence supports them:
-
-```text
-app/Modules/Sales/ViewSales/views/detail.php
-public/assets/app.css
-tests/Integration/SalesDetailHumanFirstUiTest.php
-```
-
-Prefer CSS-only responsive correction if it cleanly solves the root cause; do not edit backend owners.
-
-## 7. H1 RETEST GATE
-
-Known-fee and conflict must both verify:
-
-```text
-exact money preserved
-UNKNOWN != 0
-CONFLICT != 0
-raw codes secondary
-attention clear when conflict exists
-primary mobile horizontal scroll=NO
-bottom nav does not cover critical content
-technical disclosure discoverable + keyboard usable
-empty Billing table chrome=NO
-console app errors=0
-captured application HTTP 5xx=0
-read side effects=0
-```
-
-Mobile first glance does NOT require the technical disclosure trigger to be above fold.
-
-## 8. FROZEN
-
-```text
-H2=FROZEN UNTIL H1 BROWSER GREEN CHECKPOINT
-H3=FROZEN
-H4=FROZEN
-H5=FROZEN
-H6=FROZEN
-H7=FROZEN
-H8=FROZEN
-H9=FROZEN
+NEXT=H2 CROSS-CUT ACCESSIBILITY FOUNDATION
+DO_NOT_START_H2=YES
+H2_STARTED=NO
+H3..H9=FROZEN
 UI-DM10-B2C2 INVENTORY MISSING-VS-ZERO=MOVED INTO H5
+RESUME_EXACTLY_FROM=H2 CROSS-CUT ACCESSIBILITY FOUNDATION WHEN EXPLICITLY AUTHORIZED
+STOP_SAFE=YES
 ```
 
-## 9. ABSOLUTE NO-GO
-
-```text
-NO broad redesign
-NO backend owner redesign
-NO framework migration
-NO fake routes/data/metrics
-NO Hostinger
-NO cron
-NO real MELI mutation
-NO REMOTE_WRITES
-NO F15
-NO F16
-NO merge PR #19
-```
-
-## 10. RESUME EXACTLY FROM HERE
-
-```text
-RESUME_EXACTLY_FROM=H1-FIX1 MOBILE SALE DETAIL HIERARCHY — RED THEN MINIMAL GREEN
-```
-
-## 11. STOP-SAFE
-
-```text
-H1_BROWSER_GREEN=NO
-H1_001=CONFIRMED
-NEXT=H1-FIX1
-H2_NOT_STARTED=YES
-PR_19=DRAFT / NOT MERGED
-REMOTE_WRITES=OFF
-STOP_NOW=YES
-```
+Follow the existing improvement plan one microblock at a time. H1 does not certify the remaining ERP pages or the final product.
+No broad redesign, backend-owner redesign, frontend framework, fake data/routes, Hostinger, cron, real MELI writes, F15/F16 or merge of PR #19.
+Keep durable 429 defer/cooldown, no inline retries, company/account scoping, Financial UNKNOWN/CONFLICT and Billing cursor semantics.
