@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..10-A GREEN / UI-DM10-B1 GREEN / UI-DM10-B2A GREEN / UI-DM10-B2B SALE DETAIL FACTUAL FIXTURE GREEN / NEXT UI-DM10-B2C1 FINANCIAL CONFLICT / STOP-SAFE**
+**CURRENT=DESIGN MASTER IMPLEMENTED / UI-DM1..10-A GREEN / UI-DM10-B1 GREEN / B2A GREEN / B2B GREEN / B2C1 GREEN / HUMAN-FIRST UX REALIGNMENT REQUIRED / NEXT UX-HF1 SALE DETAIL / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
@@ -17,11 +17,13 @@ LATEST_CERTIFIED_PRODUCT_RUN=38836597229
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
-DM10_B2A_CHECKPOINT_HEAD=31c8c211df60995d82245a48da1937232460a2d8
-DM10_B2A_CHECKPOINT_RUN=38848733895
-DM10_B2A_CHECKPOINT_RUN_RESULT=PASS
+B2B_CHECKPOINT_HEAD=261812f112f29b7ae026f1f5605e94cc03fd4eb2
+B2B_CHECKPOINT_RUN=38917160256
+B2B_CHECKPOINT_RUN_RESULT=PASS
+UX_AUDIT_DOC=docs/UX_HUMAN_FIRST_UI_UX_PRO_MAX_AUDIT_2026-10-16.md
+UX_AUDIT_COMMIT=04da1926a13818be41403268b01d089359ae2e23
 REMOTE_WRITES=OFF
-REAL_MELI_HTTP=0 for this development work
+REAL_MELI_HTTP=0 for development/browser QA
 HOSTINGER_UI_DEPLOYED=NO
 ```
 
@@ -31,12 +33,12 @@ HOSTINGER_UI_DEPLOYED=NO
 KISS=A→B
 ANTI_NOISE=KEEP/MERGE/OPTIMIZE/SIMPLIFY/REMOVE only with evidence
 ANTI_PATCH=root owner fix only
-MICROBLOCK=RED → GREEN → full CI → audit → checkpoint → next
-CHECKPOINT_CADENCE=small blocks; persist frequently so the project is recoverable if chat ends
-FIRST_BROWSER_DEFECT_RULE=capture first real defect and STOP; do not patch blindly
+HUMAN_FIRST=primary screen explains what happened, what matters, and what the user can do next; raw technical detail is secondary/on-demand
+MICROBLOCK=RED → GREEN → full CI → browser audit when relevant → checkpoint → next
+CHECKPOINT_CADENCE=small blocks; persist frequently so recovery never depends on chat memory
 ```
 
-## 3. CLOSED BLOCKS
+## 3. CLOSED TECHNICAL / DESIGN BLOCKS
 
 ```text
 UI-DM1 FOUNDATION=GREEN
@@ -55,11 +57,12 @@ UI-DM10-B PRE-BROWSER LOCAL QA=GREEN
 UI-DM10-B1 REAL BROWSER SHELL SMOKE=GREEN
 UI-DM10-B2A DESKTOP CORE PAGES=GREEN
 UI-DM10-B2B SALE DETAIL FACTUAL FIXTURE=GREEN
+UI-DM10-B2C1 FINANCIAL CONFLICT=GREEN
 ```
 
-## 4. AUTOMATED QA AUTHORITY
+These blocks certify functionality, responsiveness and factual semantics. They do NOT by themselves certify Human-First information architecture.
 
-### Product code certification
+## 4. AUTOMATED QA AUTHORITY
 
 ```text
 PRODUCT_HEAD=a4d74349e5e28e4013a952bd47ea70ef12e1dd9a
@@ -69,291 +72,225 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-### B2A docs checkpoint CI
+Local pre-browser QA:
 
 ```text
-HEAD=31c8c211df60995d82245a48da1937232460a2d8
-RUN=38848733895
-RESULT=PASS
-```
-
-No product/test/CSS/JS/route/migration/composer change occurred in B2A or B2B.
-
-## 5. UI-DM10-B1 REAL BROWSER CERTIFICATION
-
-### Desktop 1440x900
-
-```text
-LOGIN_RENDER=PASS
-AUTHENTICATION=PASS
-DASHBOARD_SHELL=PASS
-SIDEBAR=PASS
-TOPBAR=PASS
-CONSOLE_APP_ERRORS=NONE_OBSERVED
-CAPTURED_HTTP_5XX=NONE
-DESKTOP_APPS_REQUIRED=NO
-QA_CONTRACT_FALSE_POSITIVE_CORRECTED=YES
-```
-
-### Mobile 390x844
-
-```text
-AUTHENTICATED_SHELL=PASS
-DESKTOP_SIDEBAR_HIDDEN=YES
-BOTTOM_NAV_VISIBLE=YES
-BOTTOM_NAV_ORDER=Inicio | Operación | Apps | Productos | Mercado Libre
-APPS_CENTRAL_CONTROL=PASS
-MELI_SLOT=/mercadolibre/accounts through existing authorized branch
-APPS_OPEN=PASS
-LAUNCHER_NOT_CLIPPED=PASS
-ESC_CLOSE=PASS
-SECOND_CLOSE_PATH=PASS
-FOCUS_RETURN_TO_APPS=PASS
-INITIAL_BOTTOM_OVERLAP=NONE_OBSERVED
-PRIMARY_HORIZONTAL_OVERFLOW=NO
-CLIENT_WIDTH=375
-SCROLL_WIDTH=375
-HARDWARE_SAFE_AREA_NONZERO=NOT_EMULATED
-CONSOLE_APP_ERRORS=NONE_OBSERVED
-CAPTURED_HTTP_5XX=NONE
-```
-
-## 6. UI-DM10-B2A DESKTOP CORE PAGES — GREEN
-
-```text
-REAL_BROWSER=Codex In-app Browser
-VIEWPORT=1440x900
-APP_ENV=test
-REAL_MELI_HTTP=0
-MELI_WRITES_ENABLED=0
+DIRECT_PHPUNIT=803 tests / 6720 assertions / 0 errors / 0 failures / 1 skipped
+COMPOSER_QA_UNBOUNDED=PASS
 DB_NAME=erp_meli2_test
-WORKING_TREE_BEFORE=CLEAN
-WORKING_TREE_AFTER=CLEAN
-SOURCE_CHANGES=NONE
+REAL_MELI_HTTP=0
 ```
 
-### Sales `/sales`
+## 5. REAL BROWSER CLOSED EVIDENCE
+
+### B1 shell
 
 ```text
-HTTP=200
-ACTIVE_NAV=Ventas
-EMPTY_STATE=truthful
-PRIMARY_CONTROLS=PASS
-PAGE_HORIZONTAL_OVERFLOW=NO
-CLIENT_WIDTH=1425
-SCROLL_WIDTH=1425
+DESKTOP_1440x900=PASS
+MOBILE_390x844=PASS
+BOTTOM_NAV=Inicio | Operación | Apps | Productos | Mercado Libre
+APPS_LAUNCHER=PASS
+PRIMARY_MOBILE_HORIZONTAL_OVERFLOW=NO
 CONSOLE_APP_ERRORS=NONE_OBSERVED
 CAPTURED_HTTP_5XX=NONE
 ```
 
-### Catalog + Inventory `/catalog`
+### B2A desktop core empty states
 
 ```text
-HTTP=200
-SINGLE_HUMAN_OWNER=YES
-EMPTY_STATE=truthful
-MISSING_INVENTORY_FABRICATED_ZERO=NO
-PRIMARY_CONTROLS=PASS
+/sales=PASS
+/catalog=PASS
+/billing=PASS
+EMPTY_STATES_TRUTHFUL=YES
+FABRICATED_ZERO=NO
 PAGE_HORIZONTAL_OVERFLOW=NO
-CLIENT_WIDTH=1425
-SCROLL_WIDTH=1425
-CONSOLE_APP_ERRORS=NONE_OBSERVED
-CAPTURED_HTTP_5XX=NONE
 ```
 
-### Billing `/billing`
+### B2B populated Sale Detail
 
 ```text
-HTTP=200
-SINGLE_HUMAN_OWNER=Facturación
-EMPTY_STATE=truthful
-FABRICATED_FINANCIAL_ZERO=NO
-FAKE_RECONCILIATION_OR_PROFITABILITY=NO
-PAGE_HORIZONTAL_OVERFLOW=NO
-CLIENT_WIDTH=1425
-SCROLL_WIDTH=1425
-CONSOLE_APP_ERRORS=NONE_OBSERVED
-CAPTURED_HTTP_5XX=NONE
+ROUTE=/sales/1001
+SCOPE=order
+COMMISSION_VALUE=9.12500000
+COMMISSION_COVERAGE=KNOWN
+SELLER_SHIPPING=UNKNOWN
+OFFICIAL_REFERENCE=UNKNOWN
+BILLING_COVERAGE=UNKNOWN
+NET_RENDERED=NO
+READ_ONLY_PASS=YES
 ```
 
-B2A certified empty-state/browser truth only; populated Financial truth was intentionally deferred to B2B+.
+### B2C1 Financial conflict
 
-## 7. UI-DM10-B2B SALE DETAIL FACTUAL FIXTURE — GREEN
-
-Authority/runtime:
+Source/runtime:
 
 ```text
-SOURCE_HEAD=31c8c211df60995d82245a48da1937232460a2d8
-CHECKPOINT_CI_RUN=38848733895
+SOURCE_HEAD=261812f112f29b7ae026f1f5605e94cc03fd4eb2
+CHECKPOINT_CI_RUN=38917160256
 CHECKPOINT_CI_RESULT=PASS
-PHP=8.5.8
-MARIADB=11.4.12
-APP_ENV=test
+VIEWPORT=1440x900
+ROUTE=/sales/1001
+HTTP=200
 REAL_MELI_HTTP=0
 MELI_WRITES_ENABLED=0
-DB_NAME=erp_meli2_test
-REAL_BROWSER=Codex/ChatGPT in-app browser
-VIEWPORT=1440x900
 WORKING_TREE_BEFORE=CLEAN
 WORKING_TREE_AFTER=CLEAN
 SOURCE_CHANGES=NONE
-CLEANUP_COMPLETE=YES
 ```
 
-Disposable factual fixture:
+Fixture:
 
 ```text
 companies=1
 users=1
 meli_accounts=1
-meli_tokens=0
-orders=1
-order_items=1
+orders=2
+order_items=2
+pack_id=PACK-A
+1001 order_currency=COP / item_currency=COP / fee=0.0000
+1002 order_currency=COP / item_currency=USD / fee=0.0000
 billing_periods=0
 billing_details=0
 work_items=0
 api_usage_daily=0
+meli_tokens=0
 products=0
-external_order_id=1001
-order_status=paid
-order_currency=COP
-order_total=10.0000
-item_title=Local item
-item_sku=BROWSER-SKU-1001
-item_currency=COP
-item_sale_fee=9.1250
-pack_id=NULL
+product_inventory=0
 ```
 
-Sale Detail `/sales/1001`:
+Rendered facts:
 
 ```text
-HTTP=200
-ORDER_ID_VISIBLE=YES
-ITEM_VISIBLE=YES
-SKU_VISIBLE=YES
-RECONCILIATION_VISIBLE=YES
-SCOPE=order
-COMMISSION_VALUE=9.12500000
-COMMISSION_COVERAGE=KNOWN
-SCOPE_CURRENCY=COP
+SCOPE=pack
+PACK_VISIBLE=PACK-A
+ORDERS_VISIBLE=1001,1002
+COMMISSION_VALUE=CONFLICT
+COMMISSION_COVERAGE=CONFLICT
+SCOPE_CURRENCY=CONFLICT
 SELLER_SHIPPING=UNKNOWN
-RECEIVER_SHIPPING_COVERAGE=UNKNOWN
 OFFICIAL_REFERENCE=UNKNOWN
 BILLING_COVERAGE=UNKNOWN
 NET_RENDERED=NO
+RESOLVED_ZERO_SUBSTITUTED=NO
 CLIENT_WIDTH=1425
 SCROLL_WIDTH=1425
 PAGE_HORIZONTAL_OVERFLOW=NO
-PRODUCT_TABLE_INTERNAL_HORIZONTAL_SCROLL=YES / acceptable for this desktop evidence
 CONSOLE_APP_ERRORS=NONE_OBSERVED
 CAPTURED_HTTP_5XX=NONE
-```
-
-Read-only proof:
-
-```text
-work_items_before=0
-work_items_after=0
-api_usage_before=0
-api_usage_after=0
-orders_before=1
-orders_after=1
-order_items_before=1
-order_items_after=1
-billing_periods_before=0
-billing_periods_after=0
-billing_details_before=0
-billing_details_after=0
 READ_ONLY_PASS=YES
 ```
 
-Meaning certified by B2B:
+B2C1 evidence hashes independently rechecked:
 
 ```text
-KNOWN != UNKNOWN
-UNKNOWN != 0
-missing Billing != zero Billing
-known sale fee remains exact decimal
-Sale Detail render causes no Work/API/Billing side effect
+dm10-b2c1-conflict-1001-1440x900.png=3D45A88F33BE5ED42F49156C3702CEDB86D54DFF9E852358624BE372CD7CF480
+dm10-b2c1-reconciliation-1440x900.png=267E97EB1C71639384149FD4E48C57CBCFFAF000CC3A36FAF8DE110D59A22355
+dm10-b2c1-runtime.txt=F56F1E7F5FAD3B20D9BE331C101FDE42AD2F4679A211AD408B7F36F3FBA2088C
+dm10-b2c1-fixture-proof.txt=CE3F2E0882FA6A2A4AF31112ED8DED9E15CF73C4EAFFA90C32B4C267A3922A82
+dm10-b2c1-console-network.txt=CEA45B49ED8D2CA0B4150644A7371ED5C517F544A429C9233351C380021D8740
+dm10-b2c1-side-effects.txt=85C42567F2FC14726D35679A53B53643D09E58527CB89BF50295D447D080087F
 ```
 
-Evidence hashes independently rechecked against the uploaded files:
+## 6. UX HUMAN-FIRST RULING
+
+User review identified a real presentation-direction risk: technically correct screens are becoming too machine-oriented / spreadsheet-like.
+
+Official design reference:
 
 ```text
-dm10-b2b-runtime.txt=0D787E63BAA32D9FDF36E7734F3E255D5045171800F304F82F2227EE9D6EFC6E
-dm10-b2b-fixture-proof.txt=F4A277E1A5FE08B1B8BB4F6E317C1B3E194E0546CBA680E924C692A0434AB369
-dm10-b2b-console-network.txt=7B839BFC5BC3AF710E9E30C52A4A56409B4330DA28E870663F8C378449A3C88A
-dm10-b2b-side-effects.txt=833A5014E8D4AF10D3354580A40C671D1EE46E2174186969D687492D59A2B880
-dm10-b2b-sale-detail-1001-1440x900.png=37BB71818B0EBA3438778501514F81C9F41A5A740B8692F4A90A38492B3C7DE3
-dm10-b2b-sale-detail-1001-reconciliation-1440x900.png=384468EF86379C42D61D10F4669CF278C42F5E4D6B7BE5AFE4535A6B684425B2
+https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
 ```
 
-Non-blocking noise:
+Project UX authority now also includes:
 
 ```text
-/favicon.ico=404
-CLASSIFICATION=harmless browser asset noise
-PRIMARY_PAGE_OR_ASSET_FAILURE=NO
-DO_NOT_PATCH_PRODUCT_FOR_THIS_ALONE=YES
+docs/UX_HUMAN_FIRST_UI_UX_PRO_MAX_AUDIT_2026-10-16.md
 ```
 
-## 8. NEXT — UI-DM10-B2C1 FINANCIAL CONFLICT
-
-Do NOT combine Financial CONFLICT and Inventory missing-vs-zero in one diagnostic run.
+Key ruling:
 
 ```text
-NEXT=UI-DM10-B2C1 FINANCIAL CONFLICT
-MAX_SCOPE=one local populated Sale Detail conflict scenario
-VIEWPORT=1440x900
+RAW_CODE != PRIMARY_LABEL
+DECISION_FIRST=YES
+PROGRESSIVE_DISCLOSURE=REQUIRED
+EMPTY_TABLE_CHROME=FORBIDDEN
+SINGLE_RECORD_EXCEL_LAYOUT=AVOID
+TECHNICAL_DETAILS=SECONDARY/ON_DEMAND
+TRUTH_SEMANTICS=MUST_NOT_CHANGE
 ```
 
-Goal:
-- use one company and one local MELI account;
-- use the smallest repository-proven pack scenario that creates mixed operational currencies;
-- verify `Comisión operativa=CONFLICT` and `Cobertura de comisión=CONFLICT` when the factual scope is conflicting;
-- verify `Moneda del ámbito=CONFLICT` if that is the existing authoritative behavior;
-- verify missing unrelated facts remain UNKNOWN, not zero;
-- verify no invented net/allocation/totals;
-- verify no Work/API/remote side effect;
-- first evidence-backed defect => STOP; no fix in same diagnostic run.
-
-The existing `FinancialConsumerHttpRouteTest` is the fixture/semantic authority. Do not invent a new Financial model.
-
-After B2C1, open a separate checkpoint for:
+Examples of primary human mappings:
 
 ```text
-UI-DM10-B2C2 INVENTORY MISSING VS FACTUAL ZERO
+UNKNOWN -> Sin información suficiente
+CONFLICT -> Datos incompatibles · requiere revisión
+PACK_MEMBERSHIP_UNVERIFIED -> Membresía del paquete sin verificar
+NONE -> Sin postventa registrada
+paid -> Pagada
+BILL -> Factura
+CREDIT_NOTE -> Nota crédito
 ```
 
-## 9. REMAINING DM10-B BROWSER WORK AFTER B2C1/B2C2
+Raw values may remain in explicit technical detail where useful.
 
-Continue only by checkpointed microblocks:
+## 7. NEXT — UX-HF1 SALE DETAIL HUMAN-FIRST REALIGNMENT
+
+Do NOT continue directly to B2C2 Inventory.
 
 ```text
-MELI accounts + global settings according to role
-Companies / Users / System Settings
-430x932 mobile validation
-768x1024 tablet portrait
-1024x768 tablet landscape
-1366x768 desktop
-1920x1080 desktop
-responsive table→card behavior
-limited-role visibility/browser authorization
-currency separation remaining cases
-remaining populated factual checks
+NEXT=UX-HF1 SALE DETAIL HUMAN-FIRST REALIGNMENT
+MAX_SCOPE=Sale Detail presentation only
+BACKEND_CHANGES=NO unless new evidence proves unavoidable
 ```
 
-Do not combine all remaining items into one run.
+Goals:
 
-## 10. BACKEND GUARDRAILS STILL CLOSED
+- preserve exact Financial/UNKNOWN/CONFLICT semantics;
+- add immediate human summary of sale + attention state;
+- humanize raw system states without losing raw diagnostics;
+- use progressive disclosure for technical reconciliation;
+- do not render Billing table chrome when there are no rows;
+- make Facturación/Postventa human-readable;
+- remove ordinary 1–5 item desktop internal product-table horizontal scrolling;
+- keep technical pack/order/coverage evidence accessible on demand;
+- no fake totals/actions/capabilities;
+- browser QA at 1440x900 and 390x844 after GREEN;
+- checkpoint before any other screen.
+
+After UX-HF1:
+
+```text
+UX-HF2 Dashboard
+UX-HF3 Sales List / historical audit
+UX-HF4 Catalog + Inventory workflow
+UX-HF5 Billing
+UX-HF6 MELI/Admin/settings focused audit
+UX-HF7 cross-page responsive/human-comprehension audit
+THEN resume remaining factual gates including B2C2 Inventory missing-vs-zero
+```
+
+## 8. HUMAN-FIRST GATE BEFORE ERP COMPLETE
+
+```text
+HUMAN_FIRST_COPY=GREEN
+PROGRESSIVE_DISCLOSURE=GREEN
+RAW_MACHINE_CODES_PRIMARY_VIEW=NO
+EMPTY_TABLE_CHROME=NO
+SINGLE_RECORD_EXCEL_LAYOUT=NO
+SALE_DETAIL_DESKTOP_INTERNAL_SCROLL=NO for ordinary 1–5 item case
+MOBILE_PRIMARY_HORIZONTAL_SCROLL=NO
+PRIMARY_ACTION_HIERARCHY=GREEN
+HUMAN_STATUS_MAPPING=GREEN
+```
+
+## 9. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
 Work durable execution
 no inline retry storm
 no FIFO/HOL resurrection
-no child/page work explosion
+no child/page Work explosion
 OAuth lifecycle
 company/account scoping
 Financial UNKNOWN/CONFLICT semantics
@@ -361,22 +298,7 @@ Billing cursor/period behavior
 REMOTE_WRITES=OFF
 ```
 
-## 11. PRODUCT SEQUENCE
-
-```text
-UI-DM10-B checkpointed real browser QA
-→ ERP COMPLETE candidate
-→ local demo
-→ manual E2E
-→ user approval
-→ Hostinger
-→ runtime certification
-→ cron / Work Runner
-→ real MELI READ-only gates
-→ later explicitly authorized phases
-```
-
-## 12. ABSOLUTE NO-GO
+## 10. ABSOLUTE NO-GO
 
 ```text
 NO persistent demo seed
@@ -387,17 +309,21 @@ NO REMOTE_WRITES
 NO F15
 NO F16
 NO merge PR #19
+NO frontend framework migration
+NO UI UX Pro Max runtime dependency
 ```
 
-## 13. STOP-SAFE
+## 11. STOP-SAFE
 
 ```text
-STOP_NOW=YES
-RESUME_EXACTLY_FROM=UI-DM10-B2C1 FINANCIAL CONFLICT
+STOP_NOW=NO
+RESUME_EXACTLY_FROM=UX-HF1 SALE DETAIL HUMAN-FIRST REALIGNMENT
 B1=GREEN
 B2A=GREEN
 B2B=GREEN
-BROWSER_EVIDENCE_REQUIRED=YES
-DO_NOT_CLAIM_ERP_COMPLETE_BEFORE_DM10_B=YES
+B2C1=GREEN
+B2C2=FROZEN
+HUMAN_FIRST_AUDIT=ACTIVE_AUTHORITY
+DO_NOT_CLAIM_ERP_COMPLETE_BEFORE_HUMAN_FIRST_GATE=YES
 DO_NOT_MERGE_PR_19=YES
 ```
