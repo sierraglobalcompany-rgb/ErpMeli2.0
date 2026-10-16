@@ -296,7 +296,9 @@ final class WorkCliEntrypointTest extends TestCase
             $this->assertSimulatorCalls($directory, ['orders.search','orders.get','orders.search']);
             $visible = \App\Bootstrap::create()->handle($factory->createServerRequest('GET', '/sales'));
             self::assertSame(200, $visible->getStatusCode());
-            self::assertStringContainsString('<td>VALID</td>', (string) $visible->getBody());
+            $visibleHtml = (string) $visible->getBody();
+            self::assertStringContainsString('data-audit-status="valid"', $visibleHtml);
+            self::assertStringContainsString('Sin diferencias', $visibleHtml);
             $this->assertSimulatorCalls($directory, ['orders.search','orders.get','orders.search']);
             self::assertSame(0, (int) $pdo->query('SELECT meli_writes_enabled FROM system_settings')->fetchColumn());
         });
