@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..10-A GREEN / UI-DM10-B1 REAL BROWSER SHELL SMOKE GREEN / NEXT UI-DM10-B2A DESKTOP CORE PAGES / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..10-A GREEN / UI-DM10-B1 GREEN / UI-DM10-B2A DESKTOP CORE PAGES GREEN / NEXT UI-DM10-B2B SALE DETAIL FACTUAL FIXTURE / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
@@ -17,7 +17,9 @@ LATEST_CERTIFIED_PRODUCT_RUN=38836597229
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
-DM10_B_PRE_BROWSER_HEAD=b28e10a2e3da7fae14f793b6a1da34f7e8c1b56e
+DM10_B_CHECKPOINT_HEAD_BEFORE_B2A=33fdfc8e24d3e3f98ea8b8ec18516f29ea7d54ff
+DM10_B_CHECKPOINT_RUN_BEFORE_B2A=38847738064
+DM10_B_CHECKPOINT_RUN_RESULT=PASS
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
@@ -48,65 +50,44 @@ UI-DM6B MELI APP SETTINGS=GREEN
 UI-DM7 ADMINISTRATION=GREEN
 UI-DM8 COMPLETENESS AUDIT=GREEN
 UI-DM9 FULL AUTOMATED QA=GREEN
-UI-DM10-A1 LAUNCHER KEYBOARD ACCESSIBILITY=GREEN
-UI-DM10-A2.1 INITIAL SHEET FOCUS TRAP=GREEN
-UI-DM10-A2.2 MOBILE SAFE-AREA=GREEN
 UI-DM10-A STATIC VISUAL/RESPONSIVE AUDIT=GREEN
 UI-DM10-B PRE-BROWSER LOCAL QA=GREEN
 UI-DM10-B1 REAL BROWSER SHELL SMOKE=GREEN
+UI-DM10-B2A DESKTOP CORE PAGES=GREEN
 ```
 
-## 4. UI-DM10-A CERTIFICATION SUMMARY
+## 4. AUTOMATED QA AUTHORITY
 
-### A1 — launcher keyboard accessibility
+### Product code certification
 
 ```text
-GREEN_HEAD=7f4312e0d828bb7007a384166e4ddf490003b646
-GREEN_RUN=38834828976
+PRODUCT_HEAD=a4d74349e5e28e4013a952bd47ea70ef12e1dd9a
+PRODUCT_RUN=38836597229
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-### A2.1 — initial sheet focus trap
+### DM10-B local QA
 
 ```text
-GREEN_HEAD=503181a181c40dd2d6f1be2685bb61dff0b23081
-GREEN_RUN=38835728947
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
-```
-
-### A2.2 — mobile safe-area
-
-```text
-GREEN_HEAD=a4d74349e5e28e4013a952bd47ea70ef12e1dd9a
-GREEN_RUN=38836597229
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
-```
-
-## 5. DM10-B PRE-BROWSER LOCAL QA
-
-The first local attempt used an unauthorized disposable DB name (`erp_meli2_dm10b_test`) and correctly hit the Catalog rehearsal guard. This was an environment error, not a product regression. The guard was preserved.
-
-Corrected local QA used exactly `erp_meli2_test` and certified:
-
-```text
-QA01=DIAGNOSED / ENVIRONMENT NAME ERROR
+QA01=DIAGNOSED / ENVIRONMENT DB NAME ERROR ONLY
 QA02=PASS
 DIRECT_PHPUNIT=803 tests / 6720 assertions / 0 errors / 0 failures / 1 skipped
-DIRECT_PHPUNIT_ELAPSED=585.921s
 COMPOSER_QA_UNBOUNDED=PASS
 COMPOSER_PROCESS_TIMEOUT_OVERRIDE=runtime-only; no composer.json change
 PRODUCT_REGRESSION_PROVEN=NO
 ```
 
-Remote same-head reference remained GREEN on PHP 8.3 / 8.4 / 8.5.
+### Docs checkpoint CI
 
-## 6. UI-DM10-B1 REAL BROWSER CERTIFICATION
+```text
+HEAD=33fdfc8e24d3e3f98ea8b8ec18516f29ea7d54ff
+RUN=38847738064
+RESULT=PASS
+```
+
+## 5. UI-DM10-B1 REAL BROWSER CERTIFICATION
 
 ### Desktop 1440x900
 
@@ -118,17 +99,9 @@ SIDEBAR=PASS
 TOPBAR=PASS
 CONSOLE_APP_ERRORS=NONE_OBSERVED
 CAPTURED_HTTP_5XX=NONE
-```
-
-The first B1 contract incorrectly required a desktop Apps opener. Audit against source proved this was a QA-contract false positive:
-
-```text
 DESKTOP_APPS_REQUIRED=NO
-MOBILE_BOTTOM_NAV_HIDDEN_ON_DESKTOP=EXPECTED
-PRODUCT_CHANGE_REQUIRED=NO
+QA_CONTRACT_FALSE_POSITIVE_CORRECTED=YES
 ```
-
-Do not add a desktop Apps button to satisfy the discarded requirement.
 
 ### Mobile 390x844
 
@@ -153,51 +126,132 @@ CONSOLE_APP_ERRORS=NONE_OBSERVED
 CAPTURED_HTTP_5XX=NONE
 ```
 
-B1R evidence hashes:
+## 6. UI-DM10-B2A DESKTOP CORE PAGES — GREEN
+
+Environment:
 
 ```text
-dm10-b1r-runtime.txt=D4C02C96217D41DADDFCFD7F926CC87B69769AF876F6C42768D8BB00810CDD4E
-dm10-b1r-console-network.txt=58A5053F5CF4B5D687D71CAB8FAB8E07492B00FA6E158EDCEC4422F00990AAAD
-dm10-b1r-mobile-shell-390x844.png=BD511D4C47BEBA5419BF30636966F02403C7CA20467C9B73FD9E747CA43860DD
-dm10-b1r-mobile-apps-open-390x844.png=B5672DB7176641F5D5A32798C439C9BB239190BE96B7B64ACBC986A605069BA1
-```
-
-## 7. NEXT — UI-DM10-B2A DESKTOP CORE PAGES
-
-```text
-NEXT=UI-DM10-B2A DESKTOP CORE PAGES
+REAL_BROWSER=Codex In-app Browser
 VIEWPORT=1440x900
-MAX_SURFACES=3
+APP_ENV=test
+REAL_MELI_HTTP=0
+MELI_WRITES_ENABLED=0
+DB_NAME=erp_meli2_test
+WORKING_TREE_BEFORE=CLEAN
+WORKING_TREE_AFTER=CLEAN
+SOURCE_CHANGES=NONE
 ```
 
-Exercise only these authenticated human surfaces in the next microblock:
+### Sales `/sales`
 
 ```text
-/sales
-/catalog
-/billing
+HTTP=200
+ACTIVE_NAV=Ventas
+EMPTY_STATE=truthful; no local sales/accounts/audits/results
+PRIMARY_CONTROLS=PASS
+PAGE_HORIZONTAL_OVERFLOW=NO
+CLIENT_WIDTH=1425
+SCROLL_WIDTH=1425
+CONSOLE_APP_ERRORS=NONE_OBSERVED
+CAPTURED_HTTP_5XX=NONE
 ```
 
-For each surface verify:
-- route renders in a real browser;
-- Design Master desktop shell remains coherent;
-- no clipped primary controls;
-- no fabricated values or UNKNOWN→0 semantic corruption;
-- empty local data is represented honestly;
-- no application console error;
-- no captured HTTP 5xx;
-- screenshot evidence.
-
-Stop on the first evidence-backed product defect. Do not fix in the same diagnostic run.
-
-Do NOT open Sale Detail, MELI, Administration, tablet matrix or additional viewport matrix in B2A. Those are later small checkpoints.
-
-## 8. REMAINING DM10-B BROWSER WORK
-
-After B2A, continue only by checkpointed microblocks. Remaining scope includes:
+### Catalog + Inventory `/catalog`
 
 ```text
-Sale Detail with minimal factual disposable fixture
+HTTP=200
+SINGLE_HUMAN_OWNER=YES
+EMPTY_STATE=truthful; no products
+MISSING_INVENTORY_FABRICATED_ZERO=NO
+PRIMARY_CONTROLS=PASS with ordinary vertical scroll
+PAGE_HORIZONTAL_OVERFLOW=NO
+CLIENT_WIDTH=1425
+SCROLL_WIDTH=1425
+CONSOLE_APP_ERRORS=NONE_OBSERVED
+CAPTURED_HTTP_5XX=NONE
+```
+
+### Billing `/billing`
+
+```text
+HTTP=200
+SINGLE_HUMAN_OWNER=Facturación
+EMPTY_STATE=truthful; no periods
+FABRICATED_FINANCIAL_ZERO=NO
+FAKE_RECONCILIATION_OR_PROFITABILITY=NO
+PAGE_HORIZONTAL_OVERFLOW=NO
+CLIENT_WIDTH=1425
+SCROLL_WIDTH=1425
+CONSOLE_APP_ERRORS=NONE_OBSERVED
+CAPTURED_HTTP_5XX=NONE
+UNKNOWN_WITH_FACTUAL_ROWS=NOT_EXERCISED
+```
+
+### Disposable DB proof after smoke
+
+```text
+companies=1
+users=1
+orders=0
+products=0
+product_inventory=0
+billing_periods=0
+billing_details=0
+meli_accounts=0
+work_items=0
+```
+
+Therefore B2A certifies empty-state/browser truth only. It does NOT certify populated Sale Detail/Financial UNKNOWN semantics.
+
+### Evidence hashes
+
+```text
+dm10-b2a-sales-1440x900.png=169AD17459912DA555A600A0971DA33CBC8AEEC706E63DBB826BD6BE8798EF93
+dm10-b2a-catalog-1440x900.png=05C5C2D96B68D5DD96C95D7850B64138FF1004F79827688C86162E234C239479
+dm10-b2a-billing-1440x900.png=C6F8EC22FB0E9FBBF6349237D3E50881E9BF51CE40280C5AB5FB006C6D653F28
+dm10-b2a-console-network.txt=D6176E2F0A53EC304064E7ECB991CF7B650778253DD769657B8C8873067401D1
+dm10-b2a-runtime.txt=7552DA570EEBAAEA065D286250F6F0B88EDFFE29DB1FE46E14963ED0070A080C
+```
+
+### Non-blocking noise
+
+```text
+/favicon.ico=404 on initial login only
+CLASSIFICATION=harmless browser asset noise
+PRIMARY_PAGE_OR_ASSET_FAILURE=NO
+DO_NOT_PATCH_PRODUCT_FOR_THIS_ALONE=YES
+```
+
+## 7. NEXT — UI-DM10-B2B SALE DETAIL FACTUAL FIXTURE
+
+```text
+NEXT=UI-DM10-B2B SALE DETAIL FACTUAL FIXTURE
+MAX_SCOPE=one factual local sale detail browser scenario
+```
+
+Goal: exercise the populated Sale Detail surface with the smallest disposable local fixture already compatible with existing repository semantics.
+
+Required checks:
+- use only local disposable DB;
+- no real MELI HTTP;
+- no remote writes;
+- no persistent demo seed;
+- create the minimum factual sale/order/items/billing facts only if an existing supported fixture/helper can do so safely;
+- verify Sale Detail renders at desktop 1440x900;
+- verify factual fee/billing/financial values are represented without UNKNOWN→0 corruption;
+- verify UNKNOWN/CONFLICT remains explicit where facts are insufficient;
+- verify currency semantics are not silently merged;
+- no application console error or captured HTTP 5xx;
+- screenshot/evidence;
+- first evidence-backed defect => STOP, no fix in same diagnostic run.
+
+If no supported safe fixture mechanism exists, report BLOCKED instead of ad-hoc SQL guessing.
+
+## 8. REMAINING DM10-B BROWSER WORK AFTER B2B
+
+Continue only by checkpointed microblocks:
+
+```text
 MELI accounts + global settings according to role
 Companies / Users / System Settings
 430x932 mobile validation
@@ -206,8 +260,10 @@ Companies / Users / System Settings
 1366x768 desktop
 1920x1080 desktop
 responsive table→card behavior
-role visibility / limited-role browser verification
-factual UNKNOWN / inventory missing vs zero / currency separation checks
+limited-role visibility/browser authorization
+inventory missing vs factual zero
+currency separation
+remaining populated factual checks
 ```
 
 Do not combine all remaining items into one run.
@@ -259,8 +315,9 @@ NO merge PR #19
 
 ```text
 STOP_NOW=NO
-RESUME_EXACTLY_FROM=UI-DM10-B2A DESKTOP CORE PAGES
+RESUME_EXACTLY_FROM=UI-DM10-B2B SALE DETAIL FACTUAL FIXTURE
 B1_OVERALL=GREEN
+B2A=GREEN
 BROWSER_EVIDENCE_REQUIRED=YES
 DO_NOT_CLAIM_ERP_COMPLETE_BEFORE_DM10_B=YES
 DO_NOT_MERGE_PR_19=YES
