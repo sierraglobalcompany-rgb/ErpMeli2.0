@@ -17,7 +17,7 @@ declare(strict_types=1);
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Catálogo local</title></head>
 <body>
 <?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
-<main>
+<main id="main-content" tabindex="-1">
     <header class="page-header catalog-page-header">
         <span class="eyebrow">Productos</span>
         <h1>Catálogo e inventario</h1>

@@ -20,7 +20,7 @@ declare(strict_types=1);
 </head>
 <body>
     <?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
-    <main>
+    <main id="main-content" tabindex="-1">
         <header class="page-header billing-page-header">
             <span class="eyebrow">Finanzas</span>
             <h1>Facturación</h1>

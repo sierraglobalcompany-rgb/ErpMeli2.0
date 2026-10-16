@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
 ?>
-<main>
+<main id="main-content" tabindex="-1">
     <header class="page-header">
         <h1>Inicio / Resumen</h1>
         <p>Vista factual de la operación local de <?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?>.</p>

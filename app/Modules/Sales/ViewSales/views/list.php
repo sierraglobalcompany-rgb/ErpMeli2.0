@@ -19,7 +19,7 @@ declare(strict_types=1);
 </head>
 <body>
     <?php require dirname(__DIR__, 4) . '/Core/Http/views/navigation.php'; ?>
-    <main>
+    <main id="main-content" tabindex="-1">
         <header class="page-header sales-page-header">
             <span class="eyebrow">Operación</span>
             <h1>Ventas</h1>

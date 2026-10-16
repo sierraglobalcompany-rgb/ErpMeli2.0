@@ -65,7 +65,7 @@ $postSaleLabel = match ($postSaleRaw) {
 </head>
 <body>
     <?php require dirname(__DIR__, 4) . '/Core/Http/views/navigation.php'; ?>
-    <main>
+    <main id="main-content" tabindex="-1">
         <header class="page-header sale-detail-header">
             <p class="back-link"><a href="/sales">← Ventas</a></p>
             <span class="eyebrow">Detalle de venta</span>

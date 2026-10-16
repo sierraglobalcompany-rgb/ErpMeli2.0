@@ -11,7 +11,7 @@ declare(strict_types=1);
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Seleccionar empresa</title><?php if ($company === null): ?><link rel="stylesheet" href="/assets/app.css"><?php endif; ?></head>
 <body>
 <?php if ($company !== null) { require __DIR__ . '/navigation.php'; } ?>
-<main class="<?= $company === null ? 'simple-page company-selector-workspace' : 'company-selector-workspace' ?>">
+<main id="main-content" tabindex="-1" class="<?= $company === null ? 'simple-page company-selector-workspace' : 'company-selector-workspace' ?>">
     <header class="page-header company-select-page-header">
         <span class="eyebrow">Contexto de trabajo</span>
         <h1>Seleccionar empresa</h1>

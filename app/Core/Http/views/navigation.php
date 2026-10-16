@@ -42,6 +42,7 @@ $isActive = static fn (string $path): bool => $path === '/'
 <link rel="stylesheet" href="/assets/app.css">
 <script src="/assets/app.js" defer></script>
 
+<a class="skip-link" href="#main-content">Saltar al contenido principal</a>
 <div class="app-shell-chrome">
     <header class="app-topbar">
         <div class="topbar-mobile-brand">

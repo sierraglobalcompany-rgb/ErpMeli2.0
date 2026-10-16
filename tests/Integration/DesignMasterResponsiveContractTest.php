@@ -10,6 +10,34 @@ use Slim\Psr7\Factory\ServerRequestFactory;
 
 final class DesignMasterResponsiveContractTest extends TestCase
 {
+    public function testSharedNavigationExposesOneSkipLinkBeforePersistentChrome(): void
+    {
+        $html = $this->renderNavigation('admin', true);
+        self::assertSame(1, substr_count($html, 'class="skip-link"'));
+        self::assertStringContainsString('href="#main-content">Saltar al contenido principal</a>', $html);
+        self::assertLessThan(strpos($html, 'class="app-shell-chrome"'), strpos($html, 'class="skip-link"'));
+    }
+
+    public function testEverySharedShellViewHasOneFocusableMainTarget(): void
+    {
+        $views = 0;
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(dirname(__DIR__, 2) . '/app'));
+        foreach ($files as $file) {
+            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                continue;
+            }
+            $source = (string) file_get_contents($file->getPathname());
+            if (!str_contains($source, 'navigation.php')) {
+                continue;
+            }
+            ++$views;
+            self::assertSame(1, preg_match_all('/<main\b/i', $source), $file->getPathname());
+            self::assertSame(1, substr_count($source, 'id="main-content"'), $file->getPathname());
+            self::assertMatchesRegularExpression('/<main\b(?=[^>]*\bid="main-content")(?=[^>]*\btabindex="-1")[^>]*>/i', $source, $file->getPathname());
+        }
+        self::assertGreaterThan(0, $views);
+    }
+
     protected function tearDown(): void
     {
         $_SESSION = [];

@@ -27,7 +27,7 @@ $statusClasses = [
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cuentas Mercado Libre</title></head>
 <body>
 <?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
-<main>
+<main id="main-content" tabindex="-1">
     <header class="page-header meli-accounts-page-header">
         <span class="eyebrow">Mercado Libre</span>
         <h1>Centro de conexión</h1>
