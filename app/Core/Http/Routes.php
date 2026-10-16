@@ -542,7 +542,7 @@ final class Routes
                 return $context->isSystemAdmin() ? $response->withHeader('Location','/system/companies')->withStatus(303) : $response->withStatus(403);
             }
             if ($company !== null && count($companies) < 2) {
-                return $response->withHeader('Location', '/sales')->withStatus(303);
+                return $response->withHeader('Location', '/dashboard')->withStatus(303);
             }
             $csrfToken = (new Csrf())->token();
             ob_start();
