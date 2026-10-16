@@ -1,8 +1,8 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / UI-DM8-A2 GREEN / UI-DM8-A3 GREEN / NEXT UI-DM8-A4 OAUTH CALLBACK DESTINATION REVIEW / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / UI-DM8-A2 GREEN / UI-DM8-A3 GREEN / UI-DM8-A4 GREEN-CANDIDATE / FINAL CI PENDING / STOP-SAFE**
 
-> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
+> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
 ## 1. REPOSITORY AUTHORITY
 
@@ -12,11 +12,11 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=5a135a91f7255522c6f1c03eff2f69eddd3cd535
-CERTIFIED_ACTIONS_RUN=38831215153
-QA_PHP_8_3=PASS
-QA_PHP_8_4=PASS
-QA_PHP_8_5=PASS
+LATEST_FULLY_CERTIFIED_CODE_HEAD=5a135a91f7255522c6f1c03eff2f69eddd3cd535
+LATEST_FULLY_CERTIFIED_RUN=38831215153
+ACTIVE_A4_CANDIDATE_HEAD=37f7f789b884d1072208783c7509dc999c83a876
+ACTIVE_A4_FINAL_CI_RUN=38833133356
+ACTIVE_A4_FINAL_CI_STATUS=IN_PROGRESS at checkpoint time
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
@@ -29,7 +29,7 @@ KISS=A→B
 ANTI_NOISE=KEEP/MERGE/OPTIMIZE/SIMPLIFY/REMOVE only with evidence
 ANTI_PATCH=root owner fix only
 MICROBLOCK=RED → GREEN → full CI → audit → checkpoint → next
-CHECKPOINT_CADENCE=small blocks; persist approximately every 10–12 minutes or sooner at a closed unit
+CHECKPOINT_CADENCE=small blocks; persist approximately every 10–12 minutes or sooner at a closed/recoverable unit
 ```
 
 ## 3. CLOSED BLOCKS
@@ -64,7 +64,7 @@ Decisiones activas:
 - Financial permanece como lectura factual consumida por pantallas existentes;
 - Inventory permanece bajo `/catalog`;
 - LC-P1-1..4 históricos están cerrados en el producto actual;
-- follow-up DM8 restante: A4 OAuth callback destination review.
+- A4 es el único follow-up DM8 abierto y ya está implementado; falta sólo certificar su CI final antes de declarar DM8 cerrado.
 
 ## 5. UI-DM8-A1 — COMPANY SELECT HOME CONSISTENCY
 
@@ -105,25 +105,10 @@ Change boundary:
 
 **STATE=GREEN**
 
-Proven defect:
-- numeric-but-invalid `debug_retention_days` / `debug_max_mb` values reached the repository;
-- repository correctly threw `InvalidArgumentException`;
-- controller leaked that boundary as HTTP 500.
-
-RED:
-
 ```text
 RED_COMMIT=173b1a3e0e9f1a36f8086d2b6c9cc17deabf1c34
 RED_RUN=38830859209
 RED_RESULT_PHP_8_3=800 tests / 6700 assertions / exactly 2 expected failures
-FAILURE_1=debug_retention_days=5 returned 500, expected 422
-FAILURE_2=debug_max_mb=9 returned 500, expected 422
-PRODUCTION_CHANGED_IN_RED=NO
-```
-
-GREEN:
-
-```text
 GREEN_COMMIT=5a135a91f7255522c6f1c03eff2f69eddd3cd535
 GREEN_RUN=38831215153
 PHP_8_3=PASS
@@ -133,28 +118,74 @@ PHP_8_5=PASS
 
 Root fix boundary:
 - only `app/Modules/Settings/SystemSettingsController.php` changed;
-- catches repository `InvalidArgumentException` in `update()`;
-- returns HTTP 422;
-- repository validation remains authoritative and unchanged;
+- repository validation remains authoritative;
+- numeric-but-invalid settings now return HTTP 422 instead of leaking 500;
 - CSRF, system-admin guard, debug export/clear, hidden `meli_writes_enabled`, and `REMOTE_WRITES=OFF` preserved.
 
-## 8. NEXT — UI-DM8-A4 OAUTH CALLBACK DESTINATION REVIEW
+## 8. UI-DM8-A4 — OAUTH CALLBACK DESTINATION / COMPANY CONTEXT
+
+**STATE=GREEN-CANDIDATE / FINAL CI PENDING**
+
+Proven inconsistency:
+- OAuth begins under one bound company and persists the seller/account to that company;
+- if the operator changed active company in another tab before callback, successful callback still redirected to `/sales` under the other active company context;
+- this was inconsistent with the approved owner `Mercado Libre → Cuentas` and could visually land the operator outside the company where the account was just connected.
+
+RED evidence:
 
 ```text
-NEXT=UI-DM8-A4 OAUTH CALLBACK DESTINATION REVIEW
+RED_COMMIT=8dc33da62b7afe6405e5edf1a05eae800916488b
+RED_RUN=38832223024
+RED_PHP_8_3=800 tests / 6679 assertions / exactly 1 expected failure
+EXPECTED=/mercadolibre/accounts
+ACTUAL=/sales
+PRODUCTION_CHANGED_IN_RED=NO
 ```
 
-Microblock boundary:
-1. inspect OAuth callback route/controller/service and current tests;
-2. determine current successful callback destination(s) and company/account context behavior;
-3. compare against approved product navigation (`/mercadolibre/accounts` and `/dashboard`) without inventing a new destination;
-4. do not change production unless a real inconsistency is proven;
-5. if defect proven, add one focused RED test and fix only the callback destination/context boundary;
-6. preserve one-time OAuth code use, state/PKCE guards, seller/company binding, reauthorization semantics, CSRF-equivalent OAuth state protections, and `REMOTE_WRITES=OFF`;
-7. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint;
-8. only then decide whether DM8 is complete or whether another evidence-backed gap remains.
+GREEN production:
 
-## 9. BACKEND GUARDRAILS STILL CLOSED
+```text
+GREEN_PRODUCTION_COMMIT=14c36eeb4e9878f3ef5d8a882753308d6770d84e
+CHANGE_1=restore $_SESSION['company_id'] to boundCompanyId after successful OAuth connection
+CHANGE_2=redirect 303 to /mercadolibre/accounts
+```
+
+Preserved by design:
+- bound-company membership/admin revalidation;
+- OAuth state and PKCE consume-once behavior;
+- canonical seller/company binding;
+- reauthorization account guard;
+- token exchange and encrypted token persistence;
+- callback replay rejection;
+- `REMOTE_WRITES=OFF`.
+
+Historical contract alignment:
+
+```text
+PRE_ALIGNMENT_RUN=38832623520
+PHP_8_3=800 tests / 6675 assertions / exactly 1 failure
+ONLY_FAILURE=MeliHttpSimulationTest still expected /sales, actual /mercadolibre/accounts
+ALIGNMENT_COMMIT=37f7f789b884d1072208783c7509dc999c83a876
+PRODUCTION_CHANGED_BY_ALIGNMENT=NO
+FINAL_CI_RUN=38833133356
+FINAL_CI_STATUS=IN_PROGRESS at checkpoint time
+```
+
+## 9. NEXT EXACT ACTION
+
+```text
+RESUME_EXACTLY_FROM=CHECK RUN 38833133356 ONCE
+```
+
+Rules on resume:
+1. inspect `38833133356` only;
+2. require PHP 8.3, 8.4 and 8.5 PASS before certifying A4;
+3. if all PASS, mark `UI-DM8-A4=GREEN` and close the DM8 completeness audit if no evidence-backed gap remains;
+4. only after DM8 is formally closed may UI-DM9 full automated QA open;
+5. if any job fails, inspect exact log and fix only the proven cause—no speculative patch;
+6. do not merge PR #19.
+
+## 10. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -169,10 +200,10 @@ Billing cursor/period behavior
 REMOTE_WRITES=OFF
 ```
 
-## 10. PRODUCT SEQUENCE
+## 11. PRODUCT SEQUENCE
 
 ```text
-UI-DM8 gap closure
+finish UI-DM8 certification
 → UI-DM9 full automated QA
 → UI-DM10 final visual/responsive QA
 → ERP COMPLETE
@@ -186,7 +217,7 @@ UI-DM8 gap closure
 → later explicitly authorized phases
 ```
 
-## 11. ABSOLUTE NO-GO
+## 12. ABSOLUTE NO-GO
 
 ```text
 NO demo seed
@@ -199,9 +230,10 @@ NO F16
 NO merge PR #19
 ```
 
-## 12. STOP-SAFE
+## 13. STOP-SAFE
 
 ```text
-STOP_NOW=NO
-RESUME_EXACTLY_FROM=UI-DM8-A4 OAUTH CALLBACK DESTINATION REVIEW
+STOP_NOW=YES
+RESUME_EXACTLY_FROM=CHECK RUN 38833133356 ONCE
+DO_NOT_OPEN_NEW_BLOCK=YES
 ```
