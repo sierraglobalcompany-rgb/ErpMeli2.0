@@ -88,6 +88,24 @@ final class DesignMasterResponsiveContractTest extends TestCase
         self::assertStringContainsString('[data-mobile-card]', $css);
     }
 
+    public function testLauncherBackdropIsOutsideKeyboardTabOrderAndKeyboardFocusIsVisible(): void
+    {
+        $html = $this->renderNavigation('admin', true);
+        self::assertStringContainsString(
+            'class="apps-launcher-backdrop" type="button" tabindex="-1" data-apps-launcher-close',
+            $html,
+        );
+
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/assets/app.css'),
+        );
+        $css = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString(':focus-visible', $css);
+        self::assertStringContainsString('outline:', $css);
+    }
+
     private function renderNavigation(string $companyRole, bool $systemAdmin, string $requestUri = '/sales'): string
     {
         $_SESSION = [
