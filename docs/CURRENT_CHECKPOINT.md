@@ -1,8 +1,8 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H3 DASHBOARD HUMAN-FIRST GREEN / NEXT=H4 SALES LIST HUMAN-FIRST / STOP-SAFE**
+**CURRENT=H4 SALES LIST HUMAN-FIRST — IMPLEMENTATION PRESENT / FULL QA RED / STOP-SAFE**
 
-Autoridad operativa de recuperación. Retomar desde `RESUME_EXACTLY_FROM`.
+Este archivo es la autoridad operativa para recuperar el trabajo sin depender del chat.
 
 ## Repository authority
 
@@ -12,273 +12,115 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-H1_FIX1_STARTING_HEAD=ce11219158470c7bc122ba56680af7ff144cfbba
-CURRENT_PRODUCT_CANDIDATE_HEAD=78e1ceb3073ffcc847c34cada7dafd550d3d86ce
-EXACT_PRODUCT_CI_RUN=38968197740
-EXACT_PRODUCT_CI=completed / success
-QA_PHP_8_3=PASS
-QA_PHP_8_4=PASS
-QA_PHP_8_5=PASS
+BASE_BRANCH=ui/operator-shell-v1-20261014
+BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
+LAST_CERTIFIED_GREEN_PRODUCT_HEAD=78e1ceb3073ffcc847c34cada7dafd550d3d86ce
+LAST_CERTIFIED_GREEN_CI=38968197740
+H4_RED_CONTRACT_COMMIT=cc09222734b80a08e6aaab9639e4961984043dd1
+H4_IMPLEMENTATION_COMMIT=0e82d340adbf9deee663938629ceeb09812a8d56
+H4_IMPLEMENTATION_CI_RUN=38977876101
+H4_IMPLEMENTATION_CI=FAIL
+QA_PHP_8_3=FAIL
+QA_PHP_8_4=FAIL
+QA_PHP_8_5=FAIL
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0
-HOSTINGER_UI_DEPLOYED=NO
+HOSTINGER_DEPLOYED=NO
+REAL_MELI_WRITES=NO
+MERGE_AUTHORIZED=NO
+STOP_SAFE=YES
 ```
 
-## Required governance
+## Laws / guardrails
 
-Read `AGENTS.md`, `docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md`,
-`design-system/erp-meli-2-0/MASTER.md`, any relevant page override, and
-`docs/UX_HUMAN_FIRST_MASTER_AUDIT_AND_IMPROVEMENT_PLAN_2026-10-16.md`.
-Sale Detail has no page override. Truth and authorization outrank presentation.
+- KISS: simple, eficiente, optimizado y eficaz; A→B, sin arquitectura innecesaria.
+- Anti-ruido: KEEP / MERGE / OPTIMIZE / REMOVE / DEFER con evidencia.
+- Anti-parches: corregir dueño/causa raíz; no apilar workarounds.
+- UNKNOWN nunca se convierte en 0.
+- No Hostinger, cron, MELI real, merge ni F15/F16 sin autorización explícita.
+- Mantener durable defer/cooldown para 429; sin inline retry storms ni explosión de Work.
 
-## H1-FIX1 — closed
+## Certified history retained
 
-Certified H1 product: `1c1abcadec033231bc662507e2eac3b9c6869caf`; CI `38933239893` passed PHP 8.3/8.4/8.5.
-
-Root cause: mobile repeated the hero facts in `.sales-summary` and placed products before financial meaning.
-The correction adds only two rules inside the existing `max-width: 760px` breakpoint:
-
-```css
-.sales-summary { display: none; }
-.financial-human-summary { order: -1; }
-```
-
-`detail.php`, backend owners, routes, JS, money semantics and desktop CSS remain unchanged.
-One focused test obtains `/assets/app.css` through the application and checks both rules within that breakpoint.
-RED failed only because the responsive hierarchy was absent; minimal GREEN passed.
+H1-FIX1, H2A, H2B1/H2B2 y H3 quedaron cerrados antes de iniciar H4. El último producto completamente certificado sigue siendo:
 
 ```text
-LOCAL_LINT=PASS
-LOCAL_PHPSTAN=PASS
-LOCAL_PHPUNIT=805 tests / 6744 assertions / 0 errors / 0 failures / 1 skipped
-COMPOSER_QA=PASS; runtime-only COMPOSER_PROCESS_TIMEOUT=0
-H1_BROWSER_GREEN=YES
-H1_001=CLOSED
-KNOWN_FEE_DESKTOP_1440x900=PASS
-KNOWN_FEE_MOBILE_390x844=PASS
-CONFLICT_DESKTOP_1440x900=PASS
-CONFLICT_MOBILE_390x844=PASS
-```
-
-Known fee remains exactly `9.12500000`; absent facts use human copy and remain `UNKNOWN` in technical disclosure.
-Conflict prominently explains incompatible currencies; raw `CONFLICT` is secondary and never substituted by zero.
-Both scenarios use separate clean disposable DB states. Native disclosure opens/closes by Enter/Space.
-No empty Billing table chrome, primary page horizontal overflow, application console errors or captured application 5xx.
-Products remain available below Finance on mobile. Normal vertical scrolling to technical detail is accepted.
-Work/API/Billing and selected order/item facts match their pre-read baselines.
-Browser scores are audit heuristics, not a timed human-participant study.
-
-Evidence outside Git:
-
-```text
-C:\codex\evidence\erp-meli2\human-first\h1-fix1\
-red.txt
-green-focused.txt
-full-local-qa.txt
-implementation.txt
-browser-summary.txt
-known\fixture-proof.txt / side-effects.txt / browser-evidence.txt / screenshots
-conflict\fixture-proof.txt / side-effects.txt / browser-evidence.txt / screenshots
-```
-
-Temporary QA containers/DBs, local server and fixture helper were removed; temporary runtime files and secrets cleared.
-
-## H2A — skip-to-main closed
-
-```text
-H2A_STARTING_HEAD=59474304379d2ef6f9434ccd5410ce18bead3e64
-H2A_PRODUCT_HEAD=3b173b9d72a4383b1db879b59f8132f4fa735b4a
-H2A_PRODUCT_CI=38941700937
+H3_PRODUCT_HEAD=78e1ceb3073ffcc847c34cada7dafd550d3d86ce
+H3_CI=38968197740
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
-LOCAL_QA=lint PASS / PHPStan PASS / 807 tests / 6769 assertions / 1 skipped / 0 errors / 0 failures
-DESKTOP_KEYBOARD=PASS
-MOBILE_KEYBOARD=PASS
-H2A_GREEN=YES
 ```
 
-One native skip link is centralized before persistent chrome in `navigation.php`.
-Seven existing shared-shell views now expose one `<main id="main-content" tabindex="-1">`:
-Dashboard, Sales list/detail, Catalog, Billing, MELI accounts and the conditional shared-shell company selector.
-Global administration, login and install shells were not changed. No JavaScript or backend changes.
-Two focused RED failures proved the missing bypass contract; all 11 responsive contracts passed after minimal GREEN.
+H3 cerró Dashboard Human-First sin cambiar owners de negocio, preservando UNKNOWN, separación de monedas y estados humanos.
 
-Real browser on `/dashboard` and `/sales`, each at 1440x900 and 390x844:
-first Tab exposes the link; Enter focuses the main landmark; next Tab reaches `from` or `order_id` inside main.
-One link/main/target per page, clear focus above chrome, no layout gap or page horizontal overflow.
-Mobile five-slot navigation and Apps open/ESC/focus return remained correct. No app console errors or captured 5xx.
-H1 visual-vs-DOM order audit: NON_BLOCKING / DEFER; product records add no interactive controls before the technical disclosure; no blocking focus defect demonstrated. H1 was not redesigned or fully recertified in H2A.
+## H4 — Sales List Human-First
 
-Evidence: `C:\codex\evidence\erp-meli2\human-first\h2a\` contains source inventory, RED/GREEN/full QA, browser focus states, screenshots and SHA-256 manifest.
-Disposable QA/browser DB containers and local PHP were removed; runtime files/secrets cleared, temporary tabs closed and viewport restored.
+### Intento RED
 
-## H2B1 — typography and touch audit closed
+Commit `cc09222734b80a08e6aaab9639e4961984043dd1` agregó el contrato integrado de presentación para `/sales`:
 
-```text
-H2B1_STARTING_HEAD=891bbddf77cc3a8062b04a50e101827dceaa8fb6
-H2B1_PRODUCT_HEAD_UNCHANGED=3b173b9d72a4383b1db879b59f8132f4fa735b4a
-H2B1_STARTING_CHECKPOINT_CI=38942644768 completed / success
-H2B1_RESULT=DIAGNOSED_FIX_REQUIRED
-H2B1_MEASURED_VIEWPORTS=390x844 / 430x932 / 768x1024
-H2B1_DESKTOP_REFERENCE=1440x900
-H2B1_FINDINGS=H2B1-01 / H2B1-02 / H2B1-03
-H2B2_STARTED=NO
-```
+- ventas normales siguen siendo el contenido principal;
+- auditoría histórica queda secundaria/colapsable;
+- estados de ventas deben mostrarse en lenguaje humano;
+- estados de auditoría deben mostrarse en lenguaje humano;
+- los tokens crudos se preservan como metadata `data-*`, no como copy principal;
+- no se cambia backend, rutas, Work, Financial ni owner de datos.
 
-Audit-only: five rendered routes at four sizes, plus Apps at 390/430.
-The optional company selector redirected to Dashboard with the single-company fixture;
-its multi-company controls are not certified. Product, tests and CSS unchanged; no full QA rerun.
-Starting checkpoint CI success was verified at its exact SHA.
+La primera CI confirmó RED porque la vista todavía mostraba copy técnico y estados crudos.
 
-- H2B1-01 MINOR: shared body/form text computes to 15px / 23.25px; header copy already 16.32px.
-- H2B1-02 MINOR: common controls compute to 42–42.85px high; Apps close 38x38.
-  Native date fields already 44.85px; use rendered geometry, not source assumptions.
-- H2B1-03 MAJOR usability: critical five-slot navigation labels are 8.5px at 390/430 and 9px at 768.
-  Slots remain >=44x44, exact, unclipped and without page horizontal overflow.
+### Implementación actual
 
-205 visible target exposures across 22 page/Apps states: 103 preferred passes,
-102 below44 but >=24 in both dimensions, zero below24. Mobile/tablet subset:
-140 exposures / 101 passes / 39 preferred misses. Desktop reference: 65 / 2 / 63.
-These are repeated exposures, not unique controls. 15px text and targets below44 do not
-by themselves establish WCAG AA violations; no complete WCAG certification is claimed.
-Form text below16 is a practical readability/zoom risk; iOS/Safari was not tested.
-Apps titles12/subtitles10 and eyebrow10 remain contextual exception candidates.
-Apps open -> dialog initial focus -> Escape -> trigger focus return passed at both mobile sizes.
-Safe-area computes to zero in browser emulation; real nonzero device insets remain untested.
+Commit `0e82d340adbf9deee663938629ceeb09812a8d56` cambió únicamente la presentación de `app/Modules/Sales/ViewSales/views/list.php` para:
 
-Future correction belongs in existing shared CSS owners: typography/form targets,
-explicit Apps close dimensions and existing five-slot nav rules. No per-page patches,
-new breakpoints, !important or JS sizing. Two shared responsibilities explain most misses,
-but nav and close have explicit component values; do not claim two declarations fix everything.
-Increasing nav text without checking wrapping can exceed the current slot width.
+- introducción humana: `Consulta y revisa las ventas de esta empresa.`;
+- lista de ventas antes de auditoría;
+- auditoría dentro de `<details class="panel sales-audit-disclosure">`;
+- estados de venta humanos, conservando `data-sale-status`;
+- estados de auditoría humanos, conservando `data-audit-status`;
+- sin convertir datos faltantes en cero;
+- sin crear rutas, owners, colas ni métricas nuevas.
 
-Evidence outside Git: `C:\codex\evidence\erp-meli2\human-first\h2b1\`
-contains source inventory, DOM measurements/summary, detailed report, runtime proof,
-mobile/tablet/desktop screenshots and SHA-256 manifest. Server and disposable DB removed,
-secrets/runtime files cleared, temporary tab closed and viewport restored.
-No unrelated dangerous defect, captured application 5xx or browser console error found.
+### Full QA actual — RED conocido
 
-## H2B2 — shared readability and touch closed
+GitHub Actions run `38977876101` terminó en FAIL en PHP 8.3, 8.4 y 8.5.
+
+En PHP 8.3 el suite completó `812 tests` y expuso exactamente 3 fallos de contrato histórico de UI:
+
+1. `OperatorFoundationTest::testAuditStartAndStoredResultsAreVisibleWithoutProcessingWork`
+   - todavía espera `<td>CAPTURING</td>` y otros tokens crudos.
+2. `OperatorFoundationTest::testAuditResultsAreBoundedAndScoped`
+   - cuenta `substr_count($html, '<td>VALID</td>')`, incompatible con la nueva etiqueta humana + metadata.
+3. `WorkCliEntrypointTest::testOperatorAuditThroughRealCliPersistsAndDisplaysResult`
+   - todavía espera `<td>VALID</td>`.
+
+No se ha demostrado un defecto de backend ni de persistencia por estos tres fallos. Son assertions antiguas que contradicen el contrato H4 Human-First ya definido. No deben restaurarse los tokens crudos como copy principal para hacer pasar esos tests.
+
+## Next exact microblock
 
 ```text
-H2B2_STARTING_HEAD=c5f180ee902fc8bf822f1018825b5083d4f2281c
-H2B2_PRODUCT_HEAD=cbc32e7b8f2ad534a051946cb8a644d62cf84f75
-H2B2_PRODUCT_CI=38962684020 completed / success; PHP 8.3 / 8.4 / 8.5 PASS
-H2B2_LOCAL_QA=PASS; lint / PHPStan / 810 tests / 6787 assertions / 1 skipped / 0 errors / 0 failures
-H2B1_01=CLOSED
-H2B1_02=CLOSED for audited shared owners; row-actions remains DEFER
-H2B1_03=CLOSED
-BODY_FONT=16px
-SHARED_TOUCH_FLOOR=44px
-APPS_CLOSE=44x44
-MOBILE_NAV_FONT=12px
-MOBILE_NAV_SLOTS=5 EXACT
-390=PASS
-430=PASS
-768=PASS
-1440_REFERENCE=PASS
-H2B3_STARTED=NO
-H3_STARTED=NO
+NEXT=H4-FIX1 ALIGN LEGACY UI ASSERTIONS WITH HUMAN-FIRST CONTRACT
+SCOPE=TESTS ONLY unless new evidence proves a product defect
+EXPECTED_FILES=tests/Integration/OperatorFoundationTest.php; tests/Integration/WorkCliEntrypointTest.php
+DO_NOT_TOUCH=backend owners / routes / Work / Financial / Billing / migrations / auth guards
+METHOD=RED evidence already present -> minimal test alignment -> focused GREEN -> full composer QA -> exact-head GitHub Actions 8.3/8.4/8.5 -> audit -> checkpoint
+BROWSER_QA=NO until full automated QA is GREEN
+H5_PLUS=FROZEN
 STOP_SAFE=YES
+RESUME_EXACTLY_FROM=H4-FIX1
 ```
 
-Three focused RED tests failed on existing body15, input floor42 and competing nav font rules.
-Minimal GREEN replaces existing body/form/button/close values, removes the narrow8.5px
-nav override and raises the existing nav height68->80 for readable12px labels.
-Only app.css and DesignMasterResponsiveContractTest.php changed in the product commit.
-Focused GREEN: 3 tests/18 assertions; full responsive class14 tests/93 assertions.
-No views, JS, backend, route, dependency, breakpoint or row-action changes.
+### Required acceptance for H4-FIX1
 
-Real-browser certification followed exact product CI success: five routes at each of
-390x844,430x932,768x1024 and1440x900; Apps at390/430.
-Body/form/labels16px; body line-height24.8px (1.55); shared controls>=44px,
-typical44.40px, native dates46.40px, Apps close44x44.
-Five nav targets remain exact and>=44x44; labels12px. Mercado Libre wraps to two
-unclipped lines at390/430, one at768. No label/icon collision or page horizontal overflow.
-Apps cards remain unclipped, central orb48x48 dominant, Escape/focus return PASS.
-H2A smoke390/1440: first Tab exposes skip link, Enter focuses MAIN#main-content,
-next Tab reaches from inside main. Desktop shell/sidebar intact.
+- Keep human labels as the primary visible copy.
+- Assert raw states through `data-sale-status` / `data-audit-status` only where technically required.
+- Preserve the bounded 25-audit behavior using the new DOM contract, not raw-token cell markup.
+- Preserve company scoping, read-only GET behavior and Work counts.
+- Focused tests GREEN.
+- Full `composer qa` GREEN.
+- GitHub Actions exact-head matrix PHP 8.3 / 8.4 / 8.5 GREEN.
+- Only after that may H4 be marked closed and browser QA continue.
 
-Mobile/tablet:140 visible target exposures, all>=44x44. Desktop reference retains45
-exposures of existing sidebar links40px high; those links are outside audited form owners.
-No blanket WCAG certification is claimed; no iOS/Safari or nonzero safe-area device test.
-Micro labels were preserved. Row-actions/textarea not rendered by the minimal fixture;
-textarea shares the tested CSS owner but is not independently browser-certified.
+## Frozen / prohibited
 
-No business form submitted; Work/API/Billing rows remained zero before/after browser QA.
-No captured application5xx or browser console errors. Disposable server/container removed,
-runtime files and secrets cleared, temporary tab closed and viewport restored.
-Evidence: `C:\codex\evidence\erp-meli2\human-first\h2b2\` contains RED/GREEN/full QA,
-exact-head CI, actual patch, browser-after JSON/summary, screenshots, DB before/after,
-review/dispositions, report and SHA-256 manifest. H3 is next per the existing plan, not started.
-
-## H3 — Dashboard Human-First closed
-
-```text
-H3_STARTING_HEAD=caf3bf2ee3682fac915caba7f0cf65ce6fc7c96c
-H3_PRODUCT_HEAD=78e1ceb3073ffcc847c34cada7dafd550d3d86ce
-H3_PRODUCT_CI=38968197740 completed / success; PHP 8.3 / 8.4 / 8.5 PASS
-H3_LOCAL_QA=PASS; lint / PHPStan / 811 tests / 6800 assertions / 1 skipped / 0 errors / 0 failures
-UX_002=CLOSED
-UX_003=CLOSED
-PROFITABILITY_RAW=UNKNOWN
-PROFITABILITY_PRIMARY=No disponible
-CURRENCY_SEPARATION=GREEN
-RECENT_PAID=Pagada
-RECENT_CANCELLED=Cancelada
-DESKTOP_1440=PASS
-MOBILE_390=PASS
-H4_STARTED=NO
-STOP_SAFE=YES
-```
-
-Production changes only Dashboard/views/index.php; the existing DashboardHttpRouteTest
-adds one integrated presentation contract. RED failed on the technical introduction.
-Focused GREEN: 1 test / 13 assertions; Dashboard class: 4 tests / 35 assertions.
-No ReadModel, controller, route, navigation, CSS, JS, query or dependency changes.
-
-The introduction now says Resumen de la operación de <empresa>.
-Rentabilidad shows No disponible and explains that information is insufficient for a safe
-calculation; data-dashboard-profitability remains UNKNOWN. Recent paid/cancelled states
-show Pagada/Cancelada, preserving raw tokens in data-dashboard-order-status.
-Other statuses follow the existing Sale Detail token-humanization precedent; no service added.
-Technical/local-storage wording was removed without restructuring the Dashboard.
-
-DashboardReadModel retains company/date scope, counts, account states, recent orders and
-GROUP BY currency_id. No combined-currency total, UNKNOWN-to-zero or profitability calculation.
-Existing company-scoping and read-only tests pass.
-
-Real browser after exact product CI success, at 1440x900 and 390x844: explicit October range,
-2 orders, 0 products, separate COP100000.0000 / USD25.0000, No disponible and its explanation,
-connected account1, attention0, both human statuses and raw DOM metadata verified.
-No page horizontal overflow; five mobile slots at12px preserved; first Tab exposes the
-outlined skip link and Enter focuses MAIN#main-content. Comprehension is an audit heuristic,
-not a participant timing study.
-
-H3-OBS-01 MINOR / NON_BLOCKING / DEFER: the existing mobile recent-sales table has internal
-horizontal scroll (wrapper316px/content468px). Both statuses are visible initially;
-native horizontal scroll exposes values. No page overflow or CSS patch. This does not
-certify a broader redesign of mobile tables.
-
-Selected order/account rows and product/Work/API/Billing counts match before/after browsing.
-No business forms, Work/Billing execution or real MELI writes; app5xx0 and console errors0.
-Server/container removed, own runtime files/secrets cleared, temporary tab closed and viewport
-reset. Evidence: `C:\codex\evidence\erp-meli2\human-first\h3\` contains source audit, patch,
-RED/GREEN/full QA, exact CI, browser text/DOM/geometry/screenshots, DB before/after, review,
-report and SHA-256 manifest. H4 remains unstarted.
-
-## Next / frozen
-
-```text
-NEXT=H4 SALES LIST HUMAN-FIRST
-H4_STARTED=NO
-H4..H9=FROZEN
-UI-DM10-B2C2 INVENTORY MISSING-VS-ZERO=MOVED INTO H5
-RESUME_EXACTLY_FROM=H4 SALES LIST HUMAN-FIRST WHEN AUTHORIZED
-STOP_SAFE=YES
-```
-
-Follow the existing improvement plan one microblock at a time. H1 does not certify the remaining ERP pages or the final product.
-No broad redesign, backend-owner redesign, frontend framework, fake data/routes, Hostinger, cron, real MELI writes, F15/F16 or merge of PR #19.
-Keep durable 429 defer/cooldown, no inline retries, company/account scoping, Financial UNKNOWN/CONFLICT and Billing cursor semantics.
+No broad redesign, no framework, no duplicate dataset, no fake data/routes, no Hostinger, no cron, no real MELI mutation, no PR merge, no weakening of catalog disposable-DB guard, no retry storms, no patch-chain CSS, no UNKNOWN→0.
