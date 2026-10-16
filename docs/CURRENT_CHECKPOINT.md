@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / UI-DM8-A2 GREEN / UI-DM8-A3 GREEN / UI-DM8-A4 GREEN-CANDIDATE / FINAL CI PENDING / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..8 GREEN / NEXT UI-DM9 FULL AUTOMATED QA / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
@@ -12,11 +12,11 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_FULLY_CERTIFIED_CODE_HEAD=5a135a91f7255522c6f1c03eff2f69eddd3cd535
-LATEST_FULLY_CERTIFIED_RUN=38831215153
-ACTIVE_A4_CANDIDATE_HEAD=37f7f789b884d1072208783c7509dc999c83a876
-ACTIVE_A4_FINAL_CI_RUN=38833133356
-ACTIVE_A4_FINAL_CI_STATUS=IN_PROGRESS at checkpoint time
+LATEST_CERTIFIED_CODE_HEAD=37f7f789b884d1072208783c7509dc999c83a876
+LATEST_CERTIFIED_RUN=38833133356
+QA_PHP_8_3=PASS
+QA_PHP_8_4=PASS
+QA_PHP_8_5=PASS
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
@@ -32,7 +32,7 @@ MICROBLOCK=RED → GREEN → full CI → audit → checkpoint → next
 CHECKPOINT_CADENCE=small blocks; persist approximately every 10–12 minutes or sooner at a closed/recoverable unit
 ```
 
-## 3. CLOSED BLOCKS
+## 3. CLOSED PRODUCT BLOCKS
 
 ```text
 UI-DM1 FOUNDATION=GREEN
@@ -50,6 +50,8 @@ UI-DM7 ADMINISTRATION=GREEN
 UI-DM8-A1 COMPANY SELECT HOME CONSISTENCY=GREEN
 UI-DM8-A2 COMPANY SELECT PRESENTATION=GREEN
 UI-DM8-A3 SETTINGS INVALID INPUT=GREEN
+UI-DM8-A4 OAUTH CALLBACK DESTINATION/CONTEXT=GREEN
+UI-DM8 COMPLETENESS AUDIT=GREEN
 ```
 
 ## 4. UI-DM8 COMPLETENESS MAP
@@ -57,20 +59,20 @@ UI-DM8-A3 SETTINGS INVALID INPUT=GREEN
 ```text
 DOC=docs/UI_DM8_COMPLETENESS_AUDIT.md
 MAP_COMMIT=6f14ef35357e112397ba538ddc140454f270cec2
+RESULT=NO EVIDENCE-BACKED PRODUCT GAP REMAINS INSIDE DM8 SCOPE
 ```
 
-Decisiones activas:
-- no inventar pantallas para Work runner, RuntimePreflight, ERP API, webhooks, Invoicing bridge, Billing C0 ni F13 rehearsal;
-- Financial permanece como lectura factual consumida por pantallas existentes;
-- Inventory permanece bajo `/catalog`;
-- LC-P1-1..4 históricos están cerrados en el producto actual;
-- A4 es el único follow-up DM8 abierto y ya está implementado; falta sólo certificar su CI final antes de declarar DM8 cerrado.
+Active decisions preserved:
+- do not invent operator screens for Work runner, RuntimePreflight, ERP API, webhooks, Invoicing bridge, Billing C0 or F13 rehearsal;
+- Financial stays a factual read model consumed by existing human surfaces;
+- Inventory stays under `/catalog`;
+- historical LC-P1-1..4 are closed in the current product;
+- no extra module is created merely because a backend class exists.
 
 ## 5. UI-DM8-A1 — COMPANY SELECT HOME CONSISTENCY
 
-**STATE=GREEN**
-
 ```text
+STATE=GREEN
 RED_COMMIT=4f8893e1637eb2bd76df202da717b80976d6d5fc
 RED_RUN=38828799463
 GREEN_PRODUCTION_COMMIT=cd69a47f8659bbf685fcee5c00675560692758dc
@@ -83,9 +85,8 @@ PHP_8_5=PASS
 
 ## 6. UI-DM8-A2 — COMPANY SELECT PRESENTATION
 
-**STATE=GREEN**
-
 ```text
+STATE=GREEN
 RED_COMMIT=a1bab019588144b929ae717dd469d5aecbc184f7
 RED_RUN=38829656997
 GREEN_COMMIT=d4e7c51f43f61082c3a9ddfe5eb38a93e720b7e5
@@ -95,20 +96,17 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Change boundary:
+Boundary:
 - only `app/Core/Http/views/company-select.php` changed;
 - shared Design Master components reused;
-- no route/controller/domain change;
 - memberships, roles, CSRF and zero Work/API side effects preserved.
 
 ## 7. UI-DM8-A3 — SETTINGS INVALID INPUT
 
-**STATE=GREEN**
-
 ```text
+STATE=GREEN
 RED_COMMIT=173b1a3e0e9f1a36f8086d2b6c9cc17deabf1c34
 RED_RUN=38830859209
-RED_RESULT_PHP_8_3=800 tests / 6700 assertions / exactly 2 expected failures
 GREEN_COMMIT=5a135a91f7255522c6f1c03eff2f69eddd3cd535
 GREEN_RUN=38831215153
 PHP_8_3=PASS
@@ -116,74 +114,44 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Root fix boundary:
-- only `app/Modules/Settings/SystemSettingsController.php` changed;
+Root fix:
 - repository validation remains authoritative;
-- numeric-but-invalid settings now return HTTP 422 instead of leaking 500;
+- numeric-but-invalid system settings now return HTTP 422 instead of leaking 500;
 - CSRF, system-admin guard, debug export/clear, hidden `meli_writes_enabled`, and `REMOTE_WRITES=OFF` preserved.
 
 ## 8. UI-DM8-A4 — OAUTH CALLBACK DESTINATION / COMPANY CONTEXT
 
-**STATE=GREEN-CANDIDATE / FINAL CI PENDING**
-
-Proven inconsistency:
-- OAuth begins under one bound company and persists the seller/account to that company;
-- if the operator changed active company in another tab before callback, successful callback still redirected to `/sales` under the other active company context;
-- this was inconsistent with the approved owner `Mercado Libre → Cuentas` and could visually land the operator outside the company where the account was just connected.
-
-RED evidence:
-
 ```text
+STATE=GREEN
 RED_COMMIT=8dc33da62b7afe6405e5edf1a05eae800916488b
 RED_RUN=38832223024
-RED_PHP_8_3=800 tests / 6679 assertions / exactly 1 expected failure
-EXPECTED=/mercadolibre/accounts
-ACTUAL=/sales
-PRODUCTION_CHANGED_IN_RED=NO
-```
-
-GREEN production:
-
-```text
 GREEN_PRODUCTION_COMMIT=14c36eeb4e9878f3ef5d8a882753308d6770d84e
-CHANGE_1=restore $_SESSION['company_id'] to boundCompanyId after successful OAuth connection
-CHANGE_2=redirect 303 to /mercadolibre/accounts
+HISTORICAL_TEST_ALIGNMENT_COMMIT=37f7f789b884d1072208783c7509dc999c83a876
+FINAL_RUN=38833133356
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
 ```
 
-Preserved by design:
-- bound-company membership/admin revalidation;
-- OAuth state and PKCE consume-once behavior;
-- canonical seller/company binding;
-- reauthorization account guard;
-- token exchange and encrypted token persistence;
-- callback replay rejection;
-- `REMOTE_WRITES=OFF`.
+Proven root fix:
+- successful OAuth callback restores `$_SESSION['company_id']` to the company bound when OAuth began;
+- successful callback redirects to `/mercadolibre/accounts`, the human owner of the flow;
+- state/PKCE consume-once, seller/company binding, reauthorization guard, encrypted token persistence and replay rejection remain unchanged;
+- `REMOTE_WRITES=OFF` remains unchanged.
 
-Historical contract alignment:
+## 9. NEXT — UI-DM9 FULL AUTOMATED QA
 
 ```text
-PRE_ALIGNMENT_RUN=38832623520
-PHP_8_3=800 tests / 6675 assertions / exactly 1 failure
-ONLY_FAILURE=MeliHttpSimulationTest still expected /sales, actual /mercadolibre/accounts
-ALIGNMENT_COMMIT=37f7f789b884d1072208783c7509dc999c83a876
-PRODUCTION_CHANGED_BY_ALIGNMENT=NO
-FINAL_CI_RUN=38833133356
-FINAL_CI_STATUS=IN_PROGRESS at checkpoint time
+NEXT=UI-DM9 FULL AUTOMATED QA
 ```
 
-## 9. NEXT EXACT ACTION
-
-```text
-RESUME_EXACTLY_FROM=CHECK RUN 38833133356 ONCE
-```
-
-Rules on resume:
-1. inspect `38833133356` only;
-2. require PHP 8.3, 8.4 and 8.5 PASS before certifying A4;
-3. if all PASS, mark `UI-DM8-A4=GREEN` and close the DM8 completeness audit if no evidence-backed gap remains;
-4. only after DM8 is formally closed may UI-DM9 full automated QA open;
-5. if any job fails, inspect exact log and fix only the proven cause—no speculative patch;
-6. do not merge PR #19.
+Small-block execution:
+1. inspect `composer.json`, `phpunit.xml`, `phpstan.neon` and `.github/workflows/*` to prove what the current QA actually covers;
+2. verify the latest certified run is full enough for Design Master completion, not merely a focal suite;
+3. inspect PR #19 diff/file inventory for accidental architecture/noise: duplicate routes, new frameworks, migrations, duplicate data owners, remote-write enablement, fake modules;
+4. verify explicit guardrails: Work/429, Billing, Financial UNKNOWN/CONFLICT, OAuth lifecycle, tenancy/roles, CSRF, responsive contracts;
+5. if a real gap is found, open a separate RED microblock; otherwise certify DM9 without speculative changes;
+6. checkpoint before UI-DM10.
 
 ## 10. BACKEND GUARDRAILS STILL CLOSED
 
@@ -203,8 +171,7 @@ REMOTE_WRITES=OFF
 ## 11. PRODUCT SEQUENCE
 
 ```text
-finish UI-DM8 certification
-→ UI-DM9 full automated QA
+UI-DM9 full automated QA
 → UI-DM10 final visual/responsive QA
 → ERP COMPLETE
 → local demo
@@ -233,7 +200,7 @@ NO merge PR #19
 ## 13. STOP-SAFE
 
 ```text
-STOP_NOW=YES
-RESUME_EXACTLY_FROM=CHECK RUN 38833133356 ONCE
-DO_NOT_OPEN_NEW_BLOCK=YES
+STOP_NOW=NO
+RESUME_EXACTLY_FROM=UI-DM9 FULL AUTOMATED QA
+DO_NOT_OPEN_UI_DM10_UNTIL_DM9_CHECKPOINT=YES
 ```
