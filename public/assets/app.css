@@ -47,6 +47,7 @@ body.apps-launcher-open { overflow: hidden; }
 
 a { color: var(--primary-strong); text-decoration: none; }
 a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible { outline: 3px solid rgba(36,107,253,.35); outline-offset: 2px; }
 h1, h2, h3 { color: #101d37; line-height: 1.2; margin-top: 0; }
 h1 { font-size: clamp(1.8rem, 3vw, 2.35rem); letter-spacing: -.035em; margin-bottom: 22px; }
 h2 { font-size: 1.2rem; margin-bottom: 14px; }
