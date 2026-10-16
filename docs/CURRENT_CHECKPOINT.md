@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..9 GREEN / UI-DM10-A1 GREEN CERTIFIED / NEXT UI-DM10-A2 STATIC RESPONSIVE-CSS AUDIT / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..9 GREEN / UI-DM10-A1 GREEN / UI-DM10-A2.1 GREEN / NEXT UI-DM10-A2.2 MOBILE SAFE-AREA / STOP-SAFE**
 
 > Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
@@ -12,8 +12,8 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_BRANCH_HEAD=7f4312e0d828bb7007a384166e4ddf490003b646
-LATEST_CERTIFIED_BRANCH_RUN=38834828976
+LATEST_CERTIFIED_BRANCH_HEAD=503181a181c40dd2d6f1be2685bb61dff0b23081
+LATEST_CERTIFIED_BRANCH_RUN=38835728947
 QA_PHP_8_3=PASS
 QA_PHP_8_4=PASS
 QA_PHP_8_5=PASS
@@ -47,28 +47,15 @@ UI-DM7 ADMINISTRATION=GREEN
 UI-DM8 COMPLETENESS AUDIT=GREEN
 UI-DM9 FULL AUTOMATED QA=GREEN
 UI-DM10-A1 LAUNCHER KEYBOARD ACCESSIBILITY=GREEN
+UI-DM10-A2.1 INITIAL SHEET FOCUS TRAP=GREEN
 ```
 
 ## 4. UI-DM10-A1 — LAUNCHER KEYBOARD ACCESSIBILITY
 
-### RED
-
 ```text
 RED_COMMIT=b6293b9ece63b60b725f729a2fb379b9e9013508
 RED_RUN=38834252391
-RED_CERTIFIED_PHP_8_3=YES
-TESTS=801
-ASSERTIONS=6712
-FAILURES=1
-EXPECTED_FAILURE=DesignMasterResponsiveContractTest::testLauncherBackdropIsOutsideKeyboardTabOrderAndKeyboardFocusIsVisible
-```
-
-### GREEN CERTIFIED
-
-```text
-MARKUP_COMMIT=ab08b705d0e4e185bb7df0fe96574653c5a9e5f5
-FOCUS_TRAP_COMMIT=4f722a0a9fa2a1913637731c83fb7e2c90be6279
-FOCUS_VISIBLE_COMMIT=7f4312e0d828bb7007a384166e4ddf490003b646
+GREEN_COMMIT=7f4312e0d828bb7007a384166e4ddf490003b646
 GREEN_RUN=38834828976
 PHP_8_3=PASS
 PHP_8_4=PASS
@@ -76,31 +63,72 @@ PHP_8_5=PASS
 ```
 
 Root fix:
-- launcher backdrop has `tabindex="-1"` while remaining mouse/touch clickable;
-- JS focus-trap excludes `[tabindex="-1"]` controls from keyboard recycling;
-- shared CSS provides visible `:focus-visible` outlines for links and buttons;
-- no backend, route, database, Work, Billing, Financial, MELI client, OAuth-service or remote-write behavior changed.
+- launcher backdrop removed from keyboard tab order;
+- focus-trap excludes `[tabindex="-1"]` controls;
+- shared CSS provides visible `:focus-visible` outlines.
 
-## 5. NEXT — UI-DM10-A2 STATIC RESPONSIVE / CSS AUDIT
+## 5. UI-DM10-A2.1 — INITIAL SHEET FOCUS TRAP
+
+### RED
 
 ```text
-NEXT=UI-DM10-A2 STATIC RESPONSIVE-CSS AUDIT
+RED_COMMIT=7406c497a2cec288f2579fe3849ba9630f7178ce
+RED_RUN=38835352489
+RED_CERTIFIED=YES
+TESTS=802
+ASSERTIONS=6717
+FAILURES=1
+EXPECTED_FAILURE=DesignMasterResponsiveContractTest::testLauncherTrapHandlesTabFromInitiallyFocusedSheet
 ```
 
-Scope is static source audit only:
-1. D-01 / M-01 / T-01 shell composition against current HTML/CSS;
-2. breakpoint coherence and viewport-risk patterns;
-3. mobile table → card transformation;
-4. fixed mobile bottom nav spacing/safe-area risks;
-5. Apps launcher sizing/overflow/focus/ESC contracts;
-6. authorized destinations and no fabricated/dead routes;
-7. CSS patch noise: duplicate media systems, page-specific override chains, `!important` usage;
-8. accessibility facts that can be proven statically;
-9. no browser certification claim from source inspection alone.
+### GREEN CERTIFIED
 
-If A2 finds a proven source-level defect, open one focused RED microblock. If no defect is proven, close UI-DM10-A and set `NEXT=UI-DM10-B REAL BROWSER QA`.
+```text
+GREEN_COMMIT=503181a181c40dd2d6f1be2685bb61dff0b23081
+GREEN_RUN=38835728947
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+```
 
-## 6. UI-DM9 QA AUTHORITY
+Root fix:
+- launcher still opens with focus on `.apps-launcher-sheet`;
+- first Tab from the sheet moves to the first interactive item;
+- first Shift+Tab from the sheet moves to the last interactive item;
+- first/last interactive wrap behavior remains unchanged;
+- only `public/assets/app.js` changed in GREEN.
+
+## 6. STATIC AUDIT FINDINGS SO FAR
+
+```text
+CSS_IMPORTANT_COUNT=1
+IMPORTANT_USAGE=.apps-launcher[hidden] only
+RESPONSIVE_SYSTEM=single shared media-query family
+RESPONSIVE_TABLE_SYSTEM=single table[data-responsive-table] → [data-mobile-card] pattern
+PARALLEL_FRONTEND_FRAMEWORK=NO
+```
+
+Remaining proven source-level risk:
+- fixed mobile bottom navigation and launcher spacing do not currently use `safe-area-inset-bottom`;
+- this can collide with home-indicator/device safe areas;
+- this must be handled as a separate microblock, not mixed with focus behavior.
+
+## 7. NEXT — UI-DM10-A2.2 MOBILE SAFE-AREA
+
+```text
+NEXT=UI-DM10-A2.2 MOBILE SAFE-AREA
+```
+
+Scope:
+1. add one focused RED contract proving mobile shell CSS accounts for `safe-area-inset-bottom`;
+2. certify RED;
+3. implement the minimum shared CSS root fix for mobile bottom nav + page bottom clearance + launcher offset;
+4. do not add per-device hacks;
+5. run full PHP 8.3/8.4/8.5 matrix;
+6. checkpoint A2.2;
+7. only then finish the remaining static audit and decide whether UI-DM10-A can close.
+
+## 8. UI-DM9 QA AUTHORITY
 
 ```text
 composer qa = PHP lint + PHPStan + full PHPUnit
@@ -113,7 +141,7 @@ DM9_PHP_8_4=PASS
 DM9_PHP_8_5=PASS
 ```
 
-## 7. BACKEND GUARDRAILS STILL CLOSED
+## 9. BACKEND GUARDRAILS STILL CLOSED
 
 ```text
 429 durable defer/cooldown
@@ -128,10 +156,11 @@ Billing cursor/period behavior
 REMOTE_WRITES=OFF
 ```
 
-## 8. PRODUCT SEQUENCE
+## 10. PRODUCT SEQUENCE
 
 ```text
-UI-DM10-A2 static responsive/CSS audit
+UI-DM10-A2.2 mobile safe-area
+→ finish UI-DM10-A static audit
 → UI-DM10-B real browser QA
 → ERP COMPLETE candidate
 → local demo
@@ -144,7 +173,7 @@ UI-DM10-A2 static responsive/CSS audit
 → later explicitly authorized phases
 ```
 
-## 9. ABSOLUTE NO-GO
+## 11. ABSOLUTE NO-GO
 
 ```text
 NO demo seed
@@ -157,11 +186,11 @@ NO F16
 NO merge PR #19
 ```
 
-## 10. STOP-SAFE
+## 12. STOP-SAFE
 
 ```text
 STOP_NOW=NO
-RESUME_EXACTLY_FROM=UI-DM10-A2 STATIC RESPONSIVE-CSS AUDIT
+RESUME_EXACTLY_FROM=UI-DM10-A2.2 MOBILE SAFE-AREA
 DO_NOT_OPEN_DM10_B_UNTIL_DM10_A_COMPLETE=YES
 DO_NOT_MERGE_PR_19=YES
 ```
