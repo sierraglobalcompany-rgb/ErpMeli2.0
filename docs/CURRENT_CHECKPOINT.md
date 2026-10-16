@@ -1,8 +1,8 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / NEXT UI-DM8-A2 COMPANY SELECT PRESENTATION / STOP-SAFE**
+**CURRENT=DESIGN MASTER APPROVED / UI-DM1..7 GREEN / UI-DM8-A1 GREEN / UI-DM8-A2 RED CREATED / CI RUNNING / STOP-SAFE**
 
-> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `NEXT`; no reconstruir por intuición.
+> Autoridad operativa para recuperar el proyecto si el chat se interrumpe. Retomar exactamente desde `RESUME_EXACTLY_FROM`; no reconstruir por intuición.
 
 ## 1. REPOSITORY AUTHORITY
 
@@ -12,11 +12,13 @@ REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-LATEST_CERTIFIED_CODE_HEAD=5de62e520e5f163103b3cb05ef508aa3a49c8fa5
-CERTIFIED_ACTIONS_RUN=38829270851
-QA_PHP_8_3=PASS
-QA_PHP_8_4=PASS
-QA_PHP_8_5=PASS
+LAST_FULLY_CERTIFIED_HEAD=5de62e520e5f163103b3cb05ef508aa3a49c8fa5
+LAST_FULLY_CERTIFIED_RUN=38829270851
+LAST_FULLY_CERTIFIED_QA_PHP_8_3=PASS
+LAST_FULLY_CERTIFIED_QA_PHP_8_4=PASS
+LAST_FULLY_CERTIFIED_QA_PHP_8_5=PASS
+CURRENT_RED_HEAD=a1bab019588144b929ae717dd469d5aecbc184f7
+CURRENT_RED_RUN=38829656997
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0 for this development work
 HOSTINGER_UI_DEPLOYED=NO
@@ -52,21 +54,17 @@ UI-DM8-A1 COMPANY SELECT HOME CONSISTENCY=GREEN
 
 ## 4. UI-DM8 COMPLETENESS MAP
 
-Audit document:
-
 ```text
-docs/UI_DM8_COMPLETENESS_AUDIT.md
+DOC=docs/UI_DM8_COMPLETENESS_AUDIT.md
 MAP_COMMIT=6f14ef35357e112397ba538ddc140454f270cec2
 ```
 
-Key decisions:
-
-- Human surfaces already covered: login, dashboard, sales/detail, catalog/inventory, billing, MELI accounts/settings, companies, users, system diagnostics, installer.
-- Do not invent operator screens for Work runner, RuntimePreflight, ERP API, webhooks, Invoicing bridge, Billing C0, F13 rehearsal or other technical-only owners.
-- Financial remains factual and merged into real consumers; no `/financial` ledger engine.
-- Inventory remains under `/catalog`; no duplicate `/inventory` domain.
-- Historical LC-P1-1..4 local operator gaps are closed in current product.
-- Active DM8 follow-ups remain isolated: A2 selector presentation, A3 reproduce invalid System Settings input, A4 OAuth callback destination review.
+Decisiones activas:
+- no inventar pantallas para Work runner, RuntimePreflight, ERP API, webhooks, Invoicing bridge, Billing C0 ni F13 rehearsal;
+- Financial permanece como lectura factual consumida por pantallas existentes;
+- Inventory permanece bajo `/catalog`;
+- LC-P1-1..4 históricos están cerrados en el producto actual;
+- follow-ups DM8: A2 selector presentation, A3 invalid System Settings input, A4 OAuth callback destination review.
 
 ## 5. UI-DM8-A1 — COMPANY SELECT HOME CONSISTENCY
 
@@ -76,8 +74,6 @@ Key decisions:
 RED_COMMIT=4f8893e1637eb2bd76df202da717b80976d6d5fc
 RED_RUN=38828799463
 RED_RESULT=797 tests / 6683 assertions / exactly 1 expected failure
-RED_EXPECTED=/dashboard
-RED_ACTUAL=/sales
 GREEN_PRODUCTION_COMMIT=cd69a47f8659bbf685fcee5c00675560692758dc
 GREEN_TEST_ALIGNMENT_COMMIT=5de62e520e5f163103b3cb05ef508aa3a49c8fa5
 GREEN_RUN=38829270851
@@ -86,25 +82,60 @@ PHP_8_4=PASS
 PHP_8_5=PASS
 ```
 
-Change boundary:
-
+Cambio cerrado:
 ```text
-GET /company/select with exactly one already-active company:
+GET /company/select with one already-active company:
 OLD=/sales
 NEW=/dashboard
 ```
 
-Preserved:
+## 6. UI-DM8-A2 — COMPANY SELECT PRESENTATION
 
-- memberships/tenant selection;
-- CSRF;
-- foreign-company rejection;
-- no Work enqueue;
-- no controller/domain rewrite;
-- OAuth callback destination unchanged;
-- all backend guardrails unchanged.
+**STATE=RED CREATED / PRODUCTION UNCHANGED / CI RUNNING**
 
-## 6. BACKEND GUARDRAILS STILL CLOSED
+Hallazgo confirmado:
+- `company-select.php` es funcional pero usa markup desnudo;
+- no reutiliza explícitamente la familia Design Master `page-header`, `panel`, `settings-form`;
+- esto es un hueco de coherencia visual, no un dominio nuevo.
+
+RED:
+
+```text
+RED_COMMIT=a1bab019588144b929ae717dd469d5aecbc184f7
+RED_TEST=tests/Integration/CompanySelectorDesignMasterUiTest.php
+RED_RUN=38829656997
+PHP_8_3=IN_PROGRESS
+PHP_8_4=IN_PROGRESS
+PHP_8_5=IN_PROGRESS
+PRODUCTION_CHANGED=NO
+```
+
+Contrato RED:
+- `simple-page company-selector-workspace`;
+- `page-header company-select-page-header`;
+- `panel company-select-panel`;
+- `settings-form company-select-form`;
+- mismo POST `/company/select`;
+- ambas empresas visibles;
+- cero Work rows;
+- cero `api_usage_daily` side effects.
+
+## 7. RESUME EXACTLY
+
+```text
+RESUME_EXACTLY_FROM=UI-DM8-A2 RED RUN 38829656997
+```
+
+Al retomar:
+1. revisar resultado final del run `38829656997`;
+2. certificar que el fallo sea únicamente el esperado por markup Design Master ausente;
+3. si RED es válido, modificar **sólo** `app/Core/Http/views/company-select.php`;
+4. reutilizar CSS/clases existentes; no crear nueva familia CSS;
+5. ejecutar full QA PHP 8.3/8.4/8.5;
+6. persistir A2 GREEN antes de abrir DM8-A3;
+7. si CI revela otra causa, resolver sólo la causa raíz y checkpoint.
+
+## 8. BACKEND GUARDRAILS
 
 ```text
 429 durable defer/cooldown
@@ -119,7 +150,7 @@ Billing cursor/period behavior
 REMOTE_WRITES=OFF
 ```
 
-## 7. PRODUCT SEQUENCE
+## 9. PRODUCT SEQUENCE
 
 ```text
 UI-DM8 gap closure
@@ -136,25 +167,7 @@ UI-DM8 gap closure
 → later explicitly authorized phases
 ```
 
-Demo, Hostinger and cron remain deferred.
-
-## 8. NEXT — UI-DM8-A2 COMPANY SELECT PRESENTATION
-
-```text
-NEXT=UI-DM8-A2 COMPANY SELECT PRESENTATION
-```
-
-Microblock boundary:
-
-1. inspect current `company-select.php` against approved Design Master component family;
-2. create one focused RED structural contract only if a real presentation gap is confirmed;
-3. reuse `page-header`, `panel`, `settings-form` and existing shared CSS where sufficient;
-4. no new CSS family and no new route/controller/domain;
-5. preserve multi-company selection, roles, CSRF, active-company semantics and zero Work/API side effects;
-6. RED → GREEN → full PHP 8.3/8.4/8.5 → checkpoint;
-7. only then open DM8-A3 Settings invalid-input reproduction.
-
-## 9. ABSOLUTE NO-GO
+## 10. ABSOLUTE NO-GO
 
 ```text
 NO DM8-A3 until A2 checkpoint closes
@@ -168,9 +181,9 @@ NO F16
 NO merge PR #19
 ```
 
-## 10. STOP-SAFE
+## 11. STOP-SAFE
 
 ```text
-STOP_NOW=NO
-RESUME_EXACTLY_FROM=UI-DM8-A2 COMPANY SELECT PRESENTATION
+STOP_NOW=YES
+RESUME_EXACTLY_FROM=UI-DM8-A2 RED RUN 38829656997
 ```
