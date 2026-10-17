@@ -270,21 +270,51 @@ EVIDENCE_ZIP_SHA256=f9e95998b5cb0802bab5a7df271715552c9b55b039e3b10bac9583ee0abb
 
 Independent ChatGPT audit of user uploads: the reported final ZIP and supplemental timestamp ZIP contain **byte-identical 27 members** (26 manifest entries + manifest) despite differing ZIP-level hashes. Five images, machine-readable DOM/keyboard/mobile/network, preserved DB and live GitHub CI checked. One raw console error refers to deliberate negative authorization 403 (`chrome-error://chromewebdata/`), not a JavaScript exception. Two favicon 404 are incidental. A standalone checksum sidecar was not uploaded; ChatGPT independently generated one and verified its contents against the reported final ZIP digest. No claim that Antigravity attached it.
 
+## H7C-C — System clear debug (AUTOMATED GREEN, browser pending)
+
+Owner `SystemSettingsController::clearDebug()` + `views/system.php`; original `DebugMaintenance::clearDebug()`, route, schema, CSS, JS, memberships, integration logic untouched.
+
+Observed root defect: with authenticated System Admin and valid CSRF a one-click `POST /settings/system/debug/clear` deleted recognized local debug files, no second acknowledgement. Test-only RED against disposable filesystem confirmed original HTTP 303 vs expected 422 and preserved files (the test cleans via finally).
+
+```text
+RED=b1fe1533db7809f689c398d111d4292474b5c31a
+RED_CI=39079965535 EXPECTED FAILURE
+RED_PHP_8_3=829 tests / 7040 assertions / exactly one targeted failure
+GREEN=901b8652c825251f6189f6a11bea8c6ba7f198af
+GREEN_CI=39080177081 SUCCESS
+PHP_8_3=829 tests / 7049 assertions / 0 failures
+PHP_8_4=829 tests / 7049 assertions / 0 failures
+PHP_8_5=829 tests / 7049 assertions / 0 failures
+PHPSTAN=PASS
+GREEN_SCOPE=SystemSettingsController.php + views/system.php + DebugSettingsControllerTest.php
+SERVER_CONFIRM_CLEAR_DEBUG=exactly '1'
+MISSING_OR_INVALID_CONFIRM=422 (no debug deletion)
+VALID_CONFIRM_WITH_VALID_CSRF=existing 303 success
+SYSTEM_ADMIN_AUTH_PRESERVED=YES
+INVALID_CSRF_419_PRESERVED=YES
+DEBUG_SERVICE_MISSING_503_PRESERVED=YES
+UNRELATED_LOGS_EXPORTS_PRESERVED=YES
+REMOTE_MELI_CALLS=0
+```
+
+Human-First UI: native `<details data-system-destructive-action="clear-debug">` collapsed by default, factual scope and irreversibility copy, `required` checkbox `confirm_clear_debug=1`, original POST+CSRF inside. No generic modal or CSS/JS abstraction.
+
 ### Exact NEXT
 
 ```text
-NEXT=H7C-C SYSTEM CLEAR DEBUG READ-ONLY PREFLIGHT
+NEXT=H7C-C REAL-BROWSER CERTIFICATION ONLY
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
-H7C_C_STARTED=NO
+H7C_C_AUTOMATED_GREEN=YES
+H7C_C_BROWSER_CERTIFIED=NO
+H7C_C_FULLY_CLOSED=NO
 H7C_D_STARTED=NO
-NO_H7C_C_IMPLEMENTATION_UNTIL_PRECISE_OWNER_AND_RED=YES
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
 ```
 
-Do not reopen H7C-B2, OAuth, Financial, Billing, Work, 429, FIFO or retry architecture without new evidence. Inspect exact routes/controller/views/tests before any H7C-C code work. No production operations or real MELI calls.
+Run Antigravity only in disposable local TEST/real Chrome, verify CI first, System Admin GET 200 and non-system-admin GET 403, disclosure/default-closed, native required checkbox validity without submitting clear, keyboard Enter/Space, desktop/mobile/H7A, no overflow, 0 JS defects/5xx/MELI/browser destructive posts, **DEBUG DIRECTORY and business DB identical before/after**. Antigravity delivers report+evidence ZIP+SHA256 sidecar, independently reviewed by ChatGPT. H7C-D frozen.
 
 ## Recovery sources
 
