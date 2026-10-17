@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7A GLOBAL ADMIN SHARED SHELL / AUTOMATED GREEN / REAL-BROWSER CERTIFICATION PENDING / NOT CLOSED / H7B NOT STARTED / STOP-SAFE**
+**CURRENT=H7A GLOBAL ADMIN SHARED SHELL / FULLY CLOSED / H7B NOT STARTED / H7C NOT STARTED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -62,6 +62,7 @@ H6E_BILLING_DISABLED_HISTORY_ACCOUNT_IDENTITY=FULLY_CLOSED
 H6F_BILLING_ZERO_CONNECTED_EMPTY_STATE=FULLY_CLOSED
 BILLING_HUMAN_FIRST_CLOSURE=YES
 BILLING_RESIDUAL_PREFLIGHT=PASS
+H7A_GLOBAL_ADMIN_SHARED_SHELL=FULLY_CLOSED
 ```
 
 Billing final durable closure before H7A:
@@ -72,17 +73,14 @@ H6F_ROOT_FIX_GREEN=cb628bfd144447cc4939c48e8ff58fc10ef11e97
 H6F_ROOT_FIX_CI=39001247996
 PHPUNIT_AT_H6F=820 tests / 6869 assertions / 0 failures
 H6F_FINAL_BROWSER=PASS
-H6F_DESKTOP_OVERLAP=0 px
-H6F_MOBILE_OVERLAP=0 px
-H6F_DB_BEFORE_AFTER=IDENTICAL
 H6G_CREATED=NO
 ```
 
-## H7A — Global Admin shared shell
+## H7A — Global Admin shared shell — FULLY CLOSED
 
-### Problem proved before implementation
+### Proven defect
 
-Global administration pages used a second `simple-page/simple-nav` navigation model:
+The global administration pages used a second `simple-page/simple-nav` navigation model instead of the shared ERP shell:
 
 ```text
 /system/companies
@@ -91,60 +89,16 @@ Global administration pages used a second `simple-page/simple-nav` navigation mo
 /settings/mercadolibre
 ```
 
-The approved Human-First direction is one product shell, without inventing new owners or changing permissions.
+The root fix merged those owners into the existing shared shell without changing permissions, tenancy, routes, persistence or business logic.
 
-Read-only preflight proved:
-
-```text
-navigation.php can conceptually represent company=null
-pure System Admin with no active company is a valid state
-CompanyContext::memberships() does not require an active company
-/settings/mercadolibre already supports System Admin with no company
-old shared shell incorrectly exposed company-bound destinations without active company
-companies/users views use $companies for global managed companies, so navigation context must not reuse that variable implicitly
-```
-
-Decision:
-
-```text
-H7A_DECISION=MERGE_GLOBAL_ADMIN_INTO_SHARED_SHELL
-BACKEND_REDESIGN=NO
-TENANCY_CHANGE=NO
-PERMISSION_CHANGE=NO
-ROUTE_CHANGE=NO
-```
-
-### H7A RED — confirmed
+### TDD trace
 
 ```text
 H7A_RED=2793fe15a7d3ee45af3332b136859cb843d2be53
 H7A_RED_CI=39004765237
-PHPSTAN=PASS
-PHP_8_3=822 tests / 6874 assertions / 2 failures
-FAILURES=exactly the two H7A shell contracts
-ROOT_CAUSE=global pages still rendered simple-page/simple-nav instead of app-shell-chrome
-```
+RED_PHP_8_3=822 tests / 6874 assertions / exactly 2 H7A failures
+RED_PHPSTAN=PASS
 
-RED scenarios:
-
-1. System Admin with no active company:
-   - shared shell required;
-   - `Sin empresa activa`;
-   - role `Administrador del sistema`;
-   - no actionable `/dashboard`, `/sales`, `/catalog`, `/billing`;
-   - exact five mobile slots with Inicio/Operación/Productos disabled;
-   - global Admin/MELI destinations remain actionable.
-2. System Admin with active company:
-   - shared shell required;
-   - company-bound destinations remain actionable;
-   - global Admin destinations remain actionable;
-   - exact five mobile slots preserved.
-
-### H7A GREEN — automated certified
-
-Canonical GREEN history was compacted after verification so the durable branch contains one RED commit plus one GREEN commit for H7A.
-
-```text
 H7A_GREEN=f8fd6a717e526acc1c79863bd7fb948bfd351817
 H7A_GREEN_CI=39006254808
 PHP_8_3=PASS
@@ -174,89 +128,135 @@ FINANCIAL_CHANGED=NO
 429_ARCHITECTURE_CHANGED=NO
 ```
 
-Production views changed:
+Production behavior certified:
 
 ```text
-app/Core/Http/views/navigation.php
-app/Core/Http/views/companies.php
-app/Core/Http/views/users.php
-app/Modules/Settings/views/system.php
-app/Modules/Settings/views/mercadolibre.php
+NO_ACTIVE_COMPANY_SYSTEM_ADMIN:
+  SHARED_APP_SHELL=YES
+  CONTEXT=Sin empresa activa
+  ROLE=Administrador del sistema
+  DESKTOP_COMPANY_BOUND_LINKS=ABSENT
+  MOBILE_NAV=exactly 5 slots
+  INICIO/OPERACION/PRODUCTOS=disabled non-links
+  APPS=actionable
+  MELI_5TH_SLOT=/settings/mercadolibre
+  GLOBAL_ADMIN_LINKS=actionable
+
+ACTIVE_COMPANY_SYSTEM_ADMIN:
+  SHARED_APP_SHELL=YES
+  COMPANY_BOUND_LINKS=actionable
+  GLOBAL_ADMIN_LINKS=actionable
+  MOBILE_NAV=exactly 5 slots
+  COMPANY_MELI_OWNER=/mercadolibre/accounts
+  GLOBAL_MELI_OWNER=/settings/mercadolibre
 ```
 
-Tests changed:
+### Final real-browser certification — PASS
+
+Certification was repeated from zero using fresh browser/session/DB/runtime evidence.
+
+Certified checkout:
 
 ```text
-tests/Integration/GlobalAdminShellHumanFirstUiTest.php
-tests/Integration/CompanyDesignMasterUiTest.php
-tests/Integration/UserDesignMasterUiTest.php
-tests/Integration/SystemSettingsDesignMasterUiTest.php
-tests/Integration/MeliAppSettingsDesignMasterUiTest.php
-tests/Integration/MeliAppSettingsTest.php
-tests/Integration/OperatorFoundationTest.php
+CERTIFIED_HEAD=2c15492b28f438924f33c68cee2cef5c348d1cd1
+H7A_GREEN_ANCESTOR=f8fd6a717e526acc1c79863bd7fb948bfd351817
+BRANCH=ui/design-master-v1-20261015
+WORKING_TREE_BEFORE=CLEAN
+WORKING_TREE_AFTER=CLEAN
+CODE_CHANGED_BY_CERTIFIER=NO
+TEST_CHANGED_BY_CERTIFIER=NO
+DOCS_CHANGED_BY_CERTIFIER=NO
+NEW_COMMIT_BY_CERTIFIER=NO
+PUSH_BY_CERTIFIER=NO
+MERGE_BY_CERTIFIER=NO
 ```
 
-### H7A implemented behavior
-
-No-active-company System Admin:
+Browser/runtime gates:
 
 ```text
-SHARED_APP_SHELL=YES
-PRIMARY_CONTEXT=Sin empresa activa
-ROLE_LABEL=Administrador del sistema
-DESKTOP_COMPANY_BOUND_LINKS=ABSENT
-MOBILE_NAV_SLOTS=5
-MOBILE_INICIO=DISABLED NON-LINK
-MOBILE_OPERACION=DISABLED NON-LINK
-MOBILE_APPS=ACTIONABLE
-MOBILE_PRODUCTOS=DISABLED NON-LINK
-MOBILE_MELI=/settings/mercadolibre
-GLOBAL_ADMIN_LINKS=ACTIONABLE
-GLOBAL_MELI_DESKTOP_DUPLICATE=REMOVED
+H7A_BROWSER_RESULT=PASS
+SCENARIO_A_NO_ACTIVE_COMPANY=PASS
+SCENARIO_B_ACTIVE_COMPANY=PASS
+GLOBAL_ROUTES_HTTP_200=PASS
+SHARED_APP_SHELL=PASS
+OLD_SIMPLE_NAV_ABSENT=PASS
+NO_COMPANY_CONTEXT_COPY=PASS
+SYSTEM_ADMIN_ROLE_LABEL=PASS
+NO_COMPANY_DESKTOP_BOUND_LINKS=PASS
+ACTIVE_COMPANY_BOUND_LINKS=PASS
+GLOBAL_ADMIN_LINKS=PASS
+GLOBAL_MELI_DESKTOP_DUPLICATE=NO
+MOBILE_NAV_A=5 slots PASS
+MOBILE_NAV_B=5 slots PASS
+NO_COMPANY_DISABLED_SLOTS=PASS
+NO_COMPANY_MELI_SLOT=/settings/mercadolibre PASS
+APPS_LAUNCHER_A=PASS
+APPS_LAUNCHER_B=PASS
+APPS_ESCAPE_CLOSE=PASS
+APPS_FOCUS_RETURN=PASS
+SKIP_LINK_A=PASS
+SKIP_LINK_B=PASS
+ROUTE_OWNER_REGRESSION=PASS
+PAGE_HORIZONTAL_OVERFLOW=NO
+FIXED_NAV_OBSTRUCTION=NO
+CONSOLE_APP_ERRORS=0
+UNCAUGHT_JS_EXCEPTIONS=0
+APPLICATION_5XX=0
+REAL_MELI_NETWORK_CALLS=0
+DB_SCENARIO_A_BEFORE_AFTER=IDENTICAL
+DB_SCENARIO_B_BEFORE_AFTER=IDENTICAL
+BUSINESS_SIDE_EFFECTS=0
 ```
 
-System Admin with active company:
+Independent ChatGPT evidence audit:
 
 ```text
-SHARED_APP_SHELL=YES
-COMPANY_BOUND_LINKS=ACTIONABLE
-GLOBAL_ADMIN_LINKS=ACTIONABLE
-MOBILE_NAV_SLOTS=5
-COMPANY_MELI_OWNER=/mercadolibre/accounts when company role is admin
-GLOBAL_MELI_OWNER=/settings/mercadolibre for System Admin
+ZIP_FILES_TOTAL=84
+MANIFEST_ENTRIES=83
+MANIFEST_SELF_EXCLUDED=YES
+MANIFEST_HASHES_MATCH=83/83
+MANIFEST_BAD_HASHES=0
+MANIFEST_MISSING_FILES=0
+UNHASHED_INTERNAL_FILES_EXCLUDING_MANIFEST=0
+EXTERNAL_REPORT_EQUALS_ZIP_REPORT=YES
+REPORT_SHA256=590736e0d23e5223e9ef0b0f955917aa9d7d4f841716858804c60b7410224684
+SOURCE_INTEGRITY_MISMATCHES=0
+DB_A_HASH_BEFORE_AFTER=IDENTICAL
+DB_B_HASH_BEFORE_AFTER=IDENTICAL
+CONSOLE_A=[]
+CONSOLE_B=[]
+APPLICATION_5XX=0
+ONLY_RECORDED_POSTS=2 login requests
+VISUAL_SAMPLE_A_DESKTOP_COMPANIES=PASS
+VISUAL_SAMPLE_A_MOBILE_MELI=PASS
+VISUAL_SAMPLE_B_DESKTOP_USERS=PASS
+VISUAL_SAMPLE_B_MOBILE_SYSTEM_BOTTOM=PASS
+VISUAL_SAMPLE_APPS_LAUNCHER=PASS
 ```
 
-Shared-shell ownership:
+Scope limit remains explicit: network evidence is session-local browser/PHP access evidence, not a machine-wide packet capture. No claim of real Mercado Libre certification is made.
+
+### H7A closure decision
 
 ```text
-SKIP_LINK=PRESERVED
-LOGOUT_OWNER=SHARED_SHELL
-DUPLICATE_VIEW_LOGOUT=REMOVED
-APPS_LAUNCHER=PRESERVED
-OLD_SIMPLE_NAV=REMOVED_FROM_H7A_GLOBAL_PAGES
+KISS=PASS
+ANTI_NOISE=PASS
+ANTI_PATCH=PASS
+HUMAN_FIRST=PASS
+H7A_AUTOMATED_GREEN=YES
+H7A_BROWSER=PASS
+H7A_FULLY_CLOSED=YES
 ```
 
-### H7A non-goals / frozen scope
-
-```text
-H7B_USERS_PROGRESSIVE_DISCLOSURE=NOT_STARTED
-H7C_DESTRUCTIVE_ACTIONS=NOT_STARTED
-NO_GENERIC_MODAL_SYSTEM
-NO_PERMISSION_MODEL_CHANGE
-NO_COMPANY_SELECTOR_REDESIGN
-NO_MELI_OWNER_MERGE
-NO_BACKEND_QUERY_ARCHITECTURE_CHANGE
-```
+Do not reopen H7A without new evidence, regression, or a new product requirement.
 
 ## Current disposition
 
 ```text
-H7A_RED=CONFIRMED
-H7A_AUTOMATED_GREEN=YES
-H7A_BROWSER=PENDING
-H7A_FULLY_CLOSED=NO
-H7B_STARTED=NO
-H7C_STARTED=NO
+H7A_FULLY_CLOSED=YES
+H7B_USERS_PROGRESSIVE_DISCLOSURE=NOT_STARTED
+H7C_DESTRUCTIVE_ACTIONS=NOT_STARTED
+NEXT_HUMAN_FIRST_WORK_STARTED=NO
 PR_MERGED=NO
 STOP_SAFE=YES
 ```
@@ -264,87 +264,19 @@ STOP_SAFE=YES
 ## Exact resume point
 
 ```text
-NEXT=H7A REAL-BROWSER CERTIFICATION ONLY
-CANONICAL_GREEN=f8fd6a717e526acc1c79863bd7fb948bfd351817
-CANONICAL_GREEN_CI=39006254808
+NEXT=H7B USERS PROGRESSIVE DISCLOSURE — PREFLIGHT ONLY WHEN WORK RESUMES
+DO_NOT_START_H7B_FROM_THIS_CLOSURE_TURN=YES
 ```
 
-Browser certification must cover two factual scenarios:
+On resume:
 
-### A. System Admin / no active company
-
-Routes:
-
-```text
-/system/companies
-/system/users
-/settings/system
-/settings/mercadolibre
-```
-
-Required desktop 1440x900 + mobile 390x844 gates:
-
-```text
-HTTP_200=all routes
-SHARED_APP_SHELL=YES
-OLD_SIMPLE_NAV=ABSENT
-CONTEXT=Sin empresa activa
-ROLE=Administrador del sistema
-DESKTOP_COMPANY_BOUND_LINKS=ABSENT
-GLOBAL_ADMIN_LINKS=ACTIONABLE
-GLOBAL_MELI_DESKTOP_DUPLICATE=NO
-MOBILE_NAV=exactly 5 slots
-INICIO/OPERACION/PRODUCTOS=disabled non-links
-APPS=usable
-MELI_5TH_SLOT=/settings/mercadolibre
-APPS_LAUNCHER=no company-bound sales/catalog/billing entries
-SKIP_LINK=#main-content works
-DUPLICATE_LOGOUT=NO
-PAGE_HORIZONTAL_OVERFLOW=NO
-FIXED_NAV_OBSTRUCTION=NO
-```
-
-### B. System Admin / active company
-
-Same routes and viewports. Required:
-
-```text
-HTTP_200=all routes
-SHARED_APP_SHELL=YES
-OLD_SIMPLE_NAV=ABSENT
-Sin empresa activa=ABSENT
-/dashboard=/sales=/catalog=/billing actionable
-GLOBAL_ADMIN_LINKS=ACTIONABLE
-MOBILE_NAV=exactly 5 slots active
-APPS_LAUNCHER=usable
-ESC_CLOSE=PASS
-FOCUS_RETURN=PASS
-SKIP_LINK=PASS
-GLOBAL_MELI_DESKTOP_DUPLICATE=NO
-PAGE_HORIZONTAL_OVERFLOW=NO
-FIXED_NAV_OBSTRUCTION=NO
-```
-
-All browser certification:
-
-```text
-DO_NOT_SUBMIT_FORMS
-DB_BEFORE_AFTER=IDENTICAL
-BUSINESS_SIDE_EFFECTS=0
-REAL_MELI_NETWORK_CALLS=0
-APPLICATION_5XX=0
-CONSOLE_APP_ERRORS=0
-UNCAUGHT_JS=0
-WORKING_TREE_BEFORE_AFTER=CLEAN
-CERTIFIER_CODE_CHANGES=NO
-CERTIFIER_TEST_CHANGES=NO
-CERTIFIER_DOC_CHANGES=NO
-CERTIFIER_COMMITS=NO
-```
-
-First real product gate failure => evidence + root cause + STOP. Certifier does not repair product code.
-
-If browser PASS is independently audited, mark H7A FULLY CLOSED and only then start H7B.
+1. Read this checkpoint and the Human-First master plan.
+2. Confirm PR #19 remains OPEN / DRAFT / NOT MERGED unless the user explicitly authorized otherwise.
+3. Recheck current branch truth before H7B.
+4. Run Ready/authority handshake.
+5. Use TDD and real-browser QA according to risk.
+6. Preserve KISS / anti-noise / anti-patch / Human-First.
+7. No PR merge without explicit user approval.
 
 ## Frozen / prohibited
 
