@@ -174,19 +174,49 @@ Attached audit inputs (not source files in repository):
 
 Minor notes: favicon 404 was classified infrastructure/static; Apps launcher focus-inside measured before animation frame, but Escape + focus-return passed. These are non-blockers, not grounds for a patch.
 
-## Exact NEXT
+## H7C-B1 — disconnect UX, automated GREEN (pending real browser)
+
+Scope is solely the operator presentation of disconnect for a connected Mercado Libre account in `app/Modules/Settings/views/meli-accounts.php`. Backend `MeliAccountController::disconnect` and all routes remain unchanged; company-admin role, CSRF, account company scope, work-in-progress 409, local token removal and `status=disabled` invariants are preserved.
 
 ```text
-NEXT=H7C-B READ-ONLY PREFLIGHT
-H7C_B_STARTED=NO
-H7C_C_STARTED=NO
-H7C_D_STARTED=NO
-H7C_B_SCOPE=MELI accounts disconnect + hard delete UX
-NO_IMPLEMENTATION_BEFORE_ROOT_FACTS_AND_RED_TEST
-NO_PR_MERGE_WITHOUT_EXPLICIT_APPROVAL=YES
+H7C_B1_RED=d6b96bcbc5b7189b231ae84c8e03ed881858d912
+H7C_B1_RED_CI=39070718318 EXPECTED FAILURE
+RED_PHP_8_3=826 tests / 7022 assertions / 1 failure ONLY new B1 UX test
+H7C_B1_GREEN=ab640fe222bc33fc9083fb25596b41133f37bab8
+H7C_B1_GREEN_CI=39070978051 SUCCESS
+GREEN_PHP_8_3=826 tests / 7027 assertions / 0 failures
+GREEN_PHP_8_4=PASS
+GREEN_PHP_8_5=PASS
+GREEN_PHPSTAN=PASS
+DIFF_FROM_RED_TO_GREEN=app/Modules/Settings/views/meli-accounts.php ONLY (+8/-4)
+BACKEND_CHANGED=NO
+ROUTES_CHANGED=NO
+SCHEMA_CHANGED=NO
+CSS_CHANGED=NO
+JS_CHANGED=NO
+WORK_CHANGED=NO
+FINANCIAL_CHANGED=NO
+REAL_MELI_HTTP=0
 ```
 
-Read-only H7C-B preflight: identify exact owner/controller/view/routes, current backend authorization + CSRF + account deletion invariants, existing test baseline, Human-First requirement, and smallest bounded RED. Do not reopen certified H7C-A or Financial/Work/429.
+Observed RED defect: POST `Desconectar` was directly exposed as a one-click action in the account table without explaining impacts. GREEN: native `<details data-meli-destructive-action="disconnect">` + descriptive copy + explicit `Confirmar desconexión` button; existing POST and CSRF stay inside; reauthorize and hard-delete unchanged.
+
+### Exact NEXT
+
+```text
+NEXT=H7C-B1 REAL-BROWSER CERTIFICATION ONLY
+H7C_A_FULLY_CLOSED=YES
+H7C_B1_AUTOMATED_GREEN=YES
+H7C_B1_BROWSER_CERTIFIED=NO
+H7C_B1_FULLY_CLOSED=NO
+H7C_B2_STARTED=NO
+H7C_C_STARTED=NO
+H7C_D_STARTED=NO
+PR_19=OPEN / DRAFT / NOT MERGED
+STOP_SAFE=YES
+```
+
+Run certification in real local Chrome against H7C-B1 GREEN only, in isolated TEST environment. Require desktop/mobile, keyboard disclosure, factual copy, admin 200 and nonadmin 403, responsive table/mobile five slots, no overflow or nav obstruction, console/network, no destructive POST or real MELI browser network, DB identical, Git clean, no certifier product edits. Three external evidence artifacts: Markdown report + ZIP + SHA-256 sidecar; ChatGPT independently audits them **before H7C-B1 closure**. H7C-B2 hard-delete UX and server acknowledgement stay FROZEN.
 
 ## Recovery sources
 
