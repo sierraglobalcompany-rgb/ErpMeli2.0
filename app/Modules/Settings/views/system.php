@@ -112,10 +112,15 @@ $navigationIsSystemAdmin = true;
                 <button type="submit">Exportar debug ZIP</button>
             </form>
 
-            <form class="settings-form" method="post" action="/settings/system/debug/clear">
-                <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
-                <button class="danger" type="submit">Limpiar debug</button>
-            </form>
+            <details data-system-destructive-action="clear-debug">
+                <summary>Limpiar debug</summary>
+                <p class="muted">Se eliminarán los archivos debug locales reconocidos de este ERP. No se eliminan exportaciones ZIP, archivos ajenos ni datos del negocio. Esta limpieza no se puede deshacer.</p>
+                <form class="settings-form" method="post" action="/settings/system/debug/clear">
+                    <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                    <label><input type="checkbox" name="confirm_clear_debug" value="1" required> Confirmo que quiero eliminar los registros debug locales.</label>
+                    <button class="danger" type="submit">Confirmar limpieza de debug</button>
+                </form>
+            </details>
         </section>
     </div>
 </main>
