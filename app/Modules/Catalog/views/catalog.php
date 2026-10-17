@@ -74,19 +74,15 @@ declare(strict_types=1);
                 <?php endif; ?>
             </section>
 
-            <section class="panel" aria-labelledby="select-product-title">
-                <div class="section-heading">
-                    <div>
-                        <span class="eyebrow">Inventario</span>
-                        <h2 id="select-product-title">Seleccionar producto por ID</h2>
-                    </div>
-                </div>
+            <details class="catalog-advanced-selection">
+                <summary>Seleccionar producto por ID</summary>
+                <p class="muted">Opción avanzada para abrir un producto cuando conoces su ID interno exacto.</p>
                 <form class="settings-form" method="get" action="/catalog">
                     <label>ID exacto <input name="product_id" inputmode="numeric" pattern="[1-9][0-9]*" value="<?= htmlspecialchars($productIdInput, ENT_QUOTES, 'UTF-8') ?>" required></label>
                     <button type="submit">Seleccionar</button>
                     <a class="button-secondary" href="/catalog">Quitar selección</a>
                 </form>
-            </section>
+            </details>
 
             <?php if ($selectedProduct !== null): ?>
             <section class="catalog-inventory-card" aria-labelledby="selected-product-title">
