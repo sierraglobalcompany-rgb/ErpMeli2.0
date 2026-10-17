@@ -1,18 +1,18 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H5 CATALOG / INVENTORY HUMAN-FIRST IMPLEMENTED / AUTOMATED QA PARTIAL-GREEN-IN-PROGRESS / BROWSER NOT CERTIFIED / H6 FROZEN / STOP-SAFE**
+**CURRENT=H5 CATALOG / INVENTORY HUMAN-FIRST AUTOMATED GREEN / BROWSER NOT CERTIFIED / H6 FROZEN / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
 ## Repository authority
 
 ```text
-DATE=2026-10-16/17
+DATE=2026-10-17
 REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
-PR_HEAD_WITH_H5_CODE=e869821f97b0e59dbd37f05cbb4a35d27b6b75a7
+H5_PRODUCT_HEAD=e869821f97b0e59dbd37f05cbb4a35d27b6b75a7
 BASE_BRANCH=ui/operator-shell-v1-20261014
 BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 REMOTE_WRITES=OFF
@@ -72,7 +72,7 @@ PRIMARY_FLOW=recent product list -> select product
 SECONDARY_FLOW=exact internal product ID lookup
 ```
 
-Existing truth that must remain invariant:
+Existing truth remains invariant:
 
 - Catalog and inventory stay in one surface/owner.
 - Product rows remain the ordinary operator selection path.
@@ -122,28 +122,30 @@ Implementation result:
 
 This is intentionally a reduction/reordering of UI hierarchy, not a patch chain.
 
-## H5 automated QA — checkpoint-time truth
+## H5 automated QA — certified GREEN
 
 Exact run for H5 GREEN code:
 
 ```text
 H5_GREEN_CI_RUN=38985843177
 CI_HEAD=e869821f97b0e59dbd37f05cbb4a35d27b6b75a7
-PHP_8_3=COMPLETED / SUCCESS
-PHP_8_4=IN_PROGRESS at QA
-PHP_8_5=IN_PROGRESS at QA
-COMPOSER_VALIDATION=PASS where completed
-DEPENDENCY_INSTALL=PASS where completed
-H5_AUTOMATED_FULL_GREEN=NOT_YET_CERTIFIED_AT_CHECKPOINT
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+COMPOSER_VALIDATE=PASS
+DEPENDENCY_INSTALL=PASS
+PHPSTAN=PASS
+PHPUNIT=813 tests / 6831 assertions / 0 failures
+REAL_MELI_HTTP=0
+H5_AUTOMATED_FULL_GREEN=YES
 ```
 
-Do not rewrite history later. On resume, first re-read run `38985843177` and record final PHP 8.4 / 8.5 conclusions. If either fails, diagnose that exact failure before any new product change.
+The known Slim error traces printed by negative-path tests are expected test output; the suite result is fully GREEN.
 
 ## H5 browser certification
 
 ```text
 H5_BROWSER_CERTIFICATION=NOT_CERTIFIED
-REASON=Browser access was not authorized/available in this Chat session at checkpoint time
 DESKTOP_1440x900=NOT_RUN
 MOBILE_390x844=NOT_RUN
 CONSOLE_APP_ERRORS=NOT_CERTIFIED
@@ -151,9 +153,9 @@ APPLICATION_5XX=NOT_CERTIFIED
 HUMAN_FIRST_VISUAL_HIERARCHY=NOT_CERTIFIED_IN_REAL_BROWSER
 ```
 
-Do not claim browser GREEN from source inspection or automated tests. A real browser pass is still required if H5 closure criteria require it.
+Do not claim browser GREEN from source inspection or automated tests. Real-browser certification remains the only H5 closure gate.
 
-### Required H5 browser gates when available
+### Required H5 browser gates
 
 ```text
 /catalog desktop 1440x900
@@ -172,7 +174,7 @@ real MELI network calls = 0
 business side effects = 0
 ```
 
-## H5 disposition at this checkpoint
+## H5 disposition
 
 ```text
 H5_STARTED=YES
@@ -183,9 +185,9 @@ H5_ANTI_NOISE_AUDIT=PASS
 H5_ANTI_PATCH_AUDIT=PASS
 H5_BACKEND_TRUTH_PRESERVED=YES
 H5_AUTOMATED_PHP_8_3=GREEN
-H5_AUTOMATED_PHP_8_4=PENDING
-H5_AUTOMATED_PHP_8_5=PENDING
-H5_AUTOMATED_FULL_GREEN=NO / pending final CI
+H5_AUTOMATED_PHP_8_4=GREEN
+H5_AUTOMATED_PHP_8_5=GREEN
+H5_AUTOMATED_FULL_GREEN=YES
 H5_BROWSER_GREEN=NO / not certified
 H5_FULLY_CLOSED=NO
 H6_STARTED=NO
@@ -195,12 +197,11 @@ STOP_SAFE=YES
 ## Resume exactly from here
 
 ```text
-STEP_1=Re-read PR #19 and confirm OPEN / DRAFT / NOT MERGED
-STEP_2=Read GitHub Actions run 38985843177 final state
-STEP_3=If PHP 8.3/8.4/8.5 all PASS, persist automated GREEN truth
-STEP_4=Run real-browser H5 certification if browser capability is available and closure requires it
-STEP_5=First browser defect => diagnose and STOP; do not create a patch chain
-STEP_6=Only after H5 closure, update CURRENT_CHECKPOINT and decide whether H6 may open
+STEP_1=Confirm PR #19 remains OPEN / DRAFT / NOT MERGED
+STEP_2=Run real-browser H5 certification using product head e869821f97b0e59dbd37f05cbb4a35d27b6b75a7 or a descendant containing docs-only commits
+STEP_3=First browser defect => diagnose root cause and STOP; do not create a patch chain
+STEP_4=If every browser gate passes, persist H5_BROWSER_GREEN and H5_FULLY_CLOSED
+STEP_5=Only after H5 closure may H6 open
 H6_PLUS=FROZEN until H5 is explicitly closed
 ```
 
