@@ -123,6 +123,21 @@ final class MeliAccountLifecycleTest extends TestCase
         self::assertSame(0, $this->accountCount(301));
     }
 
+    public function testHardDeleteRequiresExplicitAcknowledgementEvenWithValidCsrf(): void
+    {
+        $this->insertDisabledAccount(301, '3001');
+
+        foreach ([[], ['confirm_permanent_delete' => '0']] as $confirmation) {
+            $request = (new ServerRequestFactory())
+                ->createServerRequest('POST', '/mercadolibre/accounts/301/delete')
+                ->withParsedBody(['csrf_token' => str_repeat('c', 64)] + $confirmation);
+            $response = Bootstrap::create()->handle($request);
+
+            self::assertSame(422, $response->getStatusCode(), 'La cuenta no debe borrarse sin confirmación explícita.');
+            self::assertSame(1, $this->accountCount(301), 'No debe haber efectos laterales de borrado.');
+        }
+    }
+
     public function testHardDeleteRejectsConnectedAccountAndExistingToken(): void
     {
         self::assertSame(409, $this->post('/mercadolibre/accounts/101/delete')->getStatusCode());
