@@ -40,4 +40,26 @@ final class CatalogDesignMasterUiTest extends TestCase
         self::assertStringContainsString('<output id="local-quantity">Sin definir</output>', $html);
         self::assertStringNotContainsString('href="/inventory"', $html);
     }
+
+    public function testExactIdLookupIsSecondaryProgressiveDisclosure(): void
+    {
+        $pdo = TestDatabase::reset();
+        $auth = new AuthService($pdo);
+        $auth->bootstrapAdmin('Local Company', 'local', 'catalog-hierarchy@example.test', 'test-catalog-hierarchy-password');
+        self::assertTrue($auth->login('catalog-hierarchy@example.test', 'test-catalog-hierarchy-password'));
+        $pdo->exec("UPDATE company_users SET role='member'");
+
+        (new ProductRepository($pdo))->create(1, 'SKU-H5', 'Producto H5');
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/catalog')
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+        $html = (string) $response->getBody();
+
+        self::assertStringContainsString('href="/catalog?product_id=', $html);
+        self::assertStringContainsString('<details class="catalog-advanced-selection">', $html);
+        self::assertStringContainsString('<summary>Seleccionar producto por ID</summary>', $html);
+        self::assertStringContainsString('name="product_id"', $html);
+    }
 }
