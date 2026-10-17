@@ -36,7 +36,7 @@ foreach ($accounts as $account) {
             <p>Controla solicitudes de sincronización y consulta el progreso persistido por cuenta y período.</p>
         </header>
 
-        <?php if ($error !== null): ?><p class="notice" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+        <?php if ($error !== null): ?><p class="notice" role="alert><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
 
         <div class="billing-workspace">
             <div class="settings-grid">
@@ -114,7 +114,7 @@ foreach ($accounts as $account) {
                             <tbody>
                             <?php foreach ($periods as $period): ?>
                                 <tr data-mobile-card="billing-period-row">
-                                    <td data-label="Cuenta"><?= htmlspecialchars((string) $period['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td data-label="Cuenta"><?= htmlspecialchars($accountLabels[(int) $period['account_id']] ?? (string) $period['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td data-label="Período"><a class="primary-record-link" href="/billing?<?= htmlspecialchars(http_build_query(['account_id' => (int) $period['account_id'], 'period_key' => $period['period_key'], 'document_type' => $period['document_type']], '', '&', PHP_QUERY_RFC3986), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $period['period_key'], ENT_QUOTES, 'UTF-8') ?></a></td>
                                     <td data-label="Tipo"><?= htmlspecialchars($documentLabels[(string) $period['document_type']] ?? (string) $period['document_type'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td data-label="Progreso persistido"><?= $period['sync_state'] === 'caught_up' ? 'Al día con la fuente consultada' : 'Progreso registrado' ?></td>
