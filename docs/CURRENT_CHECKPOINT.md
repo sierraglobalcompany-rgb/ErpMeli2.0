@@ -2,7 +2,15 @@
 
 **CURRENT=H7B FULLY CLOSED / H7C-A AUTOMATED GREEN / REAL-BROWSER CERTIFICATION PENDING / H7C-A NOT CLOSED / H7C-B-C-D NOT STARTED / STOP-SAFE**
 
-Esta es la autoridad operativa corta. Para recuperación completa, metodología, leyes y contexto forense, leer inmediatamente:
+Esta es la autoridad operativa corta.
+
+Para recuperación rápida, leer primero:
+
+```text
+docs/PROJECT_CONTINUITY_CURRENT.md
+```
+
+Para recuperación detallada, metodología, leyes y contexto forense, leer después:
 
 ```text
 docs/ERP_MELI_2_0_RECOVERY_HANDOFF_H7C_A_AUTOMATED_GREEN_BROWSER_PENDING_2026-10-17.md
