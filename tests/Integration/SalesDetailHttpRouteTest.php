@@ -49,9 +49,10 @@ final class SalesDetailHttpRouteTest extends TestCase
         self::assertStringContainsString('Producto visible', $visibleHtml);
         self::assertStringContainsString('VISIBLE-401', $visibleHtml);
         self::assertStringNotContainsString('Producto ajeno', $visibleHtml);
-        self::assertStringContainsString('class="page-header"', $visibleHtml);
+        self::assertStringContainsString('class="page-header sale-detail-header"', $visibleHtml);
         self::assertStringContainsString('class="panel sales-summary"', $visibleHtml);
-        self::assertStringContainsString('class="table-wrap"', $visibleHtml);
+        self::assertStringContainsString('class="sale-product-list"', $visibleHtml);
+        self::assertStringContainsString('Ver conciliación técnica', $visibleHtml);
 
         $foreign = Bootstrap::create()->handle(
             (new ServerRequestFactory())->createServerRequest('GET', '/sales/200000000402'),
@@ -59,5 +60,36 @@ final class SalesDetailHttpRouteTest extends TestCase
 
         self::assertSame(404, $foreign->getStatusCode());
         self::assertStringNotContainsString('Producto ajeno', (string) $foreign->getBody());
+    }
+
+    public function testSaleDetailUsesHumanFirstProductRecordsWithoutDuplicatingFacts(): void
+    {
+        $pdo = TestDatabase::reset();
+        $hash = (new PasswordService())->hash('secret');
+        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES (1,'Main','main')");
+        $user = $pdo->prepare("INSERT INTO users(id,username,display_name,email,password_hash,status) VALUES (1,'detail@example.test','Detail','detail@example.test',?,'active')");
+        $user->execute([$hash]);
+        $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES (1,1,'member')");
+        $pdo->exec("INSERT INTO meli_accounts(id,company_id,external_user_id,site_id,status) VALUES (10,1,'700000401','MCO','connected')");
+        $pdo->exec("INSERT INTO orders(id,company_id,account_id,external_order_id,status,last_updated,total_amount,currency_id) VALUES (101,1,10,'200000000401','paid','2026-10-09 02:00:00.000000',111111.0000,'COP')");
+        $pdo->exec("INSERT INTO order_items(order_id,external_item_id,title,quantity,unit_price,currency_id,seller_sku) VALUES (101,'MCO401401401','Producto visible',1.0000,111111.0000,'COP','VISIBLE-401')");
+
+        $_SESSION['user_id'] = 1;
+        $_SESSION['company_id'] = 1;
+
+        $response = Bootstrap::create()->handle((new ServerRequestFactory())->createServerRequest('GET', '/sales/200000000401'));
+        $html = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('class="sales-detail-grid"', $html);
+        self::assertStringContainsString('class="sale-product-list"', $html);
+        self::assertStringContainsString('data-sale-product="product-row"', $html);
+        self::assertStringNotContainsString('data-responsive-table="sale-products"', $html);
+        self::assertStringContainsString('class="technical-disclosure"', $html);
+        self::assertStringContainsString('Sin detalles de facturación', $html);
+        self::assertStringNotContainsString('data-responsive-table="billing-details"', $html);
+        self::assertSame(1, substr_count($html, '>Producto visible<'), 'Human-first composition must render each product fact once.');
+        self::assertStringContainsString('Sin información suficiente', $html, 'Primary UI must humanize missing evidence.');
+        self::assertStringContainsString('UNKNOWN', $html, 'Raw factual UNKNOWN semantics must remain available inside technical disclosure.');
     }
 }

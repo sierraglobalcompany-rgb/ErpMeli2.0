@@ -96,11 +96,16 @@ final class LocalOAuthMeliSimEndToEndTest extends TestCase
         self::assertSame('synthetic-one-use-code', $callbackQuery['code'] ?? null);
         self::assertSame($_SESSION['meli_oauth']['state'] ?? null, $callbackQuery['state'] ?? null);
 
+        $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Other Local OAuth','other-local-oauth')");
+        $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(2,1,'admin')");
+        $_SESSION['company_id'] = 2;
+
         $callback = $factory->createServerRequest('GET', '/oauth/mercadolibre/callback')->withQueryParams($callbackQuery);
         $before = time();
         $response = Bootstrap::create()->handle($callback);
         self::assertSame(303, $response->getStatusCode());
-        self::assertSame('/sales', $response->getHeaderLine('Location'));
+        self::assertSame('/mercadolibre/accounts', $response->getHeaderLine('Location'));
+        self::assertSame(1, $_SESSION['company_id'] ?? null);
         self::assertArrayNotHasKey('meli_oauth', $_SESSION);
         self::assertArrayNotHasKey('meli_oauth_company_id', $_SESSION);
 

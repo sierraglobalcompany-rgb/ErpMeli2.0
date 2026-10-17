@@ -61,12 +61,12 @@ final class MeliAccountManagementTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('Cuentas Mercado Libre', $html);
         self::assertStringContainsString('TIENDA UNO', $html);
-        self::assertStringContainsString('<td>1001</td>', $html);
+        self::assertStringContainsString('data-label="Seller ID">1001</td>', $html);
         self::assertStringContainsString('TIENDA DOS', $html);
-        self::assertStringContainsString('<td>1003</td>', $html);
+        self::assertStringContainsString('data-label="Seller ID">1003</td>', $html);
         self::assertStringContainsString('TIENDA CUATRO', $html);
         self::assertStringNotContainsString('OTRA EMPRESA', $html);
-        self::assertStringNotContainsString('<td>2001</td>', $html);
+        self::assertStringNotContainsString('data-label="Seller ID">2001</td>', $html);
         self::assertStringNotContainsString('ACCESS_SECRET_BYTES', $html);
         self::assertStringNotContainsString('REFRESH_SECRET_BYTES', $html);
     }
@@ -87,9 +87,12 @@ final class MeliAccountManagementTest extends TestCase
     {
         $html = (string) $this->request()->getBody();
 
-        self::assertStringContainsString('class="page-header"', $html);
+        self::assertStringContainsString('class="page-header meli-accounts-page-header"', $html);
+        self::assertStringContainsString('class="meli-accounts-workspace"', $html);
         self::assertStringContainsString('class="toolbar"', $html);
         self::assertStringContainsString('class="table-wrap"', $html);
+        self::assertStringContainsString('data-responsive-table="meli-accounts"', $html);
+        self::assertStringContainsString('data-mobile-card="meli-account-row"', $html);
         self::assertStringContainsString('class="status-chip status-connected"', $html);
         self::assertStringContainsString('class="row-actions"', $html);
     }

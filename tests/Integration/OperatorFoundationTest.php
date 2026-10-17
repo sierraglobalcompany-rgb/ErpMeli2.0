@@ -38,7 +38,7 @@ final class OperatorFoundationTest extends TestCase
     {
         $root = $this->request('GET', '/');
         self::assertSame(303, $root->getStatusCode());
-        self::assertSame('/sales', $root->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $root->getHeaderLine('Location'));
         $html = (string) $this->request('GET', '/sales')->getBody();
         self::assertStringContainsString('Main &lt;Company&gt;', $html);
         self::assertStringContainsString('href="/sales"', $html);
@@ -63,11 +63,11 @@ final class OperatorFoundationTest extends TestCase
         $response = $this->request('POST', '/login', ['username'=>'admin@example.test', 'password'=>'test-password-long', 'csrf_token'=>(new Csrf())->token()]);
         self::assertSame(303, $response->getStatusCode());
         self::assertSame('/', $response->getHeaderLine('Location'));
-        self::assertSame('/sales', $this->request('GET', '/')->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $this->request('GET', '/')->getHeaderLine('Location'));
     }
     public function testTenantSelectorUsesMembershipsAndCsrfAndValidDestination(): void
     {
-        self::assertSame('/sales', $this->request('GET', '/company/select')->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $this->request('GET', '/company/select')->getHeaderLine('Location'));
         self::assertStringNotContainsString('href="/company/select"', (string) $this->request('GET', '/sales')->getBody());
         $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Second','second'),(3,'Foreign','foreign')");
         $this->pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(2,1,'member')");
@@ -127,7 +127,7 @@ final class OperatorFoundationTest extends TestCase
         self::assertSame(303, $selected->getStatusCode());
         self::assertSame($companyId, $_SESSION['company_id']);
         self::assertSame($role, $_SESSION['role']);
-        self::assertSame('/sales', $this->request('GET', '/')->getHeaderLine('Location'));
+        self::assertSame('/dashboard', $this->request('GET', '/')->getHeaderLine('Location'));
         foreach (['/sales','/catalog','/billing'] as $path) {
             $response = $this->request('GET', $path);
             self::assertSame(200, $response->getStatusCode());
@@ -212,14 +212,23 @@ final class OperatorFoundationTest extends TestCase
         self::assertSame(303, $response->getStatusCode());
         self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
         $html = (string) $this->request('GET', '/sales')->getBody();
-        self::assertStringContainsString('<td>CAPTURING</td>', $html);
+        self::assertStringContainsString('data-audit-status="capturing"', $html);
+        self::assertStringContainsString('Recopilando datos', $html);
         self::assertStringContainsString('2026-09-01', $html);
         $this->pdo->exec("INSERT INTO sales_audit_runs(company_id,account_id,period_key,contract_version,status) VALUES(2,2,'2019-02-01','seller-search-v1','attention')");
-        foreach (['repairing', 'confirming', 'valid', 'attention', 'unavailable'] as $status) {
+        $labels = [
+            'repairing' => 'Completando datos',
+            'confirming' => 'Verificando resultados',
+            'valid' => 'Sin diferencias',
+            'attention' => 'Requiere revisión',
+            'unavailable' => 'No disponible',
+        ];
+        foreach ($labels as $status => $label) {
             $statement = $this->pdo->prepare('UPDATE sales_audit_runs SET status=?,canonical_count=7,remote_total=8,completed_at=? WHERE company_id=1');
             $statement->execute([$status, in_array($status, ['valid','attention','unavailable'], true) ? '2026-10-10 12:00:00' : null]);
             $html = (string) $this->request('GET', '/sales')->getBody();
-            self::assertStringContainsString('<td>' . strtoupper($status) . '</td>', $html);
+            self::assertStringContainsString('data-audit-status="' . $status . '"', $html);
+            self::assertStringContainsString($label, $html);
             self::assertStringNotContainsString('2019-02-01', $html);
             self::assertStringNotContainsString('claim_token', $html);
             self::assertStringNotContainsString('work_items', $html);
@@ -229,7 +238,8 @@ final class OperatorFoundationTest extends TestCase
         self::assertSame('pending', $this->pdo->query('SELECT status FROM work_items')->fetchColumn());
         $this->pdo->exec("UPDATE company_users SET role='member' WHERE company_id=1");
         $html = (string) $this->request('GET', '/sales')->getBody();
-        self::assertStringContainsString('<td>UNAVAILABLE</td>', $html);
+        self::assertStringContainsString('data-audit-status="unavailable"', $html);
+        self::assertStringContainsString('No disponible', $html);
         self::assertStringNotContainsString('action="/sales/audits"', $html);
     }
 
@@ -257,7 +267,7 @@ final class OperatorFoundationTest extends TestCase
     public function testOperatorCanReturnFromSettingsAndLoginInputsAreLabelled(): void
     {
         $html = (string) $this->request('GET', '/settings/system')->getBody();
-        self::assertStringContainsString('href="/"', $html);
+        self::assertStringContainsString('href="/dashboard"', $html);
         self::assertStringContainsString('href="/system/companies"', $html);
         $html = (string) $this->request('GET', '/login')->getBody();
         self::assertStringContainsString('<label', $html);
@@ -274,7 +284,8 @@ final class OperatorFoundationTest extends TestCase
             $insert->execute(['2026-01-01']);
         }
         $html = (string) $this->request('GET', '/sales')->getBody();
-        self::assertSame(25, substr_count($html, '<td>VALID</td>'));
+        self::assertSame(25, substr_count($html, 'data-audit-status="valid"'));
+        self::assertStringContainsString('Sin diferencias', $html);
         self::assertStringNotContainsString('2000-01-01', $html);
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM work_items')->fetchColumn());
     }

@@ -1,255 +1,264 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=MASTER PRODUCT DESIGN DISCOVERY COMPLETE / UI-1 FINAL QA FROZEN / AWAITING DESIGN APPROVAL / STOP**
+**CURRENT=H7B USERS PROGRESSIVE DISCLOSURE / AUTOMATED GREEN / REAL-BROWSER CERTIFICATION PENDING / NOT CLOSED / H7C NOT STARTED / STOP-SAFE**
 
-> Autoridad operativa para recuperar el proyecto si el chat termina. No reconstruir por intuición. Retomar desde `NEXT`.
+Autoridad operativa de recuperación. No depender del chat.
 
-## 1. REPOSITORY AUTHORITY
+## Repository authority
 
 ```text
-DATE=2026-10-15
+DATE=2026-10-17
 REPO=sierraglobalcompany-rgb/ErpMeli2.0
-STABLE_BRANCH=impl/v3-b-sales-audit-20261010
-STABLE_SHA=d56183584840187e215e225942831f40ec9a04ae
-UI_BRANCH=ui/operator-shell-v1-20261014
-PR=18 feat(ui): modernize operator workspace
-PR_STATE=OPEN / DRAFT / NOT MERGED / MERGEABLE
-PR_HEAD_BEFORE_THIS_CHECKPOINT=34c2f4e69de3584134f7dd60d03e42fbc02023bc
-LATEST_CERTIFIED_PRODUCT_UI_SOURCE=f9c7c0b00f17727dea749068d2a43e486fb1df91
-LATEST_PRODUCT_UI_QA=Actions #814 PASS PHP 8.3/8.4/8.5
-HOSTINGER_UI_DEPLOYED=NO
-REAL_MELI=CLOSED
+IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
+PR=19
+PR_STATE=OPEN / DRAFT / NOT MERGED
+BASE_BRANCH=ui/operator-shell-v1-20261014
+BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 REMOTE_WRITES=OFF
+REAL_MELI_HTTP=0
+HOSTINGER_DEPLOYED=NO
+REAL_MELI_WRITES=NO
+MERGE_AUTHORIZED=NO
+STOP_SAFE=YES
 ```
 
-No mergear ni desplegar PR #18 todavía.
-
-## 2. LAWS
+## Mandatory laws
 
 ```text
-KISS=A→B, simple, eficiente, optimizado, arquitectura mínima; diseño puede y debe ser premium.
-ANTI_NOISE=eliminar sólo con evidencia; si no, unir, simplificar, optimizar o conservar.
-ANTI_PATCH=corregir owner/causa raíz; no apilar workarounds.
+KISS=MANDATORY
+ANTI_NOISE=MANDATORY
+ANTI_PATCH=MANDATORY
+HUMAN_FIRST=MANDATORY
+UNKNOWN_NEVER_BECOMES_ZERO=MANDATORY
+EVIDENCE_BEFORE_GREEN=MANDATORY
 ```
 
-Metodología:
+Read before continuing:
 
 ```text
-microbloque → QA/auditoría → checkpoint → STOP
+AGENTS.md
+docs/ERP2_AUTHORITY.md
+docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md
+design-system/erp-meli-2-0/MASTER.md
+docs/UX_HUMAN_FIRST_MASTER_AUDIT_AND_IMPROVEMENT_PLAN_2026-10-16.md
 ```
 
-## 3. PRODUCT / PHASE STATE
+Historical ERP1 429 causality remains `NOT_PROVEN`. Do not encode guesses about FIFO, batching, gRPC, waits, retries, pacing or transport as ERP2 architecture without fresh evidence.
+
+## Certified Human-First history
 
 ```text
-LOCAL_PRODUCT_READY=YES
-L1 Installer=CLOSED
-L2 Companies=CLOSED
-L3 Users/Roles/Memberships=CLOSED
-L4 Meli App Settings=CLOSED funcionalmente
-L5A Seller Identity=CLOSED
-L5B Account Management=CLOSED
-L6 OAuth/MLSIM=CLOSED local
-L7 Account Lifecycle=CLOSED
-L8 Human Local E2E=CLOSED
-L9 RC/package=CLOSED
-L10=GO sólo certificación externa READ-only por microbloques
-F15 Cutover=PAUSED
-F16 Remote Writes=UNAUTHORIZED
+H1_FIX1_SALE_DETAIL=GREEN
+H2A_SKIP_TO_MAIN=GREEN
+H2B_TYPOGRAPHY_TOUCH=GREEN
+H3_DASHBOARD=GREEN
+H4_SALES_LIST=FULLY_CLOSED
+H5_CATALOG_INVENTORY=FULLY_CLOSED
+H6A_H6F_BILLING=FULLY_CLOSED
+BILLING_HUMAN_FIRST_CLOSURE=YES
+H7A_GLOBAL_ADMIN_SHARED_SHELL=FULLY_CLOSED
 ```
 
-Historical functional RC:
+Key prior durable references:
 
 ```text
-SOURCE=f05377cb17afc3971997f686102ddf29dfbe6bc0
-FILE=ERP_MELI_2_0_RC_L9_f05377cb.zip
-SHA256=0167DB7634FAD882DA8E4C5673C6E2C221FCC99B4B3A8BDC0DC544419B20A587
+BILLING_CLOSURE_CHECKPOINT=45d9183ecb05ef3ddbcd76eb424914572f57b603
+H7A_GREEN=f8fd6a717e526acc1c79863bd7fb948bfd351817
+H7A_GREEN_CI=39006254808
+H7A_CLOSURE_CHECKPOINT=e247e3e0bdbc9f3a54309e82a6612670d0629c13
+H7A_BROWSER=PASS
+H7A_BROWSER_EVIDENCE_MANIFEST=83/83 SHA256 exact
 ```
 
-## 4. HOSTINGER / EXTERNAL
+## H7B — Users progressive disclosure
 
-ERP2 ya fue instalado live; smoke previo reportado OK en login, Companies, Users, Configuration y Sales. La UI de PR #18 NO está desplegada.
+### Proven defect
 
-G8 HOSTINGER_REALITY sigue NO CERTIFIED hasta evidencia de cuotas, cron, PHP web/CLI, HTTPS y document root.
+`/system/users` exposed all user-management operations simultaneously inside every user card:
 
 ```text
-REAL_MELI OAuth/API=CLOSED
-remote writes=OFF
-F15=PAUSED
-F16=UNAUTHORIZED
+identity edit
+status change
+System Admin privilege change
+password reset
+existing memberships
+membership role update
+membership removal
+new membership
 ```
 
-## 5. ERP1 → ERP2 DESIGN AUDIT FINDING
+This was functionally correct but cognitively dense. Human-First master audit UX-009 / UX-010 / UX-021 requires a compact user summary plus progressive disclosure. No permission-model change is authorized.
 
-ERP1 (`sierraglobalcompany-rgb/ErpMeli`) posee una arquitectura de navegación mucho más amplia que la UI actual de ERP2. Su shell incluye sidebar, topbar, empresa, cuenta, rango de fechas, notificaciones, estado/safety, tabs contextuales y dashboard. Su navegación agrupa Ventas, Productos, Finanzas, Operación y Administración, con subflujos como sincronización, logística, atención al cliente, inventario, vinculación, reportes, conciliación, alertas e integraciones.
-
-ERP2 UI actual expone principalmente:
+### Approved bounded design
 
 ```text
-Sales
-Catalog
-Billing
-MELI Accounts
-Companies
-Users
-Settings
-MELI App Settings
+CREATE_USER_FORM=remains expanded
+USER_SUMMARY=always visible
+USER_SUMMARY_FACTS=name + username + active/disabled + System Admin yes/no + company-access count
+DISCLOSURE_1=Identidad
+DISCLOSURE_2=Seguridad y acceso global
+DISCLOSURE_3=Acceso por empresa
+H7C_CONFIRMATION_UX=out of scope
 ```
 
-ERP2 ya contiene módulos backend adicionales como Financial, Inventory e Invoicing, pero la navegación actual no representa todavía un producto/UX completo.
-
-### DECISION
-
-PR #18 deja de considerarse `FINAL UI` y pasa a clasificarse como:
+Existing owners remain exact:
 
 ```text
-UI-1 = VISUAL FOUNDATION / TECHNICAL PROTOTYPE
+/system/users
+/system/users/{id}/update
+/system/users/{id}/status
+/system/users/{id}/system-admin
+/system/users/{id}/password
+/system/users/{id}/membership
+/system/users/{id}/remove-membership
 ```
 
-Se conserva como trabajo útil, pero no se certifica visualmente como diseño final ni se despliega antes de aprobar el Design Master.
+No delete route, generic modal, new role owner or new permission layer was added.
 
-El prompt Codex de browser QA generado anteriormente queda **FROZEN / DO NOT RUN YET**, porque certificar visualmente UI-1 ahora puede producir trabajo descartable.
-
-## 6. MASTER DESIGN DIRECTION — PROPOSED, NOT YET APPROVED
-
-La opción recomendada es NO copiar ERP1 y NO seguir parchando PR #18. Se propone diseñar primero una arquitectura de producto única y responsive, y luego adaptar lo ya construido.
-
-### Target information architecture
+### H7B RED — confirmed
 
 ```text
-HOME / RESUMEN
-- atención prioritaria
-- ventas del periodo
-- salud de sincronización
-- cuentas MELI
-- tareas/problemas reales
-
-OPERACIÓN
-- Ventas
-- Detalle de venta
-- Logística / packs / envíos (cuando el backend correspondiente esté disponible)
-- Postventa / atención (cuando corresponda)
-
-PRODUCTOS
-- Catálogo
-- Inventario
-- Vinculación / consistencia (cuando corresponda)
-
-FINANZAS
-- Facturación
-- Conciliación
-- Rentabilidad/reportes cuando estén soportados
-
-MERCADO LIBRE
-- Centro de conexión
-- Cuentas
-- Estado OAuth
-- Webhook
-- Sincronización
-- Salud API / problemas que requieren atención
-
-ADMINISTRACIÓN
-- Empresas
-- Usuarios y permisos
-- Configuración
-- Sistema/diagnóstico sólo para administradores
+H7B_RED=73a8a92f6d31f1f6619dc6d4f2e3b2214032c3cc
+H7B_RED_CI=39042876994
+PHPSTAN=PASS
+PHP_8_3=823 tests / 6971 assertions / exactly 1 failure
+ONLY_FAILURE=H7BUserProgressiveDisclosureTest
+EXPECTED_CAUSE=data-user-section="identity" absent in old expanded UI
 ```
 
-### Device model
+The RED contract requires exactly three semantic disclosure owners per user card and verifies existing POST forms remain in the correct owner.
+
+### H7B GREEN — automated certified
 
 ```text
-DESKTOP: sidebar persistente + topbar contextual + tablas completas + drawers/panels.
-TABLET: sidebar colapsable/rail + 1-2 columnas + tablas reducidas + touch-first.
-MOBILE: composición propia; listas/cards operativas, bottom navigation de áreas principales, filtros en sheet/drawer; no tablas desktop comprimidas.
+H7B_GREEN=e6711bd9ccbb5a6298c14885f4f2341040a94343
+H7B_GREEN_CI=39043131947
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+PHPSTAN=PASS
+PHPUNIT_PHP_8_3=823 tests / 6999 assertions / 0 failures
+APP_ENV=test
+REAL_MELI_HTTP=0
 ```
 
-### Design system target
+Canonical RED→GREEN diff:
 
 ```text
-one shell
-one page header
-one filter/action bar
-one table/list family
-one form family
-one status system
-one alert system
-one drawer/modal pattern
-one empty/loading/error pattern
-one responsive rule-set
+COMMITS=1
+FILES=1
+FILE=app/Core/Http/views/users.php
+ADDITIONS=31
+DELETIONS=24
+CONTROLLERS_CHANGED=NO
+ROUTES_CHANGED=NO
+SCHEMA_CHANGED=NO
+CSS_CHANGED=NO
+JS_CHANGED=NO
+DEPENDENCIES_CHANGED=NO
+PERMISSIONS_CHANGED=NO
+WORK_CHANGED=NO
+FINANCIAL_CHANGED=NO
+429_ARCHITECTURE_CHANGED=NO
 ```
 
-No framework frontend nuevo salvo evidencia fuerte de necesidad.
-
-## 7. THREE APPROACHES CONSIDERED
+Implemented presentation:
 
 ```text
-A. Seguir evolucionando PR #18 pantalla por pantalla
-   + rápido a corto plazo
-   - alto riesgo de volver a parchado/inconsistencia
-   VERDICT=NO RECOMMENDED
+VISIBLE_SUMMARY:
+  status
+  display name
+  username
+  System Admin yes/no
+  company membership count
 
-B. Congelar PR #18 como foundation + aprobar Design Master + implementar por módulos
-   + KISS, reutiliza trabajo, evita rehacer pantalla por pantalla
-   + permite desktop/tablet/mobile coherentes
-   VERDICT=RECOMMENDED
+DETAILS_IDENTITY:
+  /update form only
 
-C. Portar ERP1 visualmente y luego limpiar
-   + parte de una UI conocida
-   - arrastra precisamente complejidad, ruido y navegación excesiva de ERP1
-   VERDICT=REJECT
+DETAILS_SECURITY:
+  /status
+  /system-admin
+  /password
+
+DETAILS_MEMBERSHIPS:
+  current memberships
+  role update
+  remove membership
+  add/update membership
 ```
 
-## 8. UI-1 CERTIFIED CODE HISTORY
+The three `<details>` are closed by native browser default because no `open` attribute is emitted.
+
+## H7B current disposition
 
 ```text
-#780 PASS — installer DB defaults
-#783 PASS — APP_URL autodetect
-#788 PASS — installer visual shell
-#794 PASS — MELI accounts UI
-#799 PASS — MELI global settings UI
-#807 PASS — sales detail UI
-#814 PASS — stylesheet dedup
+H7B_RED=CONFIRMED
+H7B_AUTOMATED_GREEN=YES
+H7B_BROWSER=PENDING
+H7B_FULLY_CLOSED=NO
+H7C_STARTED=NO
+PR_MERGED=NO
+STOP_SAFE=YES
 ```
 
-Estos PASS certifican comportamiento/código del bloque, no convierten el diseño en UX final.
-
-## 9. ERP1 FAILURE MODES ERP2 MUST STILL AVOID
+## Exact resume point
 
 ```text
-429 storms
-FIFO/HOL blocking
-gRPC/batches/jobs desync
-child/page job explosion
-inline retries
+NEXT=H7B REAL-BROWSER CERTIFICATION ONLY
+CANONICAL_GREEN=e6711bd9ccbb5a6298c14885f4f2341040a94343
+CANONICAL_GREEN_CI=39043131947
 ```
 
-Safeguards ERP2 ya cerrados no pueden debilitarse por el rediseño.
-
-## 10. GUARDRAILS CURRENT
+Required real-browser certification:
 
 ```text
-NO merge PR #18
-NO deploy UI
-NO Hostinger mutation
-NO real MELI OAuth/API yet
-REAL_MELI_HTTP=0 in local work
-remote writes=OFF
-NO F15/F16
-NO UI implementation until Design Master approved
-NO browser visual certification of provisional UI yet
+ROUTE=/system/users
+ROLE=System Admin
+VIEWPORT_DESKTOP=1440x900
+VIEWPORT_MOBILE=390x844
+HTTP_200=required
+SHARED_H7A_SHELL=preserved
+OLD_SIMPLE_NAV=absent
+MOBILE_NAV=exactly 5 slots
+CREATE_USER_FORM=expanded/present but do not submit
+USER_SUMMARY=visible without opening details
+DETAILS_COUNT_PER_USER=exactly 3
+DETAILS_DEFAULT=closed
+SUMMARY_1=Identidad
+SUMMARY_2=Seguridad y acceso global
+SUMMARY_3=Acceso por empresa
+KEYBOARD_SUMMARY_FOCUS=visible
+ENTER_SPACE_TOGGLE=works
+IDENTITY_OWNER=/update only
+SECURITY_OWNER=/status + /system-admin + /password
+MEMBERSHIP_OWNER=/membership + /remove-membership
+DO_NOT_SUBMIT_FORMS=YES
+PAGE_HORIZONTAL_OVERFLOW=NO
+FIXED_NAV_OBSTRUCTION=NO
+CONSOLE_APP_ERRORS=0
+UNCAUGHT_JS=0
+APPLICATION_5XX=0
+REAL_MELI_NETWORK_CALLS=0
+DB_BEFORE_AFTER=IDENTICAL
+BUSINESS_SIDE_EFFECTS=0
+WORKING_TREE_BEFORE_AFTER=CLEAN
+CERTIFIER_CODE_CHANGES=NO
+CERTIFIER_TEST_CHANGES=NO
+CERTIFIER_DOC_CHANGES=NO
+CERTIFIER_COMMITS=NO
 ```
 
-## 11. NEXT — EXACTLY ONE STAGE
-
-Esperar aprobación/corrección del usuario sobre el **Master Design Direction**.
-
-Si el usuario aprueba:
+Use at least two factual user-card states when practical:
 
 ```text
-1. escribir Design Master spec formal en docs/superpowers/specs/
-2. incluir mapa completo de pantallas, IA, responsive PC/tablet/mobile, design system, flujo Centro Mercado Libre y criterios de aceptación
-3. self-review de la spec
-4. presentar spec al usuario
-5. STOP para aprobación escrita
+A=active + System Admin + >=1 membership
+B=disabled + non-System-Admin + 0 memberships
 ```
 
-Sólo después de aprobar la spec se crea el implementation plan. No tocar código antes.
+H7C destructive-action confirmation remains intentionally out of scope. First real product gate failure => capture evidence + diagnose + STOP; certifier does not repair product code.
+
+If browser PASS is independently audited, mark H7B FULLY CLOSED. Do not start H7C in the same closure turn unless the user explicitly asks to continue.
+
+## Frozen / prohibited
+
+No broad redesign, new frontend framework, duplicate dataset/route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0, speculative ERP1 429 architecture, or generic destructive-action modal during H7B.

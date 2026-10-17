@@ -403,7 +403,7 @@ final class MeliHttpSimulationTest extends TestCase
                 self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM meli_accounts')->fetchColumn());
                 return;
             }
-            self::assertSame('/sales', $response->getHeaderLine('Location'));
+            self::assertSame('/mercadolibre/accounts', $response->getHeaderLine('Location'));
             self::assertArrayNotHasKey('meli_oauth', $_SESSION);
             self::assertArrayNotHasKey('meli_oauth_company_id', $_SESSION);
             $row = $this->pdo->query('SELECT a.company_id,a.external_user_id,a.site_id,t.* FROM meli_accounts a JOIN meli_tokens t ON t.account_id=a.id')->fetch(PDO::FETCH_ASSOC);
