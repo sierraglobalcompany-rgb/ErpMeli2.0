@@ -78,21 +78,36 @@ $navigationIsSystemAdmin = true;
                     <button>Guardar cambios</button>
                 </form>
 
-                <div class="row-actions">
-                    <form method="post" action="/system/companies/<?= $id ?>/<?= $archived ? 'reactivate' : 'archive' ?>">
-                        <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
-                        <button><?= $archived ? 'Reactivar' : 'Archivar' ?></button>
-                    </form>
-                </div>
-
-                <?php if ($company['deletable']): ?>
-                    <div class="notice">
-                        <p>Sólo se puede eliminar una empresa archivada sin uso previo y con tu única membresía admin. No se eliminará tu usuario.</p>
-                        <form method="post" action="/system/companies/<?= $id ?>/delete">
+                <?php if ($archived): ?>
+                    <div class="row-actions">
+                        <form method="post" action="/system/companies/<?= $id ?>/reactivate">
                             <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
-                            <button class="danger">Eliminar definitivamente</button>
+                            <button>Reactivar</button>
                         </form>
                     </div>
+                <?php else: ?>
+                    <details data-company-destructive-action="archive">
+                        <summary>Archivar empresa</summary>
+                        <p class="muted">La empresa saldrá de la operación y de la selección activa. El historial se conserva y podrás reactivar la empresa cuando corresponda.</p>
+                        <form method="post" action="/system/companies/<?= $id ?>/archive">
+                            <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                            <button>Confirmar archivo</button>
+                        </form>
+                    </details>
+                <?php endif; ?>
+
+                <?php if ($company['deletable']): ?>
+                    <details data-company-destructive-action="delete">
+                        <summary>Eliminar empresa definitivamente</summary>
+                        <div class="notice">
+                            <p>Sólo se puede eliminar una empresa archivada sin uso previo y con tu única membresía admin. No se eliminará tu usuario.</p>
+                            <form method="post" action="/system/companies/<?= $id ?>/delete">
+                                <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                                <label><input type="checkbox" name="confirm_permanent_delete" value="1" required> Confirmo que quiero eliminar esta empresa de forma permanente.</label>
+                                <button class="danger">Eliminar definitivamente</button>
+                            </form>
+                        </div>
+                    </details>
                 <?php endif; ?>
             </section>
             <?php endforeach; ?>
