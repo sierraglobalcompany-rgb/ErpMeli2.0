@@ -11,6 +11,14 @@ declare(strict_types=1);
 /** @var array{id:int,name:string,role:string} $company */
 /** @var string $csrfToken */
 $documentLabels = ['BILL' => 'Factura', 'CREDIT_NOTE' => 'Nota crédito'];
+$accountLabels = [];
+foreach ($periods as $period) {
+    $accountLabels[(int) $period['account_id']] = (string) $period['external_user_id'];
+}
+foreach ($accounts as $account) {
+    $nickname = trim((string) ($account['nickname'] ?? ''));
+    $accountLabels[(int) $account['id']] = $nickname !== '' ? $nickname : (string) $account['external_user_id'];
+}
 ?>
 <!doctype html>
 <html lang="es">
@@ -66,7 +74,7 @@ $documentLabels = ['BILL' => 'Factura', 'CREDIT_NOTE' => 'Nota crédito'];
                             <h2 id="billing-selection-title">Solicitud seleccionada</h2>
                         </div>
                     </div>
-                    <p>Cuenta <?= $selection['account_id'] ?> · <?= htmlspecialchars($selection['period_key'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($documentLabels[$selection['document_type']] ?? $selection['document_type'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <p><?= htmlspecialchars($accountLabels[$selection['account_id']] ?? 'Cuenta seleccionada', ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($selection['period_key'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($documentLabels[$selection['document_type']] ?? $selection['document_type'], ENT_QUOTES, 'UTF-8') ?></p>
                     <?php if (($requestState['status'] ?? null) === 'failed'): ?>
                         <p class="notice">Requiere revisión. Una nueva solicitud debe ser explícita.</p>
                     <?php elseif (in_array($requestState['status'] ?? null, ['pending', 'running'], true)): ?>
