@@ -71,8 +71,8 @@ final class BillingDesignMasterUiTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
 
-        self::assertStringContainsString('<option value="BILL">Factura</option>', $html);
-        self::assertStringContainsString('<option value="CREDIT_NOTE">Nota crédito</option>', $html);
+        self::assertMatchesRegularExpression('/<option value="BILL"[^>]*>Factura<\/option>/', $html);
+        self::assertMatchesRegularExpression('/<option value="CREDIT_NOTE"[^>]*>Nota crédito<\/option>/', $html);
         self::assertStringContainsString('· Factura</p>', $html);
         self::assertStringContainsString('data-label="Tipo">Factura</td>', $html);
         self::assertStringContainsString('document_type=BILL', $html);
