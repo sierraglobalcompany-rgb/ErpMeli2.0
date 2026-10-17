@@ -84,10 +84,14 @@ $statusClasses = [
                                     <td data-label="Acciones">
                                         <div class="row-actions">
                                             <?php if ($account['status'] === 'connected'): ?>
-                                                <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/disconnect">
-                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                                    <button type="submit">Desconectar</button>
-                                                </form>
+                                                <details data-meli-destructive-action="disconnect">
+                                                    <summary>Desconectar cuenta</summary>
+                                                    <p class="muted">Se eliminarán las credenciales locales y la cuenta dejará de operar desde este ERP. El historial registrado se conserva. Podrás volver a autorizar la cuenta cuando necesites conectarla de nuevo.</p>
+                                                    <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/disconnect">
+                                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                        <button type="submit">Confirmar desconexión</button>
+                                                    </form>
+                                                </details>
                                             <?php endif; ?>
                                             <?php if ($appConfigured && in_array($account['status'], ['attention', 'reauth_required', 'disabled'], true)): ?>
                                                 <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/reauthorize">
