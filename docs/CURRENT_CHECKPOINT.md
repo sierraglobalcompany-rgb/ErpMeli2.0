@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7C-A/B1/B2 FULLY CLOSED / H7C-C CLEAR DEBUG READ-ONLY PREFLIGHT NEXT / H7C-C-D NOT STARTED / STOP-SAFE**
+**CURRENT=H7C-A/B1/B2 FULLY CLOSED / H7C-C CLEAR DEBUG AUTOMATED GREEN (REAL-BROWSER PENDING) / H7C-D NOT STARTED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -455,22 +455,63 @@ External evidence received:
 
 No product defect is proven by the known expected operator GET 403 Chrome console-network message; it remains transparently counted as one in raw evidence. No fixes/patches warranted.
 
+## H7C-C — System clear debug — automated GREEN / real browser PENDING
+
+Precise owner: `app/Modules/Settings/SystemSettingsController.php::clearDebug()` and `app/Modules/Settings/views/system.php`. Existing route `POST /settings/system/debug/clear`, existing `DebugMaintenance::clearDebug()` recognizes only local debug files; no schema/route/JS/CSS/remote MELI modifications.
+
+Test-only RED:
+```text
+H7C_C_RED=b1fe1533db7809f689c398d111d4292474b5c31a
+H7C_C_RED_CI=39079965535 EXPECTED FAILURE
+RED_PHP_8_3=829 tests / 7040 assertions / exactly 1 failure
+RED_ONLY_FAILURE=DebugSettingsControllerTest::testClearDebugRejectsMissingOrInvalidHumanConfirmationWithoutDeletingFiles
+RED_OBSERVED=303 with valid CSRF and missing confirm_clear_debug
+RED_EXPECTED=422 without deleting temp debug files
+RED_PRODUCTION_CHANGED=NO
+```
+
+Minimal GREEN:
+```text
+H7C_C_GREEN=901b8652c825251f6189f6a11bea8c6ba7f198af
+H7C_C_GREEN_CI=39080177081 SUCCESS
+GREEN_PHP_8_3=829 tests / 7049 assertions / 0 failures
+GREEN_PHP_8_4=829 tests / 7049 assertions / 0 failures
+GREEN_PHP_8_5=829 tests / 7049 assertions / 0 failures
+GREEN_PHPSTAN=PASS
+RED_TO_GREEN_FILES=3
+RED_TO_GREEN_CONTROLLER=app/Modules/Settings/SystemSettingsController.php (+3/-0)
+RED_TO_GREEN_VIEW=app/Modules/Settings/views/system.php (+9/-4)
+RED_TO_GREEN_TEST=tests/Integration/DebugSettingsControllerTest.php (+12/-1)
+ROUTES_CHANGED=NO
+SCHEMA_CHANGED=NO
+CSS_CHANGED=NO
+JS_CHANGED=NO
+DEBUG_MAINTENANCE_ALGORITHM_CHANGED=NO
+OAUTH_CHANGED=NO
+WORK_CHANGED=NO
+FINANCIAL_CHANGED=NO
+REAL_MELI_HTTP=0
+```
+
+Existing System Admin DB authorization, CSRF 419, optional DebugMaintenance 503 and recognized-file deletion preserved. Added exact server acknowledgement `confirm_clear_debug='1'`, otherwise 422 without file deletion. UI now has native closed-by-default `<details data-system-destructive-action="clear-debug">`, factual scope copy (recognized local debug files only, preserving ZIP exports, unrelated files, business data), required checkbox, and original CSRF-protected POST inside.
+
 ## Exact resume point
 
 ```text
-NEXT=H7C-C SYSTEM CLEAR DEBUG READ-ONLY PREFLIGHT
+NEXT=H7C-C REAL-BROWSER CERTIFICATION ONLY
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
-H7C_C_STARTED=NO
+H7C_C_AUTOMATED_GREEN=YES
+H7C_C_BROWSER_CERTIFIED=NO
+H7C_C_FULLY_CLOSED=NO
 H7C_D_STARTED=NO
-DO_NOT_REOPEN_B2_WITHOUT_NEW_FACTS
-PR_MERGED=NO
+PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
 ```
 
-Audit exact clear-debug controller/view/route permissions and CSRF, semantics and existing tests. First produce narrow verified RED only if a real direct-destructive-action defect remains. No synthetic cleanup, no debug clear submit in browser QA, no generic modal, no production or real MELI mutations.
+Use real local Chrome/Antigravity only as browser CERTIFIER in disposable TEST runtime, no debug clear POST, no config POST, no real MELI. Require system admin 200/non-system-admin 403, native keyboard, checkbox validity, desktop/mobile shared H7A shell, browser console/network, **DB AND DEBUG FILESYSTEM before/after identical**, clean tree, zero certifier product edits, evidence report + ZIP + SHA-256 sidecar. Final closure only on independent ChatGPT audit of all three artifacts. H7C-D stays frozen.
 
 ## ERP1 / 429 frozen truth
 
