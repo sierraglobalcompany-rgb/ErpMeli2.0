@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H6F BILLING ZERO-CONNECTED-ACCOUNT EMPTY STATE / BROWSER G7 FAILED / ROOT-FIX AUTOMATED GREEN / BROWSER RECERTIFICATION PENDING / NOT CLOSED / STOP-SAFE**
+**CURRENT=H6F BILLING ZERO-CONNECTED-ACCOUNT EMPTY STATE / ROOT-FIX AUTOMATED GREEN / DESKTOP OVERLAP=0 / ACCEPTANCE CONTRACT CORRECTED / FULL BROWSER RECERTIFICATION PENDING / NOT CLOSED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -72,28 +72,15 @@ H6E_FINAL_CI=38997637480 / 818 tests / 6856 assertions / 0 failures / browser re
 
 ## H6F — zero connected accounts actionable empty state
 
-### Proven product defect and original GREEN
+### Original product defect and GREEN
 
-Billing is validly reachable by an admin when the company has zero `connected` MELI accounts while historical Billing periods may still exist for accounts now `disabled`.
-
-Before H6F, the admin sync panel rendered an impossible primary action with a required empty account selector and active submit button.
-
-Truthful resolution owner already exists at:
+With zero `connected` MELI accounts, Billing exposed an impossible sync form with an empty required account selector. Existing truthful resolution owner is `/mercadolibre/accounts`.
 
 ```text
-/mercadolibre/accounts
-```
-
-Original H6F TDD:
-
-```text
-H6F_RED_COMMIT=e44ec098e5f9974a9b89cc981b6fb3b132e1fae1
+H6F_RED=e44ec098e5f9974a9b89cc981b6fb3b132e1fae1
 H6F_RED_CI=38998111208
-H6F_RED_PHP_8_3=819 tests / 6858 assertions / 1 expected isolated failure
-H6F_RED_MATRIX=PHP 8.3 / 8.4 / 8.5 expected failure confirmed
-
-H6F_ORIGINAL_GREEN=ee82feb4940a7ca50b05994c19882695be5a51df
-H6F_ORIGINAL_CI=38998391983
+H6F_GREEN=ee82feb4940a7ca50b05994c19882695be5a51df
+H6F_GREEN_CI=38998391983
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
@@ -101,61 +88,35 @@ PHPSTAN=PASS
 PHPUNIT=819 tests / 6864 assertions / 0 failures
 ```
 
-Original production diff:
-
-```text
-FILE=app/Modules/Billing/views/billing.php
-ADDITIONS=5
-DELETIONS=0
-```
-
-Behavior:
+Production behavior:
 
 ```text
 IF connected accounts == 0:
-  keep Billing sync panel heading
-  show Human-First empty state
+  show Human-First empty-state copy
   show CTA "Administrar cuentas Mercado Libre" -> /mercadolibre/accounts
   do not render impossible /billing/syncs form
 ELSE:
-  preserve existing sync form unchanged
+  preserve existing sync form
 ```
 
-Historical Billing remains visible with persisted human labels and machine `account_id` query semantics.
+Historical Billing remains visible and preserves human account labels plus machine `account_id` query semantics.
 
-## H6F first real-browser certification — FAILED correctly
-
-Antigravity rerun reported:
+## First browser certification — real visual defect found
 
 ```text
-LOCAL_SYNC=PASS
+CERTIFIED_HEAD=cd52fd7c5b0af70308186466c0f082376dc84a0d
 H6F_BROWSER_RESULT=FAILED
 FAILED_GATE=G7_MOBILE_NO_OVERLAP
-ROOT_CAUSE=CTA overlaps the empty-state lower edge by approximately 8.2 px
-CODE_CHANGED=NO
-NEXT_BILLING_WORK_STARTED=NO
+MEASURED_OVERLAP=8.19998 px
+CODE_CHANGED_BY_CERTIFIER=NO
 STOP_SAFE=YES
-CERTIFIED_HEAD=cd52fd7c5b0af70308186466c0f082376dc84a0d
 ```
 
-Independent audit confirmed:
+Independent evidence audit confirmed the overlap, screenshots, clean DB snapshots and no side effects.
 
-```text
-INTERNAL_MANIFEST_HASHES=12/12 exact
-DB_BEFORE_AFTER=IDENTICAL
-DOM_OVERLAP=8.19998 px
-DESKTOP_SCREENSHOT=defect visible
-MOBILE_SCREENSHOT=defect visible
-PRODUCT_SEMANTICS=otherwise preserved
-```
+## Shared button root-fix — TDD complete
 
-Antigravity stopped correctly. CTA navigation and connected-account regression were not executed after first failed gate, per STOP rule.
-
-## Root cause
-
-The defect is not Billing-specific. Shared primary anchor styling used `.button` with padding/min-height while leaving the anchor in inline formatting context. Its painted box could intrude into adjacent block geometry.
-
-Owner:
+Root cause owner:
 
 ```text
 public/assets/app.css
@@ -171,56 +132,21 @@ NO duplicate component
 YES fix shared button box owner
 ```
 
-## Root-fix TDD
-
-### RED
+RED:
 
 ```text
 ROOT_FIX_RED=7a28d01787c392d8708b9d25c45fa54909d0c46d
-TEST=tests/Integration/PrimaryButtonAnchorGeometryContractTest.php
-RED_CI=39000745662
+ROOT_FIX_RED_CI=39000745662
 PHP_8_3=820 tests / 6867 assertions / 1 expected isolated failure
 PHP_8_4=expected isolated failure
 PHP_8_5=expected isolated failure
 PHPSTAN=PASS
 ```
 
-RED contract requires the authoritative shared rule to establish its own anchor box:
-
-```css
-button, .button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-```
-
-### GREEN
-
-Definitive production commit:
+GREEN:
 
 ```text
 ROOT_FIX_GREEN=cb628bfd144447cc4939c48e8ff58fc10ef11e97
-FILE=public/assets/app.css
-COMMITS_FROM_RED=1
-FILES_CHANGED=1
-ADDITIONS=3
-DELETIONS=0
-```
-
-Forensic diff is exactly:
-
-```css
-+ display: inline-flex;
-+ align-items: center;
-+ justify-content: center;
-```
-
-No Billing-specific CSS and no unrelated production change survived in branch history.
-
-Definitive CI:
-
-```text
 ROOT_FIX_GREEN_CI=39001247996
 PHP_8_3=PASS
 PHP_8_4=PASS
@@ -231,14 +157,105 @@ APP_ENV=test
 REAL_MELI_HTTP=0
 ```
 
+Exact production diff:
+
+```css
+button, .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+```
+
+Net GREEN diff from RED: one file, +3/-0. No Billing-specific CSS and no controller/routes/OAuth/schema/JS/Work/Financial/429 change.
+
+## Browser recertification attempt after root-fix — STOP caused by acceptance-contract error
+
+Antigravity synchronized safely to checkpoint `fc474410330ebda8fe461fff3401a21d0f1127ea` and ran desktop gates.
+
+Verified real-browser evidence:
+
+```text
+LOCAL_SYNC=PASS
+HTTP_200=PASS
+EMPTY_STATE_COPY=PASS
+CTA_HREF=/mercadolibre/accounts
+IMPOSSIBLE_SYNC_FORM_ABSENT=PASS
+HISTORICAL_ROW_VISIBLE=PASS
+HISTORICAL_MACHINE_QUERY=PASS
+DESKTOP_PAGE_OVERFLOW=NO
+CTA_DISPLAY=inline-flex
+DESKTOP_CTA_TEXT_OVERLAP_PX=0
+DESKTOP_CTA_BORDER_OVERLAP_PX=0
+CTA_INSIDE_BILLING_SYNC_PANEL=YES
+CTA_BOTTOM_CLEARANCE_FROM_PANEL=22.7999954 px
+DB_BEFORE_AFTER=IDENTICAL
+BUSINESS_SIDE_EFFECTS=0
+```
+
+Evidence package audit:
+
+```text
+INTERNAL_MANIFEST_HASHES=12/12 exact
+DB_SNAPSHOT_HASH_BEFORE=2cccfc5446e6fdb591437bf89475a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+DB_SNAPSHOT_HASH_AFTER=2cccfc5446e6fdb591437bf89475a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+```
+
+Certification stopped at:
+
+```text
+FAILED_GATE=G5_CTA_INSIDE_EMPTY_STATE_CONTRACT
+```
+
+This is **NOT a new product defect**. The acceptance prompt incorrectly treated `p.empty-state` as the containing component. Repository markup is intentionally:
+
+```text
+section.billing-sync-panel
+  p.empty-state
+  a.button
+```
+
+The paragraph and CTA are siblings. Therefore `p.empty-state contains CTA` is false by correct DOM structure. Product must NOT be changed merely to satisfy that erroneous assertion.
+
+### Corrected acceptance owner
+
+For geometry/containment, the component boundary is:
+
+```text
+section.billing-sync-panel
+```
+
+The corrected browser contract is:
+
+```text
+CTA_INSIDE_BILLING_SYNC_PANEL=YES
+CTA_BOTTOM_CLEARANCE_FROM_PANEL>=0
+CTA_TEXT_OVERLAP_PX=0
+CTA_BORDER_OVERLAP_PX=0
+```
+
+Do **not** require:
+
+```text
+p.empty-state contains CTA
+CTA bottom <= p.empty-state bottom
+```
+
+The paragraph remains the copy surface only, not the component container.
+
 ## Current disposition
 
 ```text
 H6F_PRODUCT_EMPTY_STATE_AUTOMATED_GREEN=YES
-H6F_FIRST_BROWSER_CERTIFICATION=FAILED
-FAILED_GATE=G7_MOBILE_NO_OVERLAP
 ROOT_CAUSE_FIXED_AUTOMATED=YES
-ROOT_FIX_BROWSER_RECERTIFIED=NO
+DESKTOP_ROOT_FIX_VISUALLY_PROVEN=YES
+DESKTOP_OLD_OVERLAP_PX=0
+LATEST_BROWSER_STOP_REASON=ACCEPTANCE_CONTRACT_ERROR
+NEW_PRODUCT_DEFECT_PROVEN=NO
+MOBILE_RECERTIFIED=NO
+CTA_NAVIGATION_RECERTIFIED=NO
+CONNECTED_ACCOUNT_REGRESSION_RECERTIFIED=NO
+FULL_BROWSER_RECERTIFICATION=NO
 H6F_FULLY_CLOSED=NO
 BILLING_HUMAN_FIRST_CLOSURE=NO
 NEXT_BILLING_WORK_STARTED=NO
@@ -248,28 +265,29 @@ STOP_SAFE=YES
 ## Exact resume point
 
 ```text
-NEXT=H6F REAL-BROWSER RECERTIFICATION ONLY
-TARGET_HEAD=cb628bfd144447cc4939c48e8ff58fc10ef11e97
-TARGET_CI=39001247996
+NEXT=H6F FULL REAL-BROWSER RECERTIFICATION WITH CORRECTED COMPONENT BOUNDARY
+PRODUCT_ROOT_FIX=cb628bfd144447cc4939c48e8ff58fc10ef11e97
+PRODUCT_CI=39001247996
 ```
 
-Recertification must use a disposable test environment and real Chrome/CDP at minimum:
+On resume:
 
-1. Desktop 1440x900 and mobile 390x844.
-2. Zero-connected-account state shows Human-First empty-state copy and CTA to `/mercadolibre/accounts`.
-3. Impossible `/billing/syncs` form/select remains absent in zero-connected state.
-4. G7: CTA has no overlap with empty-state content/border/padding; measure DOM geometry, not screenshot only.
-5. CTA navigation reaches the existing MELI account management owner.
-6. Connected-account Billing form regression remains unchanged.
-7. Historical disabled-account row remains visible with human nickname and exact machine `account_id` query.
-8. H6A–H6E visible regressions remain green where applicable.
-9. No page horizontal overflow; mobile bottom nav exactly 5 slots.
-10. App console errors=0; uncaught JS=0; application 5xx=0.
-11. Real MELI network calls=0; business side effects=0; before/after DB snapshots identical.
-12. Working tree before/after CLEAN.
-13. Certification run may not modify code. First failed gate -> capture evidence -> root-cause -> STOP.
-14. If browser PASS is independently audited, close H6F and run one final Billing residual preflight. If no meaningful defect remains, close Billing Human-First; do not manufacture H6G.
-15. No PR merge without explicit user approval.
+1. Sync local checkout fast-forward only to current remote checkpoint; tree must be clean.
+2. Use disposable test environment; `APP_ENV=test`, `REAL_MELI_HTTP=0`, remote/business writes OFF.
+3. Re-run complete browser certification rather than inferring mobile from desktop.
+4. Desktop 1440x900 and mobile 390x844.
+5. Correct geometry owner is `section.billing-sync-panel`; paragraph `.empty-state` is copy only.
+6. Require zero text/border overlap and non-negative CTA clearance from the panel on desktop/mobile.
+7. Verify CTA navigation reaches `/mercadolibre/accounts` without executing connect/reauthorize/configuration.
+8. Verify connected-account Billing form regression in separate disposable fixture; do not submit.
+9. Verify historical disabled-account row, human nickname and exact machine `account_id=10` query.
+10. Spot-check shared primary button and secondary button geometry for obvious regression.
+11. Verify H6A–H6E visible behavior where applicable.
+12. Verify page overflow=NO, mobile nav=5 slots, app console errors=0, uncaught JS=0, application 5xx=0.
+13. Verify real MELI network calls=0, business side effects=0 and DB before/after identical.
+14. Certification may not change code. First actual product gate failure -> evidence + root cause + STOP.
+15. If complete browser PASS is independently audited, close H6F and run one final Billing residual preflight. If no meaningful defect remains, close Billing Human-First; do not manufacture H6G.
+16. No PR merge without explicit user approval.
 
 ## Frozen / prohibited
 
