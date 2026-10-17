@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7B FULLY CLOSED / H7C-A AUTOMATED GREEN / REAL-BROWSER CERTIFICATION PENDING / H7C-A NOT CLOSED / H7C-B-C-D NOT STARTED / STOP-SAFE**
+**CURRENT=H7B FULLY CLOSED / H7C-A AUTOMATED GREEN HARDENED / REAL-BROWSER CERTIFICATION PENDING / H7C-A NOT CLOSED / H7C-B-C-D NOT STARTED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -27,6 +27,8 @@ PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
 BASE_BRANCH=ui/operator-shell-v1-20261014
 BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
+FUNCTIONAL_HEAD=22384c2c616da89d34e37543cd42e8ae13c54e06
+FUNCTIONAL_HEAD_CI=39055307246 SUCCESS
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0
 HOSTINGER_DEPLOYED=NO
@@ -68,7 +70,7 @@ READ-ONLY PREFLIGHT
 -> only then next microblock
 ```
 
-ChatGPT is primary driver. Antigravity is certification-only when local real-browser control is unavailable; no fixes/commits/push/merge. Codex is for material local-machine barriers, not routine implementation.
+ChatGPT is primary driver. Antigravity is certification-only when local real-browser control is unavailable; no product fixes, commits, push, merge commit or PR merge. A same-branch local fast-forward sync is allowed only when required by the certification prompt. Codex is for material local-machine barriers, not routine implementation.
 
 ## Certified Human-First history
 
@@ -124,9 +126,9 @@ POST /system/companies/{id}/delete
 OWNER=CompanyManagementController
 ```
 
-Backend authorization, CSRF and domain rules remain authoritative.
+Backend authorization, CSRF, domain rules and permanent-delete acknowledgement are authoritative.
 
-## RED — proven
+## Initial RED — proven
 
 ```text
 H7C_A_RED=1c8bae3374c7a36af075f3b5bb59c64c95cef763
@@ -139,24 +141,21 @@ PROVEN_DEFECT=active company archive was direct one-click POST
 PRODUCTION_CHANGED_AT_RED=NO
 ```
 
-## GREEN — automated PASS
+## Initial GREEN — automated PASS
 
 ```text
-H7C_A_GREEN=d8cfbe04a924304cb1234153fe873a34bef4bab4
-H7C_A_GREEN_CI=39049794704
-GREEN_WORKFLOW=SUCCESS
+H7C_A_INITIAL_GREEN=d8cfbe04a924304cb1234153fe873a34bef4bab4
+H7C_A_INITIAL_GREEN_CI=39049794704
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
 PHPSTAN=PASS
 PHP_8_3_RESULT=824 tests / 7007 assertions / 0 failures
-REAL_MELI_HTTP=0
 ```
 
-Canonical RED->GREEN production diff:
+Initial RED->GREEN production diff:
 
 ```text
-COMMITS=1
 FILES=1
 FILE=app/Core/Http/views/companies.php
 ADDITIONS=27
@@ -172,7 +171,51 @@ FINANCIAL_CHANGED=NO
 429_ARCHITECTURE_CHANGED=NO
 ```
 
-Implemented:
+## Acknowledgement hardening — RED proven
+
+Forensic review before browser certification found that the HTML checkbox was `required` but the backend accepted a direct POST without `confirm_permanent_delete`. Browser-native validity alone was therefore insufficient.
+
+```text
+H7C_A_ACK_RED=ff0255d4826e31948852c1fee5dff40131b705e6
+H7C_A_ACK_RED_CI=39054722005
+ACK_RED_WORKFLOW=EXPECTED FAILURE
+ACK_RED_PHP_8_3=825 tests / 7011 assertions / exactly 1 failure
+ACK_RED_ONLY_FAILURE=H7CCompanyPermanentDeleteAcknowledgementTest
+ACK_PROVEN_DEFECT=direct POST could bypass permanent-delete acknowledgement
+PRODUCTION_CHANGED_AT_ACK_RED=NO
+```
+
+## Acknowledgement hardening — GREEN PASS
+
+```text
+H7C_A_GREEN=22384c2c616da89d34e37543cd42e8ae13c54e06
+H7C_A_GREEN_CI=39055307246
+GREEN_WORKFLOW=SUCCESS
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+PHPSTAN=PASS
+PHP_8_3_RESULT=825 tests / 7020 assertions / 0 failures
+REAL_MELI_HTTP=0
+```
+
+ACK RED->GREEN diff is bounded to:
+
+```text
+PRODUCTION_FILE=app/Core/Http/CompanyManagementController.php
+TEST_COMPAT_FILE=tests/Integration/CompanyManagementTest.php
+NEW_RED_TEST=tests/Integration/H7CCompanyPermanentDeleteAcknowledgementTest.php
+ROUTES_CHANGED=NO
+SCHEMA_CHANGED=NO
+CSS_CHANGED=NO
+JS_CHANGED=NO
+PERMISSIONS_CHANGED=NO
+WORK_CHANGED=NO
+FINANCIAL_CHANGED=NO
+429_ARCHITECTURE_CHANGED=NO
+```
+
+Implemented contract:
 
 ```text
 ACTIVE COMPANY:
@@ -189,15 +232,18 @@ DELETABLE ARCHIVED COMPANY:
   native <details>
   factual delete conditions preserved
   required checkbox confirm_permanent_delete
+  backend also requires confirm_permanent_delete=1
+  missing/invalid acknowledgement returns 422 without deletion
   /delete + backend authority preserved
+  user remains preserved
 
 NO generic modal
-NO controller/schema/permission/JS architecture change
+NO schema/permission/JS architecture change
 ```
 
 ## Remaining gate — REAL BROWSER
 
-H7C-A is NOT fully closed until independent browser evidence passes.
+H7C-A is NOT fully closed until independent browser evidence passes against final functional GREEN `22384c2c...`.
 
 Required certification, side-effect-free:
 
@@ -214,6 +260,8 @@ ARCHIVE_OWNER=/system/companies/{id}/archive
 REACTIVATE_DIRECT_RESTORATIVE=PASS
 DELETE_DETAILS_DEFAULT_CLOSED=YES when deletable=true
 DELETE_REQUIRED_ACK=PASS
+DELETE_NATIVE_VALIDITY=PASS
+DELETE_SERVER_SIDE_ACK_CI=PASS
 DELETE_OWNER=/system/companies/{id}/delete
 CSRF_PRESENT=YES
 NO_HORIZONTAL_OVERFLOW=YES
@@ -227,18 +275,20 @@ DB_BEFORE_AFTER=IDENTICAL
 WORKING_TREE_BEFORE_AFTER=CLEAN
 CERTIFIER_CODE_TEST_DOC_CHANGES=0
 PUSH=0
-MERGE=0
+MERGE_COMMIT=0
+PR_MERGE=0
 ```
 
-Do NOT submit archive/delete/reactivate during certification.
+Do NOT submit archive/delete/reactivate during certification. Server-side acknowledgement is already covered by RED/GREEN CI; browser certification checks native form behavior without destructive submission.
 
 ## Exact resume point
 
 ```text
 NEXT=H7C-A REAL-BROWSER CERTIFICATION ONLY
-TARGET_GREEN=d8cfbe04a924304cb1234153fe873a34bef4bab4
-AUTOMATED_GREEN_CI=39049794704
+TARGET_GREEN=22384c2c616da89d34e37543cd42e8ae13c54e06
+AUTOMATED_GREEN_CI=39055307246
 H7C_A_AUTOMATED_GREEN=YES
+H7C_A_ACK_SERVER_SIDE=GREEN
 H7C_A_BROWSER_CERTIFIED=NO
 H7C_A_FULLY_CLOSED=NO
 H7C_B_STARTED=NO
@@ -261,4 +311,4 @@ No Financial/Work/429 retry, pacing, queue, batching or transport redesign witho
 
 ## Frozen / prohibited
 
-No merge, Hostinger, cron, real MELI mutation, broad navigation redesign, generic modal framework, UNKNOWN->0, patch-chain CSS, speculative ERP1 architecture, or reopening closed Human-First blocks without evidence.
+No PR merge or merge commit without explicit approval, Hostinger, cron, real MELI mutation, broad navigation redesign, generic modal framework, UNKNOWN->0, patch-chain CSS, speculative ERP1 architecture, or reopening closed Human-First blocks without evidence.

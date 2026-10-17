@@ -10,14 +10,15 @@
 REPO=sierraglobalcompany-rgb/ErpMeli2.0
 REMOTE=https://github.com/sierraglobalcompany-rgb/ErpMeli2.0.git
 BRANCH=ui/design-master-v1-20261015
-AUDIT_BASE_REMOTE_HEAD=ad4870d4d39e7626ec75cfab13de4045eb2b9aab
+FUNCTIONAL_HEAD=22384c2c616da89d34e37543cd42e8ae13c54e06
+FUNCTIONAL_HEAD_CI=39055307246 SUCCESS
 PR=19 OPEN / DRAFT / NOT MERGED
 BASE=ui/operator-shell-v1-20261014
 BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 LOCAL_WORKTREE=NOT_VERIFIED
 ```
 
-The branch may have a later documentation-only descendant after this anchor is written. Always query live HEAD and inspect any delta before continuing. The functional H7C-A GREEN below must remain an ancestor.
+The branch may have a later documentation-only descendant after this anchor is written. Always query live HEAD and inspect any delta before continuing. Final functional H7C-A GREEN `22384c2c...` must remain an ancestor.
 
 ## Project laws
 
@@ -74,36 +75,40 @@ H7C is destructive-action UX / T3 Security-Authorization, not generic progressiv
 
 ## Current active block — H7C-A Companies
 
-RED:
+Initial presentation RED/GREEN:
 
 ```text
 H7C_A_RED=1c8bae3374c7a36af075f3b5bb59c64c95cef763
-H7C_A_RED_CI=39049451668
-RED_RESULT=EXPECTED FAILURE
-RED_PHP_8_3=824 tests / 7002 assertions / exactly 1 failure
-PROVEN_DEFECT=active company archive was direct one-click POST
+H7C_A_RED_CI=39049451668 EXPECTED FAILURE
+H7C_A_INITIAL_GREEN=d8cfbe04a924304cb1234153fe873a34bef4bab4
+H7C_A_INITIAL_GREEN_CI=39049794704 SUCCESS
+INITIAL_GREEN_PHP_8_3=824 tests / 7007 assertions / 0 failures
 ```
 
-Automated GREEN:
+Forensic hardening before browser certification found one root-owner defect: HTML required `confirm_permanent_delete`, but `CompanyManagementController` did not require that acknowledgement server-side. A direct POST could therefore bypass the intended human confirmation.
+
+Hardening RED/GREEN:
 
 ```text
-H7C_A_GREEN=d8cfbe04a924304cb1234153fe873a34bef4bab4
-H7C_A_GREEN_CI=39049794704
+H7C_A_ACK_RED=ff0255d4826e31948852c1fee5dff40131b705e6
+H7C_A_ACK_RED_CI=39054722005 EXPECTED FAILURE
+ACK_RED_PHP_8_3=825 tests / 7011 assertions / exactly 1 failure
+ACK_RED_ONLY_FAILURE=H7CCompanyPermanentDeleteAcknowledgementTest
+H7C_A_GREEN=22384c2c616da89d34e37543cd42e8ae13c54e06
+H7C_A_GREEN_CI=39055307246 SUCCESS
 GREEN_PHP_8_3=PASS
 GREEN_PHP_8_4=PASS
 GREEN_PHP_8_5=PASS
 GREEN_PHPSTAN=PASS
-GREEN_PHP_8_3_RESULT=824 tests / 7007 assertions / 0 failures
+GREEN_PHP_8_3_RESULT=825 tests / 7020 assertions / 0 failures
 ```
 
-Canonical production diff:
+Final functional hardening diff is bounded:
 
 ```text
-FILES=1
-FILE=app/Core/Http/views/companies.php
-ADDITIONS=27
-DELETIONS=12
-CONTROLLERS_CHANGED=NO
+PRODUCTION_FILE=app/Core/Http/CompanyManagementController.php
+TEST_COMPAT_FILE=tests/Integration/CompanyManagementTest.php
+NEW_RED_TEST=tests/Integration/H7CCompanyPermanentDeleteAcknowledgementTest.php
 ROUTES_CHANGED=NO
 SCHEMA_CHANGED=NO
 CSS_CHANGED=NO
@@ -114,20 +119,24 @@ FINANCIAL_CHANGED=NO
 429_ARCHITECTURE_CHANGED=NO
 ```
 
-Implemented:
+Implemented H7C-A contract:
 - archive behind native `<details>` with factual impact copy;
 - `/archive` + CSRF preserved;
 - `Reactivar` remains direct/restorative;
 - permanent delete remains conditional on backend `deletable`;
 - delete behind native `<details>`;
 - required `confirm_permanent_delete` checkbox;
+- backend independently requires `confirm_permanent_delete=1`;
+- missing/invalid acknowledgement returns 422 without deletion;
 - `/delete` + backend authority preserved;
-- no generic modal/framework/controller/schema/permission redesign.
+- user remains preserved;
+- no generic modal/framework/schema/permission/JS redesign.
 
 Current status:
 
 ```text
 H7C_A_AUTOMATED_GREEN=YES
+H7C_A_ACK_SERVER_SIDE=GREEN
 H7C_A_BROWSER_CERTIFIED=NO
 H7C_A_FULLY_CLOSED=NO
 H7C_B_STARTED=NO
@@ -141,11 +150,12 @@ STOP_SAFE=YES
 
 ```text
 NEXT=H7C-A REAL-BROWSER CERTIFICATION ONLY
-TARGET_FUNCTIONAL_GREEN=d8cfbe04a924304cb1234153fe873a34bef4bab4
+TARGET_FUNCTIONAL_GREEN=22384c2c616da89d34e37543cd42e8ae13c54e06
+TARGET_GREEN_CI=39055307246
 DO_NOT_START_H7C_B_BEFORE_H7C_A_BROWSER_INDEPENDENT_AUDIT
 ```
 
-Certification must be side-effect-free: System Admin positive, ordinary company-admin negative, desktop/mobile, keyboard disclosures, route ownership, CSRF, required delete acknowledgement, shared shell/five mobile slots, no overflow/obstruction, console/JS/5xx/real-MELI zero, business DB before/after identical, local tree clean pre/post, certifier changes/commits/push/merge zero. Do not submit archive/delete/reactivate.
+Certification must be side-effect-free: System Admin positive, ordinary company-admin negative, desktop/mobile, keyboard disclosures, route ownership, CSRF, native delete acknowledgement validity, shared shell/five mobile slots, no overflow/obstruction, console/JS/5xx/real-MELI zero, business DB before/after identical, local tree clean pre/post, certifier code/test/docs changes zero, push zero, merge commit zero and PR merge zero. Do not submit archive/delete/reactivate. Server-side acknowledgement is already proven by CI and must not be re-tested with a destructive browser submit.
 
 ## Recovery sources
 
@@ -162,8 +172,10 @@ Read, in order:
 
 Important drift note: the Human-First master plan still contains an old bottom `NEXT=H1`; that is historical plan text and is superseded by the live checkpoint/continuity anchor. Do not restart H1.
 
+The older recovery handoff predates acknowledgement hardening; for the current functional target, this live anchor and `docs/CURRENT_CHECKPOINT.md` take precedence, after live GitHub verification.
+
 UI UX Pro Max note: the official methodology references `nextlevelbuilder/ui-ux-pro-max-skill`, but no repository-local installation/version was verified on this active branch. Do not invent or auto-update it during H7C-A; the project Design System remains the versioned visual authority.
 
 ## Frozen
 
-No merge, Hostinger, cron, real MELI mutation, Financial/Work/429 redesign, retry/pacing/queue/batching transport changes, generic modal framework, UNKNOWN→0, patch-chain CSS, or reopening closed Human-First blocks without fresh evidence.
+No PR merge or merge commit without explicit approval, Hostinger, cron, real MELI mutation, Financial/Work/429 redesign, retry/pacing/queue/batching transport changes, generic modal framework, UNKNOWN→0, patch-chain CSS, or reopening closed Human-First blocks without fresh evidence.
