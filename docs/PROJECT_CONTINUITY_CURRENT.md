@@ -216,24 +216,43 @@ PR_MERGED=NO
 
 Independent audit inputs external to repository: `ERP_MELI_2_0_H7C_B1_ANTIGRAVITY_BROWSER_REPORT_2026-10-17.md`, `ERP_MELI_2_0_H7C_B1_ANTIGRAVITY_BROWSER_EVIDENCE_2026-10-17.zip`, and matching `.zip.sha256`. All 26/26 SHA-256 manifest entries verified, 5 screenshots reviewed, Chrome session network and DB before/after inspected, RED/GREEN and CI checked against live GitHub.
 
+## H7C-B2 — permanent delete human consent, automated GREEN / browser PENDING
+
+ROOT VERIFIED: a company admin could send a CSRF-valid POST for deleting an eligible disabled pristine account without explicit acknowledgement, and the backend returned 303 with deletion. RED asserts 422 and unchanged row.
+
+H7C_B2_RED=3595880b6f4e6cdaeef6cc0ebff9f85c0e7cb723
+H7C_B2_RED_CI=39072807611 EXPECTED FAILURE
+RED_PHP_8_3=827 tests / 7028 assertions / 1 failure
+RED_OBSERVED_HTTP=303
+RED_EXPECTED_HTTP=422
+H7C_B2_GREEN=d00eb26f37488d8552d2b1598d5b27dcb76967dd
+H7C_B2_GREEN_CI=39073100289 SUCCESS
+GREEN_PHP_8_3=828 tests / 7037 assertions / 0 failures
+GREEN_PHP_8_4=828 tests / 7037 assertions / 0 failures
+GREEN_PHP_8_5=828 tests / 7037 assertions / 0 failures
+PHPSTAN=PASS
+
+RED single test-only modified tests/Integration/MeliAccountLifecycleTest.php. GREEN bounded changes:
+- app/Modules/Settings/MeliAccountController.php: requires confirm_permanent_delete exactly '1' after 404/409 history guards; missing/invalid returns 422 with rollback.
+- app/Modules/Settings/views/meli-accounts.php: native closed-by-default delete disclosure, truthful local-only copy, required acknowledgement checkbox, original CSRF/action.
+- tests/Integration/MeliAccountLifecycleTest.php: valid delete with explicit ack, invalid/missing ack and HTML tests.
+
+No routes/schema/CSS/JS/OAuth/Work/Financial/Billing/retry/FIFO/429 redesign.
+
 ### Exact NEXT
 
-```text
-NEXT=H7C-B2 HARD DELETE CONFIRMATION — FIRST RED TEST
+NEXT=H7C-B2 REAL-BROWSER CERTIFICATION ONLY
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
-H7C_B2_STARTED=NO
+H7C_B2_AUTOMATED_GREEN=YES
+H7C_B2_BROWSER_CERTIFIED=NO
+H7C_B2_FULLY_CLOSED=NO
 H7C_C_STARTED=NO
 H7C_D_STARTED=NO
-H7C_B2_OWNER=MeliAccountController::hardDelete + views/meli-accounts.php
-H7C_B2_DEFECT=direct hard-delete POST can succeed without explicit confirmation acknowledgement
-H7C_B2_GUARDS=company admin / CSRF / status disabled / persisted-history check MUST REMAIN
-NO_REAL_MELI=YES
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
-```
 
-Prepare RED for missing/invalid `confirm_permanent_delete` on eligible disabled pristine account, proving HTTP 422, unchanged row; after RED verified apply minimal GREEN in owner and view, with existing successful deletion tests updated only for valid acknowledgment. Preserve 403/404/409/419 and no changes to history predicates or remote integrations. Chrome/browser independent QA follows GREEN.
+Use real Chrome and disposable TEST fixtures; verify company admin GET 200 and nonadmin 403; delete disclosure only for eligible disabled pristine accounts; required checkbox and native validity without any destructive submission; keyboard Enter/Space; mobile 390x844 five nav slots/no obstruction; shared shell; no app JS/5xx; zero real MELI browser traffic; DB snapshots identical; clean Git pre/post. Antigravity is certifier only. Return report + evidence ZIP + SHA-256 sidecar to ChatGPT before closing B2 or starting H7C-C.
 
 ## Recovery sources
 
