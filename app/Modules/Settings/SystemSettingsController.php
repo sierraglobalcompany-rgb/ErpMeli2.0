@@ -101,6 +101,9 @@ final class SystemSettingsController
         if ($this->debugMaintenance === null) {
             return $response->withStatus(503);
         }
+        if (($body['confirm_clear_debug'] ?? null) !== '1') {
+            return $response->withStatus(422);
+        }
 
         $this->debugMaintenance->clearDebug();
 
