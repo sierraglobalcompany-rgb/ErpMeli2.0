@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H6F BILLING ZERO-CONNECTED-ACCOUNT EMPTY STATE / RED CONFIRMED / MINIMAL GREEN IMPLEMENTED / FINAL CI IN PROGRESS / NOT CLOSED / STOP-SAFE**
+**CURRENT=H6F BILLING ZERO-CONNECTED-ACCOUNT EMPTY STATE / AUTOMATED GREEN / REAL-BROWSER CERTIFICATION PENDING / NOT CLOSED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -63,137 +63,54 @@ H6E_BILLING_DISABLED_HISTORY_ACCOUNT_IDENTITY=FULLY_CLOSED
 ## H6A–H6E condensed trace
 
 ```text
-H6A_FINAL_CI=38988788092
-H6A_AUTOMATED=814 tests / 6839 assertions / 0 failures
-H6A_BROWSER=PASS
-
-H6B_GREEN=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
-H6B_FINAL_CI=38991387270
-H6B_AUTOMATED=815 tests / 6843 assertions / 0 failures
-H6B_BROWSER=PASS
-
-H6C_GREEN=e10e550a89ce7380aa49fb05d82fe6b16cddab7f
-H6C_FINAL_CI=38993236102
-H6C_AUTOMATED=816 tests / 6848 assertions / 0 failures
-H6C_BROWSER=PASS
-
-H6D_RED=d6d6f6f951756d0407d15866b3d50f2f447651cb
-H6D_FINAL_GREEN=c712a72c6ae805b0d28e38f687ad6556c86cb82e
-H6D_FINAL_CI=38995336544
-H6D_AUTOMATED=817 tests / 6852 assertions / 0 failures
-H6D_BROWSER_CHECKOUT_HEAD=6149dfb0227ff28fbea07e0c6af17043da1e5388
-H6D_BROWSER=PASS
-H6D_FULLY_CLOSED=YES
-
-H6E_RED=963bbe429b62b87e645f5b4bc6843a4c132951da
-H6E_RED_CI=38996880293
-H6E_GREEN=e775464dc542289a4982f89ddd1a216cdc0f0c01
-H6E_FINAL_CI=38997637480
-H6E_AUTOMATED=818 tests / 6856 assertions / 0 failures
-H6E_PHP_8_3=PASS
-H6E_PHP_8_4=PASS
-H6E_PHP_8_5=PASS
-H6E_PHPSTAN=PASS
-H6E_BROWSER_REPEAT_REQUIRED=NO
-H6E_FULLY_CLOSED=YES
+H6A_FINAL_CI=38988788092 / 814 tests / 6839 assertions / 0 failures / browser PASS
+H6B_FINAL_CI=38991387270 / 815 tests / 6843 assertions / 0 failures / browser PASS
+H6C_FINAL_CI=38993236102 / 816 tests / 6848 assertions / 0 failures / browser PASS
+H6D_FINAL_CI=38995336544 / 817 tests / 6852 assertions / 0 failures / browser PASS
+H6E_FINAL_CI=38997637480 / 818 tests / 6856 assertions / 0 failures / browser repeat not required
 ```
 
-H6D browser evidence was independently audited: all `19/19` internal SHA-256 manifest entries matched independently; desktop/mobile, DOM/JSON, network, console and before/after DB snapshots were coherent. No application 5xx, no real MELI calls, no business side effects.
+## H6F — zero connected accounts actionable empty state — AUTOMATED GREEN
 
-H6E did not repeat browser QA because it only changed data availability for an already-certified history cell, not structure, layout, CSS, JS or interaction. Exact HTML and preserved machine query are covered by its integration test.
+### Proven defect
 
-## H6F — zero connected accounts actionable empty state — ACTIVE
+Billing is validly reachable by an admin when the company has zero `connected` MELI accounts while historical Billing periods may still exist for accounts now `disabled`.
 
-### Proven residual defect
-
-Billing is validly reachable by an admin when the company has zero `connected` MELI accounts. Historical Billing rows can still exist for accounts that are now `disabled`.
-
-Before H6F, the admin sync panel always rendered:
+Before H6F, the admin sync panel rendered an impossible primary action:
 
 ```html
 <form action="/billing/syncs">
   <select name="account_id" required></select>
-  ...
   <button type="submit">Solicitar sincronización</button>
 </form>
 ```
 
-when `$accounts === []`.
-
-That is an impossible primary action: the required account selector has no options but the submit action remains visible.
-
-Human-First truth requires an empty state with explanation plus a useful action when one exists. Repository truth proves the existing resolution owner is:
+Human-First requires an actionable empty state. Repository truth already owns MELI connection/reauthorization/configuration at:
 
 ```text
 /mercadolibre/accounts
 ```
 
-The Mercado Libre accounts screen already owns connection, reauthorization and app-configuration guidance. Billing must not duplicate OAuth/configuration logic.
-
-Historical Billing truth must remain visible even when no account is currently connected.
-
-### H6F RED — CONFIRMED
-
-Test-only commit:
+### TDD trace
 
 ```text
 H6F_RED_COMMIT=e44ec098e5f9974a9b89cc981b6fb3b132e1fae1
 H6F_RED_CI=38998111208
-```
+H6F_RED_PHP_8_3=819 tests / 6858 assertions / 1 expected isolated failure
+H6F_RED_PHPSTAN=PASS
+H6F_RED_MATRIX=PHP 8.3 / 8.4 / 8.5 expected failure confirmed
 
-Added one behavior contract to:
-
-```text
-tests/Integration/BillingDesignMasterUiTest.php
-```
-
-Fixture:
-
-```text
-ADMIN=YES
-CONNECTED_ACCOUNTS=0
-HISTORICAL_DISABLED_ACCOUNT=Cuenta histórica / account_id=10
-BILLING_PERIOD_PRESENT=YES
-```
-
-Expected Human-First behavior:
-
-```text
-SHOW="No hay cuentas Mercado Libre conectadas disponibles para solicitar una sincronización."
-SHOW_LINK=/mercadolibre/accounts
-SHOW_ACTION="Administrar cuentas Mercado Libre"
-DO_NOT_SHOW=action="/billing/syncs"
-DO_NOT_SHOW=<select name="account_id" required>
-KEEP_HISTORY_LABEL="Cuenta histórica"
-KEEP_MACHINE_QUERY=account_id=10
-```
-
-PHP 8.3 RED evidence:
-
-```text
+H6F_GREEN=ee82feb4940a7ca50b05994c19882695be5a51df
+H6F_FINAL_CI=38998391983
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
 PHPSTAN=PASS
-PHPUNIT_TESTS=819
-PHPUNIT_ASSERTIONS=6858
-PHPUNIT_FAILURES=1
-ONLY_FAILURE=Tests\Integration\BillingDesignMasterUiTest::testBillingUsesActionableEmptyStateInsteadOfImpossibleSyncFormWithoutConnectedAccounts
-OBSERVED_IMPOSSIBLE_FORM=YES
-HISTORICAL_LABEL_PRESERVED=YES
-MACHINE_ACCOUNT_ID_PRESERVED=YES
+PHPUNIT=819 tests / 6864 assertions / 0 failures
+REAL_MELI_HTTP=0
 ```
 
-The same expected RED conclusion was confirmed by the H6F RED workflow in PHP 8.3 / 8.4 / 8.5.
-
-### H6F minimal GREEN — IMPLEMENTED, NOT YET CERTIFIED
-
-Production candidate commit:
-
-```text
-H6F_GREEN_CANDIDATE=ee82feb4940a7ca50b05994c19882695be5a51df
-H6F_GREEN_CI=38998391983
-H6F_GREEN_CI_STATUS=IN_PROGRESS_AT_CHECKPOINT
-```
-
-Minimal production diff from RED to GREEN candidate:
+### Minimal GREEN diff
 
 ```text
 COMMITS=1
@@ -209,48 +126,46 @@ CSS_CHANGED=NO
 JS_CHANGED=NO
 WORK_CHANGED=NO
 FINANCIAL_CHANGED=NO
+429_ARCHITECTURE_CHANGED=NO
 ```
 
-Behavior implemented:
+Behavior:
 
 ```text
 IF connected accounts == 0:
   keep Billing sync panel heading
-  show human empty state
-  show link to /mercadolibre/accounts
-  do not render impossible sync form
+  show "No hay cuentas Mercado Libre conectadas disponibles para solicitar una sincronización."
+  show link "Administrar cuentas Mercado Libre" -> /mercadolibre/accounts
+  do not render impossible /billing/syncs form
 ELSE:
-  render existing sync form unchanged
+  preserve existing sync form unchanged
 ```
 
-Historical Billing table remains independent and visible.
+Historical Billing rows remain visible and keep persisted human label plus machine `account_id` query semantics.
 
-### Current CI truth
-
-At checkpoint creation, workflow `38998391983` is still running:
+## Browser gate decision
 
 ```text
-PHP_8_3=IN_PROGRESS
-PHP_8_4=IN_PROGRESS
-PHP_8_5=IN_PROGRESS
-FINAL_AUTOMATED_GREEN=NOT_YET_PROVEN
+H6F_BROWSER_REQUIRED=YES
+H6F_BROWSER_COMPLETED=NO
 ```
 
-Do not convert this checkpoint into a PASS claim without rechecking the workflow.
+Reason: unlike H6E, H6F changes a visible page state and primary action hierarchy. Real browser should verify desktop/mobile rendering, absence of the impossible form, presence/usability of the MELI accounts CTA, preserved historical row, no overflow, mobile navigation, console/network cleanliness and zero business side effects.
+
+Chat-connected Browser was attempted after automated GREEN and returned:
+
+```text
+Browser control requires your permission.
+```
+
+Therefore only this browser certification may be delegated to Antigravity. No development or fixes are delegated.
 
 ## Current disposition
 
 ```text
-H6_STARTED=YES
-H6A_FULLY_CLOSED=YES
-H6B_FULLY_CLOSED=YES
-H6C_FULLY_CLOSED=YES
-H6D_FULLY_CLOSED=YES
-H6E_FULLY_CLOSED=YES
 H6F_RED=CONFIRMED
-H6F_MINIMAL_GREEN_IMPLEMENTED=YES
-H6F_FINAL_AUTOMATED_GREEN=NO
-H6F_BROWSER_GATE_DECIDED=NO
+H6F_AUTOMATED_GREEN=YES
+H6F_BROWSER= PENDING
 H6F_FULLY_CLOSED=NO
 BILLING_HUMAN_FIRST_CLOSURE=NO
 NEXT_BILLING_WORK_STARTED=NO
@@ -260,18 +175,19 @@ STOP_SAFE=YES
 ## Exact resume point
 
 ```text
-NEXT=RECHECK H6F GREEN CI 38998391983
-GREEN_CANDIDATE=ee82feb4940a7ca50b05994c19882695be5a51df
+NEXT=H6F REAL-BROWSER CERTIFICATION ONLY
+GREEN_COMMIT=ee82feb4940a7ca50b05994c19882695be5a51df
+GREEN_CI=38998391983
 ```
 
 On resume:
 
-1. Recheck workflow `38998391983` and all PHP 8.3 / 8.4 / 8.5 jobs.
-2. If any matrix fails, inspect logs and fix only the proven H6F cause; do not broaden scope.
-3. If full automated GREEN passes, record exact PHPUnit/PHPStan evidence.
-4. Because H6F changes a visible page state, decide browser certification using actual risk/evidence. If browser is required and Chat mode cannot control it, generate one downloadable Antigravity Markdown prompt.
-5. Do not start another Billing microblock until H6F is either fully closed or explicitly stopped.
-6. After H6F closure, run one final residual Billing preflight. If no meaningful defect remains, declare Billing Human-First complete; do not manufacture H6G.
+1. Certify H6F in a disposable test environment, desktop 1440x900 and mobile 390x844.
+2. Verify zero-connected-account state shows empty-state copy + `/mercadolibre/accounts` CTA and does not expose `/billing/syncs` form/select.
+3. Verify historical disabled-account row remains visible with human nickname and `account_id=10` machine query.
+4. Verify no page overflow, mobile nav 5 slots, no app console errors, no 5xx, no real MELI calls and no business side effects.
+5. Do not fix anything inside certification. First defect -> capture -> diagnose -> STOP.
+6. If browser PASS is independently audited, close H6F and run one final residual Billing preflight. If no meaningful defect remains, close Billing Human-First; do not manufacture H6G.
 7. No PR merge without explicit user approval.
 
 ## Frozen / prohibited
