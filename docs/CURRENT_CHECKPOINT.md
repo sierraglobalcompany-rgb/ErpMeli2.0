@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H6D BILLING HISTORY HUMAN ACCOUNT LABEL FULLY CLOSED / BILLING RESIDUAL PREFLIGHT NEXT / STOP-SAFE**
+**CURRENT=H6E BILLING DISABLED-ACCOUNT HISTORY HUMAN LABEL / RED CONFIRMED / GREEN NOT IMPLEMENTED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -59,166 +59,155 @@ H6C_BILLING_SELECTED_ACCOUNT_IDENTITY=FULLY_CLOSED
 H6D_BILLING_HISTORY_ACCOUNT_IDENTITY=FULLY_CLOSED
 ```
 
-## H6A — document labels
+## H6A–H6D condensed trace
 
 ```text
-RED=024cb33ec82b8b59576e03b990f8c3b8ca7976cc
-PRODUCTION_GREEN=cd49a6dd4636507e2621b082e99ad7fb1f740c37
-TEST_ONLY_FIX=f6648e6357b90432acb7ba66142a24b5fd04ebe7
-FINAL_CI=38988788092
-AUTOMATED=814 tests / 6839 assertions / 0 failures
-BROWSER_CHECKOUT=a38c5c6958de3b79308ca813e7842637b0914297
-FULLY_CLOSED=YES
+H6A_FINAL_CI=38988788092
+H6A_AUTOMATED=814 tests / 6839 assertions / 0 failures
+H6A_BROWSER=PASS
+
+H6B_GREEN=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
+H6B_FINAL_CI=38991387270
+H6B_AUTOMATED=815 tests / 6843 assertions / 0 failures
+H6B_BROWSER=PASS
+
+H6C_GREEN=e10e550a89ce7380aa49fb05d82fe6b16cddab7f
+H6C_FINAL_CI=38993236102
+H6C_AUTOMATED=816 tests / 6848 assertions / 0 failures
+H6C_BROWSER=PASS
+
+H6D_RED=d6d6f6f951756d0407d15866b3d50f2f447651cb
+H6D_FINAL_GREEN=c712a72c6ae805b0d28e38f687ad6556c86cb82e
+H6D_FINAL_CI=38995336544
+H6D_AUTOMATED=817 tests / 6852 assertions / 0 failures
+H6D_BROWSER_CHECKOUT_HEAD=6149dfb0227ff28fbea07e0c6af17043da1e5388
+H6D_BROWSER=PASS
+H6D_FULLY_CLOSED=YES
 ```
 
-Truth preserved: visible `Factura` / `Nota crédito`; machine `BILL` / `CREDIT_NOTE` unchanged.
+H6D browser evidence was independently audited: uploaded wrapper ZIP outer hash differed from Antigravity original ZIP hash, but all `19/19` internal SHA-256 manifest entries matched independently; desktop/mobile, DOM/JSON, network, console and before/after DB snapshots were coherent. No application 5xx, no real MELI calls, no business side effects.
 
-## H6B — technical cursor progressive disclosure
+H6D closure documentation commit:
 
 ```text
-RED=2b970371472426f37f9ddc5626e6ea001aae4470
-GREEN=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
-FINAL_CI=38991387270
-AUTOMATED=815 tests / 6843 assertions / 0 failures
-BROWSER_CHECKOUT=63fa92d4b16b1590e7a245810ea695634ed3f708
-FULLY_CLOSED=YES
+H6D_CLOSURE_DOC_COMMIT=d0fa387d11164357b5095dc8cba48996bdd483c9
 ```
 
-Truth preserved: progress and last reading primary; exact cursor available only under native `Detalles técnicos` disclosure.
-
-## H6C — selected account human identity
-
-```text
-RED=c7192affa7edf164c30c3468e220f321771312a9
-GREEN=e10e550a89ce7380aa49fb05d82fe6b16cddab7f
-FINAL_CI=38993236102
-AUTOMATED=816 tests / 6848 assertions / 0 failures
-BROWSER=PASS
-FULLY_CLOSED=YES
-```
-
-Truth preserved: selected summary uses existing nickname (`Cuenta principal`) while internal `account_id=10` remains exact selector/query machine value.
-
-## H6D — history human account label — FULLY CLOSED
+## H6E — disabled-account history human label — RED CONFIRMED
 
 ### Proven residual defect
 
-`Períodos registrados` displayed numeric-only external identity `100` as primary account copy even though the same Billing page already knew the human nickname `Cuenta principal`.
+The H6D implementation builds human account labels from connected accounts first, but Billing history intentionally includes persisted periods for accounts that may later become `disabled`.
 
-### TDD / implementation trace
+Repository lifecycle truth proves this state is valid and persistent:
+
+- disconnect changes account status to `disabled`;
+- persisted Billing history prevents hard deletion of that disabled account;
+- therefore a disabled account with Billing periods can legitimately remain in `Períodos registrados`.
+
+Current controller history query retrieves only:
 
 ```text
-H6D_RED=d6d6f6f951756d0407d15866b3d50f2f447651cb
-H6D_RED_CI=38995007737
-H6D_RED_RESULT=EXPECTED ISOLATED FAILURE
-H6D_INITIAL_GREEN_WRITE=4fc9bf519c1c02f61f1ff706afa056e19fc384ce
-H6D_FINAL_GREEN=c712a72c6ae805b0d28e38f687ad6556c86cb82e
-H6D_FINAL_CI=38995336544
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
+a.external_user_id
+```
+
+for period rows, while `nickname` is loaded only in the separate connected-account selector query. Thus a disabled account with a real nickname falls back to numeric-only external identity in history.
+
+Reproduced current output:
+
+```html
+<td data-label="Cuenta">100</td>
+```
+
+Expected Human-First output when persisted nickname exists:
+
+```html
+<td data-label="Cuenta">Cuenta histórica</td>
+```
+
+Machine truth must remain:
+
+```text
+account_id=10
+```
+
+in the period link/query.
+
+### H6E RED
+
+Test-only commit:
+
+```text
+H6E_RED_COMMIT=963bbe429b62b87e645f5b4bc6843a4c132951da
+H6E_RED_CI_RUN=38996880293
+```
+
+Added only:
+
+```text
+tests/Integration/BillingDisabledAccountHumanLabelTest.php
+```
+
+Expected isolated RED confirmed in PHP 8.3 / 8.4 / 8.5.
+
+PHP 8.3 full evidence:
+
+```text
 PHPSTAN=PASS
-PHPUNIT=817 tests / 6852 assertions / 0 failures
+PHPUNIT_TESTS=818
+PHPUNIT_ASSERTIONS=6854
+PHPUNIT_FAILURES=1
+ONLY_FAILURE=Tests\Integration\BillingDisabledAccountHumanLabelTest::testBillingHistoryKeepsHumanNicknameForDisabledAccountWithoutChangingMachineQuery
+OBSERVED_HISTORY_LABEL=100
+EXPECTED_HISTORY_LABEL=Cuenta histórica
+MACHINE_QUERY_ACCOUNT_ID_10=PRESERVED
 ```
 
-Net RED→GREEN production diff: one file, `1 addition / 1 deletion`; only the history account cell changed to reuse the existing human account-label map, with `external_user_id` as truthful fallback. Period links still preserve `account_id`, `period_key`, and `document_type` exactly.
+The existing Slim negative-path traces remain expected test output and are not separate failures.
 
-The initial full-file GREEN write accidentally dropped one quote in existing `role="alert"` markup. It was detected before certification and corrected immediately. The final RED→GREEN diff proves the accidental transcription is absent from the net product change.
-
-### Real-browser certification — independently audited PASS
-
-Antigravity browser checkout:
+### Root cause
 
 ```text
-HEAD=6149dfb0227ff28fbea07e0c6af17043da1e5388
-AUTOMATED_GREEN_ANCESTOR=c712a72c6ae805b0d28e38f687ad6556c86cb82e
-BROWSER=HeadlessChrome/155.0.8059.84 via CDP
-DESKTOP=1440x900 PASS
-MOBILE=390x844 PASS
-WORKING_TREE_BEFORE=CLEAN
-WORKING_TREE_AFTER=CLEAN
+ROOT_CAUSE=Billing history query joins meli_accounts but selects external_user_id only; nickname is unavailable for disabled accounts because the separate account selector query filters status='connected'.
 ```
 
-Independent evidence audit:
+Minimal GREEN direction is already proven but **NOT IMPLEMENTED**:
+
+1. add `a.nickname` to the existing Billing periods query;
+2. when building the period account label map, use non-empty persisted nickname;
+3. fallback truthfully to existing `external_user_id` when nickname is empty;
+4. preserve period links and machine `account_id` exactly;
+5. no new query, schema, route, CSS, JS, dependency, Work, Financial, queue, retry, pacing, batching, transport or 429 architecture change.
+
+Important stop-state:
 
 ```text
-UPLOADED_ZIP_SHA256=4fde1c268bd8c9cfcde9d0f275a4c90f78cdf077fe59457572cc8ad76560ca4f
-ANTIGRAVITY_ORIGINAL_ZIP_SHA256=23f11a9dc87cc4823b6aa7ee08969a96aa5564514ffbb209649063b8e0faf3df
-OUTER_ZIP_HASH_MATCH=NO
-INTERNAL_MANIFEST_ENTRIES=19
-INTERNAL_MANIFEST_HASH_MATCHES=19/19
-```
-
-The outer uploaded wrapper hash differs from Antigravity's locally generated ZIP hash, so the outer ZIP is not used as integrity authority. Every internal manifest entry was independently recalculated and matched.
-
-Accepted browser facts:
-
-```text
-HISTORY_ACCOUNT_LABEL=Cuenta principal
-HISTORY_NUMERIC_ONLY_PRIMARY_LABEL=NO
-HISTORY_ACCOUNT_QUERY_ID_10=PASS
-HISTORY_PERIOD_QUERY_2026_09_01=PASS
-HISTORY_DOCUMENT_QUERY_BILL=PASS
-CREDIT_NOTE_HISTORY_ROW=PASS
-H6A_REGRESSION=PASS
-H6B_REGRESSION=PASS
-H6C_REGRESSION=PASS
-PAGE_HORIZONTAL_OVERFLOW=NO
-MOBILE_NAV=5 slots PASS
-CONSOLE_APP_ERRORS=0
-UNCAUGHT_JS_EXCEPTIONS=0
-APPLICATION_5XX=0
-REAL_MELI_NETWORK_CALLS=0
-BUSINESS_SIDE_EFFECTS=0
-```
-
-Raw evidence also shows:
-
-- desktop and mobile history cells visibly render `Cuenta principal`;
-- BILL link preserves `/billing?account_id=10&period_key=2026-09-01&document_type=BILL`;
-- CREDIT_NOTE link preserves account `10`, period `2026-08-01`, document `CREDIT_NOTE`;
-- selected summary remains `Cuenta principal · 2026-09-01 · Factura`;
-- account selector remains machine value `10` with human option `100 — Cuenta principal`;
-- technical cursor remains hidden when collapsed, exact `987654321` when opened, and hidden again after keyboard close;
-- DB before/after snapshots are exact matches: one account, two billing periods, zero billing details/work items/API usage/orders;
-- one incidental `/favicon.ico` 404 only; no application 5xx.
-
-Checkpoint commit `6149dfb0227ff28fbea07e0c6af17043da1e5388` CI `38995663997` also passed PHP 8.3 / 8.4 / 8.5.
-
-```text
-H6D_BROWSER_GREEN=YES
-H6D_FULLY_CLOSED=YES
-```
-
-## Current disposition
-
-```text
-H6_STARTED=YES
-H6A_FULLY_CLOSED=YES
-H6B_FULLY_CLOSED=YES
-H6C_FULLY_CLOSED=YES
-H6D_FULLY_CLOSED=YES
-BILLING_HUMAN_FIRST_CLOSURE=NOT_YET_DECLARED
-NEXT_IMPLEMENTATION_STARTED=NO
+H6E_RED=CONFIRMED
+H6E_GREEN_IMPLEMENTED=NO
+PRODUCTION_CHANGED_FOR_H6E=NO
+H6E_AUTOMATED_GREEN=NO
+H6E_BROWSER_GREEN=NO
+H6E_FULLY_CLOSED=NO
+NEXT_BILLING_WORK_STARTED=NO
 STOP_SAFE=YES
 ```
 
-## Exact resume point — Billing residual truth-map only
+## Exact resume point
 
 ```text
-NEXT=BILLING HUMAN-FIRST RESIDUAL PREFLIGHT / TRUTH MAP
-NEW_IMPLEMENTATION_STARTED=NO
+NEXT=H6E MINIMAL GREEN ONLY
+RED_COMMIT=963bbe429b62b87e645f5b4bc6843a4c132951da
+RED_CI=38996880293
 ```
 
-Before any new RED or product change:
+On resume:
 
-1. Re-read current Billing view, controller and Billing UI tests at the new branch HEAD.
-2. Compare the remaining first-layer UI against the canonical Human-First skill and Design Master.
-3. Prove a meaningful residual defect from current source truth; do not assume there must be H6E.
-4. If no meaningful defect remains, declare Billing Human-First complete instead of manufacturing work.
-5. Preserve exact persisted/API semantics, authorization, account IDs, period contract and machine document values.
-6. Do not touch Financial/Work/429 pacing, retry, queue, batching or transport architecture without fresh evidence.
-7. If a real defect is proven: RED → root cause → minimal GREEN → full automated QA → browser gate → checkpoint.
+1. re-read `BillingController.php`, `billing.php`, and the H6E RED test at branch HEAD;
+2. implement the root-cause fix only;
+3. verify diff is minimal;
+4. run full CI PHP 8.3 / 8.4 / 8.5 + PHPStan + PHPUnit;
+5. only after automated GREEN decide whether real-browser evidence is necessary for this historical disabled-account case;
+6. do not open another Billing block until H6E is closed or explicitly stopped.
 
 ## Frozen / prohibited
 
