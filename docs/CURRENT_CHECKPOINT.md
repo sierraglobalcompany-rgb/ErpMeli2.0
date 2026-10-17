@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7B USERS PROGRESSIVE DISCLOSURE / AUTOMATED GREEN / REAL-BROWSER CERTIFICATION PENDING / NOT CLOSED / H7C NOT STARTED / STOP-SAFE**
+**CURRENT=H7B USERS PROGRESSIVE DISCLOSURE / AUTOMATED GREEN / BROWSER PASS REPORTED / INDEPENDENT H7B EVIDENCE AUDIT PENDING / NOT FULLY CLOSED / H7C READ-ONLY PREFLIGHT COMPLETE / H7C NOT STARTED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -59,7 +59,7 @@ BILLING_HUMAN_FIRST_CLOSURE=YES
 H7A_GLOBAL_ADMIN_SHARED_SHELL=FULLY_CLOSED
 ```
 
-Key prior durable references:
+Key durable references:
 
 ```text
 BILLING_CLOSURE_CHECKPOINT=45d9183ecb05ef3ddbcd76eb424914572f57b603
@@ -70,38 +70,21 @@ H7A_BROWSER=PASS
 H7A_BROWSER_EVIDENCE_MANIFEST=83/83 SHA256 exact
 ```
 
-## H7B — Users progressive disclosure
+# H7B — Users progressive disclosure
 
-### Proven defect
-
-`/system/users` exposed all user-management operations simultaneously inside every user card:
+## Approved bounded design
 
 ```text
-identity edit
-status change
-System Admin privilege change
-password reset
-existing memberships
-membership role update
-membership removal
-new membership
-```
-
-This was functionally correct but cognitively dense. Human-First master audit UX-009 / UX-010 / UX-021 requires a compact user summary plus progressive disclosure. No permission-model change is authorized.
-
-### Approved bounded design
-
-```text
-CREATE_USER_FORM=remains expanded
+CREATE_USER_FORM=expanded
 USER_SUMMARY=always visible
 USER_SUMMARY_FACTS=name + username + active/disabled + System Admin yes/no + company-access count
 DISCLOSURE_1=Identidad
 DISCLOSURE_2=Seguridad y acceso global
 DISCLOSURE_3=Acceso por empresa
-H7C_CONFIRMATION_UX=out of scope
+H7C_CONFIRMATION_UX=out of H7B scope
 ```
 
-Existing owners remain exact:
+Existing backend owners remain unchanged:
 
 ```text
 /system/users
@@ -113,36 +96,24 @@ Existing owners remain exact:
 /system/users/{id}/remove-membership
 ```
 
-No delete route, generic modal, new role owner or new permission layer was added.
-
-### H7B RED — confirmed
+## TDD trace
 
 ```text
 H7B_RED=73a8a92f6d31f1f6619dc6d4f2e3b2214032c3cc
 H7B_RED_CI=39042876994
-PHPSTAN=PASS
-PHP_8_3=823 tests / 6971 assertions / exactly 1 failure
-ONLY_FAILURE=H7BUserProgressiveDisclosureTest
-EXPECTED_CAUSE=data-user-section="identity" absent in old expanded UI
-```
+RED_PHP_8_3=823 tests / 6971 assertions / exactly 1 H7B failure
+RED_PHPSTAN=PASS
 
-The RED contract requires exactly three semantic disclosure owners per user card and verifies existing POST forms remain in the correct owner.
-
-### H7B GREEN — automated certified
-
-```text
 H7B_GREEN=e6711bd9ccbb5a6298c14885f4f2341040a94343
 H7B_GREEN_CI=39043131947
-PHP_8_3=PASS
-PHP_8_4=PASS
-PHP_8_5=PASS
-PHPSTAN=PASS
-PHPUNIT_PHP_8_3=823 tests / 6999 assertions / 0 failures
-APP_ENV=test
-REAL_MELI_HTTP=0
+GREEN_PHP_8_3=PASS
+GREEN_PHP_8_4=PASS
+GREEN_PHP_8_5=PASS
+GREEN_PHPSTAN=PASS
+GREEN_PHPUNIT_PHP_8_3=823 tests / 6999 assertions / 0 failures
 ```
 
-Canonical RED→GREEN diff:
+Canonical RED→GREEN production diff:
 
 ```text
 COMMITS=1
@@ -162,103 +133,175 @@ FINANCIAL_CHANGED=NO
 429_ARCHITECTURE_CHANGED=NO
 ```
 
-Implemented presentation:
+## Browser certification reported by Antigravity
+
+The pasted Antigravity execution transcript reports:
 
 ```text
-VISIBLE_SUMMARY:
-  status
-  display name
-  username
-  System Admin yes/no
-  company membership count
-
-DETAILS_IDENTITY:
-  /update form only
-
-DETAILS_SECURITY:
-  /status
-  /system-admin
-  /password
-
-DETAILS_MEMBERSHIPS:
-  current memberships
-  role update
-  remove membership
-  add/update membership
-```
-
-The three `<details>` are closed by native browser default because no `open` attribute is emitted.
-
-## H7B current disposition
-
-```text
-H7B_RED=CONFIRMED
-H7B_AUTOMATED_GREEN=YES
-H7B_BROWSER=PENDING
-H7B_FULLY_CLOSED=NO
-H7C_STARTED=NO
-PR_MERGED=NO
-STOP_SAFE=YES
-```
-
-## Exact resume point
-
-```text
-NEXT=H7B REAL-BROWSER CERTIFICATION ONLY
-CANONICAL_GREEN=e6711bd9ccbb5a6298c14885f4f2341040a94343
-CANONICAL_GREEN_CI=39043131947
-```
-
-Required real-browser certification:
-
-```text
-ROUTE=/system/users
-ROLE=System Admin
-VIEWPORT_DESKTOP=1440x900
-VIEWPORT_MOBILE=390x844
-HTTP_200=required
-SHARED_H7A_SHELL=preserved
-OLD_SIMPLE_NAV=absent
-MOBILE_NAV=exactly 5 slots
-CREATE_USER_FORM=expanded/present but do not submit
-USER_SUMMARY=visible without opening details
-DETAILS_COUNT_PER_USER=exactly 3
-DETAILS_DEFAULT=closed
-SUMMARY_1=Identidad
-SUMMARY_2=Seguridad y acceso global
-SUMMARY_3=Acceso por empresa
-KEYBOARD_SUMMARY_FOCUS=visible
-ENTER_SPACE_TOGGLE=works
-IDENTITY_OWNER=/update only
-SECURITY_OWNER=/status + /system-admin + /password
-MEMBERSHIP_OWNER=/membership + /remove-membership
-DO_NOT_SUBMIT_FORMS=YES
-PAGE_HORIZONTAL_OVERFLOW=NO
-FIXED_NAV_OBSTRUCTION=NO
+H7B_BROWSER_REPORTED_RESULT=PASS
+CERTIFIED_HEAD=16d50961cda86ef7f886affe8676d470422607cd
+H7B_GREEN_ANCESTOR=e6711bd9ccbb5a6298c14885f4f2341040a94343
+WORKING_TREE_BEFORE=CLEAN
+WORKING_TREE_AFTER=CLEAN
+DESKTOP_1440x900=PASS
+MOBILE_390x844=PASS
+DETAILS_PER_USER=3
+DETAILS_DEFAULT_CLOSED=PASS
+FORM_OWNERSHIP=PASS
+KEYBOARD_ENTER_SPACE=PASS
+H7A_SHELL_REGRESSION=PASS
 CONSOLE_APP_ERRORS=0
 UNCAUGHT_JS=0
 APPLICATION_5XX=0
 REAL_MELI_NETWORK_CALLS=0
 DB_BEFORE_AFTER=IDENTICAL
 BUSINESS_SIDE_EFFECTS=0
-WORKING_TREE_BEFORE_AFTER=CLEAN
-CERTIFIER_CODE_CHANGES=NO
-CERTIFIER_TEST_CHANGES=NO
-CERTIFIER_DOC_CHANGES=NO
-CERTIFIER_COMMITS=NO
+CODE_CHANGED=NO
+TEST_CHANGED=NO
+DOCS_CHANGED=NO
+NEW_COMMIT=NO
+PUSH=NO
+MERGE=NO
+H7C_STARTED=NO
 ```
 
-Use at least two factual user-card states when practical:
+Antigravity reported the intended H7B evidence ZIP SHA-256 as:
 
 ```text
-A=active + System Admin + >=1 membership
-B=disabled + non-System-Admin + 0 memberships
+6aa6144e6f34432e1e5e86e2aeffbd9c99b387afbc39a0f5ed9e69576a692da7
 ```
 
-H7C destructive-action confirmation remains intentionally out of scope. First real product gate failure => capture evidence + diagnose + STOP; certifier does not repair product code.
+Expected H7B artifacts:
 
-If browser PASS is independently audited, mark H7B FULLY CLOSED. Do not start H7C in the same closure turn unless the user explicitly asks to continue.
+```text
+ERP_MELI_2_0_H7B_BROWSER_ANTIGRAVITY_REPORT_2026-10-17.md
+ERP_MELI_2_0_H7B_BROWSER_ANTIGRAVITY_EVIDENCE_2026-10-17.zip
+```
+
+## H7B evidence discrepancy — DO NOT CLOSE YET
+
+The files actually attached to ChatGPT after the run were H7A artifacts, not H7B artifacts:
+
+```text
+ATTACHED_REPORT=ERP_MELI_2_0_H7A_BROWSER_ANTIGRAVITY_REPORT_2026-10-17(1).md
+ATTACHED_ZIP=ERP_MELI_2_0_H7A_BROWSER_ANTIGRAVITY_EVIDENCE_2026-10-17(1).zip
+ATTACHED_PACKAGE_PHASE=H7A
+```
+
+Therefore:
+
+```text
+H7B_BROWSER_REPORTED_PASS=YES
+H7B_BROWSER_INDEPENDENTLY_AUDITED=NO
+H7B_EVIDENCE_ATTACHMENT_CORRECT=NO
+H7B_FULLY_CLOSED=NO
+```
+
+Do not promote H7B to FULLY_CLOSED from the pasted summary alone. Attach and independently audit the correct H7B report + ZIP first.
+
+# H7C — destructive actions
+
+## Authority correction
+
+H7C is **destructive-action UX**, not generic company progressive disclosure.
+
+Master finding UX-018 requires owner-by-owner audit of destructive/security-sensitive actions. T3 requires authorization + negative-role + security + browser role QA.
+
+Current destructive owners found in read-only preflight:
+
+```text
+H7C_A=Companies: archive + permanent delete
+H7C_B=MELI accounts: disconnect + hard delete
+H7C_C=System settings: clear debug
+H7C_D=Users: remove System Admin privilege + remove company membership
+```
+
+Current UI facts:
+
+```text
+COMPANIES_ARCHIVE=direct POST button
+COMPANIES_DELETE=direct danger POST inside notice
+MELI_DISCONNECT=direct POST button
+MELI_HARD_DELETE=direct danger POST
+DEBUG_CLEAR=direct danger POST
+USER_SYSTEM_ADMIN_REMOVE=direct POST inside H7B security disclosure
+USER_MEMBERSHIP_REMOVE=direct danger POST inside H7B memberships disclosure
+```
+
+Backend authorization/CSRF/domain guards already exist and must not be redesigned merely for H7C presentation.
+
+## Planned H7C sequence
+
+```text
+H7C_A Companies
+H7C_B MELI accounts
+H7C_C Debug clear
+H7C_D Users privilege/membership removal
+```
+
+One owner per microblock. Do not build generic modal architecture unless evidence proves it is necessary.
+
+## H7C-A provisional minimal design — NOT IMPLEMENTED
+
+```text
+ARCHIVE:
+  keep existing /system/companies/{id}/archive owner
+  add native deliberate second step / progressive disclosure
+  explain factual impact: archived company leaves normal operation/selection, history preserved, can be reactivated
+  no backend contract change
+
+DELETE:
+  keep existing /system/companies/{id}/delete owner
+  only render when existing deletable fact is true
+  keep factual permanence/no-user-deletion explanation
+  add stronger deliberate confirmation (native disclosure + required acknowledgement checkbox)
+  no backend authority change
+
+REACTIVATE:
+  keep direct; non-destructive
+```
+
+Required H7C-A TDD/browser categories when implementation is authorized:
+
+```text
+RED before GREEN
+system-admin positive authorization
+non-system-admin negative authorization
+CSRF unchanged
+archive/delete owner paths unchanged
+active/archive/pristine truth states
+keyboard-native disclosure
+mobile 390x844
+desktop 1440x900
+zero unintended POST during browser certification
+DB before/after identical for certification-only flow
+```
+
+## Current disposition
+
+```text
+H7B_AUTOMATED_GREEN=YES
+H7B_BROWSER_REPORTED_PASS=YES
+H7B_BROWSER_INDEPENDENT_AUDIT=PENDING_CORRECT_ARTIFACTS
+H7B_FULLY_CLOSED=NO
+H7C_READ_ONLY_PREFLIGHT=COMPLETE
+H7C_IMPLEMENTATION_STARTED=NO
+PR_MERGED=NO
+STOP_SAFE=YES
+```
+
+## Exact resume point
+
+Preferred next step:
+
+```text
+1. ATTACH/AUDIT CORRECT H7B REPORT + ZIP
+2. IF H7B EVIDENCE PASSES -> MARK H7B FULLY_CLOSED
+3. THEN START H7C_A COMPANIES WITH RED -> MINIMAL GREEN
+```
+
+If the user explicitly chooses to continue before reattaching H7B evidence, read-only H7C audit may continue, but do not write H7C production code until H7B closure evidence is independently verified.
 
 ## Frozen / prohibited
 
-No broad redesign, new frontend framework, duplicate dataset/route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0, speculative ERP1 429 architecture, or generic destructive-action modal during H7B.
+No broad redesign, frontend framework, generic modal framework, duplicate route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0 or speculative ERP1 429 architecture.
