@@ -45,6 +45,14 @@ final class DebugSettingsControllerTest extends TestCase
         self::assertStringContainsString('2026-10-09', $html);
         self::assertStringContainsString('2026-10-08', $html);
         self::assertStringContainsString('/settings/system/debug/clear', $html);
+        self::assertStringContainsString('data-system-destructive-action="clear-debug"', $html);
+        self::assertMatchesRegularExpression(
+            '#<details[^>]*data-system-destructive-action="clear-debug"[^>]*>\\s*<summary>Limpiar debug</summary>.*?action="/settings/system/debug/clear".*?name="confirm_clear_debug" value="1" required.*?</details>#si',
+            $html,
+            'Limpiar debug debe requerir disclosure nativo y confirmación explícita.'
+        );
+        self::assertSame(1, preg_match_all('#action="/settings/system/debug/clear"#', $html));
+        self::assertStringContainsString('No se eliminan exportaciones ZIP', $html);
         self::assertStringContainsString($csrf->token(), $html);
         self::assertStringNotContainsString('name="meli_writes_enabled"', $html);
         self::assertStringNotContainsString('Escrituras Mercado Libre', $html);
@@ -124,7 +132,10 @@ final class DebugSettingsControllerTest extends TestCase
 
         $request = (new ServerRequestFactory())
             ->createServerRequest('POST', '/settings/system/debug/clear')
-            ->withParsedBody(['csrf_token' => $csrf->token()]);
+            ->withParsedBody([
+                'csrf_token' => $csrf->token(),
+                'confirm_clear_debug' => '1',
+            ]);
         $response = $controller->clearDebug($request, (new ResponseFactory())->createResponse());
 
         self::assertSame(303, $response->getStatusCode());
