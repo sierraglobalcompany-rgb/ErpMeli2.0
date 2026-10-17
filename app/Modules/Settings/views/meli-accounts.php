@@ -100,10 +100,15 @@ $statusClasses = [
                                                 </form>
                                             <?php endif; ?>
                                             <?php if ($account['status'] === 'disabled' && $account['can_hard_delete']): ?>
-                                                <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/delete">
-                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                                    <button class="danger" type="submit">Eliminar</button>
-                                                </form>
+                                                <details data-meli-destructive-action="delete">
+                                                    <summary>Eliminar cuenta definitivamente</summary>
+                                                    <p class="muted">Sólo se puede eliminar de este ERP una cuenta desconectada sin historial registrado. No elimina tu usuario ni la cuenta en Mercado Libre. Esta eliminación local es permanente.</p>
+                                                    <form method="post" action="/mercadolibre/accounts/<?= $accountId ?>/delete">
+                                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                        <label><input type="checkbox" name="confirm_permanent_delete" value="1" required> Confirmo que quiero eliminar definitivamente esta vinculación local.</label>
+                                                        <button class="danger" type="submit">Eliminar definitivamente</button>
+                                                    </form>
+                                                </details>
                                             <?php endif; ?>
                                         </div>
                                     </td>
