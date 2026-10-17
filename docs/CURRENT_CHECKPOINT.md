@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7C-A/B1 FULLY CLOSED / H7C-B2 HARD DELETE AUTOMATED GREEN (REAL-BROWSER PENDING) / H7C-C-D NOT STARTED / STOP-SAFE**
+**CURRENT=H7C-A/B1/B2 FULLY CLOSED / H7C-C CLEAR DEBUG READ-ONLY PREFLIGHT NEXT / H7C-C-D NOT STARTED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -397,23 +397,80 @@ REAL_MELI_HTTP=0
 
 Controller: on disabled pristine account after existing history checks, missing/invalid ack returns 422 without deletion, only exact `confirm_permanent_delete='1'` can proceed. UI: native `<details data-meli-destructive-action="delete">` closed by default, factual local-only copy, form CSRF, required checkbox, explicit destructive button. Positive delete and 404/409/419 regression tests retained; RED + HTML test now pass.
 
+## H7C-B2 independent real-browser forensic closure — PASS
+
+Antigravity certified real Chrome 155.0.8059.84 on an isolated TEST runtime. ChatGPT independently checked both attached ZIPs (same 27 internal file bytes but ZIP compression/order differing), every 26/26 manifest SHA-256, report byte equality, 5 screenshots, DOM/keyboard/HTML5 native validity, role 200/403, responsive mobile geometry, H7A shell, console/network, DB before/after, Git and live CI.
+
+```text
+H7C_B2_RED=3595880b6f4e6cdaeef6cc0ebff9f85c0e7cb723
+H7C_B2_RED_CI=39072807611 EXPECTED FAILURE
+H7C_B2_GREEN=d00eb26f37488d8552d2b1598d5b27dcb76967dd
+H7C_B2_GREEN_CI=39073100289 SUCCESS
+H7C_B2_GREEN_PHP_8_3=828 tests / 7037 assertions / 0 failures
+H7C_B2_GREEN_PHP_8_4=PASS
+H7C_B2_GREEN_PHP_8_5=PASS
+H7C_B2_GREEN_PHPSTAN=PASS
+BROWSER_CERTIFIED_HEAD=21968d5ba0770f59db3e88348bb90d4ff6c506f6
+BROWSER_CERTIFIED_HEAD_CI=39073464183 SUCCESS
+H7C_B2_BROWSER_CERTIFIED=YES
+H7C_B2_INDEPENDENT_AUDIT=PASS
+H7C_B2_FULLY_CLOSED=YES
+BROWSER_CHROME=155.0.8059.84
+DESKTOP=1440x900 PASS
+MOBILE=390x844 PASS
+COMPANY_ADMIN_GET=200
+OPERATOR_GET=403
+ELIGIBLE_DISABLED_PRISTINE_DELETE=VISIBLE_IN_CLOSED_DETAILS
+CONNECTED_DELETE=HIDDEN
+DISABLED_WITH_HISTORY_DELETE=HIDDEN
+ATTENTION_DELETE=HIDDEN
+DELETE_REQUIRED_ACK_DEFAULT_UNCHECKED=PASS
+NATIVE_VALIDITY_UNCHECKED_FALSE_CHECKED_TRUE_RESTORED_FALSE=PASS
+KEYBOARD_TAB_ENTER_SPACE=PASS
+SHARED_SHELL_H7A=PASS
+MOBILE_NAV_SLOTS=5
+HORIZONTAL_OVERFLOW=NO
+BOTTOM_NAV_OBSTRUCTION=NO
+UNCAUGHT_JS=0
+CONSOLE_ERROR_RAW_COUNT=1 EXPECTED_403_CHROME_ERROR_PAGE
+FAVICON_404=2 INCIDENTAL
+PRODUCT_JS_DEFECT_PROVEN=NO
+BROWSER_REAL_MELI_CALLS=0
+BROWSER_DESTRUCTIVE_POSTS=0
+APPLICATION_5XX=0
+DB_BEFORE_AFTER=IDENTICAL
+CERTIFIER_REPO_CHANGES=0
+CERTIFIER_COMMITS_PUSHES_MERGES=0
+MANIFEST=26/26 EXACT
+EVIDENCE_ZIP_SHA256=f9e95998b5cb0802bab5a7df271715552c9b55b039e3b10bac9583ee0abb8753
+SUPPLEMENTARY_ZIP_SHA256=9342658d07222ef427f75b7dfc8324b1b60db8ab1931193bcce0b2f9619adccd
+PR_19=OPEN / DRAFT / NOT MERGED
+```
+
+External evidence received:
+- `ERP_MELI_2_0_H7C_B2_BROWSER_ANTIGRAVITY_REPORT_2026-10-17.md`
+- `ERP_MELI_2_0_H7C_B2_BROWSER_ANTIGRAVITY_EVIDENCE_2026-10-17.zip`
+- `20261017-172800.zip` (same internal contents, differing archive bytes)
+- User supplied final ZIP hash in certifier output; separate `.zip.sha256` was NOT attached. ChatGPT independently calculated the final ZIP SHA and created the sidecar, so the verification is independent, not a claim of certifier delivery.
+
+No product defect is proven by the known expected operator GET 403 Chrome console-network message; it remains transparently counted as one in raw evidence. No fixes/patches warranted.
+
 ## Exact resume point
 
 ```text
-NEXT=H7C-B2 REAL-BROWSER CERTIFICATION ONLY
+NEXT=H7C-C SYSTEM CLEAR DEBUG READ-ONLY PREFLIGHT
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
-H7C_B2_AUTOMATED_GREEN=YES
-H7C_B2_BROWSER_CERTIFIED=NO
-H7C_B2_FULLY_CLOSED=NO
+H7C_B2_FULLY_CLOSED=YES
 H7C_C_STARTED=NO
 H7C_D_STARTED=NO
-PR_19=OPEN / DRAFT / NOT MERGED
+DO_NOT_REOPEN_B2_WITHOUT_NEW_FACTS
+PR_MERGED=NO
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
 ```
 
-Use Antigravity real local Chrome only, isolated TEST, no destructive POST. Certify admin 200/nonadmin 403, eligible vs history-bound account, archive-free native delete disclosure, copy, required checkbox and native validity without submit, Enter/Space, desktop 1440x900, mobile 390x844, shared H7A shell, mobile five slots, no overflow/obstruction, DB before/after identical, Git pre/post clean, zero real MELI calls. Require external Markdown report + ZIP + SHA-256 sidecar, independently audited by ChatGPT before closure. The exact browser prompt is a downloadable conversation artifact: `ERP_MELI_2_0_PROMPT_ANTIGRAVITY_H7C_B2_BROWSER_CERTIFICATION_FORENSIC_V1_2026-10-17.md`. No H7C-C until audit PASS.
+Audit exact clear-debug controller/view/route permissions and CSRF, semantics and existing tests. First produce narrow verified RED only if a real direct-destructive-action defect remains. No synthetic cleanup, no debug clear submit in browser QA, no generic modal, no production or real MELI mutations.
 
 ## ERP1 / 429 frozen truth
 
