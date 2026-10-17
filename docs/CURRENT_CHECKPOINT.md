@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H6B BILLING HUMAN-FIRST TECHNICAL CURSOR AUTOMATED GREEN / BROWSER NOT CERTIFIED / H6C FROZEN / STOP-SAFE**
+**CURRENT=H6B BILLING HUMAN-FIRST TECHNICAL CURSOR FULLY CLOSED / H6C READY / H6C NOT STARTED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -63,8 +63,6 @@ H5_FULLY_CLOSED=YES
 
 ## H6A — Billing Human-First document labels — FULLY CLOSED
 
-Proven defect: Billing exposed machine identifiers `BILL` and `CREDIT_NOTE` as primary visible human copy.
-
 ```text
 H6A_RED_COMMIT=024cb33ec82b8b59576e03b990f8c3b8ca7976cc
 H6A_RED_CI_RUN=38988206740
@@ -88,13 +86,11 @@ Preserved truth:
 - real MELI calls = 0;
 - business side effects = 0.
 
-## H6B — Billing Human-First technical cursor
+## H6B — Billing Human-First technical cursor — FULLY CLOSED
 
 ### Proven defect
 
-`Cursor confirmado` is a technical implementation detail and was rendered in the first information layer of the selected Billing request.
-
-Human-First law requires technical detail to remain available but secondary/progressively disclosed. `Progreso persistido` and `Última lectura persistida (UTC)` remain first-layer operational facts.
+`Cursor confirmado` is technical implementation detail and was exposed in the first information layer of the selected Billing request. Human-First requires the technical value to remain available but secondary. `Progreso persistido` and `Última lectura persistida (UTC)` remain primary operational facts.
 
 ```text
 DEFECT=technical cursor exposed in primary information layer
@@ -110,7 +106,7 @@ CSS_CHANGE_REQUIRED=NO
 JS_CHANGE_REQUIRED=NO
 ```
 
-### RED contract — confirmed
+### TDD trace
 
 ```text
 H6B_RED_COMMIT=2b970371472426f37f9ddc5626e6ea001aae4470
@@ -120,48 +116,100 @@ H6B_RED_RESULT=EXPECTED FAILURE
 H6B_RED_TESTS=815
 H6B_RED_ASSERTIONS=6841
 H6B_RED_FAILURES=1
-H6B_RED_ONLY_FAILURE=missing <details class="billing-technical-details">
-LINT=PASS
-PHPSTAN=PASS
-INFRA_FAILURE=NO
-```
-
-### Minimal GREEN
-
-```text
 H6B_GREEN_COMMIT=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
-PRODUCTION_FILE=app/Modules/Billing/views/billing.php
-TEST_FILE=tests/Integration/BillingDesignMasterUiTest.php
-```
-
-Implementation:
-
-- `Cursor confirmado` remains present with its exact persisted value.
-- It moved under native `<details class="billing-technical-details">`.
-- Disclosure label: `Detalles técnicos`.
-- `Progreso persistido` remains first-layer.
-- `Última lectura persistida (UTC)` remains first-layer.
-- no CSS, JavaScript, controller, route, schema, Work, Financial or 429 architecture changes.
-
-### Automated QA — certified GREEN
-
-```text
 H6B_FINAL_CI_RUN=38991387270
-CI_HEAD=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
-WORKFLOW_STATUS=COMPLETED
-WORKFLOW_CONCLUSION=SUCCESS
+H6B_AUTOMATED_RESULT=815 tests / 6843 assertions / 0 failures
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
-COMPOSER_VALIDATE=PASS
-DEPENDENCY_INSTALL=PASS
 PHPSTAN=PASS
-PHPUNIT=815 tests / 6843 assertions / 0 failures
 REAL_MELI_HTTP=0
-H6B_AUTOMATED_FULL_GREEN=YES
 ```
 
-Expected Slim negative-path traces remain part of existing tests and do not fail the suite.
+Minimal implementation:
+
+- `Cursor confirmado` remains present with the exact persisted value.
+- It is inside native `<details class="billing-technical-details">`.
+- Disclosure summary is `Detalles técnicos`.
+- disclosure is collapsed by default.
+- `Progreso persistido` remains first-layer.
+- `Última lectura persistida (UTC)` remains first-layer.
+- no CSS, JS, controller, route, schema, Work, Financial or 429 architecture changes.
+
+### Real-browser certification — independently audited PASS
+
+Antigravity executed Google Chrome via CDP against `/billing` using disposable local QA infrastructure on checkout:
+
+```text
+H6B_BROWSER_CHECKOUT_HEAD=63fa92d4b16b1590e7a245810ea695634ed3f708
+AUTOMATED_GREEN_ANCESTOR=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
+BROWSER=Chrome/155.0.8059.84 via CDP
+DESKTOP=1440x900 PASS
+MOBILE=390x844 PASS
+WORKING_TREE_BEFORE=CLEAN
+WORKING_TREE_AFTER=CLEAN
+```
+
+Independent evidence audit before accepting PASS:
+
+- uploaded evidence ZIP SHA-256: `b10ace06f8a893062749726b931bb5534837439942b0280bfb7f742ae16c2609`;
+- Antigravity printed local outer ZIP SHA-256 `7af1373d1d5bb53572df08bb21a5658379c2afbe0a493be0e0aa2b19a08bfdf2`; outer ZIP hash mismatch is treated as repackaging metadata and is NOT used as integrity authority;
+- internal `manifest-sha256.txt` contains 16 logical file entries;
+- all 16 internal SHA-256 entries were independently recalculated and matched exactly;
+- report, JSON, screenshots, network, console, fixture and side-effect evidence are mutually coherent;
+- screenshots independently inspected: desktop/mobile collapsed hide the cursor; desktop/mobile open show `Cursor confirmado` with exact `987654321`;
+- desktop `scrollWidth=1425`, `clientWidth=1425`; mobile `scrollWidth=390`, `clientWidth=390`; no page horizontal overflow;
+- mobile navigation contains exactly 5 slots and does not overlap the technical disclosure;
+- H6A labels remain `Factura` / `Nota crédito`, while URLs/options preserve `BILL` / `CREDIT_NOTE` machine semantics;
+- native keyboard path reached the `<summary>` with Tab, Enter opened the disclosure and a second Enter closed it;
+- exact persisted cursor `987654321` remained hidden while collapsed, visible unchanged while open, and hidden again after keyboard close;
+- network: 16 responses, application 5xx = 0, real MELI network calls = 0; only incidental `/favicon.ico` 404;
+- console: application errors = 0, uncaught JS exceptions = 0, console messages = 0;
+- DB snapshots before/after are exact matches: `billing_periods=2`, `billing_details=0`, `work_items=0`, `api_usage_daily=0`, `orders=0`; business side effects = 0;
+- disposable MariaDB/server/runtime were torn down and the working tree ended CLEAN.
+
+Environment clarification:
+
+Antigravity temporarily wrote `APP_ENV=local` into fallback `storage/private/runtime.json`, while the PHP server process was launched with environment `APP_ENV=test`. This does not invalidate the certification: `Environment::resolve()` gives `getenv()` / externally supplied process variables precedence over private-file fallback values, so effective `APP_ENV` remained `test` during the run.
+
+Browser gates accepted:
+
+```text
+H6B_BROWSER_RESULT=PASS
+BILLING_HTTP_200=PASS
+H6A_HUMAN_LABELS_PRESERVED=PASS
+H6A_MACHINE_VALUES_PRESERVED=PASS
+PROGRESS_PRIMARY_VISIBLE=PASS
+LAST_READ_PRIMARY_VISIBLE=PASS
+TECHNICAL_DETAILS_PRESENT=PASS
+TECHNICAL_DETAILS_COLLAPSED_DEFAULT=PASS
+CURSOR_HIDDEN_WHEN_COLLAPSED=PASS
+TECHNICAL_DETAILS_KEYBOARD_OPEN=PASS
+CURSOR_VISIBLE_WHEN_OPEN=PASS
+CURSOR_EXACT_VALUE_PRESERVED=PASS
+TECHNICAL_DETAILS_KEYBOARD_CLOSE=PASS
+CURSOR_HIDDEN_AFTER_CLOSE=PASS
+PAGE_HORIZONTAL_OVERFLOW=NO
+MOBILE_NAV=5 slots PASS
+CONSOLE_APP_ERRORS=0
+UNCAUGHT_JS_EXCEPTIONS=0
+APPLICATION_5XX=0
+REAL_MELI_NETWORK_CALLS=0
+BUSINESS_SIDE_EFFECTS=0
+BACKEND_CHANGED=NO
+SCHEMA_CHANGED=NO
+ROUTES_CHANGED=NO
+CSS_CHANGED=NO
+JS_CHANGED=NO
+WORK_CHANGED=NO
+FINANCIAL_CHANGED=NO
+429_ARCHITECTURE_CHANGED=NO
+NEW_DEPENDENCY=NO
+KISS=PASS
+ANTI_NOISE=PASS
+ANTI_PATCH=PASS
+HUMAN_FIRST=PASS
+```
 
 ## Current disposition
 
@@ -171,50 +219,31 @@ H6A_FULLY_CLOSED=YES
 H6B_PREFLIGHT=COMPLETE
 H6B_RED=CONFIRMED
 H6B_MINIMAL_GREEN=IMPLEMENTED
-H6B_KISS=PASS
-H6B_ANTI_NOISE=PASS
-H6B_ANTI_PATCH=PASS
-H6B_BACKEND_TRUTH_PRESERVED=YES
-H6B_AUTOMATED_PHP_8_3=GREEN
-H6B_AUTOMATED_PHP_8_4=GREEN
-H6B_AUTOMATED_PHP_8_5=GREEN
 H6B_FINAL_AUTOMATED_GREEN=YES
-H6B_BROWSER_GREEN=NO
-H6B_FULLY_CLOSED=NO
+H6B_BROWSER_GREEN=YES
+H6B_FULLY_CLOSED=YES
+H6C_READY=YES
 H6C_STARTED=NO
 STOP_SAFE=YES
 ```
 
-## Exact resume point
+## Exact resume point — H6C preflight only
 
 ```text
-NEXT=H6B BILLING HUMAN-FIRST — REAL-BROWSER CERTIFICATION ONLY
-H6C_FROZEN=YES
+NEXT=H6C BILLING HUMAN-FIRST — PREFLIGHT / TRUTH MAP / SMALLEST RED CONTRACT
+H6C_IMPLEMENTATION_STARTED=NO
 ```
 
-Required browser gates for `/billing`:
+Before touching production code:
 
-1. Desktop `1440x900` PASS.
-2. Mobile `390x844` PASS.
-3. `Detalles técnicos` exists as native `<details>` and is collapsed by default.
-4. `Cursor confirmado` is not visible in the primary layer while collapsed.
-5. Opening the disclosure reveals the exact persisted cursor value without conversion.
-6. Keyboard interaction with the native disclosure works.
-7. `Progreso persistido` remains visible in the first layer.
-8. `Última lectura persistida (UTC)` remains visible in the first layer.
-9. Existing H6A labels and machine/query semantics remain intact.
-10. No page horizontal overflow.
-11. Mobile bottom navigation remains exactly 5 slots.
-12. Console uncaught application errors = 0.
-13. Application HTTP 5xx = 0.
-14. Real MELI network calls = 0.
-15. Business side effects = 0.
-16. No backend/schema/routes/Work/Financial/429 architecture changes.
-
-On first real-browser defect: capture evidence, identify root cause, do not fix in the same certification run, STOP.
-
-Only after all browser gates pass may H6B be marked FULLY CLOSED and H6C be considered.
+1. Re-read current Billing view/controller/tests from the new branch HEAD.
+2. Prove the next smallest Human-First defect using current source truth, not roadmap assumptions.
+3. Candidate areas may be inspected but are NOT pre-approved changes: technical state wording, period input UX, operator guidance, remaining hierarchy/noise.
+4. Preserve exact persisted/API semantics, authorization, period contract and document machine values.
+5. Do not touch Financial/Work/429 pacing, retry, queue, batching or transport architecture.
+6. TDD: one RED -> diagnose -> minimal GREEN -> full QA -> browser gate -> checkpoint.
+7. If no meaningful H6C defect can be proven, do not invent work; close Billing Human-First instead.
 
 ## Frozen / prohibited
 
-No H6C/H7 work, broad redesign, new frontend framework, duplicate dataset/route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0, or speculative ERP1 429 architecture.
+No broad redesign, new frontend framework, duplicate dataset/route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0, or speculative ERP1 429 architecture.
