@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7B USERS PROGRESSIVE DISCLOSURE FULLY CLOSED / H7C-A COMPANIES DESTRUCTIVE UX READY FOR TDD / H7C-B/C/D NOT STARTED / STOP-SAFE**
+**CURRENT=H7B FULLY CLOSED / H7C-A COMPANIES DESTRUCTIVE UX AUTOMATED GREEN / REAL-BROWSER CERTIFICATION PENDING / NOT CLOSED / H7C-B/C/D NOT STARTED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -50,18 +50,78 @@ H7B_USERS_PROGRESSIVE_DISCLOSURE=FULLY_CLOSED
 
 # H7B — Users progressive disclosure — FULLY CLOSED
 
-## TDD authority
-
 ```text
 H7B_RED=73a8a92f6d31f1f6619dc6d4f2e3b2214032c3cc
 H7B_RED_CI=39042876994
 H7B_GREEN=e6711bd9ccbb5a6298c14885f4f2341040a94343
 H7B_GREEN_CI=39043131947
+H7B_BROWSER_CERTIFIED_HEAD=16d50961cda86ef7f886affe8676d470422607cd
+H7B_EVIDENCE_ZIP_SHA256=6aa6144e6f34432e1e5e86e2aeffbd9c99b387afbc39a0f5ed9e69576a692da7
+H7B_MANIFEST=18/18 exact SHA-256
+H7B_BROWSER_INDEPENDENT_AUDIT=PASS
+H7B_FULLY_CLOSED=YES
+```
+
+Browser evidence certified desktop/mobile layout, keyboard disclosure, form ownership, shared shell, 5-slot mobile nav, zero horizontal overflow, zero relevant console/JS/5xx/MELI calls, business-table hashes identical before/after, clean git state and zero certifier code/test/doc changes.
+
+# H7C — Destructive actions
+
+H7C authority is UX-018 / T3 Security-Authorization. It is NOT generic progressive disclosure.
+
+```text
+H7C_A=Companies: archive + permanent delete
+H7C_B=MELI accounts: disconnect + hard delete
+H7C_C=System settings: clear debug
+H7C_D=Users: remove System Admin privilege + remove company membership
+```
+
+Backend authorization, CSRF and domain guards remain authoritative and are not to be redesigned merely for presentation.
+
+# H7C-A — Companies destructive UX
+
+## Truth owner
+
+```text
+GET/POST /system/companies
+POST /system/companies/{id}/archive
+POST /system/companies/{id}/reactivate
+POST /system/companies/{id}/delete
+CompanyManagementController
+```
+
+## TDD RED — CONFIRMED
+
+```text
+H7C_A_RED=1c8bae3374c7a36af075f3b5bb59c64c95cef763
+H7C_A_RED_CI=39049451668
+RED_WORKFLOW=FAILURE AS EXPECTED
+RED_PHPSTAN=PASS
+RED_PHP_8_3=824 tests / 7002 assertions / exactly 1 failure
+RED_ONLY_FAILURE=Tests\Integration\H7CCompanyDestructiveActionUxTest::testCompanyDestructiveActionsRequireDeliberateHumanConfirmation
+```
+
+Observed RED defect:
+
+```text
+ACTIVE_COMPANY_ARCHIVE=direct one-click POST
+EXPECTED=deliberate native second step with factual consequence copy
+PRODUCTION_CHANGED_AT_RED=NO
+```
+
+Existing Slim error traces in unrelated tests were expected test-intent output and did not count as PHPUnit failures.
+
+## Minimal GREEN — AUTOMATED PASS
+
+```text
+H7C_A_GREEN=d8cfbe04a924304cb1234153fe873a34bef4bab4
+H7C_A_GREEN_CI=39049794704
+GREEN_WORKFLOW=SUCCESS
 GREEN_PHP_8_3=PASS
 GREEN_PHP_8_4=PASS
 GREEN_PHP_8_5=PASS
 GREEN_PHPSTAN=PASS
-GREEN_PHPUNIT_PHP_8_3=823 tests / 6999 assertions / 0 failures
+GREEN_PHP_8_3_PHPUNIT=824 tests / 7007 assertions / 0 failures
+REAL_MELI_HTTP=0
 ```
 
 Canonical RED→GREEN production diff:
@@ -69,9 +129,9 @@ Canonical RED→GREEN production diff:
 ```text
 COMMITS=1
 FILES=1
-FILE=app/Core/Http/views/users.php
-ADDITIONS=31
-DELETIONS=24
+FILE=app/Core/Http/views/companies.php
+ADDITIONS=27
+DELETIONS=12
 CONTROLLERS_CHANGED=NO
 ROUTES_CHANGED=NO
 SCHEMA_CHANGED=NO
@@ -84,150 +144,91 @@ FINANCIAL_CHANGED=NO
 429_ARCHITECTURE_CHANGED=NO
 ```
 
-## Real-browser certification — independently audited
-
-Certified HEAD:
+Implemented presentation contract:
 
 ```text
-16d50961cda86ef7f886affe8676d470422607cd
+ACTIVE_COMPANY:
+  archive moved behind native <details>
+  summary=Archivar empresa
+  copy explains operation/selection stops, history remains, reactivation remains possible
+  existing /archive route and CSRF preserved
+
+ARCHIVED_COMPANY:
+  reactivate remains direct and restorative
+  existing /reactivate route preserved
+
+DELETABLE_ARCHIVED_COMPANY:
+  permanent delete remains conditional on existing backend deletable fact
+  delete moved behind native <details>
+  existing factual deletion conditions preserved
+  explicit required checkbox confirm_permanent_delete added before browser submission
+  existing /delete route and backend deletion authority preserved
+
+NO generic modal architecture
+NO controller change
+NO permission-model change
+NO schema change
+NO JS/framework change
 ```
 
-External evidence artifacts:
+## Remaining H7C-A gate
+
+Automated GREEN is not enough to close H7C-A.
+
+Required real-browser certification:
 
 ```text
-ERP_MELI_2_0_H7B_BROWSER_ANTIGRAVITY_REPORT_2026-10-17.md
-ERP_MELI_2_0_H7B_BROWSER_ANTIGRAVITY_EVIDENCE_2026-10-17.zip
-ZIP_SHA256=6aa6144e6f34432e1e5e86e2aeffbd9c99b387afbc39a0f5ed9e69576a692da7
-MANIFEST=18/18 exact SHA-256
-REPORT_EXTERNAL_EQUALS_INTERNAL=YES
-```
-
-Independent audit result:
-
-```text
-DESKTOP_1440x900=PASS
-MOBILE_390x844=PASS
-HTTP_200=PASS
-H7A_SHARED_SHELL=PASS
-CREATE_USER_FORM_VISIBLE_OUTSIDE_DETAILS=PASS
-USER_A_FACTS=active + System Admin + 1 membership PASS
-USER_B_FACTS=disabled + non-System-Admin + 0 memberships PASS
-DETAILS_PER_USER=3
-DETAILS_DEFAULT_CLOSED=PASS
-SUMMARY_LABELS_EXACT=PASS
-IDENTITY_OWNER=/update only PASS
-SECURITY_OWNER=/status + /system-admin + /password PASS
-MEMBERSHIP_OWNER=/membership + /remove-membership as factual fixture permits PASS
-KEYBOARD_FOCUS_VISIBLE=PASS
-ENTER_TOGGLE=PASS
-SPACE_TOGGLE=PASS
-UNRELATED_TOGGLE=NO
-MOBILE_NAV=5 slots PASS
-HORIZONTAL_OVERFLOW=NO
-CONTROL_OVERLAP=0
-BOTTOM_NAV_OBSTRUCTION=NO
+SYSTEM_ADMIN_POSITIVE=required
+ORDINARY_COMPANY_ADMIN_NEGATIVE=required
+DESKTOP_1440x900=required
+MOBILE_390x844=required
+H7A_SHARED_SHELL_REGRESSION=required
+MOBILE_NAV_5_SLOTS=required
+ARCHIVE_DETAILS_DEFAULT_CLOSED=required
+ARCHIVE_KEYBOARD_ENTER_SPACE=required
+ARCHIVE_ROUTE_OWNER=/system/companies/{id}/archive
+REACTIVATE_DIRECT_RESTORATIVE=required
+DELETE_DETAILS_DEFAULT_CLOSED=required when deletable=true
+DELETE_REQUIRED_ACK=required
+DELETE_ROUTE_OWNER=/system/companies/{id}/delete
+CSRF_PRESENT=required
+NO_HORIZONTAL_OVERFLOW=required
+NO_BOTTOM_NAV_OBSTRUCTION=required
 CONSOLE_APP_ERRORS=0
 UNCAUGHT_JS=0
 APPLICATION_5XX=0
 REAL_MELI_NETWORK_CALLS=0
 BUSINESS_SIDE_EFFECTS=0
-DB_BUSINESS_TABLE_HASHES_BEFORE_AFTER=IDENTICAL
-WORKING_TREE_BEFORE=CLEAN
-WORKING_TREE_AFTER=CLEAN
-CERTIFIER_CODE_CHANGES=NO
-CERTIFIER_TEST_CHANGES=NO
-CERTIFIER_DOC_CHANGES=NO
-CERTIFIER_COMMITS=NO
-PUSH=NO
-MERGE=NO
+DB_BEFORE_AFTER=IDENTICAL
+CERTIFIER_CODE_CHANGES=0
+CERTIFIER_TEST_CHANGES=0
+CERTIFIER_DOC_CHANGES=0
+PUSH=0
+MERGE=0
 ```
 
-The raw snapshot files differ only in encoding/BOM bytes; normalized content and every business-table row/hash are identical. This is evidence-file encoding noise, not a DB mutation.
+Do NOT submit archive/delete/reactivate during browser certification. Verify presentation, DOM ownership, keyboard behavior, authorization visibility and zero side effects without mutating business state.
 
-Therefore:
-
-```text
-H7B_BROWSER_PASS=YES
-H7B_BROWSER_INDEPENDENTLY_AUDITED=YES
-H7B_FULLY_CLOSED=YES
-```
-
-# H7C — Destructive actions
-
-H7C authority is UX-018 / T3 Security-Authorization. It is NOT generic company progressive disclosure.
-
-Current sequence:
+## Current status
 
 ```text
-H7C_A=Companies: archive + permanent delete
-H7C_B=MELI accounts: disconnect + hard delete
-H7C_C=System settings: clear debug
-H7C_D=Users: remove System Admin privilege + remove company membership
-```
-
-Backend authorization/CSRF/domain guards already exist and must not be redesigned merely for presentation.
-
-## H7C-A Companies — approved bounded design
-
-Truth owner remains:
-
-```text
-GET/POST /system/companies
-POST /system/companies/{id}/archive
-POST /system/companies/{id}/reactivate
-POST /system/companies/{id}/delete
-CompanyManagementController
-```
-
-Design contract:
-
-```text
-ACTIVE_COMPANY:
-  archive is not a one-click destructive POST
-  use native deliberate disclosure/second step
-  explain factual impact: normal operation/selection stops, history is preserved, reactivation remains possible
-  keep existing /archive route and CSRF
-
-ARCHIVED_COMPANY:
-  reactivate remains direct because it is restorative, not destructive
-
-DELETABLE_ARCHIVED_COMPANY:
-  delete remains rendered only when existing backend deletable fact is true
-  place permanent delete behind deliberate disclosure
-  preserve factual copy: archived + pristine/no prior use + sole admin membership; user account is not deleted
-  require explicit native acknowledgement checkbox before browser submits
-  keep existing /delete route and backend authority unchanged
-
-NO generic modal architecture
-NO controller change unless a RED proves presentation cannot be implemented safely without it
-NO permission-model change
-NO schema/JS/framework change
-```
-
-T3 verification requirements:
-
-```text
-SYSTEM_ADMIN_POSITIVE=required
-ORDINARY_COMPANY_ADMIN_NEGATIVE=required
-CSRF_GUARDS=preserved
-DOMAIN_ARCHIVE_BLOCKERS=preserved
-DELETE_PRISTINE_RULES=preserved
-DESKTOP_MOBILE_BROWSER=required after automated GREEN
-KEYBOARD_DISCLOSURE=required
-ZERO_BUSINESS_SIDE_EFFECTS during browser certification
-```
-
-## Exact resume point
-
-```text
-NEXT=H7C-A TDD RED — Companies destructive-action presentation contract
-H7B_FULLY_CLOSED=YES
-H7C_A_PRODUCTION_STARTED=NO
+H7C_A_RED_CONFIRMED=YES
+H7C_A_AUTOMATED_GREEN=YES
+H7C_A_BROWSER_CERTIFIED=NO
+H7C_A_FULLY_CLOSED=NO
 H7C_B_STARTED=NO
 H7C_C_STARTED=NO
 H7C_D_STARTED=NO
 PR_MERGED=NO
 STOP_SAFE=YES
+```
+
+## Exact resume point
+
+```text
+NEXT=H7C-A REAL-BROWSER CERTIFICATION ON GREEN d8cfbe04a924304cb1234153fe873a34bef4bab4
+AUTOMATED_GREEN_CI=39049794704
+DO_NOT_START_H7C_B_BEFORE_H7C_A_BROWSER_AUDIT
 ```
 
 ## Frozen / prohibited
