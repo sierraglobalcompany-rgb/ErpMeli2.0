@@ -77,9 +77,14 @@ $documentLabels = ['BILL' => 'Factura', 'CREDIT_NOTE' => 'Nota crédito'];
                     <?php if ($progress !== null): ?>
                     <dl class="settings-list">
                         <dt>Progreso persistido</dt><dd><?= $progress['sync_state'] === 'caught_up' ? 'Al día con la fuente consultada' : 'Progreso registrado' ?></dd>
-                        <dt>Cursor confirmado</dt><dd><?= htmlspecialchars((string) $progress['cursor_last_id'], ENT_QUOTES, 'UTF-8') ?></dd>
                         <dt>Última lectura persistida (UTC)</dt><dd><?= htmlspecialchars((string) ($progress['last_synced_at'] ?? 'Sin lectura confirmada'), ENT_QUOTES, 'UTF-8') ?></dd>
                     </dl>
+                    <details class="billing-technical-details">
+                        <summary>Detalles técnicos</summary>
+                        <dl class="settings-list">
+                            <dt>Cursor confirmado</dt><dd><?= htmlspecialchars((string) $progress['cursor_last_id'], ENT_QUOTES, 'UTF-8') ?></dd>
+                        </dl>
+                    </details>
                     <?php endif; ?>
                 </section>
                 <?php endif; ?>
