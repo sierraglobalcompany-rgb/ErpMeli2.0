@@ -138,6 +138,43 @@ final class DebugSettingsControllerTest extends TestCase
         $this->removeTree($root);
     }
 
+    public function testClearDebugRejectsMissingOrInvalidHumanConfirmationWithoutDeletingFiles(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAdmin($pdo);
+        [$root, $debugDir, $exportDir] = $this->roots('clear-ack');
+        $debugRaw = $debugDir . '/debug-2026-10-09.jsonl';
+        $unrelated = $debugDir . '/notes.txt';
+        file_put_contents($debugRaw, 'preserve-debug');
+        file_put_contents($unrelated, 'preserve-notes');
+
+        $_SESSION['user_id'] = 1;
+        $_SESSION['company_id'] = 1;
+
+        $csrf = new Csrf();
+        $controller = new SystemSettingsController(
+            $pdo,
+            new SystemSettingsRepository($pdo),
+            $csrf,
+            new DebugMaintenance($debugDir, $exportDir),
+        );
+
+        try {
+            foreach ([[], ['confirm_clear_debug' => '0']] as $confirmation) {
+                $request = (new ServerRequestFactory())
+                    ->createServerRequest('POST', '/settings/system/debug/clear')
+                    ->withParsedBody(['csrf_token' => $csrf->token()] + $confirmation);
+                $response = $controller->clearDebug($request, (new ResponseFactory())->createResponse());
+
+                self::assertSame(422, $response->getStatusCode(), 'Limpiar debug requiere confirmación humana explícita.');
+                self::assertFileExists($debugRaw, 'Un POST sin confirmación no debe borrar debug.');
+                self::assertFileExists($unrelated, 'Los archivos ajenos al debug se preservan.');
+            }
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
     public function testNonAdminCannotViewOrClearDebugStorage(): void
     {
         $pdo = TestDatabase::reset();
