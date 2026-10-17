@@ -74,7 +74,7 @@ $navigationIsSystemAdmin = true;
         </div>
 
         <div class="users-list">
-        <?php foreach ($users as $user): $id=(int)$user['id']; $active=$user['status']==='active'; $systemAdmin=(int)$user['is_system_admin']===1; ?>
+        <?php foreach ($users as $user): $id=(int)$user['id']; $active=$user['status']==='active'; $systemAdmin=(int)$user['is_system_admin']===1; $userMemberships=$memberships[$id] ?? []; $membershipCount=count($userMemberships); ?>
             <article class="panel" data-admin-card="user">
                 <div class="section-heading">
                     <div>
@@ -83,36 +83,43 @@ $navigationIsSystemAdmin = true;
                     </div>
                     <p>Usuario: <strong><?= $e((string)$user['username']) ?></strong> · Administrador del sistema: <strong><?= $systemAdmin?'Sí':'No' ?></strong></p>
                 </div>
+                <p class="muted">Acceso por empresa: <strong><?= $membershipCount ?></strong> <?= $membershipCount === 1 ? 'empresa' : 'empresas' ?>.</p>
 
-                <form class="settings-form" method="post" action="/system/users/<?= $id ?>/update">
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
-                    <label>Usuario <input name="username" value="<?= $e((string)$user['username']) ?>" minlength="3" maxlength="80" pattern="[a-z0-9._-]+" required></label>
-                    <label>Nombre <input name="display_name" value="<?= $e((string)$user['display_name']) ?>" maxlength="191" required></label>
-                    <label>Correo <input name="email" type="email" value="<?= $e((string)$user['email']) ?>" maxlength="191" required></label>
-                    <button>Guardar identidad</button>
-                </form>
-
-                <form class="settings-form" method="post" action="/system/users/<?= $id ?>/status"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="status" value="<?= $active?'disabled':'active' ?>"><button class="<?= $active?'danger':'' ?>"><?= $active?'Desactivar':'Activar' ?></button></form>
-
-                <form class="settings-form" method="post" action="/system/users/<?= $id ?>/system-admin"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="enabled" value="<?= $systemAdmin?'0':'1' ?>"><button><?= $systemAdmin?'Quitar administración del sistema':'Hacer Administrador del sistema' ?></button></form>
-
-                <form class="settings-form" method="post" action="/system/users/<?= $id ?>/password"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><label>Nueva contraseña <input name="password" type="password" minlength="<?= $passwordMin ?>" maxlength="72" autocomplete="new-password" required></label><button>Restablecer contraseña</button></form>
-
-                <div class="section-heading">
-                    <div><span class="eyebrow">Membresías</span><h3>Acceso por empresa</h3></div>
-                </div>
-                <?php if (($memberships[$id] ?? []) === []): ?><p class="empty-state">Sin membresías.</p><?php endif; ?>
-
-                <?php foreach (($memberships[$id] ?? []) as $membership): $companyId=(int)$membership['company_id']; ?>
-                    <form class="settings-form" method="post" action="/system/users/<?= $id ?>/membership">
-                        <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="company_id" value="<?= $companyId ?>">
-                        <strong><?= $e((string)$membership['name']) ?><?= $membership['archived_at']!==null?' (archivada)':'' ?></strong>
-                        <select name="role"><option value="admin" <?= $membership['role']==='admin'?'selected':'' ?>>Administrador</option><option value="operator" <?= in_array($membership['role'],['operator','member'],true)?'selected':'' ?>>Operador</option><option value="viewer" <?= $membership['role']==='viewer'?'selected':'' ?>>Consulta</option></select><button>Actualizar rol</button>
+                <details data-user-section="identity">
+                    <summary>Identidad</summary>
+                    <form class="settings-form" method="post" action="/system/users/<?= $id ?>/update">
+                        <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                        <label>Usuario <input name="username" value="<?= $e((string)$user['username']) ?>" minlength="3" maxlength="80" pattern="[a-z0-9._-]+" required></label>
+                        <label>Nombre <input name="display_name" value="<?= $e((string)$user['display_name']) ?>" maxlength="191" required></label>
+                        <label>Correo <input name="email" type="email" value="<?= $e((string)$user['email']) ?>" maxlength="191" required></label>
+                        <button>Guardar identidad</button>
                     </form>
-                    <form class="settings-form" method="post" action="/system/users/<?= $id ?>/remove-membership"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="company_id" value="<?= $companyId ?>"><button class="danger">Quitar acceso a <?= $e((string)$membership['name']) ?></button></form>
-                <?php endforeach; ?>
+                </details>
 
-                <form class="settings-form" method="post" action="/system/users/<?= $id ?>/membership"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><label>Añadir empresa <select name="company_id" required><?php foreach ($companies as $company): ?><option value="<?= (int)$company['id'] ?>"><?= $e((string)$company['name']) ?><?= $company['archived_at']!==null?' (archivada)':'' ?></option><?php endforeach; ?></select></label><label>Rol <select name="role"><option value="operator">Operador</option><option value="viewer">Consulta</option><option value="admin">Administrador</option></select></label><button>Añadir o actualizar acceso</button></form>
+                <details data-user-section="security">
+                    <summary>Seguridad y acceso global</summary>
+                    <form class="settings-form" method="post" action="/system/users/<?= $id ?>/status"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="status" value="<?= $active?'disabled':'active' ?>"><button class="<?= $active?'danger':'' ?>"><?= $active?'Desactivar':'Activar' ?></button></form>
+
+                    <form class="settings-form" method="post" action="/system/users/<?= $id ?>/system-admin"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="enabled" value="<?= $systemAdmin?'0':'1' ?>"><button><?= $systemAdmin?'Quitar administración del sistema':'Hacer Administrador del sistema' ?></button></form>
+
+                    <form class="settings-form" method="post" action="/system/users/<?= $id ?>/password"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><label>Nueva contraseña <input name="password" type="password" minlength="<?= $passwordMin ?>" maxlength="72" autocomplete="new-password" required></label><button>Restablecer contraseña</button></form>
+                </details>
+
+                <details data-user-section="memberships">
+                    <summary>Acceso por empresa</summary>
+                    <?php if ($userMemberships === []): ?><p class="empty-state">Sin membresías.</p><?php endif; ?>
+
+                    <?php foreach ($userMemberships as $membership): $companyId=(int)$membership['company_id']; ?>
+                        <form class="settings-form" method="post" action="/system/users/<?= $id ?>/membership">
+                            <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="company_id" value="<?= $companyId ?>">
+                            <strong><?= $e((string)$membership['name']) ?><?= $membership['archived_at']!==null?' (archivada)':'' ?></strong>
+                            <select name="role"><option value="admin" <?= $membership['role']==='admin'?'selected':'' ?>>Administrador</option><option value="operator" <?= in_array($membership['role'],['operator','member'],true)?'selected':'' ?>>Operador</option><option value="viewer" <?= $membership['role']==='viewer'?'selected':'' ?>>Consulta</option></select><button>Actualizar rol</button>
+                        </form>
+                        <form class="settings-form" method="post" action="/system/users/<?= $id ?>/remove-membership"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="company_id" value="<?= $companyId ?>"><button class="danger">Quitar acceso a <?= $e((string)$membership['name']) ?></button></form>
+                    <?php endforeach; ?>
+
+                    <form class="settings-form" method="post" action="/system/users/<?= $id ?>/membership"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><label>Añadir empresa <select name="company_id" required><?php foreach ($companies as $company): ?><option value="<?= (int)$company['id'] ?>"><?= $e((string)$company['name']) ?><?= $company['archived_at']!==null?' (archivada)':'' ?></option><?php endforeach; ?></select></label><label>Rol <select name="role"><option value="operator">Operador</option><option value="viewer">Consulta</option><option value="admin">Administrador</option></select></label><button>Añadir o actualizar acceso</button></form>
+                </details>
             </article>
         <?php endforeach; ?>
         </div>
