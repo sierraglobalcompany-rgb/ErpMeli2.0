@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7C-A FULLY CLOSED / H7C-B1 DISCONNECT AUTOMATED GREEN (REAL-BROWSER PENDING) / H7C-B2-C-D NOT STARTED / STOP-SAFE**
+**CURRENT=H7C-A FULLY CLOSED / H7C-B1 FULLY CLOSED (INDEPENDENT BROWSER EVIDENCE PASS) / H7C-B2 RED NEXT / H7C-C-D NOT STARTED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -286,60 +286,98 @@ SIDECAR=ERP_MELI_2_0_H7C_A_BROWSER_ANTIGRAVITY_EVIDENCE_2026-10-17.zip.sha256
 
 Minor non-blocking observations: the Chrome favicon GET returned 404, and the Apps launcher focus-inside snapshot was taken before waiting for its animation-frame focus; Escape and focus-return behavior are evidenced. They do not justify reopening H7C-A without fresh proof.
 
-## H7C-B1 — MELI account disconnect (AUTOMATED GREEN, BROWSER PENDING)
+## H7C-B1 — MELI account disconnect (FULLY CLOSED)
 
-Owner `app/Modules/Settings/views/meli-accounts.php` for Human-First presentation; `MeliAccountController::disconnect` remains unchanged with company-admin authorization, CSRF, company-scoped row lock, pending/running Work guard, local token deletion and status `disabled`. **No OAuth/MELI/Work behavior changed.**
+Owner: `app/Modules/Settings/views/meli-accounts.php`; the controller, routes, CSRF, company scoping, work guard and account token/status behavior are unchanged.
 
-RED:
 ```text
 H7C_B1_RED=d6b96bcbc5b7189b231ae84c8e03ed881858d912
 H7C_B1_RED_CI=39070718318 EXPECTED FAILURE
 RED_PHP_8_3=826 tests / 7022 assertions / exactly 1 failure
 RED_ONLY_FAILURE=MeliAccountLifecycleUiTest::testDisconnectIsBehindNativeHumanDisclosureWithFactualImpact
-RED_PRODUCTION_CHANGED=NO
-```
-
-GREEN:
-```text
 H7C_B1_GREEN=ab640fe222bc33fc9083fb25596b41133f37bab8
 H7C_B1_GREEN_CI=39070978051 SUCCESS
 GREEN_PHP_8_3=826 tests / 7027 assertions / 0 failures
 GREEN_PHP_8_4=PASS
 GREEN_PHP_8_5=PASS
 GREEN_PHPSTAN=PASS
-RED_TO_GREEN_CHANGED_FILES=1
-RED_TO_GREEN_FILE=app/Modules/Settings/views/meli-accounts.php
-RED_TO_GREEN_ADDITIONS=8
-RED_TO_GREEN_DELETIONS=4
-ROUTES_CHANGED=NO
+RED_TO_GREEN_ONLY=app/Modules/Settings/views/meli-accounts.php (+8/-4)
 CONTROLLER_CHANGED=NO
-SCHEMA_CHANGED=NO
+ROUTES_CHANGED=NO
 CSS_CHANGED=NO
 JS_CHANGED=NO
+SCHEMA_CHANGED=NO
 WORK_CHANGED=NO
 FINANCIAL_CHANGED=NO
-REAL_MELI_HTTP=0
 ```
 
-Connected-account `Desconectar` no longer direct one-click POST. Native `<details data-meli-destructive-action="disconnect">` remains closed until second decision, with factual explanation of local credentials removal, local ERP disabled account, persisted history and reauthorization. `POST /mercadolibre/accounts/{account_id}/disconnect` and CSRF stay inside disclosure. B1 makes no new acknowledgement requirement in backend; hard delete is a **distinct H7C-B2**.
+The direct `Desconectar` one-click POST is now in a native `<details>` (closed by default). Factual copy explains local credential deletion, ERP disablement, history preservation and possible later reauthorization. POST and CSRF retained within the disclosure.
 
-## Exact resume point
+### Independent real-browser audit — PASS
+
+Antigravity Chrome 155 on isolated disposable TEST runtime certified **HEAD** `ce09d7b21bb6d619884307959b13c58cd9faf842`. ChatGPT independently validated all attached artifact hashes and ZIP entries; reviewed desktop/mobile screenshots, HTML/DOM, keyboard, authorization, shell, console/network, before/after database, Git trace and live GitHub CI.
 
 ```text
-NEXT=H7C-B1 REAL-BROWSER CERTIFICATION ONLY
+H7C_B1_BROWSER_RESULT=PASS
+H7C_B1_INDEPENDENT_AUDIT=PASS
+H7C_B1_FULLY_CLOSED=YES
+CERTIFIED_HEAD=ce09d7b21bb6d619884307959b13c58cd9faf842
+CERTIFIED_HEAD_CI=39071315439 SUCCESS
+ZIP_SHA256=ce44f76272dd5743abc23f60ef6ea95a151e9a34e8944a32180172aebca71350
+MANIFEST=26/26 EXACT
+ZIP_ENTRIES=27
+REPORT_MATCHES_ZIP=YES
+REAL_LOCAL_CHROME=YES
+DESKTOP_1440x900=PASS
+MOBILE_390x844=PASS
+COMPANY_ADMIN_HTTP=200
+NON_ADMIN_HTTP=403
+DETAILS_DEFAULT_CLOSED=YES
+KEYBOARD_ENTER_SPACE=PASS
+POST_AND_CSRF_INSIDE_DISCLOSURE=PASS
+DIRECT_DISCONNECT_OUTSIDE_DISCLOSURE=NO
+REAUTHORIZE_UNCHANGED=YES
+H7A_SHELL=PASS
+MOBILE_NAV_SLOTS=5
+HORIZONTAL_OVERFLOW=NO
+BOTTOM_NAV_OBSTRUCTION=NO
+APP_JS_ERRORS=0
+APP_5XX=0
+DESTRUCTIVE_POSTS=0
+REAL_MELI_BROWSER_CALLS=0
+DB_BEFORE_AFTER=IDENTICAL
+CERTIFIER_WORKTREE_AFTER=CLEAN
+CERTIFIER_CODE_TEST_DOC_WRITES=0
+CERTIFIER_COMMITS=0
+CERTIFIER_PUSH=0
+CERTIFIER_MERGE=0
+PR_19=OPEN / DRAFT / NOT MERGED
+```
+
+Evidence originals (external to repository):
+- `ERP_MELI_2_0_H7C_B1_ANTIGRAVITY_BROWSER_REPORT_2026-10-17.md`
+- `ERP_MELI_2_0_H7C_B1_ANTIGRAVITY_BROWSER_EVIDENCE_2026-10-17.zip`
+- `ERP_MELI_2_0_H7C_B1_ANTIGRAVITY_BROWSER_EVIDENCE_2026-10-17.zip.sha256`
+
+Incidental favicon 404 and deliberate non-admin HTTP 403 are classified, not evidence of application malfunction. Browser-session zero network calls does not imply machine-wide capture.
+
+## Exact resume point — H7C-B2
+
+```text
+NEXT=H7C-B2 HARD DELETE HUMAN-FIRST RED TEST
 H7C_A_FULLY_CLOSED=YES
-H7C_B1_AUTOMATED_GREEN=YES
-H7C_B1_BROWSER_CERTIFIED=NO
-H7C_B1_FULLY_CLOSED=NO
+H7C_B1_FULLY_CLOSED=YES
 H7C_B2_STARTED=NO
+H7C_B2_OWNER=app/Modules/Settings/MeliAccountController.php + views/meli-accounts.php
+H7C_B2_SCOPE=disabled pristine MELI account hard-delete UX + server-side acknowledgement
 H7C_C_STARTED=NO
 H7C_D_STARTED=NO
-PR_19=OPEN / DRAFT / NOT MERGED
+PR_MERGED=NO
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
 ```
 
-Use Antigravity in real local Chrome, certification-only, against final B1 GREEN; verify company admin 200, non-admin 403, closed-by-default summary and keyboard Enter/Space, truthful copy, POST/CSRF ownership, desktop/mobile/shared shell/no overflow, zero destructive submits/real MELI browser calls, DB before/after identical, worktree clean, no code/test/docs edits. Require ZIP + SHA256 sidecar + Markdown report, independently audited before closure. See `ERP_MELI_2_0_PROMPT_ANTIGRAVITY_H7C_B1_BROWSER_CERTIFICATION_EVIDENCE_V1_2026-10-17.md` (generated conversation artifact, not repository document). Do NOT start H7C-B2 before browser closure.
+Do not change account history-sufficiency/deletability, OAuth, Work, Financial, Billing, FIFO, retry/429, remote MELI, Hostinger or cron. RED must demonstrate missing human acknowledgement on a CSRF-valid direct POST without deleting test data; GREEN minimal and scoped. Preserve 403/404/409/419 and existing successful deletion with proper acknowledgement. Validate CI before browser certification.
 
 ## ERP1 / 429 frozen truth
 
