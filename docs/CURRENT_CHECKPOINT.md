@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7A GLOBAL ADMIN SHARED SHELL / FULLY CLOSED / H7B NOT STARTED / H7C NOT STARTED / STOP-SAFE**
+**CURRENT=H7B USERS PROGRESSIVE DISCLOSURE / AUTOMATED GREEN / REAL-BROWSER CERTIFICATION PENDING / NOT CLOSED / H7C NOT STARTED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -54,58 +54,90 @@ H2B_TYPOGRAPHY_TOUCH=GREEN
 H3_DASHBOARD=GREEN
 H4_SALES_LIST=FULLY_CLOSED
 H5_CATALOG_INVENTORY=FULLY_CLOSED
-H6A_BILLING_DOCUMENT_LABELS=FULLY_CLOSED
-H6B_BILLING_TECHNICAL_CURSOR=FULLY_CLOSED
-H6C_BILLING_SELECTED_ACCOUNT_IDENTITY=FULLY_CLOSED
-H6D_BILLING_HISTORY_ACCOUNT_IDENTITY=FULLY_CLOSED
-H6E_BILLING_DISABLED_HISTORY_ACCOUNT_IDENTITY=FULLY_CLOSED
-H6F_BILLING_ZERO_CONNECTED_EMPTY_STATE=FULLY_CLOSED
+H6A_H6F_BILLING=FULLY_CLOSED
 BILLING_HUMAN_FIRST_CLOSURE=YES
-BILLING_RESIDUAL_PREFLIGHT=PASS
 H7A_GLOBAL_ADMIN_SHARED_SHELL=FULLY_CLOSED
 ```
 
-Billing final durable closure before H7A:
+Key prior durable references:
 
 ```text
 BILLING_CLOSURE_CHECKPOINT=45d9183ecb05ef3ddbcd76eb424914572f57b603
-H6F_ROOT_FIX_GREEN=cb628bfd144447cc4939c48e8ff58fc10ef11e97
-H6F_ROOT_FIX_CI=39001247996
-PHPUNIT_AT_H6F=820 tests / 6869 assertions / 0 failures
-H6F_FINAL_BROWSER=PASS
-H6G_CREATED=NO
+H7A_GREEN=f8fd6a717e526acc1c79863bd7fb948bfd351817
+H7A_GREEN_CI=39006254808
+H7A_CLOSURE_CHECKPOINT=e247e3e0bdbc9f3a54309e82a6612670d0629c13
+H7A_BROWSER=PASS
+H7A_BROWSER_EVIDENCE_MANIFEST=83/83 SHA256 exact
 ```
 
-## H7A — Global Admin shared shell — FULLY CLOSED
+## H7B — Users progressive disclosure
 
 ### Proven defect
 
-The global administration pages used a second `simple-page/simple-nav` navigation model instead of the shared ERP shell:
+`/system/users` exposed all user-management operations simultaneously inside every user card:
 
 ```text
-/system/companies
-/system/users
-/settings/system
-/settings/mercadolibre
+identity edit
+status change
+System Admin privilege change
+password reset
+existing memberships
+membership role update
+membership removal
+new membership
 ```
 
-The root fix merged those owners into the existing shared shell without changing permissions, tenancy, routes, persistence or business logic.
+This was functionally correct but cognitively dense. Human-First master audit UX-009 / UX-010 / UX-021 requires a compact user summary plus progressive disclosure. No permission-model change is authorized.
 
-### TDD trace
+### Approved bounded design
 
 ```text
-H7A_RED=2793fe15a7d3ee45af3332b136859cb843d2be53
-H7A_RED_CI=39004765237
-RED_PHP_8_3=822 tests / 6874 assertions / exactly 2 H7A failures
-RED_PHPSTAN=PASS
+CREATE_USER_FORM=remains expanded
+USER_SUMMARY=always visible
+USER_SUMMARY_FACTS=name + username + active/disabled + System Admin yes/no + company-access count
+DISCLOSURE_1=Identidad
+DISCLOSURE_2=Seguridad y acceso global
+DISCLOSURE_3=Acceso por empresa
+H7C_CONFIRMATION_UX=out of scope
+```
 
-H7A_GREEN=f8fd6a717e526acc1c79863bd7fb948bfd351817
-H7A_GREEN_CI=39006254808
+Existing owners remain exact:
+
+```text
+/system/users
+/system/users/{id}/update
+/system/users/{id}/status
+/system/users/{id}/system-admin
+/system/users/{id}/password
+/system/users/{id}/membership
+/system/users/{id}/remove-membership
+```
+
+No delete route, generic modal, new role owner or new permission layer was added.
+
+### H7B RED — confirmed
+
+```text
+H7B_RED=73a8a92f6d31f1f6619dc6d4f2e3b2214032c3cc
+H7B_RED_CI=39042876994
+PHPSTAN=PASS
+PHP_8_3=823 tests / 6971 assertions / exactly 1 failure
+ONLY_FAILURE=H7BUserProgressiveDisclosureTest
+EXPECTED_CAUSE=data-user-section="identity" absent in old expanded UI
+```
+
+The RED contract requires exactly three semantic disclosure owners per user card and verifies existing POST forms remain in the correct owner.
+
+### H7B GREEN — automated certified
+
+```text
+H7B_GREEN=e6711bd9ccbb5a6298c14885f4f2341040a94343
+H7B_GREEN_CI=39043131947
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
 PHPSTAN=PASS
-PHPUNIT=822 tests / 6967 assertions / 0 failures
+PHPUNIT_PHP_8_3=823 tests / 6999 assertions / 0 failures
 APP_ENV=test
 REAL_MELI_HTTP=0
 ```
@@ -114,149 +146,57 @@ Canonical RED→GREEN diff:
 
 ```text
 COMMITS=1
-FILES=12
-PRODUCTION_VIEWS=5
-TEST_FILES=7
+FILES=1
+FILE=app/Core/Http/views/users.php
+ADDITIONS=31
+DELETIONS=24
 CONTROLLERS_CHANGED=NO
 ROUTES_CHANGED=NO
 SCHEMA_CHANGED=NO
 CSS_CHANGED=NO
 JS_CHANGED=NO
 DEPENDENCIES_CHANGED=NO
+PERMISSIONS_CHANGED=NO
 WORK_CHANGED=NO
 FINANCIAL_CHANGED=NO
 429_ARCHITECTURE_CHANGED=NO
 ```
 
-Production behavior certified:
+Implemented presentation:
 
 ```text
-NO_ACTIVE_COMPANY_SYSTEM_ADMIN:
-  SHARED_APP_SHELL=YES
-  CONTEXT=Sin empresa activa
-  ROLE=Administrador del sistema
-  DESKTOP_COMPANY_BOUND_LINKS=ABSENT
-  MOBILE_NAV=exactly 5 slots
-  INICIO/OPERACION/PRODUCTOS=disabled non-links
-  APPS=actionable
-  MELI_5TH_SLOT=/settings/mercadolibre
-  GLOBAL_ADMIN_LINKS=actionable
+VISIBLE_SUMMARY:
+  status
+  display name
+  username
+  System Admin yes/no
+  company membership count
 
-ACTIVE_COMPANY_SYSTEM_ADMIN:
-  SHARED_APP_SHELL=YES
-  COMPANY_BOUND_LINKS=actionable
-  GLOBAL_ADMIN_LINKS=actionable
-  MOBILE_NAV=exactly 5 slots
-  COMPANY_MELI_OWNER=/mercadolibre/accounts
-  GLOBAL_MELI_OWNER=/settings/mercadolibre
+DETAILS_IDENTITY:
+  /update form only
+
+DETAILS_SECURITY:
+  /status
+  /system-admin
+  /password
+
+DETAILS_MEMBERSHIPS:
+  current memberships
+  role update
+  remove membership
+  add/update membership
 ```
 
-### Final real-browser certification — PASS
+The three `<details>` are closed by native browser default because no `open` attribute is emitted.
 
-Certification was repeated from zero using fresh browser/session/DB/runtime evidence.
-
-Certified checkout:
+## H7B current disposition
 
 ```text
-CERTIFIED_HEAD=2c15492b28f438924f33c68cee2cef5c348d1cd1
-H7A_GREEN_ANCESTOR=f8fd6a717e526acc1c79863bd7fb948bfd351817
-BRANCH=ui/design-master-v1-20261015
-WORKING_TREE_BEFORE=CLEAN
-WORKING_TREE_AFTER=CLEAN
-CODE_CHANGED_BY_CERTIFIER=NO
-TEST_CHANGED_BY_CERTIFIER=NO
-DOCS_CHANGED_BY_CERTIFIER=NO
-NEW_COMMIT_BY_CERTIFIER=NO
-PUSH_BY_CERTIFIER=NO
-MERGE_BY_CERTIFIER=NO
-```
-
-Browser/runtime gates:
-
-```text
-H7A_BROWSER_RESULT=PASS
-SCENARIO_A_NO_ACTIVE_COMPANY=PASS
-SCENARIO_B_ACTIVE_COMPANY=PASS
-GLOBAL_ROUTES_HTTP_200=PASS
-SHARED_APP_SHELL=PASS
-OLD_SIMPLE_NAV_ABSENT=PASS
-NO_COMPANY_CONTEXT_COPY=PASS
-SYSTEM_ADMIN_ROLE_LABEL=PASS
-NO_COMPANY_DESKTOP_BOUND_LINKS=PASS
-ACTIVE_COMPANY_BOUND_LINKS=PASS
-GLOBAL_ADMIN_LINKS=PASS
-GLOBAL_MELI_DESKTOP_DUPLICATE=NO
-MOBILE_NAV_A=5 slots PASS
-MOBILE_NAV_B=5 slots PASS
-NO_COMPANY_DISABLED_SLOTS=PASS
-NO_COMPANY_MELI_SLOT=/settings/mercadolibre PASS
-APPS_LAUNCHER_A=PASS
-APPS_LAUNCHER_B=PASS
-APPS_ESCAPE_CLOSE=PASS
-APPS_FOCUS_RETURN=PASS
-SKIP_LINK_A=PASS
-SKIP_LINK_B=PASS
-ROUTE_OWNER_REGRESSION=PASS
-PAGE_HORIZONTAL_OVERFLOW=NO
-FIXED_NAV_OBSTRUCTION=NO
-CONSOLE_APP_ERRORS=0
-UNCAUGHT_JS_EXCEPTIONS=0
-APPLICATION_5XX=0
-REAL_MELI_NETWORK_CALLS=0
-DB_SCENARIO_A_BEFORE_AFTER=IDENTICAL
-DB_SCENARIO_B_BEFORE_AFTER=IDENTICAL
-BUSINESS_SIDE_EFFECTS=0
-```
-
-Independent ChatGPT evidence audit:
-
-```text
-ZIP_FILES_TOTAL=84
-MANIFEST_ENTRIES=83
-MANIFEST_SELF_EXCLUDED=YES
-MANIFEST_HASHES_MATCH=83/83
-MANIFEST_BAD_HASHES=0
-MANIFEST_MISSING_FILES=0
-UNHASHED_INTERNAL_FILES_EXCLUDING_MANIFEST=0
-EXTERNAL_REPORT_EQUALS_ZIP_REPORT=YES
-REPORT_SHA256=590736e0d23e5223e9ef0b0f955917aa9d7d4f841716858804c60b7410224684
-SOURCE_INTEGRITY_MISMATCHES=0
-DB_A_HASH_BEFORE_AFTER=IDENTICAL
-DB_B_HASH_BEFORE_AFTER=IDENTICAL
-CONSOLE_A=[]
-CONSOLE_B=[]
-APPLICATION_5XX=0
-ONLY_RECORDED_POSTS=2 login requests
-VISUAL_SAMPLE_A_DESKTOP_COMPANIES=PASS
-VISUAL_SAMPLE_A_MOBILE_MELI=PASS
-VISUAL_SAMPLE_B_DESKTOP_USERS=PASS
-VISUAL_SAMPLE_B_MOBILE_SYSTEM_BOTTOM=PASS
-VISUAL_SAMPLE_APPS_LAUNCHER=PASS
-```
-
-Scope limit remains explicit: network evidence is session-local browser/PHP access evidence, not a machine-wide packet capture. No claim of real Mercado Libre certification is made.
-
-### H7A closure decision
-
-```text
-KISS=PASS
-ANTI_NOISE=PASS
-ANTI_PATCH=PASS
-HUMAN_FIRST=PASS
-H7A_AUTOMATED_GREEN=YES
-H7A_BROWSER=PASS
-H7A_FULLY_CLOSED=YES
-```
-
-Do not reopen H7A without new evidence, regression, or a new product requirement.
-
-## Current disposition
-
-```text
-H7A_FULLY_CLOSED=YES
-H7B_USERS_PROGRESSIVE_DISCLOSURE=NOT_STARTED
-H7C_DESTRUCTIVE_ACTIONS=NOT_STARTED
-NEXT_HUMAN_FIRST_WORK_STARTED=NO
+H7B_RED=CONFIRMED
+H7B_AUTOMATED_GREEN=YES
+H7B_BROWSER=PENDING
+H7B_FULLY_CLOSED=NO
+H7C_STARTED=NO
 PR_MERGED=NO
 STOP_SAFE=YES
 ```
@@ -264,20 +204,61 @@ STOP_SAFE=YES
 ## Exact resume point
 
 ```text
-NEXT=H7B USERS PROGRESSIVE DISCLOSURE — PREFLIGHT ONLY WHEN WORK RESUMES
-DO_NOT_START_H7B_FROM_THIS_CLOSURE_TURN=YES
+NEXT=H7B REAL-BROWSER CERTIFICATION ONLY
+CANONICAL_GREEN=e6711bd9ccbb5a6298c14885f4f2341040a94343
+CANONICAL_GREEN_CI=39043131947
 ```
 
-On resume:
+Required real-browser certification:
 
-1. Read this checkpoint and the Human-First master plan.
-2. Confirm PR #19 remains OPEN / DRAFT / NOT MERGED unless the user explicitly authorized otherwise.
-3. Recheck current branch truth before H7B.
-4. Run Ready/authority handshake.
-5. Use TDD and real-browser QA according to risk.
-6. Preserve KISS / anti-noise / anti-patch / Human-First.
-7. No PR merge without explicit user approval.
+```text
+ROUTE=/system/users
+ROLE=System Admin
+VIEWPORT_DESKTOP=1440x900
+VIEWPORT_MOBILE=390x844
+HTTP_200=required
+SHARED_H7A_SHELL=preserved
+OLD_SIMPLE_NAV=absent
+MOBILE_NAV=exactly 5 slots
+CREATE_USER_FORM=expanded/present but do not submit
+USER_SUMMARY=visible without opening details
+DETAILS_COUNT_PER_USER=exactly 3
+DETAILS_DEFAULT=closed
+SUMMARY_1=Identidad
+SUMMARY_2=Seguridad y acceso global
+SUMMARY_3=Acceso por empresa
+KEYBOARD_SUMMARY_FOCUS=visible
+ENTER_SPACE_TOGGLE=works
+IDENTITY_OWNER=/update only
+SECURITY_OWNER=/status + /system-admin + /password
+MEMBERSHIP_OWNER=/membership + /remove-membership
+DO_NOT_SUBMIT_FORMS=YES
+PAGE_HORIZONTAL_OVERFLOW=NO
+FIXED_NAV_OBSTRUCTION=NO
+CONSOLE_APP_ERRORS=0
+UNCAUGHT_JS=0
+APPLICATION_5XX=0
+REAL_MELI_NETWORK_CALLS=0
+DB_BEFORE_AFTER=IDENTICAL
+BUSINESS_SIDE_EFFECTS=0
+WORKING_TREE_BEFORE_AFTER=CLEAN
+CERTIFIER_CODE_CHANGES=NO
+CERTIFIER_TEST_CHANGES=NO
+CERTIFIER_DOC_CHANGES=NO
+CERTIFIER_COMMITS=NO
+```
+
+Use at least two factual user-card states when practical:
+
+```text
+A=active + System Admin + >=1 membership
+B=disabled + non-System-Admin + 0 memberships
+```
+
+H7C destructive-action confirmation remains intentionally out of scope. First real product gate failure => capture evidence + diagnose + STOP; certifier does not repair product code.
+
+If browser PASS is independently audited, mark H7B FULLY CLOSED. Do not start H7C in the same closure turn unless the user explicitly asks to continue.
 
 ## Frozen / prohibited
 
-No broad redesign, new frontend framework, duplicate dataset/route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0, or speculative ERP1 429 architecture.
+No broad redesign, new frontend framework, duplicate dataset/route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0, speculative ERP1 429 architecture, or generic destructive-action modal during H7B.
