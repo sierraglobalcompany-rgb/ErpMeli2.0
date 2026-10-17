@@ -239,20 +239,52 @@ RED single test-only modified tests/Integration/MeliAccountLifecycleTest.php. GR
 
 No routes/schema/CSS/JS/OAuth/Work/Financial/Billing/retry/FIFO/429 redesign.
 
+### H7C-B2 final browser certification — independently audited PASS
+
+```text
+H7C_B2_RED=3595880b6f4e6cdaeef6cc0ebff9f85c0e7cb723
+H7C_B2_RED_CI=39072807611 EXPECTED FAILURE
+H7C_B2_GREEN=d00eb26f37488d8552d2b1598d5b27dcb76967dd
+H7C_B2_GREEN_CI=39073100289 SUCCESS
+GREEN_QA=828 tests / 7037 assertions / 0 failures on PHP 8.3
+PHP_8_4_8_5_AND_PHPSTAN=PASS
+BROWSER_CERTIFIED_HEAD=21968d5ba0770f59db3e88348bb90d4ff6c506f6
+BROWSER_HEAD_CI=39073464183 SUCCESS
+H7C_B2_BROWSER_CERTIFIED=YES
+H7C_B2_INDEPENDENT_AUDIT=PASS
+H7C_B2_FULLY_CLOSED=YES
+REAL_CHROME=155.0.8059.84
+MOBILE=390x844 PASS
+DESKTOP=1440x900 PASS
+COMPANY_ADMIN_200=PASS
+NONADMIN_403=PASS
+KEYBOARD_ENTER_SPACE=PASS
+REQUIRED_ACK_NATIVE_VALIDITY=PASS
+BROWSER_NETWORK_MELI_CALLS=0
+BROWSER_DESTRUCTIVE_POSTS=0
+BUSINESS_DB_BEFORE_AFTER=IDENTICAL
+GIT_CERTIFIER_WRITES=0
+EVIDENCE_MANIFEST=26/26 VERIFIED
+EVIDENCE_ZIP_SHA256=f9e95998b5cb0802bab5a7df271715552c9b55b039e3b10bac9583ee0abb8753
+```
+
+Independent ChatGPT audit of user uploads: the reported final ZIP and supplemental timestamp ZIP contain **byte-identical 27 members** (26 manifest entries + manifest) despite differing ZIP-level hashes. Five images, machine-readable DOM/keyboard/mobile/network, preserved DB and live GitHub CI checked. One raw console error refers to deliberate negative authorization 403 (`chrome-error://chromewebdata/`), not a JavaScript exception. Two favicon 404 are incidental. A standalone checksum sidecar was not uploaded; ChatGPT independently generated one and verified its contents against the reported final ZIP digest. No claim that Antigravity attached it.
+
 ### Exact NEXT
 
-NEXT=H7C-B2 REAL-BROWSER CERTIFICATION ONLY
+```text
+NEXT=H7C-C SYSTEM CLEAR DEBUG READ-ONLY PREFLIGHT
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
-H7C_B2_AUTOMATED_GREEN=YES
-H7C_B2_BROWSER_CERTIFIED=NO
-H7C_B2_FULLY_CLOSED=NO
+H7C_B2_FULLY_CLOSED=YES
 H7C_C_STARTED=NO
 H7C_D_STARTED=NO
+NO_H7C_C_IMPLEMENTATION_UNTIL_PRECISE_OWNER_AND_RED=YES
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
+```
 
-Use real Chrome and disposable TEST fixtures; verify company admin GET 200 and nonadmin 403; delete disclosure only for eligible disabled pristine accounts; required checkbox and native validity without any destructive submission; keyboard Enter/Space; mobile 390x844 five nav slots/no obstruction; shared shell; no app JS/5xx; zero real MELI browser traffic; DB snapshots identical; clean Git pre/post. Antigravity is certifier only. Return report + evidence ZIP + SHA-256 sidecar to ChatGPT before closing B2 or starting H7C-C.
+Do not reopen H7C-B2, OAuth, Financial, Billing, Work, 429, FIFO or retry architecture without new evidence. Inspect exact routes/controller/views/tests before any H7C-C code work. No production operations or real MELI calls.
 
 ## Recovery sources
 
