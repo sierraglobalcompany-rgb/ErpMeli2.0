@@ -174,9 +174,9 @@ Attached audit inputs (not source files in repository):
 
 Minor notes: favicon 404 was classified infrastructure/static; Apps launcher focus-inside measured before animation frame, but Escape + focus-return passed. These are non-blockers, not grounds for a patch.
 
-## H7C-B1 — disconnect UX, automated GREEN (pending real browser)
+## H7C-B1 — disconnect UX FULLY CLOSED
 
-Scope is solely the operator presentation of disconnect for a connected Mercado Libre account in `app/Modules/Settings/views/meli-accounts.php`. Backend `MeliAccountController::disconnect` and all routes remain unchanged; company-admin role, CSRF, account company scope, work-in-progress 409, local token removal and `status=disabled` invariants are preserved.
+Scope remained only `app/Modules/Settings/views/meli-accounts.php`: wrap connected-account disconnect in closed-by-default `<details>` explaining local credential removal, account deactivation inside this ERP, retained history, possible reauthorization. Existing POST/CSRF kept; no controller, route, schema, JS, CSS, OAuth, Work or Financial modification.
 
 ```text
 H7C_B1_RED=d6b96bcbc5b7189b231ae84c8e03ed881858d912
@@ -188,35 +188,52 @@ GREEN_PHP_8_3=826 tests / 7027 assertions / 0 failures
 GREEN_PHP_8_4=PASS
 GREEN_PHP_8_5=PASS
 GREEN_PHPSTAN=PASS
-DIFF_FROM_RED_TO_GREEN=app/Modules/Settings/views/meli-accounts.php ONLY (+8/-4)
-BACKEND_CHANGED=NO
-ROUTES_CHANGED=NO
-SCHEMA_CHANGED=NO
-CSS_CHANGED=NO
-JS_CHANGED=NO
-WORK_CHANGED=NO
-FINANCIAL_CHANGED=NO
-REAL_MELI_HTTP=0
+RED_GREEN_DIFF=view only +8/-4
+CERTIFIED_HEAD=ce09d7b21bb6d619884307959b13c58cd9faf842
+CERTIFIED_HEAD_CI=39071315439 SUCCESS
+BROWSER_REAL_LOCAL_CHROME=YES
+BROWSER_DESKTOP_1440x900=PASS
+BROWSER_MOBILE_390x844=PASS
+COMPANY_ADMIN_GET_200=PASS
+NON_ADMIN_GET_403=PASS
+DETAILS_KEYBOARD_ENTER_SPACE=PASS
+SHARED_H7A_SHELL=PASS
+MOBILE_NAV_SLOTS=5
+APPLICATION_JS_ERRORS=0
+APPLICATION_5XX=0
+REAL_MELI_BROWSER_CALLS=0
+DESTRUCTIVE_POSTS=0
+DB_BEFORE_AFTER=IDENTICAL
+CERTIFIER_WORKTREE_AFTER=CLEAN
+CERTIFIER_WRITES=0
+INDEPENDENT_AUDIT=PASS
+H7C_B1_BROWSER_CERTIFIED=YES
+H7C_B1_FULLY_CLOSED=YES
+MANIFEST=26/26
+ZIP_SHA256=ce44f76272dd5743abc23f60ef6ea95a151e9a34e8944a32180172aebca71350
+PR_MERGED=NO
 ```
 
-Observed RED defect: POST `Desconectar` was directly exposed as a one-click action in the account table without explaining impacts. GREEN: native `<details data-meli-destructive-action="disconnect">` + descriptive copy + explicit `Confirmar desconexión` button; existing POST and CSRF stay inside; reauthorize and hard-delete unchanged.
+Independent audit inputs external to repository: `ERP_MELI_2_0_H7C_B1_ANTIGRAVITY_BROWSER_REPORT_2026-10-17.md`, `ERP_MELI_2_0_H7C_B1_ANTIGRAVITY_BROWSER_EVIDENCE_2026-10-17.zip`, and matching `.zip.sha256`. All 26/26 SHA-256 manifest entries verified, 5 screenshots reviewed, Chrome session network and DB before/after inspected, RED/GREEN and CI checked against live GitHub.
 
 ### Exact NEXT
 
 ```text
-NEXT=H7C-B1 REAL-BROWSER CERTIFICATION ONLY
+NEXT=H7C-B2 HARD DELETE CONFIRMATION — FIRST RED TEST
 H7C_A_FULLY_CLOSED=YES
-H7C_B1_AUTOMATED_GREEN=YES
-H7C_B1_BROWSER_CERTIFIED=NO
-H7C_B1_FULLY_CLOSED=NO
+H7C_B1_FULLY_CLOSED=YES
 H7C_B2_STARTED=NO
 H7C_C_STARTED=NO
 H7C_D_STARTED=NO
+H7C_B2_OWNER=MeliAccountController::hardDelete + views/meli-accounts.php
+H7C_B2_DEFECT=direct hard-delete POST can succeed without explicit confirmation acknowledgement
+H7C_B2_GUARDS=company admin / CSRF / status disabled / persisted-history check MUST REMAIN
+NO_REAL_MELI=YES
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
 ```
 
-Run certification in real local Chrome against H7C-B1 GREEN only, in isolated TEST environment. Require desktop/mobile, keyboard disclosure, factual copy, admin 200 and nonadmin 403, responsive table/mobile five slots, no overflow or nav obstruction, console/network, no destructive POST or real MELI browser network, DB identical, Git clean, no certifier product edits. Three external evidence artifacts: Markdown report + ZIP + SHA-256 sidecar; ChatGPT independently audits them **before H7C-B1 closure**. H7C-B2 hard-delete UX and server acknowledgement stay FROZEN.
+Prepare RED for missing/invalid `confirm_permanent_delete` on eligible disabled pristine account, proving HTTP 422, unchanged row; after RED verified apply minimal GREEN in owner and view, with existing successful deletion tests updated only for valid acknowledgment. Preserve 403/404/409/419 and no changes to history predicates or remote integrations. Chrome/browser independent QA follows GREEN.
 
 ## Recovery sources
 
