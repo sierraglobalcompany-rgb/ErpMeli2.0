@@ -49,6 +49,10 @@ foreach ($accounts as $account) {
                             <h2 id="billing-sync-title">Solicitar período</h2>
                         </div>
                     </div>
+                    <?php if ($accounts === []): ?>
+                        <p class="empty-state">No hay cuentas Mercado Libre conectadas disponibles para solicitar una sincronización.</p>
+                        <a class="button" href="/mercadolibre/accounts">Administrar cuentas Mercado Libre</a>
+                    <?php else: ?>
                     <form class="settings-form" method="post" action="/billing/syncs">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                         <label>Cuenta <select name="account_id" required>
@@ -64,6 +68,7 @@ foreach ($accounts as $account) {
                         <button type="submit">Solicitar sincronización</button>
                     </form>
                     <p class="notice">La solicitud registra trabajo pendiente. No consulta Mercado Libre desde esta página.</p>
+                    <?php endif; ?>
                 </section>
                 <?php endif; ?>
 
