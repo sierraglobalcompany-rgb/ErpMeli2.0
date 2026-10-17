@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7C-A FULLY CLOSED / H7C-B1 FULLY CLOSED (INDEPENDENT BROWSER EVIDENCE PASS) / H7C-B2 RED NEXT / H7C-C-D NOT STARTED / STOP-SAFE**
+**CURRENT=H7C-A/B1 FULLY CLOSED / H7C-B2 HARD DELETE AUTOMATED GREEN (REAL-BROWSER PENDING) / H7C-C-D NOT STARTED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -361,23 +361,59 @@ Evidence originals (external to repository):
 
 Incidental favicon 404 and deliberate non-admin HTTP 403 are classified, not evidence of application malfunction. Browser-session zero network calls does not imply machine-wide capture.
 
-## Exact resume point — H7C-B2
+## H7C-B2 — MELI hard delete, automated GREEN; real browser PENDING
+
+Precise owner `app/Modules/Settings/MeliAccountController.php` and `app/Modules/Settings/views/meli-accounts.php`. Root human-confirmation defect was proven: a company-admin CSRF-valid POST deleting an eligible disabled pristine account without `confirm_permanent_delete` returned 303 instead of 422. Existing company/CSRF/status/history authorization gates remain authoritative and unchanged.
+
+RED:
+```text
+H7C_B2_RED=3595880b6f4e6cdaeef6cc0ebff9f85c0e7cb723
+H7C_B2_RED_CI=39072807611 EXPECTED FAILURE
+RED_PHP_8_3=827 tests / 7028 assertions / 1 failure
+RED_ONLY_FAILURE=MeliAccountLifecycleTest::testHardDeleteRequiresExplicitAcknowledgementEvenWithValidCsrf
+RED_OBSERVED_HTTP=303
+RED_EXPECTED_HTTP=422
+RED_PRODUCTION_CHANGED=NO
+```
+
+GREEN:
+```text
+H7C_B2_GREEN=d00eb26f37488d8552d2b1598d5b27dcb76967dd
+H7C_B2_GREEN_CI=39073100289 SUCCESS
+GREEN_PHP_8_3=828 tests / 7037 assertions / 0 failures
+GREEN_PHP_8_4=828 tests / 7037 assertions / 0 failures
+GREEN_PHP_8_5=828 tests / 7037 assertions / 0 failures
+PHPSTAN=PASS ALL 3
+GREEN_FILES=app/Modules/Settings/MeliAccountController.php;app/Modules/Settings/views/meli-accounts.php;tests/Integration/MeliAccountLifecycleTest.php
+ROUTES_CHANGED=NO
+SCHEMA_CHANGED=NO
+CSS_CHANGED=NO
+JS_CHANGED=NO
+WORK_CHANGED=NO
+FINANCIAL_CHANGED=NO
+OAUTH_CHANGED=NO
+REAL_MELI_HTTP=0
+```
+
+Controller: on disabled pristine account after existing history checks, missing/invalid ack returns 422 without deletion, only exact `confirm_permanent_delete='1'` can proceed. UI: native `<details data-meli-destructive-action="delete">` closed by default, factual local-only copy, form CSRF, required checkbox, explicit destructive button. Positive delete and 404/409/419 regression tests retained; RED + HTML test now pass.
+
+## Exact resume point
 
 ```text
-NEXT=H7C-B2 HARD DELETE HUMAN-FIRST RED TEST
+NEXT=H7C-B2 REAL-BROWSER CERTIFICATION ONLY
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
-H7C_B2_STARTED=NO
-H7C_B2_OWNER=app/Modules/Settings/MeliAccountController.php + views/meli-accounts.php
-H7C_B2_SCOPE=disabled pristine MELI account hard-delete UX + server-side acknowledgement
+H7C_B2_AUTOMATED_GREEN=YES
+H7C_B2_BROWSER_CERTIFIED=NO
+H7C_B2_FULLY_CLOSED=NO
 H7C_C_STARTED=NO
 H7C_D_STARTED=NO
-PR_MERGED=NO
+PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
 ```
 
-Do not change account history-sufficiency/deletability, OAuth, Work, Financial, Billing, FIFO, retry/429, remote MELI, Hostinger or cron. RED must demonstrate missing human acknowledgement on a CSRF-valid direct POST without deleting test data; GREEN minimal and scoped. Preserve 403/404/409/419 and existing successful deletion with proper acknowledgement. Validate CI before browser certification.
+Use Antigravity real local Chrome only, isolated TEST, no destructive POST. Certify admin 200/nonadmin 403, eligible vs history-bound account, archive-free native delete disclosure, copy, required checkbox and native validity without submit, Enter/Space, desktop 1440x900, mobile 390x844, shared H7A shell, mobile five slots, no overflow/obstruction, DB before/after identical, Git pre/post clean, zero real MELI calls. Require external Markdown report + ZIP + SHA-256 sidecar, independently audited by ChatGPT before closure. The exact browser prompt is a downloadable conversation artifact: `ERP_MELI_2_0_PROMPT_ANTIGRAVITY_H7C_B2_BROWSER_CERTIFICATION_FORENSIC_V1_2026-10-17.md`. No H7C-C until audit PASS.
 
 ## ERP1 / 429 frozen truth
 
