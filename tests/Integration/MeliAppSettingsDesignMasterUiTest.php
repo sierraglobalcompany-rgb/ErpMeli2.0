@@ -74,7 +74,7 @@ final class MeliAppSettingsDesignMasterUiTest extends TestCase
         parent::tearDown();
     }
 
-    public function testGlobalMeliSettingsUseDesignMasterPanelsWithoutChangingGlobalOwner(): void
+    public function testGlobalMeliSettingsUseSharedShellWithoutChangingGlobalOwner(): void
     {
         $response = Bootstrap::create()->handle(
             (new ServerRequestFactory())->createServerRequest('GET', '/settings/mercadolibre')
@@ -83,8 +83,22 @@ final class MeliAppSettingsDesignMasterUiTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
 
-        self::assertStringContainsString('class="simple-page meli-app-settings-workspace"', $html);
+        self::assertStringContainsString('class="app-shell-chrome"', $html);
+        self::assertStringContainsString('id="main-content"', $html);
+        self::assertStringContainsString('class="meli-app-settings-workspace"', $html);
+        self::assertStringNotContainsString('class="simple-nav"', $html);
         self::assertStringContainsString('data-design-master-page="meli-app-settings"', $html);
+        self::assertStringContainsString('Sin empresa activa', $html);
+        self::assertStringContainsString('Administrador del sistema', $html);
+        self::assertStringContainsString('href="/system/companies"', $html);
+        self::assertStringContainsString('href="/system/users"', $html);
+        self::assertStringContainsString('href="/settings/system"', $html);
+        self::assertStringContainsString('href="/settings/mercadolibre"', $html);
+        self::assertStringNotContainsString('href="/dashboard"', $html);
+        self::assertStringNotContainsString('href="/sales"', $html);
+        self::assertStringNotContainsString('href="/catalog"', $html);
+        self::assertStringNotContainsString('href="/billing"', $html);
+        self::assertSame(5, substr_count($html, 'data-mobile-nav-item='));
         self::assertStringContainsString('class="panel panel-full meli-app-status-panel"', $html);
         self::assertStringContainsString('class="panel meli-app-credentials-panel"', $html);
         self::assertStringContainsString('class="panel meli-app-clear-panel"', $html);

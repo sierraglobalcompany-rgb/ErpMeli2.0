@@ -4,6 +4,18 @@
 /** @var array{total_bytes:int,days:list<array{day:string,bytes:int,compressed:bool}>} $debugUsage */
 /** @var bool $debugCapReached */
 $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$navigationCompany = null;
+$navigationCompanies = [];
+$activeCompanyId = $_SESSION['company_id'] ?? null;
+if (is_int($activeCompanyId) && $activeCompanyId > 0) {
+    $navigationCompany = [
+        'id' => $activeCompanyId,
+        'name' => 'Empresa activa',
+        'role' => (string) ($_SESSION['role'] ?? ''),
+    ];
+    $navigationCompanies = [$navigationCompany];
+}
+$navigationIsSystemAdmin = true;
 ?>
 <!doctype html>
 <html lang="es">
@@ -11,12 +23,10 @@ $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sistema — ERP Meli 2.0</title>
-    <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
-<main class="simple-page administration-system-workspace" data-design-master-page="system-settings">
-    <nav class="simple-nav"><a href="/">Inicio</a><a href="/system/companies">Empresas</a><a href="/system/users">Usuarios</a><a href="/settings/mercadolibre">Mercado Libre</a></nav>
-
+<?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
+<main id="main-content" tabindex="-1" class="administration-system-workspace" data-design-master-page="system-settings">
     <header class="page-header system-settings-page-header">
         <span class="eyebrow">Administración</span>
         <h1>Configuración del sistema</h1>

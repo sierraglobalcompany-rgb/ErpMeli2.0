@@ -12,7 +12,7 @@ use Tests\Support\TestDatabase;
 
 final class UserDesignMasterUiTest extends TestCase
 {
-    public function testUsersUseDesignMasterAdministrationSurfaceWithoutChangingUserOwner(): void
+    public function testUsersUseSharedDesignMasterAdministrationShellWithoutChangingUserOwner(): void
     {
         $pdo = TestDatabase::reset();
         $auth = new AuthService($pdo);
@@ -26,7 +26,10 @@ final class UserDesignMasterUiTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
 
-        self::assertStringContainsString('class="simple-page administration-users-workspace"', $html);
+        self::assertStringContainsString('class="app-shell-chrome"', $html);
+        self::assertStringContainsString('id="main-content"', $html);
+        self::assertStringContainsString('class="administration-users-workspace"', $html);
+        self::assertStringNotContainsString('class="simple-nav"', $html);
         self::assertStringContainsString('data-design-master-page="users"', $html);
         self::assertStringContainsString('class="page-header users-page-header"', $html);
         self::assertStringContainsString('class="panel panel-full users-create-panel"', $html);

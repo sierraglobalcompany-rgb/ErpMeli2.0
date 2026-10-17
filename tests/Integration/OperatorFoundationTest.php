@@ -267,7 +267,7 @@ final class OperatorFoundationTest extends TestCase
     public function testOperatorCanReturnFromSettingsAndLoginInputsAreLabelled(): void
     {
         $html = (string) $this->request('GET', '/settings/system')->getBody();
-        self::assertStringContainsString('href="/"', $html);
+        self::assertStringContainsString('href="/dashboard"', $html);
         self::assertStringContainsString('href="/system/companies"', $html);
         $html = (string) $this->request('GET', '/login')->getBody();
         self::assertStringContainsString('<label', $html);

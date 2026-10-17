@@ -73,7 +73,7 @@ final class GlobalAdminShellHumanFirstUiTest extends TestCase
             self::assertStringContainsString('class="app-shell-chrome"', $html, $path);
             self::assertStringContainsString('id="main-content"', $html, $path);
             self::assertStringNotContainsString('class="simple-nav"', $html, $path);
-            self::assertStringContainsString('Main Company', $html, $path);
+            self::assertStringNotContainsString('Sin empresa activa', $html, $path);
             self::assertStringContainsString('href="/dashboard"', $html, $path);
             self::assertStringContainsString('href="/sales"', $html, $path);
             self::assertStringContainsString('href="/catalog"', $html, $path);

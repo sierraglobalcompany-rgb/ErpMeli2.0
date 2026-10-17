@@ -12,7 +12,7 @@ use Tests\Support\TestDatabase;
 
 final class CompanyDesignMasterUiTest extends TestCase
 {
-    public function testCompaniesUseDesignMasterAdministrationSurfaceWithoutChangingOwner(): void
+    public function testCompaniesUseSharedDesignMasterAdministrationShellWithoutChangingOwner(): void
     {
         $pdo = TestDatabase::reset();
         $auth = new AuthService($pdo);
@@ -26,7 +26,10 @@ final class CompanyDesignMasterUiTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
 
-        self::assertStringContainsString('class="simple-page administration-companies-workspace"', $html);
+        self::assertStringContainsString('class="app-shell-chrome"', $html);
+        self::assertStringContainsString('id="main-content"', $html);
+        self::assertStringContainsString('class="administration-companies-workspace"', $html);
+        self::assertStringNotContainsString('class="simple-nav"', $html);
         self::assertStringContainsString('data-design-master-page="companies"', $html);
         self::assertStringContainsString('class="page-header companies-page-header"', $html);
         self::assertStringContainsString('class="panel panel-full companies-create-panel"', $html);

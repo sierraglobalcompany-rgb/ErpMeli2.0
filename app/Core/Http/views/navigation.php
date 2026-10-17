@@ -2,21 +2,28 @@
 
 declare(strict_types=1);
 
-/** @var array{id:int,name:string,role:string}|null $company */
-/** @var list<array{id:int,name:string,role:string}> $companies */
 /** @var string $csrfToken */
 
+$navCompany = isset($navigationCompany) && is_array($navigationCompany)
+    ? $navigationCompany
+    : ((isset($company) && is_array($company)) ? $company : null);
+$navCompanies = isset($navigationCompanies) && is_array($navigationCompanies)
+    ? $navigationCompanies
+    : ((isset($companies) && is_array($companies)) ? $companies : []);
 $currentPath = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
-$isSystemAdmin = (bool) ($_SESSION['is_system_admin'] ?? false);
-$isCompanyAdmin = (($company['role'] ?? '') === 'admin');
+$isSystemAdmin = isset($navigationIsSystemAdmin)
+    ? (bool) $navigationIsSystemAdmin
+    : (bool) ($_SESSION['is_system_admin'] ?? false);
+$isCompanyAdmin = (($navCompany['role'] ?? '') === 'admin');
+$hasActiveCompany = $navCompany !== null;
 $displayName = trim((string) ($_SESSION['display_name'] ?? 'Usuario'));
-$companyName = trim((string) ($company['name'] ?? 'Sin empresa'));
-$companyRole = (string) ($company['role'] ?? '');
+$companyName = $hasActiveCompany ? trim((string) $navCompany['name']) : 'Sin empresa activa';
+$companyRole = (string) ($navCompany['role'] ?? '');
 $roleLabel = match ($companyRole) {
     'admin' => 'Administrador',
     'operator', 'member' => 'Operador',
     'viewer' => 'Consulta',
-    default => 'Usuario',
+    default => $isSystemAdmin ? 'Administrador del sistema' : 'Usuario',
 };
 $meliHref = $isCompanyAdmin
     ? '/mercadolibre/accounts'
@@ -71,36 +78,38 @@ $isActive = static fn (string $path): bool => $path === '/'
         <div class="sidebar-company">
             <span>Empresa activa</span>
             <strong><?= htmlspecialchars($companyName, ENT_QUOTES, 'UTF-8') ?></strong>
-            <?php if (count($companies) > 1): ?>
+            <?php if (count($navCompanies) > 1): ?>
                 <a href="/company/select"><?= $icons['switch'] ?><span>Cambiar empresa</span></a>
             <?php endif; ?>
         </div>
 
         <nav class="sidebar-nav" aria-label="Áreas del ERP">
-            <div class="sidebar-group">
-                <span class="sidebar-label">General</span>
-                <a class="<?= $isActive('/dashboard') ? 'is-active' : '' ?>" href="/dashboard"><?= $icons['home'] ?><span>Inicio / Resumen</span></a>
-            </div>
+            <?php if ($hasActiveCompany): ?>
+                <div class="sidebar-group">
+                    <span class="sidebar-label">General</span>
+                    <a class="<?= $isActive('/dashboard') ? 'is-active' : '' ?>" href="/dashboard"><?= $icons['home'] ?><span>Inicio / Resumen</span></a>
+                </div>
 
-            <div class="sidebar-group">
-                <span class="sidebar-label">Operación</span>
-                <a class="<?= $isActive('/sales') ? 'is-active' : '' ?>" href="/sales"><?= $icons['sales'] ?><span>Ventas</span></a>
-            </div>
+                <div class="sidebar-group">
+                    <span class="sidebar-label">Operación</span>
+                    <a class="<?= $isActive('/sales') ? 'is-active' : '' ?>" href="/sales"><?= $icons['sales'] ?><span>Ventas</span></a>
+                </div>
 
-            <div class="sidebar-group">
-                <span class="sidebar-label">Productos</span>
-                <a class="<?= $isActive('/catalog') ? 'is-active' : '' ?>" href="/catalog"><?= $icons['products'] ?><span>Catálogo e inventario</span></a>
-            </div>
+                <div class="sidebar-group">
+                    <span class="sidebar-label">Productos</span>
+                    <a class="<?= $isActive('/catalog') ? 'is-active' : '' ?>" href="/catalog"><?= $icons['products'] ?><span>Catálogo e inventario</span></a>
+                </div>
 
-            <div class="sidebar-group">
-                <span class="sidebar-label">Finanzas</span>
-                <a class="<?= $isActive('/billing') ? 'is-active' : '' ?>" href="/billing"><?= $icons['billing'] ?><span>Facturación</span></a>
-            </div>
+                <div class="sidebar-group">
+                    <span class="sidebar-label">Finanzas</span>
+                    <a class="<?= $isActive('/billing') ? 'is-active' : '' ?>" href="/billing"><?= $icons['billing'] ?><span>Facturación</span></a>
+                </div>
+            <?php endif; ?>
 
-            <?php if ($meliHref !== null): ?>
+            <?php if ($meliHref !== null && $isCompanyAdmin): ?>
                 <div class="sidebar-group">
                     <span class="sidebar-label">Mercado Libre</span>
-                    <a class="<?= $isActive($meliHref) ? 'is-active' : '' ?>" href="<?= htmlspecialchars($meliHref, ENT_QUOTES, 'UTF-8') ?>"><?= $icons['meli'] ?><span><?= $isCompanyAdmin ? 'Cuentas' : 'Configuración MELI' ?></span></a>
+                    <a class="<?= $isActive($meliHref) ? 'is-active' : '' ?>" href="<?= htmlspecialchars($meliHref, ENT_QUOTES, 'UTF-8') ?>"><?= $icons['meli'] ?><span>Cuentas</span></a>
                 </div>
             <?php endif; ?>
 
@@ -122,18 +131,33 @@ $isActive = static fn (string $path): bool => $path === '/'
     </aside>
 
     <nav class="mobile-bottom-nav" aria-label="Navegación móvil">
-        <a data-mobile-nav-item="inicio" class="<?= $isActive('/dashboard') ? 'is-active' : '' ?>" href="/dashboard">
-            <span class="mobile-nav-icon"><?= $icons['home'] ?></span><span>Inicio</span>
-        </a>
-        <a data-mobile-nav-item="operacion" class="<?= $isActive('/sales') ? 'is-active' : '' ?>" href="/sales">
-            <span class="mobile-nav-icon"><?= $icons['sales'] ?></span><span>Operación</span>
-        </a>
+        <?php if ($hasActiveCompany): ?>
+            <a data-mobile-nav-item="inicio" class="<?= $isActive('/dashboard') ? 'is-active' : '' ?>" href="/dashboard">
+                <span class="mobile-nav-icon"><?= $icons['home'] ?></span><span>Inicio</span>
+            </a>
+            <a data-mobile-nav-item="operacion" class="<?= $isActive('/sales') ? 'is-active' : '' ?>" href="/sales">
+                <span class="mobile-nav-icon"><?= $icons['sales'] ?></span><span>Operación</span>
+            </a>
+        <?php else: ?>
+            <span data-mobile-nav-item="inicio" class="is-disabled" aria-disabled="true">
+                <span class="mobile-nav-icon"><?= $icons['home'] ?></span><span>Inicio</span>
+            </span>
+            <span data-mobile-nav-item="operacion" class="is-disabled" aria-disabled="true">
+                <span class="mobile-nav-icon"><?= $icons['sales'] ?></span><span>Operación</span>
+            </span>
+        <?php endif; ?>
         <button data-mobile-nav-item="apps" class="mobile-apps-button" type="button" data-apps-launcher-open aria-controls="apps-launcher" aria-expanded="false">
             <span class="mobile-apps-orb"><?= $icons['apps'] ?></span><span>Apps</span>
         </button>
-        <a data-mobile-nav-item="productos" class="<?= $isActive('/catalog') ? 'is-active' : '' ?>" href="/catalog">
-            <span class="mobile-nav-icon"><?= $icons['products'] ?></span><span>Productos</span>
-        </a>
+        <?php if ($hasActiveCompany): ?>
+            <a data-mobile-nav-item="productos" class="<?= $isActive('/catalog') ? 'is-active' : '' ?>" href="/catalog">
+                <span class="mobile-nav-icon"><?= $icons['products'] ?></span><span>Productos</span>
+            </a>
+        <?php else: ?>
+            <span data-mobile-nav-item="productos" class="is-disabled" aria-disabled="true">
+                <span class="mobile-nav-icon"><?= $icons['products'] ?></span><span>Productos</span>
+            </span>
+        <?php endif; ?>
         <?php if ($meliHref !== null): ?>
             <a data-mobile-nav-item="mercado-libre" class="<?= $isActive($meliHref) ? 'is-active' : '' ?>" href="<?= htmlspecialchars($meliHref, ENT_QUOTES, 'UTF-8') ?>">
                 <span class="mobile-nav-icon"><?= $icons['meli'] ?></span><span>Mercado Libre</span>
@@ -156,9 +180,11 @@ $isActive = static fn (string $path): bool => $path === '/'
                 <button class="apps-launcher-close" type="button" data-apps-launcher-close aria-label="Cerrar">×</button>
             </div>
             <div class="apps-grid">
-                <a href="/sales"><?= $icons['sales'] ?><span>Ventas</span><small>Operación</small></a>
-                <a href="/catalog"><?= $icons['products'] ?><span>Productos</span><small>Catálogo e inventario</small></a>
-                <a href="/billing"><?= $icons['billing'] ?><span>Facturación</span><small>Finanzas</small></a>
+                <?php if ($hasActiveCompany): ?>
+                    <a href="/sales"><?= $icons['sales'] ?><span>Ventas</span><small>Operación</small></a>
+                    <a href="/catalog"><?= $icons['products'] ?><span>Productos</span><small>Catálogo e inventario</small></a>
+                    <a href="/billing"><?= $icons['billing'] ?><span>Facturación</span><small>Finanzas</small></a>
+                <?php endif; ?>
                 <?php if ($isCompanyAdmin): ?>
                     <a href="/mercadolibre/accounts"><?= $icons['meli'] ?><span>Cuentas MELI</span><small>Conexiones</small></a>
                 <?php endif; ?>

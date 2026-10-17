@@ -8,18 +8,33 @@ declare(strict_types=1);
 /** @var string $csrfToken */
 $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 $passwordMin = \App\Core\Auth\PasswordService::MIN_LENGTH;
+$navigationCompany = null;
+$navigationCompanies = [];
+$activeCompanyId = $_SESSION['company_id'] ?? null;
+if (is_int($activeCompanyId) && $activeCompanyId > 0) {
+    foreach ($companies as $candidate) {
+        if ((int) $candidate['id'] === $activeCompanyId && $candidate['archived_at'] === null) {
+            $navigationCompany = [
+                'id' => $activeCompanyId,
+                'name' => (string) $candidate['name'],
+                'role' => (string) ($_SESSION['role'] ?? ''),
+            ];
+            $navigationCompanies = [$navigationCompany];
+            break;
+        }
+    }
+}
+$navigationIsSystemAdmin = true;
 ?>
 <!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Usuarios — ERP Meli 2.0</title>
-<link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
-<main class="simple-page administration-users-workspace" data-design-master-page="users">
-<nav class="simple-nav"><a href="/">Inicio</a><a href="/system/companies">Empresas</a><a href="/system/users">Usuarios</a><a href="/settings/system">Configuración</a><a href="/settings/mercadolibre">Mercado Libre</a></nav>
-
+<?php require __DIR__ . '/navigation.php'; ?>
+<main id="main-content" tabindex="-1" class="administration-users-workspace" data-design-master-page="users">
 <header class="page-header users-page-header">
     <span class="eyebrow">Administración</span>
     <h1>Usuarios y permisos</h1>
@@ -103,8 +118,6 @@ $passwordMin = \App\Core\Auth\PasswordService::MIN_LENGTH;
         </div>
     </section>
 </div>
-
-<form method="post" action="/logout"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><button>Cerrar sesión</button></form>
 </main>
 </body>
 </html>

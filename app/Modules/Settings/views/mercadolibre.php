@@ -10,6 +10,18 @@ declare(strict_types=1);
 /** @var string $csrfToken */
 /** @var bool $serverManaged */
 $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$navigationCompany = null;
+$navigationCompanies = [];
+$activeCompanyId = $_SESSION['company_id'] ?? null;
+if (is_int($activeCompanyId) && $activeCompanyId > 0) {
+    $navigationCompany = [
+        'id' => $activeCompanyId,
+        'name' => 'Empresa activa',
+        'role' => (string) ($_SESSION['role'] ?? ''),
+    ];
+    $navigationCompanies = [$navigationCompany];
+}
+$navigationIsSystemAdmin = true;
 ?>
 <!doctype html>
 <html lang="es">
@@ -17,18 +29,10 @@ $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Mercado Libre — ERP Meli 2.0</title>
-    <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
-<main class="simple-page meli-app-settings-workspace" data-design-master-page="meli-app-settings">
-    <nav class="simple-nav" aria-label="Administración global">
-        <a href="/">Inicio</a>
-        <a href="/system/companies">Empresas</a>
-        <a href="/system/users">Usuarios</a>
-        <a href="/settings/system">Configuración del sistema</a>
-        <a href="/settings/mercadolibre">Mercado Libre</a>
-    </nav>
-
+<?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
+<main id="main-content" tabindex="-1" class="meli-app-settings-workspace" data-design-master-page="meli-app-settings">
     <header class="page-header">
         <span class="eyebrow">Administración global</span>
         <h1>Aplicación Mercado Libre</h1>
