@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H6B BILLING HUMAN-FIRST TECHNICAL CURSOR FULLY CLOSED / H6C READY / H6C NOT STARTED / STOP-SAFE**
+**CURRENT=H6C BILLING HUMAN-FIRST ACCOUNT LABEL FULLY CLOSED / BILLING RESIDUAL PREFLIGHT NEXT / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -43,7 +43,7 @@ docs/UX_HUMAN_FIRST_MASTER_AUDIT_AND_IMPROVEMENT_PLAN_2026-10-16.md
 
 Historical ERP1 429 causality remains `NOT_PROVEN`. Do not encode guesses about FIFO, batching, gRPC, waits, retries or transport as ERP2 architecture without fresh evidence.
 
-## Certified history
+## Certified Human-First history
 
 ```text
 H1-FIX1 Sale Detail browser hierarchy = GREEN
@@ -90,35 +90,63 @@ Preserved truth:
 
 ### Proven defect
 
-`Cursor confirmado` is technical implementation detail and was exposed in the first information layer of the selected Billing request. Human-First requires the technical value to remain available but secondary. `Progreso persistido` and `Última lectura persistida (UTC)` remain primary operational facts.
+`Cursor confirmado` was technical implementation detail exposed in the first information layer. Human-First requires it to remain available but secondary; `Progreso persistido` and `Última lectura persistida (UTC)` remain primary operational facts.
 
 ```text
-DEFECT=technical cursor exposed in primary information layer
-ROOT_LAYER=presentation hierarchy only
-BACKEND_CHANGE_REQUIRED=NO
-CONTROLLER_CHANGE_REQUIRED=NO
-ROUTE_CHANGE_REQUIRED=NO
-SCHEMA_CHANGE_REQUIRED=NO
-WORK_CHANGE_REQUIRED=NO
-FINANCIAL_CHANGE_REQUIRED=NO
-429_ARCHITECTURE_CHANGE_REQUIRED=NO
-CSS_CHANGE_REQUIRED=NO
-JS_CHANGE_REQUIRED=NO
+H6B_RED_COMMIT=2b970371472426f37f9ddc5626e6ea001aae4470
+H6B_RED_CI_RUN=38991126596
+H6B_RED_RESULT=EXPECTED FAILURE
+H6B_GREEN_COMMIT=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
+H6B_FINAL_CI_RUN=38991387270
+H6B_AUTOMATED_RESULT=815 tests / 6843 assertions / 0 failures
+H6B_BROWSER_CHECKOUT_HEAD=63fa92d4b16b1590e7a245810ea695634ed3f708
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+PHPSTAN=PASS
+H6B_BROWSER_GREEN=YES
+H6B_FULLY_CLOSED=YES
 ```
+
+Accepted browser facts:
+
+- native `<details class="billing-technical-details">` collapsed by default;
+- keyboard open/close PASS;
+- exact cursor hidden/open/hidden PASS;
+- H6A labels and machine semantics preserved;
+- desktop 1440x900 and mobile 390x844 PASS;
+- no page horizontal overflow;
+- mobile navigation exactly 5 slots;
+- application 5xx = 0;
+- real MELI calls = 0;
+- business side effects = 0.
+
+## H6C — Billing Human-First account identity — FULLY CLOSED
+
+### Proven defect
+
+The selected Billing summary exposed the internal database PK as primary human language:
+
+```text
+Cuenta 10 · 2026-09-01 · Factura
+```
+
+The same page already had human account identity (`external_user_id` and `nickname`). The defect was therefore presentation-only.
+
+Human-First rule: internal IDs remain machine truth and must not become the operator's primary mental model when an existing human identity is available.
 
 ### TDD trace
 
 ```text
-H6B_RED_COMMIT=2b970371472426f37f9ddc5626e6ea001aae4470
-H6B_RED_TEST=Tests\Integration\BillingDesignMasterUiTest::testBillingKeepsTechnicalCursorBehindProgressiveDisclosure
-H6B_RED_CI_RUN=38991126596
-H6B_RED_RESULT=EXPECTED FAILURE
-H6B_RED_TESTS=815
-H6B_RED_ASSERTIONS=6841
-H6B_RED_FAILURES=1
-H6B_GREEN_COMMIT=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
-H6B_FINAL_CI_RUN=38991387270
-H6B_AUTOMATED_RESULT=815 tests / 6843 assertions / 0 failures
+H6C_RED_COMMIT=c7192affa7edf164c30c3468e220f321771312a9
+H6C_RED_CI_RUN=38993014923
+H6C_RED_RESULT=EXPECTED ISOLATED FAILURE
+H6C_RED_TESTS=816
+H6C_RED_ASSERTIONS=6845
+H6C_RED_FAILURES=1
+H6C_GREEN_COMMIT=e10e550a89ce7380aa49fb05d82fe6b16cddab7f
+H6C_FINAL_CI_RUN=38993236102
+H6C_AUTOMATED_RESULT=816 tests / 6848 assertions / 0 failures
 PHP_8_3=PASS
 PHP_8_4=PASS
 PHP_8_5=PASS
@@ -128,22 +156,21 @@ REAL_MELI_HTTP=0
 
 Minimal implementation:
 
-- `Cursor confirmado` remains present with the exact persisted value.
-- It is inside native `<details class="billing-technical-details">`.
-- Disclosure summary is `Detalles técnicos`.
-- disclosure is collapsed by default.
-- `Progreso persistido` remains first-layer.
-- `Última lectura persistida (UTC)` remains first-layer.
-- no CSS, JS, controller, route, schema, Work, Financial or 429 architecture changes.
+- selected summary now uses existing human account label, e.g. `Cuenta principal`;
+- internal `account_id=10` remains exact machine value in selector/query;
+- nickname fallback uses existing external user identity, not an invented label or zero;
+- no new query;
+- no controller, schema, route, CSS or JS change;
+- no Work, Financial, queue, retry, pacing, batching, transport or 429 architecture change.
 
 ### Real-browser certification — independently audited PASS
 
-Antigravity executed Google Chrome via CDP against `/billing` using disposable local QA infrastructure on checkout:
+Antigravity executed Chrome 155 via CDP against `/billing` on exact checkout:
 
 ```text
-H6B_BROWSER_CHECKOUT_HEAD=63fa92d4b16b1590e7a245810ea695634ed3f708
-AUTOMATED_GREEN_ANCESTOR=6fb24bfa47b144a69e11f626d3eee68d7bb9a160
-BROWSER=Chrome/155.0.8059.84 via CDP
+H6C_BROWSER_CHECKOUT_HEAD=e10e550a89ce7380aa49fb05d82fe6b16cddab7f
+AUTOMATED_GREEN_ANCESTOR=e10e550a89ce7380aa49fb05d82fe6b16cddab7f
+BROWSER=HeadlessChrome/155.0.8059.84 via CDP
 DESKTOP=1440x900 PASS
 MOBILE=390x844 PASS
 WORKING_TREE_BEFORE=CLEAN
@@ -152,43 +179,52 @@ WORKING_TREE_AFTER=CLEAN
 
 Independent evidence audit before accepting PASS:
 
-- uploaded evidence ZIP SHA-256: `b10ace06f8a893062749726b931bb5534837439942b0280bfb7f742ae16c2609`;
-- Antigravity printed local outer ZIP SHA-256 `7af1373d1d5bb53572df08bb21a5658379c2afbe0a493be0e0aa2b19a08bfdf2`; outer ZIP hash mismatch is treated as repackaging metadata and is NOT used as integrity authority;
-- internal `manifest-sha256.txt` contains 16 logical file entries;
-- all 16 internal SHA-256 entries were independently recalculated and matched exactly;
-- report, JSON, screenshots, network, console, fixture and side-effect evidence are mutually coherent;
-- screenshots independently inspected: desktop/mobile collapsed hide the cursor; desktop/mobile open show `Cursor confirmado` with exact `987654321`;
+- received uploaded wrapper ZIP SHA-256: `01b8c6f6b9d01c310f66a35dcb0b00c8225bc8c299abcce91528261452ae4893`;
+- Antigravity reported the locally generated original ZIP SHA-256 as `d08a0b7cd689fa6aed2d2c8595bd1a137ec120291b8b81cbf212bdc8f0a7e7b6`;
+- those outer ZIP hashes do not match, so the reported original ZIP hash is NOT treated as authority for the uploaded wrapper;
+- internal `manifest-sha256.txt` contains 16 logical entries;
+- all 16 internal SHA-256 values were independently recalculated from the uploaded ZIP and matched exactly;
+- report, JSON, screenshots, network, console, fixture and before/after DB snapshots are mutually coherent;
+- screenshots independently inspected: desktop/mobile show `Cuenta principal · 2026-09-01 · Factura`; collapsed state hides cursor, open state shows exact `987654321`;
 - desktop `scrollWidth=1425`, `clientWidth=1425`; mobile `scrollWidth=390`, `clientWidth=390`; no page horizontal overflow;
-- mobile navigation contains exactly 5 slots and does not overlap the technical disclosure;
-- H6A labels remain `Factura` / `Nota crédito`, while URLs/options preserve `BILL` / `CREDIT_NOTE` machine semantics;
-- native keyboard path reached the `<summary>` with Tab, Enter opened the disclosure and a second Enter closed it;
-- exact persisted cursor `987654321` remained hidden while collapsed, visible unchanged while open, and hidden again after keyboard close;
-- network: 16 responses, application 5xx = 0, real MELI network calls = 0; only incidental `/favicon.ico` 404;
+- account selector machine value remains `10`, while visible option is `100 — Cuenta principal`;
+- selected/query semantics remain `account_id=10`, `period_key=2026-09-01`, `document_type=BILL`;
+- H6A remains preserved: `Factura` / `Nota crédito`, with machine `BILL` / `CREDIT_NOTE` in options/query;
+- H6B remains preserved: technical details collapsed by default, keyboard open/close PASS, exact cursor hidden/open/hidden;
+- mobile navigation contains exactly 5 slots and does not overlap disclosure;
+- network evidence: 16 responses, application 5xx = 0, real MELI network calls = 0, one incidental `/favicon.ico` 404 only;
 - console: application errors = 0, uncaught JS exceptions = 0, console messages = 0;
-- DB snapshots before/after are exact matches: `billing_periods=2`, `billing_details=0`, `work_items=0`, `api_usage_daily=0`, `orders=0`; business side effects = 0;
-- disposable MariaDB/server/runtime were torn down and the working tree ended CLEAN.
+- DB before/after snapshots are exact matches: `meli_accounts=1`, `billing_periods=2`, `billing_details=0`, `work_items=0`, `api_usage_daily=0`, `orders=0`; business side effects = 0;
+- disposable server/DB/runtime were torn down and working tree ended CLEAN.
 
-Environment clarification:
+Harness note:
 
-Antigravity temporarily wrote `APP_ENV=local` into fallback `storage/private/runtime.json`, while the PHP server process was launched with environment `APP_ENV=test`. This does not invalidate the certification: `Environment::resolve()` gives `getenv()` / externally supplied process variables precedence over private-file fallback values, so effective `APP_ENV` remained `test` during the run.
+For the additional `CREDIT_NOTE` case, one generic boolean named `humanAccountLabelVisible` is `false` because that check was keyed to the BILL phrase. The same evidence record contains the correct rendered summary `Cuenta principal · 2026-08-01 · Nota crédito`, with internal account ID absent from primary text and machine query preserved. This is a harness-specific boolean mismatch, not a product failure and not the primary H6C gate.
 
 Browser gates accepted:
 
 ```text
-H6B_BROWSER_RESULT=PASS
+H6C_BROWSER_RESULT=PASS
 BILLING_HTTP_200=PASS
+HUMAN_ACCOUNT_LABEL_VISIBLE=PASS
+HUMAN_ACCOUNT_LABEL=Cuenta principal
+INTERNAL_ACCOUNT_ID_PRIMARY_VISIBLE=NO
+ACCOUNT_MACHINE_VALUE_10=PASS
+ACCOUNT_QUERY_ID_10=PASS
+ACCOUNT_SELECTOR_HUMAN_LABEL=PASS
 H6A_HUMAN_LABELS_PRESERVED=PASS
 H6A_MACHINE_VALUES_PRESERVED=PASS
-PROGRESS_PRIMARY_VISIBLE=PASS
-LAST_READ_PRIMARY_VISIBLE=PASS
-TECHNICAL_DETAILS_PRESENT=PASS
-TECHNICAL_DETAILS_COLLAPSED_DEFAULT=PASS
-CURSOR_HIDDEN_WHEN_COLLAPSED=PASS
-TECHNICAL_DETAILS_KEYBOARD_OPEN=PASS
-CURSOR_VISIBLE_WHEN_OPEN=PASS
-CURSOR_EXACT_VALUE_PRESERVED=PASS
-TECHNICAL_DETAILS_KEYBOARD_CLOSE=PASS
-CURSOR_HIDDEN_AFTER_CLOSE=PASS
+H6B_PROGRESS_PRIMARY_VISIBLE=PASS
+H6B_LAST_READ_PRIMARY_VISIBLE=PASS
+H6B_TECHNICAL_DETAILS_PRESENT=PASS
+H6B_TECHNICAL_DETAILS_COLLAPSED_DEFAULT=PASS
+H6B_CURSOR_HIDDEN_WHEN_COLLAPSED=PASS
+H6B_KEYBOARD_OPEN=PASS
+H6B_CURSOR_VISIBLE_WHEN_OPEN=PASS
+H6B_CURSOR_EXACT_VALUE_PRESERVED=PASS
+H6B_KEYBOARD_CLOSE=PASS
+H6B_CURSOR_HIDDEN_AFTER_CLOSE=PASS
+PERIOD_SEMANTICS_PRESERVED=PASS
 PAGE_HORIZONTAL_OVERFLOW=NO
 MOBILE_NAV=5 slots PASS
 CONSOLE_APP_ERRORS=0
@@ -197,6 +233,7 @@ APPLICATION_5XX=0
 REAL_MELI_NETWORK_CALLS=0
 BUSINESS_SIDE_EFFECTS=0
 BACKEND_CHANGED=NO
+CONTROLLER_CHANGED=NO
 SCHEMA_CHANGED=NO
 ROUTES_CHANGED=NO
 CSS_CHANGED=NO
@@ -209,6 +246,8 @@ KISS=PASS
 ANTI_NOISE=PASS
 ANTI_PATCH=PASS
 HUMAN_FIRST=PASS
+H6C_BROWSER_GREEN=YES
+H6C_FULLY_CLOSED=YES
 ```
 
 ## Current disposition
@@ -216,33 +255,34 @@ HUMAN_FIRST=PASS
 ```text
 H6_STARTED=YES
 H6A_FULLY_CLOSED=YES
-H6B_PREFLIGHT=COMPLETE
-H6B_RED=CONFIRMED
-H6B_MINIMAL_GREEN=IMPLEMENTED
-H6B_FINAL_AUTOMATED_GREEN=YES
-H6B_BROWSER_GREEN=YES
 H6B_FULLY_CLOSED=YES
-H6C_READY=YES
-H6C_STARTED=NO
+H6C_PREFLIGHT=COMPLETE
+H6C_RED=CONFIRMED
+H6C_MINIMAL_GREEN=IMPLEMENTED
+H6C_FINAL_AUTOMATED_GREEN=YES
+H6C_BROWSER_GREEN=YES
+H6C_FULLY_CLOSED=YES
+BILLING_HUMAN_FIRST_CLOSURE=NOT_YET_DECLARED
+NEXT_BILLING_WORK_STARTED=NO
 STOP_SAFE=YES
 ```
 
-## Exact resume point — H6C preflight only
+## Exact resume point — Billing residual-defect preflight only
 
 ```text
-NEXT=H6C BILLING HUMAN-FIRST — PREFLIGHT / TRUTH MAP / SMALLEST RED CONTRACT
-H6C_IMPLEMENTATION_STARTED=NO
+NEXT=BILLING HUMAN-FIRST RESIDUAL PREFLIGHT / TRUTH MAP
+NEW_IMPLEMENTATION_STARTED=NO
 ```
 
 Before touching production code:
 
-1. Re-read current Billing view/controller/tests from the new branch HEAD.
-2. Prove the next smallest Human-First defect using current source truth, not roadmap assumptions.
-3. Candidate areas may be inspected but are NOT pre-approved changes: technical state wording, period input UX, operator guidance, remaining hierarchy/noise.
-4. Preserve exact persisted/API semantics, authorization, period contract and document machine values.
-5. Do not touch Financial/Work/429 pacing, retry, queue, batching or transport architecture.
-6. TDD: one RED -> diagnose -> minimal GREEN -> full QA -> browser gate -> checkpoint.
-7. If no meaningful H6C defect can be proven, do not invent work; close Billing Human-First instead.
+1. Re-read the current Billing view, controller and tests from the new branch HEAD.
+2. Compare remaining first-layer UI against the canonical Human-First skill and Design Master.
+3. Prove a meaningful residual defect from current source truth before creating any RED test.
+4. Do not assume there must be an H6D. If no meaningful defect remains, declare Billing Human-First complete and move to the next planned product area.
+5. Preserve exact persisted/API semantics, authorization, account IDs, period contract and document machine values.
+6. Do not touch Financial/Work/429 pacing, retry, queue, batching or transport architecture without fresh evidence.
+7. If a real residual defect is proven: one RED -> root cause -> minimal GREEN -> full automated QA -> browser gate -> checkpoint.
 
 ## Frozen / prohibited
 
