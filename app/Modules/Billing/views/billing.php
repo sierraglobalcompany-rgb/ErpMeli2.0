@@ -13,7 +13,8 @@ declare(strict_types=1);
 $documentLabels = ['BILL' => 'Factura', 'CREDIT_NOTE' => 'Nota crédito'];
 $accountLabels = [];
 foreach ($periods as $period) {
-    $accountLabels[(int) $period['account_id']] = (string) $period['external_user_id'];
+    $nickname = trim((string) ($period['nickname'] ?? ''));
+    $accountLabels[(int) $period['account_id']] = $nickname !== '' ? $nickname : (string) $period['external_user_id'];
 }
 foreach ($accounts as $account) {
     $nickname = trim((string) ($account['nickname'] ?? ''));
