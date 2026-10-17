@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H6E BILLING DISABLED-ACCOUNT HISTORY HUMAN LABEL / RED CONFIRMED / GREEN NOT IMPLEMENTED / STOP-SAFE**
+**CURRENT=H6E BILLING DISABLED-ACCOUNT HISTORY HUMAN LABEL FULLY CLOSED / BILLING FINAL RESIDUAL PREFLIGHT NEXT / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -57,6 +57,7 @@ H6A_BILLING_DOCUMENT_LABELS=FULLY_CLOSED
 H6B_BILLING_TECHNICAL_CURSOR=FULLY_CLOSED
 H6C_BILLING_SELECTED_ACCOUNT_IDENTITY=FULLY_CLOSED
 H6D_BILLING_HISTORY_ACCOUNT_IDENTITY=FULLY_CLOSED
+H6E_BILLING_DISABLED_HISTORY_ACCOUNT_IDENTITY=FULLY_CLOSED
 ```
 
 ## H6A–H6D condensed trace
@@ -87,127 +88,112 @@ H6D_FULLY_CLOSED=YES
 
 H6D browser evidence was independently audited: uploaded wrapper ZIP outer hash differed from Antigravity original ZIP hash, but all `19/19` internal SHA-256 manifest entries matched independently; desktop/mobile, DOM/JSON, network, console and before/after DB snapshots were coherent. No application 5xx, no real MELI calls, no business side effects.
 
-H6D closure documentation commit:
-
 ```text
 H6D_CLOSURE_DOC_COMMIT=d0fa387d11164357b5095dc8cba48996bdd483c9
 ```
 
-## H6E — disabled-account history human label — RED CONFIRMED
+## H6E — disabled-account history human label — FULLY CLOSED
 
-### Proven residual defect
+### Proven defect
 
-The H6D implementation builds human account labels from connected accounts first, but Billing history intentionally includes persisted periods for accounts that may later become `disabled`.
+Billing history legitimately persists for accounts that later become `disabled`. The account selector loads only connected accounts with nickname, while the history query previously selected only `a.external_user_id`. A disabled account with persisted Billing history therefore fell back to numeric-only identity despite having a persisted nickname.
 
-Repository lifecycle truth proves this state is valid and persistent:
+Repository lifecycle truth proves the state is valid: disconnect sets the account to `disabled`, and persisted Billing history prevents hard deletion.
 
-- disconnect changes account status to `disabled`;
-- persisted Billing history prevents hard deletion of that disabled account;
-- therefore a disabled account with Billing periods can legitimately remain in `Períodos registrados`.
-
-Current controller history query retrieves only:
-
-```text
-a.external_user_id
-```
-
-for period rows, while `nickname` is loaded only in the separate connected-account selector query. Thus a disabled account with a real nickname falls back to numeric-only external identity in history.
-
-Reproduced current output:
+Observed RED:
 
 ```html
 <td data-label="Cuenta">100</td>
 ```
 
-Expected Human-First output when persisted nickname exists:
+Required Human-First output:
 
 ```html
 <td data-label="Cuenta">Cuenta histórica</td>
 ```
 
-Machine truth must remain:
+Machine truth remains `account_id=10` in the period link/query.
 
-```text
-account_id=10
-```
-
-in the period link/query.
-
-### H6E RED
-
-Test-only commit:
+### TDD trace
 
 ```text
 H6E_RED_COMMIT=963bbe429b62b87e645f5b4bc6843a4c132951da
-H6E_RED_CI_RUN=38996880293
-```
-
-Added only:
-
-```text
-tests/Integration/BillingDisabledAccountHumanLabelTest.php
-```
-
-Expected isolated RED confirmed in PHP 8.3 / 8.4 / 8.5.
-
-PHP 8.3 full evidence:
-
-```text
+H6E_RED_CI=38996880293
+H6E_RED=818 tests / 6854 assertions / 1 expected isolated failure
+H6E_RED_PHPSTAN=PASS
+H6E_GREEN=e775464dc542289a4982f89ddd1a216cdc0f0c01
+H6E_FINAL_CI=38997637480
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
 PHPSTAN=PASS
-PHPUNIT_TESTS=818
-PHPUNIT_ASSERTIONS=6854
-PHPUNIT_FAILURES=1
-ONLY_FAILURE=Tests\Integration\BillingDisabledAccountHumanLabelTest::testBillingHistoryKeepsHumanNicknameForDisabledAccountWithoutChangingMachineQuery
-OBSERVED_HISTORY_LABEL=100
-EXPECTED_HISTORY_LABEL=Cuenta histórica
-MACHINE_QUERY_ACCOUNT_ID_10=PRESERVED
+PHPUNIT=818 tests / 6856 assertions / 0 failures
+REAL_MELI_HTTP=0
 ```
 
-The existing Slim negative-path traces remain expected test output and are not separate failures.
+### Root-cause fix
 
-### Root cause
+Minimal final diff from checkpoint `5543b807887e84cd7122660a2d98845230a240cd` to GREEN `e775464dc542289a4982f89ddd1a216cdc0f0c01`:
 
 ```text
-ROOT_CAUSE=Billing history query joins meli_accounts but selects external_user_id only; nickname is unavailable for disabled accounts because the separate account selector query filters status='connected'.
+COMMITS=1
+FILES=2
+BillingController.php = 1 addition / 1 deletion
+billing.php = 2 additions / 1 deletion
 ```
 
-Minimal GREEN direction is already proven but **NOT IMPLEMENTED**:
+Only behavior changed:
 
-1. add `a.nickname` to the existing Billing periods query;
-2. when building the period account label map, use non-empty persisted nickname;
-3. fallback truthfully to existing `external_user_id` when nickname is empty;
-4. preserve period links and machine `account_id` exactly;
-5. no new query, schema, route, CSS, JS, dependency, Work, Financial, queue, retry, pacing, batching, transport or 429 architecture change.
+1. existing periods query now selects `a.nickname` in addition to `a.external_user_id`;
+2. history account-label map uses non-empty persisted nickname;
+3. fallback remains truthful `external_user_id` when nickname is empty.
 
-Important stop-state:
+No new query, schema, route, CSS, JS, dependency, Work, Financial, queue, retry, pacing, batching, transport or 429 architecture change.
+
+### Browser gate disposition
 
 ```text
-H6E_RED=CONFIRMED
-H6E_GREEN_IMPLEMENTED=NO
-PRODUCTION_CHANGED_FOR_H6E=NO
-H6E_AUTOMATED_GREEN=NO
-H6E_BROWSER_GREEN=NO
-H6E_FULLY_CLOSED=NO
-NEXT_BILLING_WORK_STARTED=NO
+H6E_BROWSER_REPEAT_REQUIRED=NO
+H6E_BROWSER_REPEAT_EXECUTED=NO
+```
+
+Reason: H6D already certified the exact same Billing history surface and responsive behavior in real Chrome on desktop/mobile. H6E changes no markup structure, CSS, JavaScript, keyboard behavior, navigation or responsive layout; it only makes an already-persisted nickname available to the existing account-label renderer for disabled historical accounts. The H6E integration test verifies exact server-rendered human label plus preserved `account_id=10` machine query. Repeating the same browser surface would duplicate evidence without testing a new interaction or presentation structure, contrary to KISS and anti-noise.
+
+```text
+H6E_AUTOMATED_GREEN=YES
+H6E_FULLY_CLOSED=YES
+```
+
+## Current disposition
+
+```text
+H6_STARTED=YES
+H6A_FULLY_CLOSED=YES
+H6B_FULLY_CLOSED=YES
+H6C_FULLY_CLOSED=YES
+H6D_FULLY_CLOSED=YES
+H6E_FULLY_CLOSED=YES
+BILLING_HUMAN_FIRST_CLOSURE=NOT_YET_DECLARED
+NEXT_IMPLEMENTATION_STARTED=NO
 STOP_SAFE=YES
 ```
 
-## Exact resume point
+## Exact resume point — Billing final residual preflight only
 
 ```text
-NEXT=H6E MINIMAL GREEN ONLY
-RED_COMMIT=963bbe429b62b87e645f5b4bc6843a4c132951da
-RED_CI=38996880293
+NEXT=BILLING HUMAN-FIRST FINAL RESIDUAL PREFLIGHT / TRUTH MAP
+NEW_IMPLEMENTATION_STARTED=NO
 ```
 
-On resume:
+Before any new RED or product change:
 
-1. re-read `BillingController.php`, `billing.php`, and the H6E RED test at branch HEAD;
-2. implement the root-cause fix only;
-3. verify diff is minimal;
-4. run full CI PHP 8.3 / 8.4 / 8.5 + PHPStan + PHPUnit;
-5. only after automated GREEN decide whether real-browser evidence is necessary for this historical disabled-account case;
-6. do not open another Billing block until H6E is closed or explicitly stopped.
+1. Re-read current Billing view/controller/tests at branch HEAD.
+2. Compare remaining first-layer behavior against canonical Human-First law and Design Master.
+3. Specifically verify whether the admin sync panel exposes an impossible action when there are zero connected MELI accounts; prove the state and existing valid next-step route before changing anything.
+4. Do not assume there must be H6F. If no meaningful residual defect remains, declare Billing Human-First complete.
+5. Preserve persisted/API semantics, authorization, account IDs, period contract and document machine values.
+6. Do not touch Financial/Work/429 pacing, retry, queue, batching or transport architecture without fresh evidence.
+7. If a real defect is proven: one RED → root cause → minimal GREEN → full QA → only necessary browser evidence → checkpoint.
 
 ## Frozen / prohibited
 
