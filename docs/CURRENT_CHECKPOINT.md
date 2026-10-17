@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H6C BILLING HUMAN-FIRST ACCOUNT LABEL FULLY CLOSED / BILLING RESIDUAL PREFLIGHT NEXT / STOP-SAFE**
+**CURRENT=H6D BILLING HISTORY HUMAN ACCOUNT LABEL AUTOMATED GREEN / BROWSER NOT CERTIFIED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -121,7 +121,7 @@ Accepted browser facts:
 - real MELI calls = 0;
 - business side effects = 0.
 
-## H6C — Billing Human-First account identity — FULLY CLOSED
+## H6C — Billing Human-First selected account identity — FULLY CLOSED
 
 ### Proven defect
 
@@ -250,39 +250,137 @@ H6C_BROWSER_GREEN=YES
 H6C_FULLY_CLOSED=YES
 ```
 
+## H6D — Billing history human account label — AUTOMATED GREEN / BROWSER PENDING
+
+### Proven residual defect
+
+After H6C, the selected summary and account selector used the existing human nickname, but `Períodos registrados` still rendered only the external numeric identity:
+
+```text
+Cuenta -> 100
+```
+
+This was inconsistent with the same page's available human identity (`Cuenta principal`). The internal `account_id` already remained safely in the period link/query, so no backend or data-model change was required.
+
+The canonical Human-First law and Design Master require primary copy to use human labels while preserving raw/internal identifiers as machine truth. There is no Billing page override authorizing the numeric-only presentation.
+
+### H6D RED — confirmed
+
+```text
+H6D_RED_COMMIT=d6d6f6f951756d0407d15866b3d50f2f447651cb
+H6D_RED_CI_RUN=38995007737
+H6D_RED_RESULT=EXPECTED ISOLATED FAILURE
+H6D_RED_TESTS=817
+H6D_RED_ASSERTIONS=6850
+H6D_RED_FAILURES=1
+H6D_FAILING_TEST=Tests\Integration\BillingDesignMasterUiTest::testBillingPeriodHistoryUsesHumanAccountLabelWithoutChangingMachineQuery
+```
+
+Observed RED truth:
+
+```html
+<td data-label="Cuenta">100</td>
+```
+
+Expected Human-First truth:
+
+```html
+<td data-label="Cuenta">Cuenta principal</td>
+```
+
+The same rendered row retained:
+
+```text
+/billing?account_id=10&period_key=2026-09-01&document_type=BILL
+```
+
+Composer validation and PHPStan passed in the RED run; the single PHPUnit failure was exactly the new H6D expectation. Existing negative-path Slim stack output remained expected test noise and was not a separate failure.
+
+### Minimal GREEN
+
+Production change is presentation-only in:
+
+```text
+app/Modules/Billing/views/billing.php
+```
+
+The history account cell now reuses the already-built `$accountLabels[(int) account_id]` map, with the existing `external_user_id` as fallback.
+
+No new query, controller, schema, route, CSS, JS, dependency, Work, Financial, queue, retry, pacing, batching, transport or 429 architecture change.
+
+Commit trace:
+
+```text
+H6D_INITIAL_GREEN_WRITE=4fc9bf519c1c02f61f1ff706afa056e19fc384ce
+H6D_FINAL_GREEN_COMMIT=c712a72c6ae805b0d28e38f687ad6556c86cb82e
+```
+
+Forensic note: the initial full-file write introduced one accidental missing quote in existing `role="alert"` markup. It was detected before GREEN certification and corrected immediately. Comparing RED `d6d6f6f...` to final GREEN `c712a72...`, GitHub reports exactly one production file changed with `1 addition / 1 deletion`; therefore the net production diff is only the intended history-account presentation change.
+
+### Automated GREEN — certified
+
+```text
+H6D_FINAL_CI_RUN=38995336544
+H6D_FINAL_GREEN_HEAD=c712a72c6ae805b0d28e38f687ad6556c86cb82e
+PHP_8_3=PASS
+PHP_8_4=PASS
+PHP_8_5=PASS
+COMPOSER_VALIDATE=PASS
+PHPSTAN=PASS
+PHPUNIT=817 tests / 6852 assertions / 0 failures
+REAL_MELI_HTTP=0
+H6D_AUTOMATED_GREEN=YES
+H6D_BROWSER_GREEN=NO
+H6D_FULLY_CLOSED=NO
+```
+
 ## Current disposition
 
 ```text
 H6_STARTED=YES
 H6A_FULLY_CLOSED=YES
 H6B_FULLY_CLOSED=YES
-H6C_PREFLIGHT=COMPLETE
-H6C_RED=CONFIRMED
-H6C_MINIMAL_GREEN=IMPLEMENTED
-H6C_FINAL_AUTOMATED_GREEN=YES
-H6C_BROWSER_GREEN=YES
 H6C_FULLY_CLOSED=YES
+H6D_PREFLIGHT=COMPLETE
+H6D_RED=CONFIRMED
+H6D_MINIMAL_GREEN=IMPLEMENTED
+H6D_FINAL_AUTOMATED_GREEN=YES
+H6D_BROWSER_GREEN=NO
+H6D_FULLY_CLOSED=NO
 BILLING_HUMAN_FIRST_CLOSURE=NOT_YET_DECLARED
 NEXT_BILLING_WORK_STARTED=NO
 STOP_SAFE=YES
 ```
 
-## Exact resume point — Billing residual-defect preflight only
+## Exact resume point — H6D browser certification only
 
 ```text
-NEXT=BILLING HUMAN-FIRST RESIDUAL PREFLIGHT / TRUTH MAP
+NEXT=H6D REAL-BROWSER CERTIFICATION
+AUTOMATED_GREEN_HEAD=c712a72c6ae805b0d28e38f687ad6556c86cb82e
 NEW_IMPLEMENTATION_STARTED=NO
 ```
 
-Before touching production code:
+Required real-browser proof on `/billing` before closing H6D:
 
-1. Re-read the current Billing view, controller and tests from the new branch HEAD.
-2. Compare remaining first-layer UI against the canonical Human-First skill and Design Master.
-3. Prove a meaningful residual defect from current source truth before creating any RED test.
-4. Do not assume there must be an H6D. If no meaningful defect remains, declare Billing Human-First complete and move to the next planned product area.
-5. Preserve exact persisted/API semantics, authorization, account IDs, period contract and document machine values.
-6. Do not touch Financial/Work/429 pacing, retry, queue, batching or transport architecture without fresh evidence.
-7. If a real residual defect is proven: one RED -> root cause -> minimal GREEN -> full automated QA -> browser gate -> checkpoint.
+1. desktop 1440x900 PASS;
+2. mobile 390x844 PASS;
+3. `Períodos registrados` shows human account label `Cuenta principal`, not numeric-only `100` as the primary account cell;
+4. row link/query preserves exact machine `account_id=10`, `period_key`, and `document_type`;
+5. H6A labels remain `Factura` / `Nota crédito` with machine values preserved;
+6. H6B technical cursor remains secondary/collapsed by default and keyboard-operable;
+7. H6C selected summary remains human-first;
+8. no page horizontal overflow;
+9. mobile bottom navigation exactly 5 slots;
+10. application JS errors = 0;
+11. application HTTP 5xx = 0;
+12. real MELI network calls = 0;
+13. business side effects = 0;
+14. working tree before/after CLEAN;
+15. no backend/schema/routes/CSS/JS/Work/Financial/429 architecture changes.
+
+On the first real browser defect: capture evidence, identify root cause, do not repair in the same certification run, STOP.
+
+After browser PASS: update this checkpoint to `H6D FULLY CLOSED`, then perform one new Billing residual preflight. Do not assume another H6 subphase must exist. If no meaningful residual Human-First defect remains, declare Billing Human-First complete and move to the next planned product area.
 
 ## Frozen / prohibited
 
