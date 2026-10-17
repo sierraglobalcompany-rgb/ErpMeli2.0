@@ -116,7 +116,13 @@ final class MeliAccountLifecycleTest extends TestCase
     {
         $this->insertDisabledAccount(301, '3001');
 
-        $response = $this->post('/mercadolibre/accounts/301/delete');
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/mercadolibre/accounts/301/delete')
+            ->withParsedBody([
+                'csrf_token' => str_repeat('c', 64),
+                'confirm_permanent_delete' => '1',
+            ]);
+        $response = Bootstrap::create()->handle($request);
 
         self::assertSame(303, $response->getStatusCode());
         self::assertSame('/mercadolibre/accounts', $response->getHeaderLine('Location'));
@@ -136,6 +142,35 @@ final class MeliAccountLifecycleTest extends TestCase
             self::assertSame(422, $response->getStatusCode(), 'La cuenta no debe borrarse sin confirmación explícita.');
             self::assertSame(1, $this->accountCount(301), 'No debe haber efectos laterales de borrado.');
         }
+    }
+
+    public function testHardDeleteRequiresHumanDisclosureAndAcknowledgementInHtml(): void
+    {
+        $this->insertDisabledAccount(301, '3001');
+
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/mercadolibre/accounts')
+        );
+        self::assertSame(200, $response->getStatusCode());
+
+        $html = (string) $response->getBody();
+        self::assertSame(
+            1,
+            preg_match(
+                '#<details[^>]*data-meli-destructive-action="delete"[^>]*>\\s*<summary>Eliminar cuenta definitivamente</summary>.*?</details>#si',
+                $html,
+                $matches,
+            ),
+            'Eliminar definitivamente requiere un disclosure nativo cerrado por defecto.'
+        );
+        $disclosure = $matches[0];
+        self::assertStringContainsString('sin historial registrado', $disclosure);
+        self::assertStringContainsString('No elimina tu usuario ni la cuenta en Mercado Libre', $disclosure);
+        self::assertMatchesRegularExpression(
+            '#<form[^>]*method="post"[^>]*action="/mercadolibre/accounts/301/delete"[^>]*>.*?name="csrf_token".*?<input type="checkbox" name="confirm_permanent_delete" value="1" required>.*?Eliminar definitivamente</button>.*?</form>#si',
+            $disclosure
+        );
+        self::assertSame(1, preg_match_all('#action="/mercadolibre/accounts/301/delete"#', $html));
     }
 
     public function testHardDeleteRejectsConnectedAccountAndExistingToken(): void
