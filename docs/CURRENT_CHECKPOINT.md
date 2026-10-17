@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7B FULLY CLOSED / H7C-A FULLY CLOSED (INDEPENDENT BROWSER AUDIT PASS) / H7C-B READ-ONLY PREFLIGHT NEXT / H7C-B-C-D NOT STARTED / STOP-SAFE**
+**CURRENT=H7C-A FULLY CLOSED / H7C-B1 DISCONNECT AUTOMATED GREEN (REAL-BROWSER PENDING) / H7C-B2-C-D NOT STARTED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -286,24 +286,60 @@ SIDECAR=ERP_MELI_2_0_H7C_A_BROWSER_ANTIGRAVITY_EVIDENCE_2026-10-17.zip.sha256
 
 Minor non-blocking observations: the Chrome favicon GET returned 404, and the Apps launcher focus-inside snapshot was taken before waiting for its animation-frame focus; Escape and focus-return behavior are evidenced. They do not justify reopening H7C-A without fresh proof.
 
+## H7C-B1 — MELI account disconnect (AUTOMATED GREEN, BROWSER PENDING)
+
+Owner `app/Modules/Settings/views/meli-accounts.php` for Human-First presentation; `MeliAccountController::disconnect` remains unchanged with company-admin authorization, CSRF, company-scoped row lock, pending/running Work guard, local token deletion and status `disabled`. **No OAuth/MELI/Work behavior changed.**
+
+RED:
+```text
+H7C_B1_RED=d6b96bcbc5b7189b231ae84c8e03ed881858d912
+H7C_B1_RED_CI=39070718318 EXPECTED FAILURE
+RED_PHP_8_3=826 tests / 7022 assertions / exactly 1 failure
+RED_ONLY_FAILURE=MeliAccountLifecycleUiTest::testDisconnectIsBehindNativeHumanDisclosureWithFactualImpact
+RED_PRODUCTION_CHANGED=NO
+```
+
+GREEN:
+```text
+H7C_B1_GREEN=ab640fe222bc33fc9083fb25596b41133f37bab8
+H7C_B1_GREEN_CI=39070978051 SUCCESS
+GREEN_PHP_8_3=826 tests / 7027 assertions / 0 failures
+GREEN_PHP_8_4=PASS
+GREEN_PHP_8_5=PASS
+GREEN_PHPSTAN=PASS
+RED_TO_GREEN_CHANGED_FILES=1
+RED_TO_GREEN_FILE=app/Modules/Settings/views/meli-accounts.php
+RED_TO_GREEN_ADDITIONS=8
+RED_TO_GREEN_DELETIONS=4
+ROUTES_CHANGED=NO
+CONTROLLER_CHANGED=NO
+SCHEMA_CHANGED=NO
+CSS_CHANGED=NO
+JS_CHANGED=NO
+WORK_CHANGED=NO
+FINANCIAL_CHANGED=NO
+REAL_MELI_HTTP=0
+```
+
+Connected-account `Desconectar` no longer direct one-click POST. Native `<details data-meli-destructive-action="disconnect">` remains closed until second decision, with factual explanation of local credentials removal, local ERP disabled account, persisted history and reauthorization. `POST /mercadolibre/accounts/{account_id}/disconnect` and CSRF stay inside disclosure. B1 makes no new acknowledgement requirement in backend; hard delete is a **distinct H7C-B2**.
+
 ## Exact resume point
 
 ```text
-NEXT=H7C-B READ-ONLY PREFLIGHT
-H7C_A_BROWSER_CERTIFIED=YES
-H7C_A_INDEPENDENT_AUDIT=PASS
+NEXT=H7C-B1 REAL-BROWSER CERTIFICATION ONLY
 H7C_A_FULLY_CLOSED=YES
-H7C_B_STARTED=NO
+H7C_B1_AUTOMATED_GREEN=YES
+H7C_B1_BROWSER_CERTIFIED=NO
+H7C_B1_FULLY_CLOSED=NO
+H7C_B2_STARTED=NO
 H7C_C_STARTED=NO
 H7C_D_STARTED=NO
-H7C_B_SCOPE=MELI accounts disconnect + hard delete destructive UX only
-H7C_B_PREFLIGHT=OWNER / ROUTES / FACTS / CURRENT TESTS / HUMAN-FIRST CONTRACT
-PR_MERGED=NO
+PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
 ```
 
-No H7C-B product change until bounded owner, precise observed UX defect and RED->GREEN plan are verified. No broader Work/Financial/429 changes or remote mutations.
+Use Antigravity in real local Chrome, certification-only, against final B1 GREEN; verify company admin 200, non-admin 403, closed-by-default summary and keyboard Enter/Space, truthful copy, POST/CSRF ownership, desktop/mobile/shared shell/no overflow, zero destructive submits/real MELI browser calls, DB before/after identical, worktree clean, no code/test/docs edits. Require ZIP + SHA256 sidecar + Markdown report, independently audited before closure. See `ERP_MELI_2_0_PROMPT_ANTIGRAVITY_H7C_B1_BROWSER_CERTIFICATION_EVIDENCE_V1_2026-10-17.md` (generated conversation artifact, not repository document). Do NOT start H7C-B2 before browser closure.
 
 ## ERP1 / 429 frozen truth
 
