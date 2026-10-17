@@ -36,7 +36,7 @@ foreach ($accounts as $account) {
             <p>Controla solicitudes de sincronización y consulta el progreso persistido por cuenta y período.</p>
         </header>
 
-        <?php if ($error !== null): ?><p class="notice" role="alert><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+        <?php if ($error !== null): ?><p class="notice" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
 
         <div class="billing-workspace">
             <div class="settings-grid">
