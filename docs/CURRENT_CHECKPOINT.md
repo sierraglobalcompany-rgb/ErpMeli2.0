@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H6A BILLING HUMAN-FIRST LABELS AUTOMATED GREEN / BROWSER NOT CERTIFIED / H6B FROZEN / STOP-SAFE**
+**CURRENT=H6A BILLING HUMAN-FIRST LABELS FULLY CLOSED / H6B READY / H6B NOT STARTED / STOP-SAFE**
 
 Autoridad operativa de recuperación. No depender del chat.
 
@@ -13,6 +13,7 @@ IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
 H6A_AUTOMATED_HEAD=f6648e6357b90432acb7ba66142a24b5fd04ebe7
+H6A_BROWSER_CHECKOUT_HEAD=a38c5c6958de3b79308ca813e7842637b0914297
 BASE_BRANCH=ui/operator-shell-v1-20261014
 BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
 REMOTE_WRITES=OFF
@@ -156,7 +157,80 @@ H6A_AUTOMATED_FULL_GREEN=YES
 
 Expected Slim negative-path traces remain part of existing tests and did not fail the suite.
 
-## H6A current disposition
+Checkpoint `a38c5c6958de3b79308ca813e7842637b0914297` also completed GitHub Actions successfully in run `38989205990`.
+
+## H6A real-browser certification — audited PASS
+
+Antigravity executed real Google Chrome via CDP against `/billing` on a disposable test environment at checkout `a38c5c6958de3b79308ca813e7842637b0914297`.
+
+```text
+BROWSER=HeadlessChrome/155.0.8059.84 via Google Chrome CDP
+APP_ENV=test
+REAL_MELI_HTTP=0
+DB=disposable MariaDB 11.4 on erp_meli2_test
+BROWSER_CHECKOUT_HEAD=a38c5c6958de3b79308ca813e7842637b0914297
+AUTOMATED_GREEN_ANCESTOR=f6648e6357b90432acb7ba66142a24b5fd04ebe7
+WORKING_TREE_BEFORE=CLEAN
+WORKING_TREE_AFTER=CLEAN
+DESKTOP_1440x900=PASS
+MOBILE_390x844=PASS
+BILL_VISIBLE_LABEL=Factura PASS
+CREDIT_NOTE_VISIBLE_LABEL=Nota crédito PASS
+RAW_BILL_PRIMARY_VISIBLE=NO
+RAW_CREDIT_NOTE_PRIMARY_VISIBLE=NO
+BILL_MACHINE_VALUE_PRESERVED=PASS
+CREDIT_NOTE_MACHINE_VALUE_PRESERVED=PASS
+BILL_QUERY_SEMANTICS_PRESERVED=PASS
+CREDIT_NOTE_QUERY_SEMANTICS_PRESERVED=PASS
+SELECTED_BILL_LABEL=PASS
+SELECTED_CREDIT_NOTE_LABEL=PASS
+TABLE_BILL_LABEL=PASS
+TABLE_CREDIT_NOTE_LABEL=PASS
+PERIOD_PATTERN=[0-9]{4}-[0-9]{2}-01 PASS
+PAGE_HORIZONTAL_OVERFLOW=NO
+MOBILE_NAV=5 slots PASS
+CONSOLE_APP_ERRORS=0
+UNCAUGHT_JS_EXCEPTIONS=0
+APPLICATION_5XX=0
+REAL_MELI_NETWORK_CALLS=0
+BUSINESS_SIDE_EFFECTS=0
+BACKEND_CHANGED=NO
+SCHEMA_CHANGED=NO
+ROUTES_CHANGED=NO
+WORK_CHANGED=NO
+FINANCIAL_CHANGED=NO
+429_ARCHITECTURE_CHANGED=NO
+NEW_DEPENDENCY=NO
+KISS=PASS
+ANTI_NOISE=PASS
+ANTI_PATCH=PASS
+HUMAN_FIRST=PASS
+```
+
+Evidence independently audited before accepting PASS:
+
+- Uploaded evidence archive contains 18 manifested logical files plus `manifest-sha256.txt`.
+- Every one of the 18 manifest SHA-256 entries was independently recalculated and matched.
+- Desktop/mobile JSON evidence agrees with the screenshots on the H6A gates.
+- Selector options preserve `value="BILL"` and `value="CREDIT_NOTE"` while displaying `Factura` and `Nota crédito`.
+- Selected summaries render `Cuenta 10 · 2026-09-01 · Factura` and `Cuenta 10 · 2026-08-01 · Nota crédito`.
+- Period links preserve exact `document_type=BILL` / `document_type=CREDIT_NOTE` query semantics.
+- Desktop `scrollWidth=1425`, `clientWidth=1425`; mobile `scrollWidth=390`, `clientWidth=390`.
+- Mobile navigation has exactly five slots.
+- Network log: 25 responses, application 5xx = 0, real MELI calls = 0. The only resource 404 is `favicon.ico` and is not an uncaught application error.
+- Before/after DB snapshots are identical: one test account, two billing periods, zero billing details, zero work items, zero API usage and zero orders.
+- Test server/container/runtime files were torn down and working tree ended CLEAN.
+
+### Documentation observations accepted as non-blocking
+
+The evidence report has two documentation inconsistencies that do not contradict the actual gate evidence:
+
+1. Its G1 prose says the visible `h1` is `Facturación Mercado Libre`, while captured JSON/screenshots show `Facturación`. The H6A browser contract did not require an exact H1 string; the actual page identity is clear and the label gates remain proven.
+2. The report Markdown inside the ZIP omits the requested terminal key/value result block, although the pasted Antigravity execution output reports `RESULT: PASS`. All required gate values are independently present in JSON, screenshots, network/console and side-effect evidence.
+
+The SHA-256 printed by Antigravity for its locally generated outer ZIP differs from the SHA-256 of the uploaded archive. The uploaded archive itself is not trusted by outer-container hash; integrity acceptance is based on the independently verified internal manifest and matching evidence files.
+
+## H6A final disposition
 
 ```text
 H6_STARTED=YES
@@ -169,45 +243,31 @@ H6A_KISS=PASS
 H6A_ANTI_NOISE=PASS
 H6A_ANTI_PATCH=PASS
 H6A_BACKEND_TRUTH_PRESERVED=YES
-H6A_AUTOMATED_PHP_8_3=GREEN
-H6A_AUTOMATED_PHP_8_4=GREEN
-H6A_AUTOMATED_PHP_8_5=GREEN
 H6A_FINAL_AUTOMATED_GREEN=YES
-H6A_BROWSER_GREEN=NO
-H6A_FULLY_CLOSED=NO
+H6A_BROWSER_GREEN=YES
+H6A_FULLY_CLOSED=YES
+H6B_READY=YES
 H6B_STARTED=NO
 STOP_SAFE=YES
 ```
 
-## Next exact microblock — H6A browser certification only
+## Next exact microblock — H6B preflight only
 
 ```text
-NEXT=H6A BILLING HUMAN-FIRST — REAL-BROWSER CERTIFICATION
-H6B_FROZEN=YES
+NEXT=H6B BILLING HUMAN-FIRST — PREFLIGHT / TRUTH MAP / SMALLEST RED CONTRACT
+H6B_IMPLEMENTATION_STARTED=NO
 ```
 
-Required browser gates on `/billing`:
+Before touching production code:
 
-1. Desktop `1440x900` PASS.
-2. Mobile `390x844` PASS.
-3. Human-facing selector shows `Factura` and `Nota crédito`.
-4. No visible primary labels `BILL` or `CREDIT_NOTE`.
-5. Machine values remain `BILL` and `CREDIT_NOTE` in form/query semantics.
-6. Selected-period summary shows the corresponding human label.
-7. Periods table shows the corresponding human label.
-8. Existing period semantics remain exact; no invented conversion.
-9. No page horizontal overflow.
-10. Mobile bottom navigation remains exactly 5 slots.
-11. Console uncaught application errors = 0.
-12. Application HTTP 5xx = 0.
-13. Real MELI network calls = 0.
-14. Business side effects = 0.
-15. No backend/schema/routes/Work/Financial/429 architecture changes.
-
-On the first real browser defect: capture evidence, identify root cause, do not fix in the same certification run, STOP.
-
-Only after all browser gates pass may H6A be marked FULLY CLOSED and H6B be opened.
+1. Re-read current Billing view/controller/tests from the new branch HEAD.
+2. Prove the next smallest Human-First defect using current truth, not roadmap assumptions.
+3. Prefer presentation/copy/progressive-disclosure only unless evidence proves a deeper defect.
+4. Candidate areas to inspect, not assumptions to implement: technical state labels, cursor/raw technical detail prominence, period UX, and operator guidance.
+5. Preserve exact stored/API semantics and authorization.
+6. Do not touch Financial/Work/429 pacing, retry, queue, batching or transport architecture.
+7. TDD: one RED -> diagnose -> minimal GREEN -> full QA -> browser gate -> checkpoint.
 
 ## Frozen / prohibited
 
-No H6B/H7 work, broad redesign, new frontend framework, duplicate dataset/route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0, or speculative ERP1 429 architecture.
+No broad redesign, new frontend framework, duplicate dataset/route/owner, Hostinger, cron, real MELI mutation, PR merge, Financial/Work/429 redesign, retry storms, child Work explosion, patch-chain CSS, UNKNOWN→0, or speculative ERP1 429 architecture.
