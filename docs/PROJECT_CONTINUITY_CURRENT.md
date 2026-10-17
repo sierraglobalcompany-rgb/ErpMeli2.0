@@ -132,30 +132,61 @@ Implemented H7C-A contract:
 - user remains preserved;
 - no generic modal/framework/schema/permission/JS redesign.
 
-Current status:
+## H7C-A — independently audited real-browser closure
+
+Functional owner GREEN remains `22384c2c616da89d34e37543cd42e8ae13c54e06` (CI `39055307246` SUCCESS). Antigravity V3 ran real Chrome 155.0.8059.84 against disposable local TEST runtime at certified HEAD `95e15d84afe11fba4752d7bbdb6b32b456b58858`. ChatGPT independently verified SHA-256 manifest 29/29, 8 screenshots, structural/keyboard/accessibility JSON, HTTP 200/403, mobile geometry, shell, zero destructive posts and MELI browser calls, DB snapshots identical, and live GitHub lineage/PR/CI.
 
 ```text
 H7C_A_AUTOMATED_GREEN=YES
 H7C_A_ACK_SERVER_SIDE=GREEN
-H7C_A_BROWSER_CERTIFIED=NO
-H7C_A_FULLY_CLOSED=NO
-H7C_B_STARTED=NO
-H7C_C_STARTED=NO
-H7C_D_STARTED=NO
+H7C_A_BROWSER_CERTIFIED=YES
+H7C_A_INDEPENDENT_AUDIT=PASS
+H7C_A_FULLY_CLOSED=YES
+CERTIFIED_HEAD=95e15d84afe11fba4752d7bbdb6b32b456b58858
+CERTIFIED_HEAD_CI=39055734137 SUCCESS
+SYSTEM_ADMIN_HTTP=200
+ORDINARY_COMPANY_ADMIN_HTTP=403
+DESKTOP_1440x900=PASS
+MOBILE_390x844=PASS
+ARCHIVE_DELETE_DETAILS_AND_KEYBOARD=PASS
+DELETE_ACK_NATIVE_VALIDITY=PASS
+H7A_SHARED_SHELL=PASS
+MOBILE_NAV_SLOTS=5
+HORIZONTAL_OVERFLOW=NO
+BOTTOM_NAV_OBSTRUCTION=NO
+APPLICATION_5XX=0
+APP_JS_ERRORS=0
+DESTRUCTIVE_ROUTE_POSTS=0
+REAL_MELI_BROWSER_NETWORK_CALLS=0
+DB_BEFORE_AFTER=IDENTICAL
+CERTIFIER_GIT_BEFORE_AFTER=CLEAN
+CERTIFIER_REPO_CODE_TEST_DOC_WRITES=0
 PR_MERGED=NO
 STOP_SAFE=YES
+EVIDENCE_MANIFEST=29/29 EXACT
+EVIDENCE_ZIP_SHA256=177f76c87774f20962219743424341384349f0e30a0d086d2cb061eac87d1e88
 ```
+
+Attached audit inputs (not source files in repository):
+- `ERP_MELI_2_0_H7C_A_BROWSER_ANTIGRAVITY_REPORT_2026-10-17.md`
+- `ERP_MELI_2_0_H7C_A_BROWSER_ANTIGRAVITY_EVIDENCE_2026-10-17.zip`
+- `ERP_MELI_2_0_H7C_A_BROWSER_ANTIGRAVITY_EVIDENCE_2026-10-17.zip.sha256`
+
+Minor notes: favicon 404 was classified infrastructure/static; Apps launcher focus-inside measured before animation frame, but Escape + focus-return passed. These are non-blockers, not grounds for a patch.
 
 ## Exact NEXT
 
 ```text
-NEXT=H7C-A REAL-BROWSER CERTIFICATION ONLY
-TARGET_FUNCTIONAL_GREEN=22384c2c616da89d34e37543cd42e8ae13c54e06
-TARGET_GREEN_CI=39055307246
-DO_NOT_START_H7C_B_BEFORE_H7C_A_BROWSER_INDEPENDENT_AUDIT
+NEXT=H7C-B READ-ONLY PREFLIGHT
+H7C_B_STARTED=NO
+H7C_C_STARTED=NO
+H7C_D_STARTED=NO
+H7C_B_SCOPE=MELI accounts disconnect + hard delete UX
+NO_IMPLEMENTATION_BEFORE_ROOT_FACTS_AND_RED_TEST
+NO_PR_MERGE_WITHOUT_EXPLICIT_APPROVAL=YES
 ```
 
-Certification must be side-effect-free: System Admin positive, ordinary company-admin negative, desktop/mobile, keyboard disclosures, route ownership, CSRF, native delete acknowledgement validity, shared shell/five mobile slots, no overflow/obstruction, console/JS/5xx/real-MELI zero, business DB before/after identical, local tree clean pre/post, certifier code/test/docs changes zero, push zero, merge commit zero and PR merge zero. Do not submit archive/delete/reactivate. Server-side acknowledgement is already proven by CI and must not be re-tested with a destructive browser submit.
+Read-only H7C-B preflight: identify exact owner/controller/view/routes, current backend authorization + CSRF + account deletion invariants, existing test baseline, Human-First requirement, and smallest bounded RED. Do not reopen certified H7C-A or Financial/Work/429.
 
 ## Recovery sources
 
