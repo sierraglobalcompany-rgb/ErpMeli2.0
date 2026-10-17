@@ -10,6 +10,7 @@ declare(strict_types=1);
 /** @var string|null $error */
 /** @var array{id:int,name:string,role:string} $company */
 /** @var string $csrfToken */
+$documentLabels = ['BILL' => 'Factura', 'CREDIT_NOTE' => 'Nota crédito'];
 ?>
 <!doctype html>
 <html lang="es">
@@ -48,8 +49,8 @@ declare(strict_types=1);
                         </select></label>
                         <label>Período (AAAA-MM-01) <input name="period_key" type="text" pattern="[0-9]{4}-[0-9]{2}-01" placeholder="2026-09-01" value="<?= htmlspecialchars($selection['period_key'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required></label>
                         <label>Tipo documental <select name="document_type">
-                            <option value="BILL">BILL</option>
-                            <option value="CREDIT_NOTE" <?= ($selection['document_type'] ?? '') === 'CREDIT_NOTE' ? 'selected' : '' ?>>CREDIT_NOTE</option>
+                            <option value="BILL">Factura</option>
+                            <option value="CREDIT_NOTE" <?= ($selection['document_type'] ?? '') === 'CREDIT_NOTE' ? 'selected' : '' ?>>Nota crédito</option>
                         </select></label>
                         <button type="submit">Solicitar sincronización</button>
                     </form>
@@ -65,7 +66,7 @@ declare(strict_types=1);
                             <h2 id="billing-selection-title">Solicitud seleccionada</h2>
                         </div>
                     </div>
-                    <p>Cuenta <?= $selection['account_id'] ?> · <?= htmlspecialchars($selection['period_key'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($selection['document_type'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <p>Cuenta <?= $selection['account_id'] ?> · <?= htmlspecialchars($selection['period_key'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($documentLabels[$selection['document_type']] ?? $selection['document_type'], ENT_QUOTES, 'UTF-8') ?></p>
                     <?php if (($requestState['status'] ?? null) === 'failed'): ?>
                         <p class="notice">Requiere revisión. Una nueva solicitud debe ser explícita.</p>
                     <?php elseif (in_array($requestState['status'] ?? null, ['pending', 'running'], true)): ?>
@@ -102,7 +103,7 @@ declare(strict_types=1);
                                 <tr data-mobile-card="billing-period-row">
                                     <td data-label="Cuenta"><?= htmlspecialchars((string) $period['external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td data-label="Período"><a class="primary-record-link" href="/billing?<?= htmlspecialchars(http_build_query(['account_id' => (int) $period['account_id'], 'period_key' => $period['period_key'], 'document_type' => $period['document_type']], '', '&', PHP_QUERY_RFC3986), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $period['period_key'], ENT_QUOTES, 'UTF-8') ?></a></td>
-                                    <td data-label="Tipo"><?= htmlspecialchars((string) $period['document_type'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td data-label="Tipo"><?= htmlspecialchars($documentLabels[(string) $period['document_type']] ?? (string) $period['document_type'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td data-label="Progreso persistido"><?= $period['sync_state'] === 'caught_up' ? 'Al día con la fuente consultada' : 'Progreso registrado' ?></td>
                                     <td data-label="Última lectura (UTC)"><?= htmlspecialchars((string) ($period['last_synced_at'] ?? 'Sin lectura confirmada'), ENT_QUOTES, 'UTF-8') ?></td>
                                 </tr>
