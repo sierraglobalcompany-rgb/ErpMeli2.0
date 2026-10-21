@@ -570,4 +570,3 @@ No Financial/Work/429 retry, pacing, queue, batching or transport redesign witho
 ## Frozen / prohibited
 
 No PR merge or merge commit without explicit approval, Hostinger, cron, real MELI mutation, broad navigation redesign, generic modal framework, UNKNOWN->0, patch-chain CSS, speculative ERP1 architecture, or reopening closed Human-First blocks without evidence.
-
