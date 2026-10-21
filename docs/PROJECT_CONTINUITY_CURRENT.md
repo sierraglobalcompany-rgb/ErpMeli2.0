@@ -270,7 +270,7 @@ EVIDENCE_ZIP_SHA256=f9e95998b5cb0802bab5a7df271715552c9b55b039e3b10bac9583ee0abb
 
 Independent ChatGPT audit of user uploads: the reported final ZIP and supplemental timestamp ZIP contain **byte-identical 27 members** (26 manifest entries + manifest) despite differing ZIP-level hashes. Five images, machine-readable DOM/keyboard/mobile/network, preserved DB and live GitHub CI checked. One raw console error refers to deliberate negative authorization 403 (`chrome-error://chromewebdata/`), not a JavaScript exception. Two favicon 404 are incidental. A standalone checksum sidecar was not uploaded; ChatGPT independently generated one and verified its contents against the reported final ZIP digest. No claim that Antigravity attached it.
 
-## H7C-C — System clear debug (AUTOMATED GREEN, browser pending)
+## H7C-C — System clear debug (FULLY CLOSED; Codex V5 Chrome + independent audit)
 
 Owner `SystemSettingsController::clearDebug()` + `views/system.php`; original `DebugMaintenance::clearDebug()`, route, schema, CSS, JS, memberships, integration logic untouched.
 
@@ -299,22 +299,32 @@ REMOTE_MELI_CALLS=0
 
 Human-First UI: native `<details data-system-destructive-action="clear-debug">` collapsed by default, factual scope and irreversibility copy, `required` checkbox `confirm_clear_debug=1`, original POST+CSRF inside. No generic modal or CSS/JS abstraction.
 
+### V5 certification accepted independently — 2026-10-21
+
+- Browser HEAD `970153033003547a16b2c968db6ba4d0264cdb03`, PR #19 OPEN/DRAFT/NOT MERGED; GitHub GREEN run `39080177081` and HEAD run `39080460052` SUCCESS, PHP 8.3/8.4/8.5; 829 tests, 7049 assertions.
+- Three uploaded Codex files: `ERP_MELI_2_0_H7C_C_CODEX_LUNA_BROWSER_REPORT_V5_2026-10-21.md`, matching `ERP_MELI_2_0_H7C_C_CODEX_LUNA_BROWSER_EVIDENCE_V5_2026-10-21.zip` and `.zip.sha256`. ZIP SHA256 `c3db19754c9ea438032ddafe36827d32ab22d33e5300a04c209a42cfdf5c3f44`.
+- Independent audit `ERP_MELI_2_0_H7C_C_AUDITORIA_INDEPENDIENTE_CIERRE_V5_2026-10-21.md`: 31/31 ZIP members, 30/30 SHA, CRC PASS, 5 images inspected, exact report comparison, 27 HTTP requests with only two synthetic login POST, 0 destructive POST/MELI/5xx/JS uncaught; 200/403 RBAC; native checkbox and keyboard; Apps focus/return; mobile no overflow.
+- DB whitelist includes `system_settings`; before/after DB and synthetic debug + exports file-by-file SHA inventory identical. Chrome 155.0.8059.85 in isolated TEST only, no production or deletion action.
+- V2 structure checker 108 PASS + 2 documentation-format false negatives (English `clean` string and full GREEN SHA absent from abbreviated report but present in two other signed manifest evidence files); resolved with manual evidence/GitHub corroboration. One RED expected/observed order typo in `03`: actual 303, expected 422 according to GitHub failure log. Do not rerun Codex for those.
+- H7C-C marked CLOSED; H7C-D has a read-only preflight only and is NOT implemented. Do not restart A/B1/B2/C.
+
 ### Exact NEXT
 
 ```text
-NEXT=H7C-C REAL-BROWSER CERTIFICATION ONLY
+NEXT=H7C-D1 USER SYSTEM-ADMIN REVOCATION: PRECHECK, FOCAL RED, MINIMAL GREEN
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
 H7C_C_AUTOMATED_GREEN=YES
-H7C_C_BROWSER_CERTIFIED=NO
-H7C_C_FULLY_CLOSED=NO
+H7C_C_BROWSER_CERTIFIED=YES
+H7C_C_INDEPENDENT_AUDIT=PASS_WITH_MINOR_DOCUMENTARY_NOTES
+H7C_C_FULLY_CLOSED=YES
 H7C_D_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
 ```
 
-Run Antigravity only in disposable local TEST/real Chrome, verify CI first, System Admin GET 200 and non-system-admin GET 403, disclosure/default-closed, native required checkbox validity without submitting clear, keyboard Enter/Space, desktop/mobile/H7A, no overflow, 0 JS defects/5xx/MELI/browser destructive posts, **DEBUG DIRECTORY and business DB identical before/after**. Antigravity delivers report+evidence ZIP+SHA256 sidecar, independently reviewed by ChatGPT. H7C-D frozen.
+NEXT H7C-D1 preflight is already read-only complete. Begin only bounded TDD on system-admin revocation: RED missing/invalid consent => 422 and unchanged user/session when another System Admin exists; preserve 403/419/404/409 behavior, lock guarantees, existing 303 valid paths. Make no changes to F/Work/Billing/FIFO/429, schema, new framework, Hostinger, live MELI or PR merge.
 
 ## Recovery sources
 
