@@ -82,6 +82,31 @@ final class UserManagementTest extends TestCase
         self::assertSame($beforeMemberships, (int) $this->pdo->query('SELECT COUNT(*) FROM company_users')->fetchColumn());
     }
 
+    public function testSystemAdminRevocationRequiresExplicitHumanConfirmationWithoutChangingDbOrSession(): void
+    {
+        $csrf = (new Csrf())->token();
+        self::assertSame(303, $this->request('POST', '/system/users', [
+            'username'=>'second-admin','display_name'=>'Second Admin','email'=>'second-admin@example.test',
+            'password'=>'second-admin-password-123','is_system_admin'=>'1','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(2, (int) $this->pdo->query("SELECT COUNT(*) FROM users WHERE status='active' AND is_system_admin=1")->fetchColumn());
+
+        $adminBefore = (int) $this->pdo->query('SELECT is_system_admin FROM users WHERE id=1')->fetchColumn();
+        $membershipsBefore = $this->pdo->query('SELECT company_id,role FROM company_users WHERE user_id=1 ORDER BY company_id')->fetchAll(\PDO::FETCH_ASSOC);
+        $sessionKeys = ['is_system_admin','company_id','role','user_id'];
+        $sessionBefore = array_intersect_key($_SESSION, array_flip($sessionKeys));
+
+        $response = $this->request('POST', '/system/users/1/system-admin', [
+            'enabled'=>'0','csrf_token'=>$csrf,
+        ]);
+
+        self::assertSame(422, $response->getStatusCode());
+        self::assertSame('', $response->getHeaderLine('Location'));
+        self::assertSame($adminBefore, (int) $this->pdo->query('SELECT is_system_admin FROM users WHERE id=1')->fetchColumn());
+        self::assertSame($membershipsBefore, $this->pdo->query('SELECT company_id,role FROM company_users WHERE user_id=1 ORDER BY company_id')->fetchAll(\PDO::FETCH_ASSOC));
+        self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
+    }
+
     public function testCannotRemoveLastActiveSystemAdmin(): void
     {
         $csrf = (new Csrf())->token();
