@@ -197,6 +197,10 @@ final class UserManagementController
             if ($enabled === '0' && (int) $user['is_system_admin'] === 1 && $user['status'] === 'active') {
                 $this->assertAnotherActiveSystemAdmin($id);
             }
+            if ($enabled === '0' && (int) $user['is_system_admin'] === 1
+                && ($body['confirm_remove_system_admin'] ?? null) !== '1') {
+                throw new InvalidArgumentException('Explicit System Admin revocation acknowledgement required.');
+            }
             $statement = $this->pdo->prepare('UPDATE users SET is_system_admin=? WHERE id=?');
             $statement->execute([(int) $enabled, $id]);
             return;

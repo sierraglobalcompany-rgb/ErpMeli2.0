@@ -100,9 +100,26 @@ $navigationIsSystemAdmin = true;
                     <summary>Seguridad y acceso global</summary>
                     <form class="settings-form" method="post" action="/system/users/<?= $id ?>/status"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="status" value="<?= $active?'disabled':'active' ?>"><button class="<?= $active?'danger':'' ?>"><?= $active?'Desactivar':'Activar' ?></button></form>
 
-                    <form class="settings-form" method="post" action="/system/users/<?= $id ?>/system-admin"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="enabled" value="<?= $systemAdmin?'0':'1' ?>"><button><?= $systemAdmin?'Quitar administración del sistema':'Hacer Administrador del sistema' ?></button></form>
-
                     <form class="settings-form" method="post" action="/system/users/<?= $id ?>/password"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><label>Nueva contraseña <input name="password" type="password" minlength="<?= $passwordMin ?>" maxlength="72" autocomplete="new-password" required></label><button>Restablecer contraseña</button></form>
+
+                    <?php if ($systemAdmin): ?>
+                        <details data-user-destructive-action="remove-system-admin">
+                            <summary>Quitar administración del sistema</summary>
+                            <p class="muted">Se retirarán los permisos globales de administrador del sistema de este usuario. Sus accesos por empresa no se eliminan. Si retira sus propios permisos, perderá acceso a la administración global.</p>
+                            <form class="settings-form" method="post" action="/system/users/<?= $id ?>/system-admin">
+                                <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                                <input type="hidden" name="enabled" value="0">
+                                <label><input type="checkbox" name="confirm_remove_system_admin" value="1" required> Confirmo que deseo retirar la administración del sistema.</label>
+                                <button class="danger" type="submit">Confirmar retiro de administración</button>
+                            </form>
+                        </details>
+                    <?php else: ?>
+                        <form class="settings-form" method="post" action="/system/users/<?= $id ?>/system-admin">
+                            <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                            <input type="hidden" name="enabled" value="1">
+                            <button type="submit">Hacer Administrador del sistema</button>
+                        </form>
+                    <?php endif; ?>
                 </details>
 
                 <details data-user-section="memberships">

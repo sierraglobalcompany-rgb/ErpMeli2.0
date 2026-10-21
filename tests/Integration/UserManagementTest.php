@@ -107,6 +107,156 @@ final class UserManagementTest extends TestCase
         self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
     }
 
+    public function testInvalidSystemAdminRevocationAcknowledgementsDoNotChangeTarget(): void
+    {
+        $targetId = $this->createManagedUser('protected-admin', true);
+        $csrf = (new Csrf())->token();
+        $sessionKeys = ['is_system_admin','company_id','role','user_id'];
+        $sessionBefore = array_intersect_key($_SESSION, array_flip($sessionKeys));
+        $membershipsBefore = $this->managedMemberships($targetId);
+
+        foreach (['0', 'true', true, '', ' 1 ', []] as $confirmation) {
+            $response = $this->request('POST', '/system/users/'.$targetId.'/system-admin', [
+                'enabled'=>'0','confirm_remove_system_admin'=>$confirmation,'csrf_token'=>$csrf,
+            ]);
+            self::assertSame(422, $response->getStatusCode());
+            self::assertSame(1, (int) $this->pdo->query('SELECT is_system_admin FROM users WHERE id='.$targetId)->fetchColumn());
+            self::assertSame($membershipsBefore, $this->managedMemberships($targetId));
+            self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
+        }
+
+        $this->pdo->exec("UPDATE users SET status='disabled' WHERE id=".$targetId);
+        self::assertSame(422, $this->request('POST', '/system/users/'.$targetId.'/system-admin', [
+            'enabled'=>'0','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(1, (int) $this->pdo->query('SELECT is_system_admin FROM users WHERE id='.$targetId)->fetchColumn());
+        self::assertSame($membershipsBefore, $this->managedMemberships($targetId));
+    }
+
+    public function testSystemAdminEndpointPreservesAuthorizationCsrfAndInputErrorContracts(): void
+    {
+        $targetId = $this->createManagedUser('contract-admin', true);
+        $csrf = (new Csrf())->token();
+
+        self::assertSame(419, $this->request('POST', '/system/users/'.$targetId.'/system-admin', [
+            'enabled'=>'1','csrf_token'=>'invalid-token',
+        ])->getStatusCode());
+        self::assertSame(404, $this->request('POST', '/system/users/999999/system-admin', [
+            'enabled'=>'1','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(422, $this->request('POST', '/system/users/'.$targetId.'/system-admin', [
+            'enabled'=>'enabled','csrf_token'=>$csrf,
+        ])->getStatusCode());
+
+        $this->pdo->exec('UPDATE users SET is_system_admin=0 WHERE id=1');
+        $_SESSION['is_system_admin'] = true;
+        self::assertSame(403, $this->request('POST', '/system/users/'.$targetId.'/system-admin', [
+            'enabled'=>'1','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(1, (int) $this->pdo->query('SELECT is_system_admin FROM users WHERE id='.$targetId)->fetchColumn());
+    }
+
+    public function testSystemAdminGrantAndIdempotentRevocationKeepCompanyMembership(): void
+    {
+        $targetId = $this->createManagedUser('ordinary-member', false);
+        $csrf = (new Csrf())->token();
+        self::assertSame('viewer', $this->membershipRole(1, $targetId));
+
+        self::assertSame(303, $this->request('POST', '/system/users/'.$targetId.'/system-admin', [
+            'enabled'=>'1','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(1, (int) $this->pdo->query('SELECT is_system_admin FROM users WHERE id='.$targetId)->fetchColumn());
+        self::assertSame(303, $this->request('POST', '/system/users/'.$targetId.'/system-admin', [
+            'enabled'=>'0','confirm_remove_system_admin'=>'1','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(0, (int) $this->pdo->query('SELECT is_system_admin FROM users WHERE id='.$targetId)->fetchColumn());
+        self::assertSame(303, $this->request('POST', '/system/users/'.$targetId.'/system-admin', [
+            'enabled'=>'0','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame('viewer', $this->membershipRole(1, $targetId));
+    }
+
+    public function testSystemAdminUiUsesClosedRevocationDisclosureAndDirectGrant(): void
+    {
+        $globalId = $this->createManagedUser('global-target', true);
+        $ordinaryId = $this->createManagedUser('ordinary-target', false);
+        $response = $this->request('GET', '/system/users');
+        self::assertSame(200, $response->getStatusCode());
+
+        $document = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $document->loadHTML((string) $response->getBody(), LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        self::assertTrue($loaded);
+        $xpath = new \DOMXPath($document);
+
+        foreach ([[$globalId, 'global-target'], [$ordinaryId, 'ordinary-target']] as [$id, $username]) {
+            $card = $this->userCard($xpath, $username);
+            $sections = $xpath->query('.//details[@data-user-section]', $card);
+            self::assertNotFalse($sections);
+            self::assertCount(3, $sections);
+            self::assertSame(0, $xpath->query('.//form[ancestor::form]', $card)->length);
+            $securityNode = $xpath->query('.//details[@data-user-section="security"]', $card)->item(0);
+            self::assertInstanceOf(\DOMElement::class, $securityNode);
+            self::assertFalse($securityNode->hasAttribute('open'));
+            $html = $document->saveHTML($securityNode);
+            self::assertIsString($html);
+
+            if ($username === 'global-target') {
+                $passwordPosition = strpos($html, '/password');
+                $disclosurePosition = strpos($html, 'data-user-destructive-action="remove-system-admin"');
+                self::assertIsInt($passwordPosition);
+                self::assertIsInt($disclosurePosition);
+                self::assertLessThan($disclosurePosition, $passwordPosition);
+                $disclosures = $xpath->query('.//details[@data-user-destructive-action="remove-system-admin"]', $securityNode);
+                self::assertNotFalse($disclosures);
+                self::assertCount(1, $disclosures);
+                $disclosure = $disclosures->item(0);
+                self::assertInstanceOf(\DOMElement::class, $disclosure);
+                self::assertFalse($disclosure->hasAttribute('open'));
+                $summary = $xpath->query('./summary', $disclosure)->item(0);
+                self::assertNotNull($summary);
+                self::assertSame('Quitar administración del sistema', trim($summary->textContent));
+                $copy = $xpath->query('./p', $disclosure)->item(0);
+                self::assertNotNull($copy);
+                self::assertStringContainsString('Sus accesos por empresa no se eliminan.', $copy->textContent);
+                self::assertStringContainsString('perderá acceso a la administración global.', $copy->textContent);
+                $form = $xpath->query('./form[@action="/system/users/'.$id.'/system-admin"]', $disclosure)->item(0);
+                self::assertInstanceOf(\DOMElement::class, $form);
+                $csrfInput = $xpath->query('./input[@name="csrf_token"]', $form)->item(0);
+                self::assertNotNull($csrfInput);
+                self::assertNotSame('', $csrfInput->getAttribute('value'));
+                $enabledInput = $xpath->query('./input[@name="enabled"]', $form)->item(0);
+                self::assertNotNull($enabledInput);
+                self::assertSame('0', $enabledInput->getAttribute('value'));
+                $checkbox = $xpath->query('.//input[@name="confirm_remove_system_admin"]', $form)->item(0);
+                self::assertInstanceOf(\DOMElement::class, $checkbox);
+                self::assertTrue($checkbox->hasAttribute('required'));
+                self::assertFalse($checkbox->hasAttribute('checked'));
+                $button = $xpath->query('./button', $form)->item(0);
+                self::assertNotNull($button);
+                self::assertSame('Confirmar retiro de administración', trim($button->textContent));
+                $sibling = $disclosure->nextSibling;
+                while ($sibling !== null && ! ($sibling instanceof \DOMElement)) {
+                    $sibling = $sibling->nextSibling;
+                }
+                self::assertNull($sibling);
+            } else {
+                self::assertSame(0, $xpath->query('.//details[@data-user-destructive-action="remove-system-admin"]', $securityNode)->length);
+                $form = $xpath->query('./form[@action="/system/users/'.$id.'/system-admin"]', $securityNode)->item(0);
+                self::assertInstanceOf(\DOMElement::class, $form);
+                $enabledInput = $xpath->query('./input[@name="enabled"]', $form)->item(0);
+                self::assertNotNull($enabledInput);
+                self::assertSame('1', $enabledInput->getAttribute('value'));
+                self::assertSame(0, $xpath->query('.//input[@name="confirm_remove_system_admin"]', $form)->length);
+                $button = $xpath->query('./button', $form)->item(0);
+                self::assertNotNull($button);
+                self::assertSame('Hacer Administrador del sistema', trim($button->textContent));
+            }
+        }
+    }
+
     public function testCannotRemoveLastActiveSystemAdmin(): void
     {
         $csrf = (new Csrf())->token();
@@ -123,15 +273,20 @@ final class UserManagementTest extends TestCase
     public function testSecondSystemAdminAllowsSafeDelegation(): void
     {
         $csrf = (new Csrf())->token();
+        $membershipsBefore = $this->managedMemberships(1);
+        $sessionKeys = ['company_id','role','user_id'];
+        $sessionBefore = array_intersect_key($_SESSION, array_flip($sessionKeys));
         self::assertSame(303, $this->request('POST', '/system/users', [
             'username'=>'second-admin','display_name'=>'Second Admin','email'=>'second-admin@example.test',
             'password'=>'second-admin-password-123','is_system_admin'=>'1','csrf_token'=>$csrf,
         ])->getStatusCode());
         self::assertSame(303, $this->request('POST', '/system/users/1/system-admin', [
-            'enabled'=>'0','csrf_token'=>$csrf,
+            'enabled'=>'0','confirm_remove_system_admin'=>'1','csrf_token'=>$csrf,
         ])->getStatusCode());
         self::assertSame(0, (int) $this->pdo->query('SELECT is_system_admin FROM users WHERE id=1')->fetchColumn());
         self::assertArrayNotHasKey('is_system_admin', $_SESSION);
+        self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
+        self::assertSame($membershipsBefore, $this->managedMemberships(1));
     }
 
     public function testCannotDowngradeRemoveOrDisableLastActiveCompanyAdmin(): void
@@ -196,6 +351,49 @@ final class UserManagementTest extends TestCase
         $statement = $this->pdo->prepare('SELECT role FROM company_users WHERE company_id=? AND user_id=?');
         $statement->execute([$companyId, $userId]);
         return (string) $statement->fetchColumn();
+    }
+
+    private function createManagedUser(string $username, bool $systemAdmin): int
+    {
+        $body = [
+            'username'=>$username,'display_name'=>$username,'email'=>$username.'@example.test',
+            'password'=>$username.'-password-123','company_id'=>'1','role'=>'viewer','csrf_token'=>(new Csrf())->token(),
+        ];
+        if ($systemAdmin) {
+            $body['is_system_admin'] = '1';
+        }
+        self::assertSame(303, $this->request('POST', '/system/users', $body)->getStatusCode());
+        $statement = $this->pdo->prepare('SELECT id FROM users WHERE username=?');
+        $statement->execute([$username]);
+        $userId = (int) $statement->fetchColumn();
+        self::assertGreaterThan(1, $userId);
+        return $userId;
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function managedMemberships(int $userId): array
+    {
+        $statement = $this->pdo->prepare('SELECT company_id,role FROM company_users WHERE user_id=? ORDER BY company_id');
+        $statement->execute([$userId]);
+        return $statement->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    private function userCard(\DOMXPath $xpath, string $username): \DOMElement
+    {
+        $cards = $xpath->query('//article[@data-admin-card="user"]');
+        if ($cards === false) {
+            self::fail('Could not query user cards.');
+        }
+        foreach ($cards as $card) {
+            if (! $card instanceof \DOMElement) {
+                continue;
+            }
+            $heading = $card->getElementsByTagName('h2')->item(0);
+            if ($heading?->textContent === $username) {
+                return $card;
+            }
+        }
+        self::fail('User card not found: '.$username);
     }
 
     /** @param array<string,mixed> $body */
