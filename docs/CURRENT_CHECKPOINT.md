@@ -455,7 +455,7 @@ External evidence received:
 
 No product defect is proven by the known expected operator GET 403 Chrome console-network message; it remains transparently counted as one in raw evidence. No fixes/patches warranted.
 
-## H7C-C — System clear debug — automated GREEN / real browser PENDING
+## H7C-C — System clear debug — FULLY CLOSED (independent Chrome V5 audit)
 
 Precise owner: `app/Modules/Settings/SystemSettingsController.php::clearDebug()` and `app/Modules/Settings/views/system.php`. Existing route `POST /settings/system/debug/clear`, existing `DebugMaintenance::clearDebug()` recognizes only local debug files; no schema/route/JS/CSS/remote MELI modifications.
 
@@ -495,23 +495,37 @@ REAL_MELI_HTTP=0
 
 Existing System Admin DB authorization, CSRF 419, optional DebugMaintenance 503 and recognized-file deletion preserved. Added exact server acknowledgement `confirm_clear_debug='1'`, otherwise 422 without file deletion. UI now has native closed-by-default `<details data-system-destructive-action="clear-debug">`, factual scope copy (recognized local debug files only, preserving ZIP exports, unrelated files, business data), required checkbox, and original CSRF-protected POST inside.
 
+### V5 — Real Chrome certification + independent audit (2026-10-21)
+
+- Tester: Codex Luna in disposable loopback Chrome 155.0.8059.85, 1440×900 desktop and 390×844 mobile; product code and shared checkout unchanged.
+- Exact certified browser HEAD: `970153033003547a16b2c968db6ba4d0264cdb03`; GREEN→HEAD changed only `docs/CURRENT_CHECKPOINT.md` and `docs/PROJECT_CONTINUITY_CURRENT.md` (two docs-only commits).
+- Independent evidence: `ERP_MELI_2_0_H7C_C_CODEX_LUNA_BROWSER_REPORT_V5_2026-10-21.md`, `ERP_MELI_2_0_H7C_C_CODEX_LUNA_BROWSER_EVIDENCE_V5_2026-10-21.zip`, matching `.zip.sha256`; independent verdict `ERP_MELI_2_0_H7C_C_AUDITORIA_INDEPENDIENTE_CIERRE_V5_2026-10-21.md`.
+- ZIP SHA-256 `c3db19754c9ea438032ddafe36827d32ab22d33e5300a04c209a42cfdf5c3f44`; 31 members, 30/30 manifest SHA, CRC PASS, external/internal report byte-identical.
+- Server auth 200 System Admin / 403 non-System Admin; `<details>` closed by default; `confirm_clear_debug='1'` checked only when human intentionally toggles; native validity false→true→false, 26 real Tabs, Enter/Space/focus PASS.
+- Mobile five navigation slots, no horizontal overflow, 35.734375px bottom-button clearance; H7A skip link and Apps opened by keyboard, focus inside and returned by Escape.
+- Browser network 27 requests (25 GET, 2 synthetic login POST), 0 destructive/config/export/MELI POST, 0 JS uncaught and 0 HTTP 5xx. One raw console error attributable to intentional 403; not hidden.
+- Before/after byte-identical deterministic DB snapshots including `system_settings`; debug and export filesystem inventories identical with file SHA-256.
+- Independent V2 auditor: 108 PASS, two *non-substantive text-format false negatives*, adjudicated via original GitHub and artifacts; report's RED expected/observed order typo documented against official CI log (actual original 303 vs expected 422).
+- Scope: certification in isolated TEST; no real destructive POST or production deployment. H7C-D not implemented. PR #19 remains OPEN/DRAFT/NOT MERGED.
+
 ## Exact resume point
 
 ```text
-NEXT=H7C-C REAL-BROWSER CERTIFICATION ONLY
+NEXT=H7C-D1 USER SYSTEM-ADMIN REVOCATION: READ PRECHECK THEN FOCAL RED
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
 H7C_C_AUTOMATED_GREEN=YES
-H7C_C_BROWSER_CERTIFIED=NO
-H7C_C_FULLY_CLOSED=NO
+H7C_C_BROWSER_CERTIFIED=YES
+H7C_C_INDEPENDENT_AUDIT=PASS_WITH_MINOR_DOCUMENTARY_NOTES
+H7C_C_FULLY_CLOSED=YES
 H7C_D_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
 ```
 
-Use real local Chrome/Antigravity only as browser CERTIFIER in disposable TEST runtime, no debug clear POST, no config POST, no real MELI. Require system admin 200/non-system-admin 403, native keyboard, checkbox validity, desktop/mobile shared H7A shell, browser console/network, **DB AND DEBUG FILESYSTEM before/after identical**, clean tree, zero certifier product edits, evidence report + ZIP + SHA-256 sidecar. Final closure only on independent ChatGPT audit of all three artifacts. H7C-D stays frozen.
+H7C-C gate closed with independent review. Next step H7C-D1 only: inspect existing user controller/UI/tests, author one focal test-only RED for missing/invalid explicit consent (422 and no DB/session mutation), confirm expected RED, then minimal GREEN. Preserve authorization, CSRF, last-admin safety and existing routes. No implementation or mutation before the D1 RED gate.
 
 ## ERP1 / 429 frozen truth
 
