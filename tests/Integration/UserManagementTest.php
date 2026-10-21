@@ -82,6 +82,53 @@ final class UserManagementTest extends TestCase
         self::assertSame($beforeMemberships, (int) $this->pdo->query('SELECT COUNT(*) FROM company_users')->fetchColumn());
     }
 
+    public function testRemoveMembershipRequiresHumanConfirmationAndPreservesDbAndSession(): void
+    {
+        $targetId = $this->createManagedUser('membership-revoke-target', false);
+        $csrf = (new Csrf())->token();
+        $actor = $this->pdo->query(
+            'SELECT u.status,u.is_system_admin,cu.role FROM users u '
+            . 'INNER JOIN company_users cu ON cu.user_id=u.id AND cu.company_id=1 WHERE u.id=1'
+        )->fetch(\PDO::FETCH_ASSOC);
+        self::assertSame('active', $actor['status']);
+        self::assertSame(1, (int) $actor['is_system_admin']);
+        self::assertSame('admin', $actor['role']);
+        self::assertSame('viewer', $this->membershipRole(1, $targetId));
+        self::assertSame(1, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM company_users cu INNER JOIN users u ON u.id=cu.user_id "
+            . "WHERE cu.company_id=1 AND cu.role='admin' AND u.status='active'"
+        )->fetchColumn());
+
+        $targetBefore = $this->managedMemberships($targetId);
+        $allBefore = $this->pdo->query(
+            'SELECT company_id,user_id,role FROM company_users ORDER BY company_id,user_id'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+        $sessionKeys = ['user_id','company_id','role','is_system_admin'];
+        $sessionBefore = array_intersect_key($_SESSION, array_flip($sessionKeys));
+
+        $response = $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+            'company_id'=>'1','csrf_token'=>$csrf,
+        ]);
+
+        $targetAfter = $this->managedMemberships($targetId);
+        $allAfter = $this->pdo->query(
+            'SELECT company_id,user_id,role FROM company_users ORDER BY company_id,user_id'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+        $sessionAfter = array_intersect_key($_SESSION, array_flip($sessionKeys));
+        self::assertSame(422, $response->getStatusCode(), json_encode([
+            'observed_status'=>$response->getStatusCode(),
+            'observed_location'=>$response->getHeaderLine('Location'),
+            'target_before'=>$targetBefore,
+            'target_after'=>$targetAfter,
+            'all_memberships_unchanged'=>$allBefore === $allAfter,
+            'session_unchanged'=>$sessionBefore === $sessionAfter,
+        ], JSON_THROW_ON_ERROR));
+        self::assertSame('', $response->getHeaderLine('Location'));
+        self::assertSame($targetBefore, $targetAfter);
+        self::assertSame($allBefore, $allAfter);
+        self::assertSame($sessionBefore, $sessionAfter);
+    }
+
     public function testSystemAdminRevocationRequiresExplicitHumanConfirmationWithoutChangingDbOrSession(): void
     {
         $csrf = (new Csrf())->token();
