@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7C-A/B1/B2/C/D1 FULLY CLOSED / H7C-D2 NOT STARTED / NEXT D2 READ-ONLY PREFLIGHT THEN FOCAL RED / PR OPEN DRAFT UNMERGED / STOP-SAFE**
+**CURRENT=H7C-A/B1/B2/C/D1 FULLY CLOSED / H7C-D2 AUTOMATED GREEN + BROWSER OBSERVED PASS / INDEPENDENT AUDIT PENDING / PR OPEN DRAFT UNMERGED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -548,7 +548,7 @@ REAL_MELI_HTTP=0
 
 ## Exact resume point
 
-NEXT=H7C-D2 READ-ONLY PREFLIGHT THEN FOCAL RED
+NEXT=H7C-D2 INDEPENDENT BROWSER EVIDENCE AUDIT
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -562,12 +562,41 @@ H7C_D1_BROWSER_OBSERVED=PASS
 H7C_D1_BROWSER_INDEPENDENTLY_CERTIFIED=YES
 H7C_D1_INDEPENDENT_AUDIT=PASS_WITH_DOCUMENTED_LIMITATIONS
 H7C_D1_FULLY_CLOSED=YES
-H7C_D2_STARTED=NO
+H7C_D2_STARTED=YES
+H7C_D2_AUTOMATED_GREEN=YES
+H7C_D2_BROWSER_OBSERVED=PASS
+H7C_D2_BROWSER_INDEPENDENTLY_CERTIFIED=NO
+H7C_D2_FULLY_CLOSED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
 
-D1 independently certified and closed; H7C-D2 remains not started. NEXT read-only preflight of membership removal owner before focal RED. Do not reopen H7C-A/B1/B2/C/D1.
+### H7C-D2 — confirmación humana para retirar membresías (2026-10-21)
+
+START_HEAD=afeba7940aea51f0ceefa24ddba6c89c430599ac
+RED_TEST_ONLY_SHA=56f99973ce9706657dde859aded519f685b2efec
+RED_CI=39674454144 EXPECTED_SINGLE_FAILURE (PHP 8.3/8.4/8.5)
+GREEN_SHA=715f4a9ae93452df75fc5d32eaa0514accf12ea7
+GREEN_CI=39678811548 SUCCESS (PHP 8.3/8.4/8.5 + PHPStan)
+HEAD_AT_BROWSER=715f4a9ae93452df75fc5d32eaa0514accf12ea7
+LOCAL_PHPUNIT=840 tests / 7315 assertions / 1 Windows symlink skip / 0 failures
+PHPSTAN=PASS
+COMPOSER_VALIDATE=PASS
+PHP_LINT=PASS (230 PHP files)
+TEST_DB_ISOLATED=YES (dedicated disposable MariaDB; `erp_meli2_test`)
+BROWSER=Chrome 155.0.8059.85; desktop 1440x900; mobile 390x844
+SYSTEM_ADMIN=HTTP 200; ordinary operator same-origin GET `/system/users`=403
+MOBILE_NAV=5 slots; no horizontal overflow; consent checkbox and button clear of fixed nav
+CONSENT=closed by default; required unchecked; checkValidity false→true→false; Enter/Space pass
+APPS_KEYBOARD=4 Tab to launcher; Enter opens and focuses dialog; Tab stays inside; Escape closes and restores focus
+BROWSER_PROHIBITED_POSTS=0 (only two synthetic login POSTs); external HTTP=0; application 5xx=0; uncaught JS=0
+DB_BEFORE_AFTER=identical hashes/counts for users, company_users, companies, system_settings
+FILESYSTEM_BEFORE_AFTER=identical 929-file inventory; filenames pseudonymized in evidence
+CODE_OWNER_FILES_CHANGED=UserManagementController.php, views/users.php, UserManagementTest.php
+D1_UNCHANGED=YES
+EVIDENCE=H7C_D2_BROWSER_REPORT_2026-10-21.md + H7C_D2_BROWSER_EVIDENCE_2026-10-21.zip + .zip.sha256
+
+The browser confirms the presentation and authorization boundary; the destructive POST itself was tested only in PHPUnit against the disposable database. PR #19 remains OPEN/DRAFT/NOT MERGED. H7C-D2 is not independently certified or fully closed; ChatGPT must audit the report and package before closure. Do not reopen H7C-A/B1/B2/C/D1.
 ## ERP1 / 429 frozen truth
 
 ERP1 had Billing/Financial/Work instability including 429/FIFO/timing symptoms and architecture drift. Universal root cause remains:

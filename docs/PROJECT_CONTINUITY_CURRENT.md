@@ -308,9 +308,9 @@ Human-First UI: native `<details data-system-destructive-action="clear-debug">` 
 - V2 structure checker 108 PASS + 2 documentation-format false negatives (English `clean` string and full GREEN SHA absent from abbreviated report but present in two other signed manifest evidence files); resolved with manual evidence/GitHub corroboration. One RED expected/observed order typo in `03`: actual 303, expected 422 according to GitHub failure log. Do not rerun Codex for those.
 - At the V5 evidence capture, H7C-C was CLOSED and H7C-D had only a read-only preflight. The current D1 result is recorded below. Do not restart A/B1/B2/C.
 
-### Current exact NEXT — H7C-D2 membership removal preflight
+### Current exact NEXT — H7C-D2 independent browser evidence audit
 
-NEXT=H7C-D2 READ-ONLY PREFLIGHT THEN FOCAL RED
+NEXT=H7C-D2 INDEPENDENT BROWSER EVIDENCE AUDIT
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -324,11 +324,42 @@ H7C_D1_BROWSER_OBSERVED=PASS
 H7C_D1_BROWSER_INDEPENDENTLY_CERTIFIED=YES
 H7C_D1_INDEPENDENT_AUDIT=PASS_WITH_DOCUMENTED_LIMITATIONS
 H7C_D1_FULLY_CLOSED=YES
-H7C_D2_STARTED=NO
+H7C_D2_STARTED=YES
+H7C_D2_AUTOMATED_GREEN=YES
+H7C_D2_BROWSER_OBSERVED=PASS
+H7C_D2_BROWSER_INDEPENDENTLY_CERTIFIED=NO
+H7C_D2_FULLY_CLOSED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
 
-H7C-D1 GREEN is remote commit 44e50342a5dcb606e90c07b4ad199102a434344d, CI 39666739964 SUCCESS; PHP 8.3/8.4/8.5 each passed 834 tests and 7156 assertions. The focused RED run 39661909819 showed the expected single 303-vs-422 failure in each matrix. Local PHPUnit passed 834 tests / 7153 assertions with one Windows-only symlink skip; PHPStan passed.
+H7C-D2 evidence:
+
+```text
+START_HEAD=afeba7940aea51f0ceefa24ddba6c89c430599ac
+RED_TEST_ONLY_SHA=56f99973ce9706657dde859aded519f685b2efec
+RED_CI=39674454144 EXPECTED_SINGLE_FAILURE (PHP 8.3/8.4/8.5)
+GREEN_SHA=715f4a9ae93452df75fc5d32eaa0514accf12ea7
+GREEN_CI=39678811548 SUCCESS (PHP 8.3/8.4/8.5 + PHPStan)
+HEAD_AT_BROWSER=715f4a9ae93452df75fc5d32eaa0514accf12ea7
+LOCAL_PHPUNIT=840 tests / 7315 assertions / 1 Windows symlink skip / 0 failures
+PHPSTAN=PASS
+COMPOSER_VALIDATE=PASS
+PHP_LINT=PASS (230 PHP files)
+TEST_DB_ISOLATED=YES (dedicated disposable MariaDB; erp_meli2_test)
+BROWSER=Chrome 155.0.8059.85; desktop 1440x900; mobile 390x844
+SYSTEM_ADMIN=HTTP 200; ordinary operator same-origin GET /system/users=403
+MOBILE_NAV=5 slots; no horizontal overflow; consent checkbox and button clear of fixed nav
+CONSENT=closed by default; required unchecked; checkValidity false→true→false; Enter/Space pass
+APPS_KEYBOARD=4 Tab to launcher; Enter opens and focuses dialog; Tab stays inside; Escape closes and restores focus
+BROWSER_PROHIBITED_POSTS=0 (only two synthetic login POSTs); external HTTP=0; application 5xx=0; uncaught JS=0
+DB_BEFORE_AFTER=identical hashes/counts for users, company_users, companies, system_settings
+FILESYSTEM_BEFORE_AFTER=identical 929-file inventory; filenames pseudonymized in evidence
+CODE_OWNER_FILES_CHANGED=UserManagementController.php, views/users.php, UserManagementTest.php
+D1_UNCHANGED=YES
+EVIDENCE=H7C_D2_BROWSER_REPORT_2026-10-21.md + H7C_D2_BROWSER_EVIDENCE_2026-10-21.zip + .zip.sha256
+```
+
+The browser confirms presentation and authorization; destructive revocation was tested only through PHPUnit against the disposable database. The checkout and remote branch used equivalent RED/GREEN trees with different commit SHAs; the remote PR head is authoritative. H7C-D2 remains pending independent evidence audit and is not fully closed.
 
 ### Independent evidence audit and closure (2026-10-21)
 
@@ -337,11 +368,11 @@ H7C-D1 GREEN is remote commit 44e50342a5dcb606e90c07b4ad199102a434344d, CI 39666
 - Audited three Chrome screenshots and evidence for System Admin 200 / restricted 403, native required consent, keyboard and mobile geometry; observed no destructive POST or MELI call, table-hash DB snapshots and storage inventory identical before/after. Server regressions validated by PHP unit tests and GitHub Linux CI, not browser destructive POST.
 - Real RED CI `39661909819` one expected failure; GREEN `39666739964` and certified browser HEAD `39669622138` SUCCESS (PHP 8.3/8.4/8.5: 834 tests/7156 assertions, PHPStan PASS). GREEN→HEAD only two Markdown changes. No additional product code changed for closure.
 - Limitations recorded: DB snapshots store row counts/hashes rather than raw rows, storage only six .gitkeep markers, 4 Chrome VERBOSE autocomplete notices, two login favicon404s and expected 403 console error. No production certification/merge.
-- D1 is independently CLOSED; D2 is not started.
+- D1 is independently CLOSED; D2 had not started at the time of this D1 audit.
 
 Chrome 155.0.8059.85 was observed in isolated TEST at desktop 1440×900 and mobile 390×844. Admin route 200, restricted user 403; native required acknowledgement, keyboard, Apps focus return, mobile geometry, and unchanged DB/filesystem snapshots passed. No browser revocation or real-provider POST occurred. Full evidence report: H7C_D1_BROWSER_REPORT_2026-10-21.md. ZIP: H7C_D1_BROWSER_EVIDENCE_2026-10-21.zip; SHA-256 b56332f1e88194298dc1b1761eda8bbebe84349c599ab31829955e61bd1a4cef.
 
-Codex performed the real browser observation; ChatGPT independently checked the uploaded report, original screenshots, ZIP CRC, 22/22 member SHA hashes, identical internal/external report and database/filesystem JSON snapshots, and live RED/GREEN/HEAD GitHub logs. D1 is FULLY CLOSED in isolated TEST; caveats: no browser revocation POST by design, original per-table DB rows not supplied, storage inventory only six empty .gitkeep markers, four admin console autocomplete VERBOSE messages, two incidental favicon404s, expected restricted 403. Next H7C-D2 may begin with read-only preflight, and a bounded focal RED only after checking TEST DB isolation; do not reopen A/B1/B2/C/D1 or merge PR #19, deploy, or broaden scope.
+Codex performed the real browser observation; ChatGPT independently checked the D1 report, screenshots, ZIP CRC and member hashes, matching report, database/filesystem snapshots, and live RED/GREEN/HEAD GitHub logs. D1 remains FULLY CLOSED in isolated TEST. H7C-D2 is now automated GREEN and browser-observed PASS; its evidence package awaits independent audit. No browser revocation POST or real-provider POST occurred. Do not reopen A/B1/B2/C/D1, merge PR #19, deploy, or broaden scope.
 ## Recovery sources
 
 Read, in order:
