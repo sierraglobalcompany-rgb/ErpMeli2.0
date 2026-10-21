@@ -132,7 +132,16 @@ $navigationIsSystemAdmin = true;
                             <strong><?= $e((string)$membership['name']) ?><?= $membership['archived_at']!==null?' (archivada)':'' ?></strong>
                             <select name="role"><option value="admin" <?= $membership['role']==='admin'?'selected':'' ?>>Administrador</option><option value="operator" <?= in_array($membership['role'],['operator','member'],true)?'selected':'' ?>>Operador</option><option value="viewer" <?= $membership['role']==='viewer'?'selected':'' ?>>Consulta</option></select><button>Actualizar rol</button>
                         </form>
-                        <form class="settings-form" method="post" action="/system/users/<?= $id ?>/remove-membership"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><input type="hidden" name="company_id" value="<?= $companyId ?>"><button class="danger">Quitar acceso a <?= $e((string)$membership['name']) ?></button></form>
+                        <details data-user-destructive-action="remove-membership">
+                            <summary>Quitar acceso a <?= $e((string) $membership['name']) ?></summary>
+                            <p class="muted">Se retirará el acceso de este usuario a esta empresa. No se eliminará el usuario ni sus accesos a otras empresas. Si retira su propio acceso a la empresa activa, dejará de tenerla seleccionada.</p>
+                            <form class="settings-form" method="post" action="/system/users/<?= $id ?>/remove-membership">
+                                <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                                <input type="hidden" name="company_id" value="<?= $companyId ?>">
+                                <label><input type="checkbox" name="confirm_remove_membership" value="1" required> Confirmo que deseo quitar este acceso a la empresa.</label>
+                                <button class="danger" type="submit">Confirmar retiro de acceso</button>
+                            </form>
+                        </details>
                     <?php endforeach; ?>
 
                     <form class="settings-form" method="post" action="/system/users/<?= $id ?>/membership"><input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>"><label>Añadir empresa <select name="company_id" required><?php foreach ($companies as $company): ?><option value="<?= (int)$company['id'] ?>"><?= $e((string)$company['name']) ?><?= $company['archived_at']!==null?' (archivada)':'' ?></option><?php endforeach; ?></select></label><label>Rol <select name="role"><option value="operator">Operador</option><option value="viewer">Consulta</option><option value="admin">Administrador</option></select></label><button>Añadir o actualizar acceso</button></form>

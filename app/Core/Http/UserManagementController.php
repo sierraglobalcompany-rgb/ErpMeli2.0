@@ -233,6 +233,9 @@ final class UserManagementController
             if ($existingRole === 'admin' && $user['status'] === 'active') {
                 $this->assertAnotherActiveCompanyAdmin($companyId, $id);
             }
+            if (($body['confirm_remove_membership'] ?? null) !== '1') {
+                throw new InvalidArgumentException('Explicit company membership removal acknowledgement required.');
+            }
             $statement = $this->pdo->prepare('DELETE FROM company_users WHERE company_id=? AND user_id=?');
             $statement->execute([$companyId, $id]);
             return;

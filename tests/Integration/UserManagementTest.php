@@ -129,6 +129,162 @@ final class UserManagementTest extends TestCase
         self::assertSame($sessionBefore, $sessionAfter);
     }
 
+    public function testInvalidMembershipRemovalAcknowledgementsDoNotChangeDbOrSession(): void
+    {
+        $targetId = $this->createManagedUser('membership-revoke-target', false);
+        $csrf = (new Csrf())->token();
+        $membershipsBefore = $this->managedMemberships($targetId);
+        $allBefore = $this->pdo->query(
+            'SELECT company_id,user_id,role FROM company_users ORDER BY company_id,user_id'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+        $sessionKeys = ['user_id','company_id','role','is_system_admin'];
+        $sessionBefore = array_intersect_key($_SESSION, array_flip($sessionKeys));
+
+        foreach ([
+            [],
+            ['confirm_remove_membership'=>'0'],
+            ['confirm_remove_membership'=>'true'],
+            ['confirm_remove_membership'=>true],
+            ['confirm_remove_membership'=>1],
+            ['confirm_remove_membership'=>''],
+            ['confirm_remove_membership'=>' 1 '],
+            ['confirm_remove_membership'=>[]],
+        ] as $confirmation) {
+            $response = $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+                'company_id'=>'1','csrf_token'=>$csrf,
+            ] + $confirmation);
+            self::assertSame(422, $response->getStatusCode());
+            self::assertSame('', $response->getHeaderLine('Location'));
+            self::assertSame($membershipsBefore, $this->managedMemberships($targetId));
+            self::assertSame($allBefore, $this->pdo->query(
+                'SELECT company_id,user_id,role FROM company_users ORDER BY company_id,user_id'
+            )->fetchAll(\PDO::FETCH_ASSOC));
+            self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
+        }
+
+        $this->pdo->exec("UPDATE users SET status='disabled' WHERE id=".$targetId);
+        $disabledRemoval = $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+            'company_id'=>'1','csrf_token'=>$csrf,
+        ]);
+        self::assertSame(422, $disabledRemoval->getStatusCode());
+        self::assertSame($membershipsBefore, $this->managedMemberships($targetId));
+        self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
+        self::assertSame(303, $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+            'company_id'=>'1','confirm_remove_membership'=>'1','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame([], $this->managedMemberships($targetId));
+        self::assertSame('disabled', $this->pdo->query(
+            'SELECT status FROM users WHERE id='.$targetId
+        )->fetchColumn());
+    }
+
+    public function testConfirmedViewerRemovalDeletesOnlyThatUsersSoleMembership(): void
+    {
+        $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Second Company','second-company')");
+        $otherId = $this->createManagedUser('unaffected-member', false);
+        $csrf = (new Csrf())->token();
+        self::assertSame(303, $this->request('POST', '/system/users/'.$otherId.'/membership', [
+            'company_id'=>'2','role'=>'operator','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        $targetId = $this->createManagedUser('sole-viewer-membership', false);
+        self::assertSame('viewer', $this->membershipRole(1, $targetId));
+        self::assertSame([['company_id'=>1,'role'=>'viewer']], $this->managedMemberships($targetId));
+        $allBefore = $this->pdo->query(
+            'SELECT company_id,user_id,role FROM company_users ORDER BY company_id,user_id'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+        $expectedAfter = array_values(array_filter(
+            $allBefore,
+            static fn (array $membership): bool => (int) $membership['user_id'] !== $targetId
+        ));
+        $sessionKeys = ['user_id','company_id','role','is_system_admin'];
+        $sessionBefore = array_intersect_key($_SESSION, array_flip($sessionKeys));
+
+        $response = $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+            'company_id'=>'1','confirm_remove_membership'=>'1','csrf_token'=>$csrf,
+        ]);
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame('/system/users', $response->getHeaderLine('Location'));
+        self::assertSame([], $this->managedMemberships($targetId));
+        self::assertSame(1, (int) $this->pdo->query(
+            'SELECT COUNT(*) FROM users WHERE id='.$targetId
+        )->fetchColumn());
+        self::assertSame($expectedAfter, $this->pdo->query(
+            'SELECT company_id,user_id,role FROM company_users ORDER BY company_id,user_id'
+        )->fetchAll(\PDO::FETCH_ASSOC));
+        self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
+    }
+
+    public function testMembershipRemovalPreservesSelfRevocationAndSystemAdminSession(): void
+    {
+        $backupAdminId = $this->createManagedUser('backup-company-admin', false);
+        $csrf = (new Csrf())->token();
+        self::assertSame(303, $this->request('POST', '/system/users/'.$backupAdminId.'/membership', [
+            'company_id'=>'1','role'=>'admin','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame('admin', $this->membershipRole(1, $backupAdminId));
+
+        $sessionKeys = ['user_id','company_id','role','is_system_admin'];
+        $sessionBefore = array_intersect_key($_SESSION, array_flip($sessionKeys));
+        $membershipsBefore = $this->managedMemberships(1);
+        $missingConfirmation = $this->request('POST', '/system/users/1/remove-membership', [
+            'company_id'=>'1','csrf_token'=>$csrf,
+        ]);
+        self::assertSame(422, $missingConfirmation->getStatusCode());
+        self::assertSame('', $missingConfirmation->getHeaderLine('Location'));
+        self::assertSame($membershipsBefore, $this->managedMemberships(1));
+        self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
+
+        $confirmed = $this->request('POST', '/system/users/1/remove-membership', [
+            'company_id'=>'1','confirm_remove_membership'=>'1','csrf_token'=>$csrf,
+        ]);
+        self::assertSame(303, $confirmed->getStatusCode());
+        self::assertSame('/system/users', $confirmed->getHeaderLine('Location'));
+        self::assertSame([], $this->managedMemberships(1));
+        self::assertSame(1, (int) $this->pdo->query(
+            'SELECT is_system_admin FROM users WHERE id=1'
+        )->fetchColumn());
+        self::assertSame($sessionBefore['user_id'], $_SESSION['user_id']);
+        self::assertSame($sessionBefore['is_system_admin'], $_SESSION['is_system_admin']);
+        self::assertArrayNotHasKey('company_id', $_SESSION);
+        self::assertArrayNotHasKey('role', $_SESSION);
+        self::assertSame(1, (int) $this->pdo->query(
+            'SELECT COUNT(*) FROM company_users WHERE user_id='.$backupAdminId.' AND company_id=1 AND role=\'admin\''
+        )->fetchColumn());
+    }
+
+    public function testMembershipRemovalPreservesNotFoundInputCsrfAndDbAuthorizationPrecedence(): void
+    {
+        $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Second Company','second-company')");
+        $targetId = $this->createManagedUser('membership-contract-target', false);
+        $csrf = (new Csrf())->token();
+        $membershipsBefore = $this->managedMemberships($targetId);
+        $sessionKeys = ['user_id','company_id','role','is_system_admin'];
+        $sessionBefore = array_intersect_key($_SESSION, array_flip($sessionKeys));
+
+        self::assertSame(404, $this->request('POST', '/system/users/999999/remove-membership', [
+            'company_id'=>'1','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(404, $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+            'company_id'=>'2','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(422, $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+            'company_id'=>'malformed','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        self::assertSame(419, $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+            'company_id'=>'1','confirm_remove_membership'=>'1','csrf_token'=>'invalid-token',
+        ])->getStatusCode());
+
+        $this->pdo->exec('UPDATE users SET is_system_admin=0 WHERE id=1');
+        self::assertSame(403, $this->request('POST', '/system/users/'.$targetId.'/remove-membership', [
+            'company_id'=>'1','confirm_remove_membership'=>'1','csrf_token'=>$csrf,
+        ])->getStatusCode());
+        $this->pdo->exec('UPDATE users SET is_system_admin=1 WHERE id=1');
+
+        self::assertSame($membershipsBefore, $this->managedMemberships($targetId));
+        self::assertSame($sessionBefore, array_intersect_key($_SESSION, array_flip($sessionKeys)));
+    }
+
     public function testSystemAdminRevocationRequiresExplicitHumanConfirmationWithoutChangingDbOrSession(): void
     {
         $csrf = (new Csrf())->token();
@@ -301,6 +457,80 @@ final class UserManagementTest extends TestCase
                 self::assertNotNull($button);
                 self::assertSame('Hacer Administrador del sistema', trim($button->textContent));
             }
+        }
+    }
+
+    public function testMembershipRemovalUiUsesClosedDisclosureEscapedCopyAndRequiredConsent(): void
+    {
+        $this->pdo->exec("UPDATE companies SET name='Main & <Branch>' WHERE id=1");
+        $this->pdo->exec("INSERT INTO companies(id,name,slug) VALUES(2,'Second & <Office>','second-office')");
+        $targetId = $this->createManagedUser('membership-ui-target', false);
+        $csrf = (new Csrf())->token();
+        self::assertSame(303, $this->request('POST', '/system/users/'.$targetId.'/membership', [
+            'company_id'=>'2','role'=>'operator','csrf_token'=>$csrf,
+        ])->getStatusCode());
+
+        $response = $this->request('GET', '/system/users');
+        self::assertSame(200, $response->getStatusCode());
+        $document = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $document->loadHTML((string) $response->getBody(), LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        self::assertTrue($loaded);
+        $xpath = new \DOMXPath($document);
+        $card = $this->userCard($xpath, 'membership-ui-target');
+        self::assertSame(3, $xpath->query('.//details[@data-user-section]', $card)->length);
+        self::assertSame(0, $xpath->query('.//form[ancestor::form]', $card)->length);
+        $section = $xpath->query('.//details[@data-user-section="memberships"]', $card)->item(0);
+        self::assertInstanceOf(\DOMElement::class, $section);
+        self::assertFalse($section->hasAttribute('open'));
+        $disclosures = $xpath->query('./details[@data-user-destructive-action="remove-membership"]', $section);
+        self::assertNotFalse($disclosures);
+        self::assertCount(2, $disclosures);
+        $companyNames = [1=>'Main & <Branch>', 2=>'Second & <Office>'];
+
+        foreach ($disclosures as $disclosure) {
+            self::assertInstanceOf(\DOMElement::class, $disclosure);
+            self::assertFalse($disclosure->hasAttribute('open'));
+            $summary = $xpath->query('./summary', $disclosure)->item(0);
+            self::assertInstanceOf(\DOMElement::class, $summary);
+            $form = $xpath->query('./form[@action="/system/users/'.$targetId.'/remove-membership"]', $disclosure)->item(0);
+            self::assertInstanceOf(\DOMElement::class, $form);
+            self::assertSame('post', strtolower($form->getAttribute('method')));
+            $companyInput = $xpath->query('./input[@type="hidden" and @name="company_id"]', $form)->item(0);
+            self::assertInstanceOf(\DOMElement::class, $companyInput);
+            $companyId = (int) $companyInput->getAttribute('value');
+            self::assertArrayHasKey($companyId, $companyNames);
+            self::assertSame('Quitar acceso a '.$companyNames[$companyId], trim($summary->textContent));
+
+            $copy = $xpath->query('./p', $disclosure)->item(0);
+            self::assertInstanceOf(\DOMElement::class, $copy);
+            self::assertStringContainsString('No se eliminará el usuario ni sus accesos a otras empresas.', $copy->textContent);
+            self::assertStringContainsString('dejará de tenerla seleccionada.', $copy->textContent);
+            $serialized = $document->saveHTML($disclosure);
+            self::assertIsString($serialized);
+            self::assertStringContainsString(htmlspecialchars($companyNames[$companyId], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), $serialized);
+
+            $csrfInput = $xpath->query('./input[@type="hidden" and @name="csrf_token"]', $form)->item(0);
+            self::assertInstanceOf(\DOMElement::class, $csrfInput);
+            self::assertNotSame('', $csrfInput->getAttribute('value'));
+            $checkbox = $xpath->query('./label/input[@type="checkbox" and @name="confirm_remove_membership"]', $form)->item(0);
+            self::assertInstanceOf(\DOMElement::class, $checkbox);
+            self::assertSame('1', $checkbox->getAttribute('value'));
+            self::assertTrue($checkbox->hasAttribute('required'));
+            self::assertFalse($checkbox->hasAttribute('checked'));
+            $button = $xpath->query('./button[@type="submit" and @class="danger"]', $form)->item(0);
+            self::assertInstanceOf(\DOMElement::class, $button);
+            self::assertSame('Confirmar retiro de acceso', trim($button->textContent));
+
+            $precedingRoleForm = $xpath->query(
+                './preceding-sibling::form[@action="/system/users/'.$targetId.'/membership"]'
+                .'[.//input[@name="company_id" and @value="'.$companyId.'"]]',
+                $disclosure
+            );
+            self::assertNotFalse($precedingRoleForm);
+            self::assertCount(1, $precedingRoleForm);
         }
     }
 
