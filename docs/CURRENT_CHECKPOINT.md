@@ -508,7 +508,7 @@ Existing System Admin DB authorization, CSRF 419, optional DebugMaintenance 503 
 - Independent V2 auditor: 108 PASS, two *non-substantive text-format false negatives*, adjudicated via original GitHub and artifacts; report's RED expected/observed order typo documented against official CI log (actual original 303 vs expected 422).
 - Scope at the V5 capture: isolated TEST, no real destructive POST or production deployment. H7C-D1 status is recorded below. PR #19 remains OPEN/DRAFT/NOT MERGED.
 
-## H7C-D1 — System Admin revocation confirmation (automated GREEN; independent audit pending)
+## H7C-D1 — System Admin revocation confirmation (FULLY CLOSED; independent evidence audit PASS)
 
 BASE_HEAD=27f6e222ae7077de3d4a33af1423c8bdc70d1aa2
 RED_LOCAL=9d954ad17ced0d53ba3f62740f92403048b54dd3
@@ -522,8 +522,8 @@ LOCAL_PHPUNIT=834 tests / 7153 assertions / 1 Windows symlink skip
 PHPSTAN=PASS
 TEST_DB_ISOLATED=YES
 BROWSER_OBSERVED=PASS
-BROWSER_INDEPENDENT_AUDIT=NO
-D1_FULLY_CLOSED=NO
+BROWSER_INDEPENDENT_AUDIT=PASS_WITH_DOCUMENTED_LIMITATIONS
+D1_FULLY_CLOSED=YES
 D2_STARTED=NO
 CODE_OWNER_FILES_CHANGED=3
 REMOTE_WRITES=OFF
@@ -536,9 +536,19 @@ REAL_MELI_HTTP=0
 - Evidence: H7C_D1_BROWSER_REPORT_2026-10-21.md and H7C_D1_BROWSER_EVIDENCE_2026-10-21.zip. ZIP SHA-256: b56332f1e88194298dc1b1761eda8bbebe84349c599ab31829955e61bd1a4cef. Matching .zip.sha256 and per-member SHA256SUMS.txt are included. Codex observation is not independent certification.
 - The local suite skipped the symlink test on Windows; CI Linux ran it, accounting for the three-assertion difference. PHPUnit local had zero failures/errors. The full suite output retains expected diagnostics from negative tests.
 
+### Independent audit closure — 2026-10-21
+
+- Inputs: `H7C_D1_BROWSER_REPORT_2026-10-21.md`, `H7C_D1_BROWSER_EVIDENCE_2026-10-21.zip`, matching `.zip.sha256`. Independent conclusion: `ERP_MELI_2_0_H7C_D1_AUDITORIA_INDEPENDIENTE_CIERRE_2026-10-21.md` (conversation artifact).
+- ZIP SHA-256 `b56332f1e88194298dc1b1761eda8bbebe84349c599ab31829955e61bd1a4cef`, CRC and extraction PASS, 23 ZIP members/22 SHA manifest members verified, report outside = ZIP report byte-identical. Three screenshots inspected.
+- Real GitHub confirms RED `5950fd92cd0cc213a8a06c73f977c10f1e4c5b57`, run `39661909819` one expected 303-vs-422 failure on each PHP 8.3/8.4/8.5; GREEN `44e50342a5dcb606e90c07b4ad199102a434344d`, run `39666739964` SUCCESS; browser HEAD `63ba16cc239339fa263afebe6e3093e4add97add`, run `39669622138` SUCCESS, 834 tests/7156 assertions per PHP version, PHPStan PASS. GREEN→HEAD docs-only.
+- Owner server guard `confirm_remove_system_admin==='1'` for actual revocation after last-admin protection, before UPDATE; no-ack 422/DB unchanged; existing 403/419/404/409, valid 303, self-session cleanup, company membership preservation verified in code/tests.
+- Isolated Chrome 155.0.8059.85 (1440×900 and 390×844), admin 200/non-System Admin 403; collapsed disclosure, required checkbox checkValidity false→true→false, keyboard, five-slot mobile nav, Apps focus return, no destructive browser POST/MELI call. DB JSON before/after byte-identical for users, company_users, companies, system_settings; six synthetic .gitkeep FS inventory entries byte-identical.
+- Transparency: Chrome was executed by Codex, then its artifacts were independently checked, not replayed by ChatGPT. DB rows not contained in ZIP (table hashes and row counts only); storage inventory was empty placeholders, so it certifies absence of observed mutation, not a real revocation or deletion. Raw admin console has 4 VERBOSE autocomplete messages; two incidental login favicon404s; 403 console error expected. One Windows symlink test skip executed on green Linux CI.
+- Product change frozen; this closure changes only continuity docs/PR, no production deployment or merge.
+
 ## Exact resume point
 
-NEXT=ATTACH H7C-D1 REPORT ZIP AND SHA-256 TO CHATGPT FOR INDEPENDENT AUDIT
+NEXT=H7C-D2 READ-ONLY PREFLIGHT THEN FOCAL RED
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -549,14 +559,15 @@ H7C_C_FULLY_CLOSED=YES
 H7C_D_STARTED=YES
 H7C_D1_AUTOMATED_GREEN=YES
 H7C_D1_BROWSER_OBSERVED=PASS
-H7C_D1_BROWSER_INDEPENDENTLY_CERTIFIED=NO
-H7C_D1_FULLY_CLOSED=NO
+H7C_D1_BROWSER_INDEPENDENTLY_CERTIFIED=YES
+H7C_D1_INDEPENDENT_AUDIT=PASS_WITH_DOCUMENTED_LIMITATIONS
+H7C_D1_FULLY_CLOSED=YES
 H7C_D2_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
 
-D1 remains open only for the independent evidence audit. Do not begin D2 or reopen H7C-A/B1/B2/C.
+D1 independently certified and closed; H7C-D2 remains not started. NEXT read-only preflight of membership removal owner before focal RED. Do not reopen H7C-A/B1/B2/C/D1.
 ## ERP1 / 429 frozen truth
 
 ERP1 had Billing/Financial/Work instability including 429/FIFO/timing symptoms and architecture drift. Universal root cause remains:
