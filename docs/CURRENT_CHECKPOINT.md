@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7C-A/B1/B2 FULLY CLOSED / H7C-C CLEAR DEBUG AUTOMATED GREEN (REAL-BROWSER PENDING) / H7C-D NOT STARTED / STOP-SAFE**
+**CURRENT=H7C-A/B1/B2/C FULLY CLOSED / H7C-D1 AUTOMATED GREEN + CHROME OBSERVED / INDEPENDENT AUDIT PENDING / D2 NOT STARTED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -20,15 +20,15 @@ RECOVERY_HANDOFF_COMMIT=68a98e9728335053ade3e96ec2718255e4a08223
 ## Repository authority
 
 ```text
-DATE=2026-10-17
+DATE=2026-10-21
 REPO=sierraglobalcompany-rgb/ErpMeli2.0
 IMPLEMENTATION_BRANCH=ui/design-master-v1-20261015
 PR=19
 PR_STATE=OPEN / DRAFT / NOT MERGED
 BASE_BRANCH=ui/operator-shell-v1-20261014
 BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
-FUNCTIONAL_HEAD=22384c2c616da89d34e37543cd42e8ae13c54e06
-FUNCTIONAL_HEAD_CI=39055307246 SUCCESS
+FUNCTIONAL_HEAD=44e50342a5dcb606e90c07b4ad199102a434344d
+FUNCTIONAL_HEAD_CI=39666739964 SUCCESS
 REMOTE_WRITES=OFF
 REAL_MELI_HTTP=0
 HOSTINGER_DEPLOYED=NO
@@ -506,12 +506,39 @@ Existing System Admin DB authorization, CSRF 419, optional DebugMaintenance 503 
 - Browser network 27 requests (25 GET, 2 synthetic login POST), 0 destructive/config/export/MELI POST, 0 JS uncaught and 0 HTTP 5xx. One raw console error attributable to intentional 403; not hidden.
 - Before/after byte-identical deterministic DB snapshots including `system_settings`; debug and export filesystem inventories identical with file SHA-256.
 - Independent V2 auditor: 108 PASS, two *non-substantive text-format false negatives*, adjudicated via original GitHub and artifacts; report's RED expected/observed order typo documented against official CI log (actual original 303 vs expected 422).
-- Scope: certification in isolated TEST; no real destructive POST or production deployment. H7C-D not implemented. PR #19 remains OPEN/DRAFT/NOT MERGED.
+- Scope at the V5 capture: isolated TEST, no real destructive POST or production deployment. H7C-D1 status is recorded below. PR #19 remains OPEN/DRAFT/NOT MERGED.
+
+## H7C-D1 — System Admin revocation confirmation (automated GREEN; independent audit pending)
+
+BASE_HEAD=27f6e222ae7077de3d4a33af1423c8bdc70d1aa2
+RED_LOCAL=9d954ad17ced0d53ba3f62740f92403048b54dd3
+RED=5950fd92cd0cc213a8a06c73f977c10f1e4c5b57
+RED_CI=39661909819 EXPECTED_SINGLE_FAILURE
+GREEN_LOCAL=6d7feafe52227187399a3d51e04d2581ad5a3982
+GREEN=44e50342a5dcb606e90c07b4ad199102a434344d
+GREEN_CI=39666739964 SUCCESS
+PHP_8_3_8_4_8_5=834 tests / 7156 assertions / 0 failures per matrix
+LOCAL_PHPUNIT=834 tests / 7153 assertions / 1 Windows symlink skip
+PHPSTAN=PASS
+TEST_DB_ISOLATED=YES
+BROWSER_OBSERVED=PASS
+BROWSER_INDEPENDENT_AUDIT=NO
+D1_FULLY_CLOSED=NO
+D2_STARTED=NO
+CODE_OWNER_FILES_CHANGED=3
+REMOTE_WRITES=OFF
+REAL_MELI_HTTP=0
+
+- RED reproduced the intended defect: the valid, unconfirmed self-revocation returned 303 instead of 422. RED CI had that single failure in each PHP matrix.
+- GREEN changes only UserManagementController.php, views/users.php and UserManagementTest.php. The exact string acknowledgement is checked after last-active-admin protection and before UPDATE. Existing route, transaction, authorization, CSRF, session and membership behavior remain covered.
+- Chrome 155.0.8059.85 observed 200 for the System Admin and 403 for a restricted user. Desktop 1440×900 and mobile 390×844: collapsed disclosures, required checkbox, false→true→false native validity, Enter/Space/Tab, direct grant without confirmation, Apps Enter/Escape focus return, no horizontal overflow, and consent controls clear of the fixed mobile nav all PASS.
+- Browser sent no revocation/configuration/export/MELI POST. Synthetic DB snapshots for users, company_users, companies and system_settings match before/after; relevant storage file hashes also match.
+- Evidence: H7C_D1_BROWSER_REPORT_2026-10-21.md and H7C_D1_BROWSER_EVIDENCE_2026-10-21.zip. ZIP SHA-256: b56332f1e88194298dc1b1761eda8bbebe84349c599ab31829955e61bd1a4cef. Matching .zip.sha256 and per-member SHA256SUMS.txt are included. Codex observation is not independent certification.
+- The local suite skipped the symlink test on Windows; CI Linux ran it, accounting for the three-assertion difference. PHPUnit local had zero failures/errors. The full suite output retains expected diagnostics from negative tests.
 
 ## Exact resume point
 
-```text
-NEXT=H7C-D1 USER SYSTEM-ADMIN REVOCATION: READ PRECHECK THEN FOCAL RED
+NEXT=ATTACH H7C-D1 REPORT ZIP AND SHA-256 TO CHATGPT FOR INDEPENDENT AUDIT
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -519,14 +546,17 @@ H7C_C_AUTOMATED_GREEN=YES
 H7C_C_BROWSER_CERTIFIED=YES
 H7C_C_INDEPENDENT_AUDIT=PASS_WITH_MINOR_DOCUMENTARY_NOTES
 H7C_C_FULLY_CLOSED=YES
-H7C_D_STARTED=NO
+H7C_D_STARTED=YES
+H7C_D1_AUTOMATED_GREEN=YES
+H7C_D1_BROWSER_OBSERVED=PASS
+H7C_D1_BROWSER_INDEPENDENTLY_CERTIFIED=NO
+H7C_D1_FULLY_CLOSED=NO
+H7C_D2_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
-```
 
-H7C-C gate closed with independent review. Next step H7C-D1 only: inspect existing user controller/UI/tests, author one focal test-only RED for missing/invalid explicit consent (422 and no DB/session mutation), confirm expected RED, then minimal GREEN. Preserve authorization, CSRF, last-admin safety and existing routes. No implementation or mutation before the D1 RED gate.
-
+D1 remains open only for the independent evidence audit. Do not begin D2 or reopen H7C-A/B1/B2/C.
 ## ERP1 / 429 frozen truth
 
 ERP1 had Billing/Financial/Work instability including 429/FIFO/timing symptoms and architecture drift. Universal root cause remains:
@@ -540,3 +570,4 @@ No Financial/Work/429 retry, pacing, queue, batching or transport redesign witho
 ## Frozen / prohibited
 
 No PR merge or merge commit without explicit approval, Hostinger, cron, real MELI mutation, broad navigation redesign, generic modal framework, UNKNOWN->0, patch-chain CSS, speculative ERP1 architecture, or reopening closed Human-First blocks without evidence.
+

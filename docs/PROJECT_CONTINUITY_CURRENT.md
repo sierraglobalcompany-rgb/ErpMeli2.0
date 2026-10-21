@@ -1,7 +1,7 @@
 # PROJECT CONTINUITY CURRENT — ERP MELI 2.0
 
 **Status:** LIVE RECOVERY ANCHOR  
-**Audit date:** 2026-10-17  
+**Audit date:** 2026-10-21
 **Rule:** verify GitHub live before acting; this file is a recovery anchor, not a substitute for repository truth.
 
 ## Repository authority
@@ -10,15 +10,15 @@
 REPO=sierraglobalcompany-rgb/ErpMeli2.0
 REMOTE=https://github.com/sierraglobalcompany-rgb/ErpMeli2.0.git
 BRANCH=ui/design-master-v1-20261015
-FUNCTIONAL_HEAD=22384c2c616da89d34e37543cd42e8ae13c54e06
-FUNCTIONAL_HEAD_CI=39055307246 SUCCESS
+FUNCTIONAL_HEAD=44e50342a5dcb606e90c07b4ad199102a434344d
+FUNCTIONAL_HEAD_CI=39666739964 SUCCESS
 PR=19 OPEN / DRAFT / NOT MERGED
 BASE=ui/operator-shell-v1-20261014
 BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
-LOCAL_WORKTREE=NOT_VERIFIED
+LOCAL_WORKTREE=CODEX_MANAGED_WORKTREE codex/h7c-d1
 ```
 
-The branch may have a later documentation-only descendant after this anchor is written. Always query live HEAD and inspect any delta before continuing. Final functional H7C-A GREEN `22384c2c...` must remain an ancestor.
+The branch may have a documentation-only descendant after this anchor is written. Always query live HEAD and inspect any delta before continuing. H7C-A GREEN `22384c2c...` remains an ancestor; current H7C-D1 functional GREEN is listed above.
 
 ## Project laws
 
@@ -73,7 +73,7 @@ H7C_D=Users: remove System Admin privilege + remove company membership
 
 H7C is destructive-action UX / T3 Security-Authorization, not generic progressive disclosure. One owner per microblock.
 
-## Current active block — H7C-A Companies
+## H7C-A Companies — historical implementation and audit
 
 Initial presentation RED/GREEN:
 
@@ -306,12 +306,11 @@ Human-First UI: native `<details data-system-destructive-action="clear-debug">` 
 - Independent audit `ERP_MELI_2_0_H7C_C_AUDITORIA_INDEPENDIENTE_CIERRE_V5_2026-10-21.md`: 31/31 ZIP members, 30/30 SHA, CRC PASS, 5 images inspected, exact report comparison, 27 HTTP requests with only two synthetic login POST, 0 destructive POST/MELI/5xx/JS uncaught; 200/403 RBAC; native checkbox and keyboard; Apps focus/return; mobile no overflow.
 - DB whitelist includes `system_settings`; before/after DB and synthetic debug + exports file-by-file SHA inventory identical. Chrome 155.0.8059.85 in isolated TEST only, no production or deletion action.
 - V2 structure checker 108 PASS + 2 documentation-format false negatives (English `clean` string and full GREEN SHA absent from abbreviated report but present in two other signed manifest evidence files); resolved with manual evidence/GitHub corroboration. One RED expected/observed order typo in `03`: actual 303, expected 422 according to GitHub failure log. Do not rerun Codex for those.
-- H7C-C marked CLOSED; H7C-D has a read-only preflight only and is NOT implemented. Do not restart A/B1/B2/C.
+- At the V5 evidence capture, H7C-C was CLOSED and H7C-D had only a read-only preflight. The current D1 result is recorded below. Do not restart A/B1/B2/C.
 
-### Exact NEXT
+### Current exact NEXT — H7C-D1 independent audit
 
-```text
-NEXT=H7C-D1 USER SYSTEM-ADMIN REVOCATION: PRECHECK, FOCAL RED, MINIMAL GREEN
+NEXT=ATTACH H7C-D1 REPORT ZIP AND SHA-256 TO CHATGPT FOR INDEPENDENT AUDIT
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -319,13 +318,20 @@ H7C_C_AUTOMATED_GREEN=YES
 H7C_C_BROWSER_CERTIFIED=YES
 H7C_C_INDEPENDENT_AUDIT=PASS_WITH_MINOR_DOCUMENTARY_NOTES
 H7C_C_FULLY_CLOSED=YES
-H7C_D_STARTED=NO
+H7C_D_STARTED=YES
+H7C_D1_AUTOMATED_GREEN=YES
+H7C_D1_BROWSER_OBSERVED=PASS
+H7C_D1_BROWSER_INDEPENDENTLY_CERTIFIED=NO
+H7C_D1_FULLY_CLOSED=NO
+H7C_D2_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
-```
 
-NEXT H7C-D1 preflight is already read-only complete. Begin only bounded TDD on system-admin revocation: RED missing/invalid consent => 422 and unchanged user/session when another System Admin exists; preserve 403/419/404/409 behavior, lock guarantees, existing 303 valid paths. Make no changes to F/Work/Billing/FIFO/429, schema, new framework, Hostinger, live MELI or PR merge.
+H7C-D1 GREEN is remote commit 44e50342a5dcb606e90c07b4ad199102a434344d, CI 39666739964 SUCCESS; PHP 8.3/8.4/8.5 each passed 834 tests and 7156 assertions. The focused RED run 39661909819 showed the expected single 303-vs-422 failure in each matrix. Local PHPUnit passed 834 tests / 7153 assertions with one Windows-only symlink skip; PHPStan passed.
 
+Chrome 155.0.8059.85 was observed in isolated TEST at desktop 1440×900 and mobile 390×844. Admin route 200, restricted user 403; native required acknowledgement, keyboard, Apps focus return, mobile geometry, and unchanged DB/filesystem snapshots passed. No browser revocation or real-provider POST occurred. Full evidence report: H7C_D1_BROWSER_REPORT_2026-10-21.md. ZIP: H7C_D1_BROWSER_EVIDENCE_2026-10-21.zip; SHA-256 b56332f1e88194298dc1b1761eda8bbebe84349c599ab31829955e61bd1a4cef.
+
+Codex browser observation is not independent certification. D1 remains NOT CLOSED until ChatGPT audits the attached report, ZIP and checksum. D2 is forbidden until that closure. Do not modify closed A/B1/B2/C, merge PR #19, deploy, or broaden scope.
 ## Recovery sources
 
 Read, in order:
@@ -348,3 +354,4 @@ UI UX Pro Max note: the official methodology references `nextlevelbuilder/ui-ux-
 ## Frozen
 
 No PR merge or merge commit without explicit approval, Hostinger, cron, real MELI mutation, Financial/Work/429 redesign, retry/pacing/queue/batching transport changes, generic modal framework, UNKNOWN→0, patch-chain CSS, or reopening closed Human-First blocks without fresh evidence.
+
