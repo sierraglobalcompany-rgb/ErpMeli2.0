@@ -57,5 +57,6 @@ final class SystemSettingsInvalidInputHttpRouteTest extends TestCase
     {
         yield 'unsupported retention' => [['debug_retention_days' => '5']];
         yield 'debug cap below minimum' => [['debug_max_mb' => '9']];
+        yield 'nonnumeric retention' => [['debug_retention_days' => 'abc']];
     }
 }
