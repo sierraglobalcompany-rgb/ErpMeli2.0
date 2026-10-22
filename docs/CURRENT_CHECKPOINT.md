@@ -20,7 +20,7 @@ H8A_BROWSER_CERTIFIED=NO
 H8A_FULLY_CLOSED=NO
 H8B_STARTED=NO
 H9_STARTED=NO
-NEXT=H8-A REAL CHROME QA BY CODEX LUNA -> INDEPENDENT CHATGPT AUDIT
+NEXT=H8A_CHROME_FOCAL_V4 -> CHATGPT_INDEPENDENT_AUDIT
 NO_MERGE=YES
 NO_DEPLOY=YES
 REAL_MELI_HTTP=0
@@ -55,6 +55,26 @@ KISS sin arquitectura nueva; antirruido (eliminar/merge/optimizar sólo con prue
 - Importante: `TestDatabase::reset()` destruye la DB configurada. PHPUnit sólo en entorno efímero/CI o test DB comprobada. H8-B aún **NO** tiene RED, GREEN ni cambios de producto; `H8B_STARTED=NO`.
 - H8-A sigue `AUTOMATED_GREEN=YES`, `BROWSER_CERTIFIED=NO`, `FULLY_CLOSED=NO`. Prompt Codex Luna browser V2 (adjunto) permanece próximo paso. No capturas ni mockup H8-A nuevo disponible en este turno; `APPROVED_MOCKUP_FIDELITY=NOT_VERIFIABLE` hasta evidencia aprobada.
 - Checkpoint anterior: `5af2ff8291a55f20da78efd99493da2b0b250702`, CI `39704436927` **SUCCESS**; PR #19 `OPEN/DRAFT/NOT MERGED`. Continuar con leyes KISS, antirruido verificable, antiparches y UX/UI Pro/Human-First.
+
+### H8-A V3 — auditoría independiente del paquete Chrome (2026-10-21)
+
+- Evidencia original recibida: `H8A_BROWSER_REPORT.md`, `H8A_BROWSER_EVIDENCE.zip`, `H8A_BROWSER_EVIDENCE.zip.sha256`. ZIP SHA256 `c2fc8ebe9e7f50c277191faca741d04514b64dcb5c31e1ea8aabe356a1efbc92` **comprobado**, CRC PASS, 19 miembros totales / 18 archivos en manifiesto = 18/18 hashes PASS, reporte externo e interno idénticos.
+- Se inspeccionaron visualmente las nueve capturas existentes. Chrome 155 headless, DPR1; 7/7 viewports sin overflow, shell/nav móvil de cinco slots y comportamiento nativo de disclosure, Enter/Espacio, validación checkbox `false→true→false`, CSRF presente y Secret ausente del DOM. Capturas sólo prueban posición superior; no certifican CTA junto al nav en el final de scroll.
+- Red: POST login sintético ×2 con 303, GET System Admin `/settings/mercadolibre` 200 y usuario sin privilegio global 403 observado en evento de respuesta (Playwright lanzó al navegar al 403); cero POST destructivo/de configuración, solicitudes externas=0, requests pendientes=0. Ese error de navegación es instrumental, no fallo de autorización.
+- Invariantes: snapshot de `runtime.json`, `installed.lock`, `install.guard` y cuatro tablas `users`, `companies`, `company_users`, `system_settings` iguales antes/después (SHA/tamaño/conteo), mismo staging sintético; BEFORE completado antes del primer GET; AFTER empieza tras cierre del navegador.
+- Estado V3 preservado **`BLOCKED`**: el runner leyó `form.action` sombreado por `input[name="action"]`, produciendo ruta ficticia `/settings/[object HTMLInputElement]`. En código de GitHub sí está `form action="/settings/mercadolibre"` + `input name="action" value="clear"`, pero aún faltan atributos leídos **en Chrome** con `getAttribute()`; tampoco se ejecutó modo credenciales gestionadas por servidor y faltan sus 2 capturas.
+- Foco: `:focus-visible` se activa; `outlineStyle:none` **no prueba ausencia de indicador** porque `public/assets/app.css` aplica `input:focus {border-color:var(--primary);box-shadow:0 0 0 3px rgba(36,107,253,.12)}`. Verificar foco visible real en siguiente QA. Nada justifica modificar producto.
+- Diseño/mockup: no hay mockup aprobado verificable de esta página en GitHub; `APPROVED_MOCKUP_FIDELITY=NOT_VERIFIABLE`. QA visual contra Design Master solamente. H8-A no está independientemente certificado y H8-B **NO** ha iniciado implementación.
+- Sólo resta **una microcertificación** instrumental: (A) leer attributes del formulario y foco + CTA al scroll final móvil 390x844; (B) GET modo administrado por servidor 390x844 y 1440x900, 2 capturas; (C) misma BD/storage sintéticos intactos antes/después; red 0 MELI/0 POST clear/save. No repetir 7 viewports ni 842 tests. Contrato disponible al usuario: `ERP_MELI_2_0_CODEX_LUNA_H8A_MICROCERT_FOCAL_V4_2026-10-21.md` (archivo de conversación, no en GitHub).
+
+```text
+H8A_V3_INDEPENDENT_AUDIT=PASS_FOR_PROVEN_GATES_WITH_EXPLICIT_GAPS
+H8A_V3_RUNNER_RESULT=BLOCKED
+H8A_BROWSER_CERTIFIED=NO
+H8A_FULLY_CLOSED=NO
+H8B_STARTED=NO
+NEXT=H8A_CHROME_FOCAL_V4 -> CHATGPT_INDEPENDENT_AUDIT
+```
 
 **CURRENT=H7C FULLY CLOSED / H8-A MELI CREDENTIAL CLEAR AUTOMATED GREEN / BROWSER CERT PENDING / H8-B NOT STARTED / PR #19 DRAFT UNMERGED / STOP-SAFE**
 

@@ -1,5 +1,7 @@
 # PROJECT CONTINUITY CURRENT — ERP MELI 2.0
 
+> **Evidencia H8-A V3 auditada (2026-10-21):** ZIP `c2fc8ebe9e7f50c277191faca741d04514b64dcb5c31e1ea8aabe356a1efbc92` CRC/18-hash PASS, 7/7 viewports, 200/403, 0 mutaciones, snapshots iguales. **V3=BLOCKED; H8A_FULLY_CLOSED=NO; H8B_STARTED=NO.** Faltan únicamente forma DOM por `getAttribute`, foco+fin-scroll 390, GET modo server-managed y 2 capturas. Dictamen completo en `docs/CURRENT_CHECKPOINT.md`; **NEXT=H8A_CHROME_FOCAL_V4 -> CHATGPT_INDEPENDENT_AUDIT**. No reejecutar QA completo.
+
 ## Autoridad de recuperación — sin duplicar el checkpoint
 
 El estado, SHA funcional, última QA, las cuatro leyes y el procedimiento Codex Luna se mantienen completos en **`docs/CURRENT_CHECKPOINT.md`** (leer primero). Esta referencia **reemplaza 46 líneas idénticas** antes copiadas aquí, demostradas por comparación literal, sin borrar evidencia histórica ni decisiones.
@@ -18,7 +20,7 @@ H8A_BROWSER_CERTIFIED=NO
 H8A_FULLY_CLOSED=NO
 H8B_STARTED=NO (READ-ONLY PREFLIGHT DONE, NO RED)
 H9_STARTED=NO
-NEXT=H8-A REAL CHROME QA BY CODEX LUNA -> INDEPENDENT CHATGPT AUDIT
+NEXT=H8A_CHROME_FOCAL_V4 -> CHATGPT_INDEPENDENT_AUDIT
 ```
 
 ### H8-B: hallazgo focal preparado, implementación AÚN NO iniciada (preauditoría 2026-10-21)
