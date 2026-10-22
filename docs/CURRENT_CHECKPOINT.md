@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7C-A/B1/B2/C/D1/D2 FULLY CLOSED IN ISOLATED TEST / H7C PHASE COMPLETE / H8 READ-ONLY PREFLIGHT NEXT / PR OPEN DRAFT UNMERGED / STOP-SAFE**
+**CURRENT=H7C FULLY CLOSED / H8-A MELI CREDENTIAL CLEAR AUTOMATED GREEN / BROWSER CERT PENDING / H8-B NOT STARTED / PR #19 DRAFT UNMERGED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -548,7 +548,7 @@ REAL_MELI_HTTP=0
 
 ## Exact resume point
 
-NEXT=H8 MELI/SETTINGS HUMAN-FIRST READ-ONLY PREFLIGHT
+NEXT=H8-A APP CREDENTIAL CLEAR REAL-BROWSER CERTIFICATION ONLY
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -568,7 +568,12 @@ H7C_D2_BROWSER_OBSERVED=PASS
 H7C_D2_BROWSER_INDEPENDENTLY_CERTIFIED=YES_WITH_COMPOSITE_EVIDENCE_AND_LIMITATIONS
 H7C_D2_FULLY_CLOSED=YES
 H7C_PHASE_FULLY_CLOSED=YES
-H8_STARTED=NO
+H8_STARTED=YES
+H8A_AUTOMATED_GREEN=YES
+H8A_BROWSER_CERTIFIED=NO
+H8A_FULLY_CLOSED=NO
+H8B_STARTED=NO
+H9_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
@@ -606,6 +611,17 @@ EVIDENCE=H7C_D2_BROWSER_REPORT_2026-10-21.md + H7C_D2_BROWSER_EVIDENCE_2026-10-2
 - PHPUnit tested destructive POST on disposable MariaDB, not real Chrome. No product files changed for closure, no merge/deploy. Pre-existing `runtime.json`, `installed.lock`, user exports/temporary files must not be deleted without provenance checks.
 - Independent report (conversation artifact): `ERP_MELI_2_0_H7C_D2_AUDITORIA_INDEPENDIENTE_FINAL_COMPUESTA_2026-10-21.md`. Next H8 preflight only; H8 implementation NOT started.
 
+
+## H8-A — MELI Developer app local credential clear (automated GREEN; Chrome pending)
+
+- READ-only preflight checked `app/Modules/Settings/MeliAppSettingsController.php`, `views/mercadolibre.php`, `MeliAppSettingsTest.php`, design authority and H8 master plan. Defect proven: privileged CSRF-valid `POST /settings/mercadolibre` with `action=clear` had no second acknowledgement and returned 303 while clearing local `MELI_CLIENT_ID` and `MELI_CLIENT_SECRET`.
+- Test-only RED `994744c819aa781b9c287e995bdac50617f5253a`; CI `39700960434` EXPECTED FAILURE. Exactly one failure in each PHP 8.3/8.4/8.5: `MeliAppSettingsTest::testClearRequiresExplicitHumanConfirmationAndPreservesPrivateRuntime`, observed 303 vs expected 422 (841 tests / 7321 assertions at failure).
+- First GREEN `042e52de4169a84ad96ee1a917123c12186c6b59`, CI `39701598048` SUCCESS (842 tests / 7363 assertions). Final functional GREEN `5ce08784a55779886703ac6f2125224c764bcd1d`, CI `39701894315` SUCCESS in PHP 8.3/8.4/8.5: **842 tests, 7371 assertions each, PHPStan PASS**.
+- Changed owner paths only: `app/Modules/Settings/MeliAppSettingsController.php`, `app/Modules/Settings/views/mercadolibre.php`, `tests/Integration/MeliAppSettingsTest.php`. No routes, schema, new classes/frameworks, CSS/JS, OAuth, MELI remote HTTP, Billing/Financial/Work/429 modifications.
+- Server now requires exact `confirm_clear_meli_credentials='1'` **before acquiring `install.guard`**, so invalid/missing ack returns 422 without rewriting `runtime.json` or creating the lock; preserve 403/419/409/503, server-managed read-only and valid 303 clear behavior.
+- UI has native closed-by-default `<details data-meli-app-destructive-action="clear-credentials">`, factual scope copy, original CSRF and `action=clear`, required unchecked checkbox, clear danger CTA. Saving app credentials and server-managed settings remain untouched. Regression tests check byte-identical `runtime.json`, `installed.lock`, `install.guard`, plus DOM structure, no nested forms and no leaked secret.
+- **Safety:** `MeliAppSettingsTest` prepares `storage/private/runtime.json` and `installed.lock` in its checkout; NEVER run this test suite in a shared local user checkout or against user's pre-existing storage. GitHub Actions uses disposable CI. Browser certifier must use isolated TEST clone/DB/storage.
+- `H8A_AUTOMATED_GREEN=YES`, `H8A_BROWSER_CERTIFIED=NO`, `H8A_FULLY_CLOSED=NO`. Browser certification only on functional HEAD above or proven docs-only descendant. **Codex Luna may certify browser only, not change code or Git**. Do not start H8-B/H9; do not reopen H7C. PR #19 OPEN/DRAFT/NOT MERGED, no deploy/remote write.
 
 ## ERP1 / 429 frozen truth
 

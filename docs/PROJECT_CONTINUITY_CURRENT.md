@@ -310,7 +310,7 @@ Human-First UI: native `<details data-system-destructive-action="clear-debug">` 
 
 ### Current exact NEXT — H8 Human-First read-only preflight
 
-NEXT=H8 MELI/SETTINGS HUMAN-FIRST READ-ONLY PREFLIGHT
+NEXT=H8-A APP CREDENTIAL CLEAR REAL-BROWSER CERTIFICATION ONLY
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -330,7 +330,12 @@ H7C_D2_BROWSER_OBSERVED=PASS
 H7C_D2_BROWSER_INDEPENDENTLY_CERTIFIED=YES_WITH_COMPOSITE_EVIDENCE_AND_LIMITATIONS
 H7C_D2_FULLY_CLOSED=YES
 H7C_PHASE_FULLY_CLOSED=YES
-H8_STARTED=NO
+H8_STARTED=YES
+H8A_AUTOMATED_GREEN=YES
+H8A_BROWSER_CERTIFIED=NO
+H8A_FULLY_CLOSED=NO
+H8B_STARTED=NO
+H9_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
 
@@ -384,6 +389,14 @@ The original browser and GitHub evidence independently pass; destructive revocat
 Chrome 155.0.8059.85 was observed in isolated TEST at desktop 1440×900 and mobile 390×844. Admin route 200, restricted user 403; native required acknowledgement, keyboard, Apps focus return, mobile geometry, and unchanged DB/filesystem snapshots passed. No browser revocation or real-provider POST occurred. Full evidence report: H7C_D1_BROWSER_REPORT_2026-10-21.md. ZIP: H7C_D1_BROWSER_EVIDENCE_2026-10-21.zip; SHA-256 b56332f1e88194298dc1b1761eda8bbebe84349c599ab31829955e61bd1a4cef.
 
 Codex performed the real browser observation; ChatGPT independently checked the D1 report, screenshots, ZIP CRC and member hashes, matching report, database/filesystem snapshots, and live RED/GREEN/HEAD GitHub logs. D1 remains FULLY CLOSED in isolated TEST. H7C-D2 is now automated GREEN and browser-observed PASS; its evidence package awaits independent audit. No browser revocation POST or real-provider POST occurred. Do not reopen A/B1/B2/C/D1, merge PR #19, deploy, or broaden scope.
+### H8-A current owner and gate (2026-10-21)
+
+- Live RED `994744c819aa781b9c287e995bdac50617f5253a`, CI `39700960434` single expected failure on PHP 8.3/8.4/8.5: unconfirmed `action=clear` previously returned 303 instead of 422.
+- First GREEN `042e52de4169a84ad96ee1a917123c12186c6b59`, CI `39701598048` SUCCESS; final functional GREEN `5ce08784a55779886703ac6f2125224c764bcd1d`, CI `39701894315` SUCCESS: 842 tests/7371 assertions per PHP 8.3/8.4/8.5 and PHPStan PASS.
+- Exact string `confirm_clear_meli_credentials='1'` required *before opening* `install.guard`; malformed/missing ack 422, `runtime.json`/`installed.lock`/`install.guard` identical. `<details>` + unchecked required checkbox, preserved CSRF and original valid 303, 403/419/409/503. Three existing owner files touched; no architecture changes.
+- Sensitive fixture warning: existing `MeliAppSettingsTest` writes checkout-local `storage/private/runtime.json` and `installed.lock` during setup; never run it on a shared user's checkout. GitHub QA ran in ephemeral CI. For real Chrome, create isolated disposable clone, MariaDB, synthetic credentials/storage; no destructive browser POST or real MELI calls.
+- `H8A_BROWSER_CERTIFIED=NO`, `H8A_FULLY_CLOSED=NO`, `H8B_STARTED=NO`; `NEXT=H8-A APP CREDENTIAL CLEAR REAL-BROWSER CERTIFICATION ONLY`. ChatGPT independently audits Codex browser report+ZIP+SHA before closure. No merge/deploy.
+
 ## Recovery sources
 
 Read, in order:
