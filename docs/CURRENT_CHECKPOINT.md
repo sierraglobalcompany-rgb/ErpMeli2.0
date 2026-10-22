@@ -1,5 +1,42 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
+## ESTADO VIVO H8-A — CIERRE INDEPENDIENTE FINAL (2026-10-22)
+
+**H8-A queda FULLY CLOSED para el alcance definido (formulario destructivo de limpieza de credenciales MELI Developer, controles de accesibilidad, roles/solo lectura y ausencia de efectos colaterales) en staging sintético, sin ejecución en producción.** Esta sección prevalece sobre las líneas `H8A_FULLY_CLOSED=NO` o `NEXT=H8A_CHROME_FOCAL_V4` históricas de más abajo, incluidas las notas sobre el bloqueo V3/preflight V4.
+
+```text
+PROJECT=ERP MELI 2.0 ONLY
+REPO=sierraglobalcompany-rgb/ErpMeli2.0
+BRANCH=ui/design-master-v1-20261015
+PR_19=OPEN/DRAFT/NOT_MERGED
+CERTIFIED_BROWSER_SOURCE_HEAD=5c7475ec9dc7613812f9b976915fdfe4309bcda0
+FUNCTIONAL_GREEN_HEAD=5ce08784a55779886703ac6f2125224c764bcd1d
+SOURCE_HEAD_VS_FUNCTIONAL=DOCS_ONLY
+FUNCTIONAL_CI=39701894315 SUCCESS
+LAST_PRE_CLOSURE_CI=39723060231 SUCCESS
+H7C_FULLY_CLOSED=YES
+H8A_AUTOMATED_GREEN=YES
+H8A_BROWSER_CERTIFIED=YES
+H8A_INDEPENDENT_AUDIT=PASS
+H8A_FULLY_CLOSED=YES
+APPROVED_MOCKUP_FIDELITY=NOT_VERIFIABLE
+H8B_STARTED=NO
+H9_STARTED=NO
+NEXT=H8B_INPUT_VALIDATION_READ_ONLY_PREFLIGHT -> RED_MINIMAL -> GREEN -> QA
+```
+
+**Evidencia H8-A V4** aportada por Codex: `H8A_BROWSER_REPORT.md`, `H8A_RUN_MANIFEST.json`, `H8A_BROWSER_EVIDENCE.zip`, `H8A_BROWSER_EVIDENCE.zip.sha256`, `SHA256SUMS.txt`. **Auditoría independiente de ChatGPT:** bytes del ZIP SHA-256 `B5D492FD3940AF7520D97D4D371B45EC3916B29C735E0FED6A2F9B80D25B5334` coinciden con sidecar; ZIP sin CRC inválido; 7 miembros (informe, JSON, sumas, 4 PNG), 6/6 hashes internos correctos; 3 archivos externos coinciden byte a byte con sus versiones dentro del ZIP; 4 PNG abiertos y examinados, dimensiones 390×844 (3) y 1440×900 (1). Informe SHA `71C80FAEC24CE3C9595CDA9BA09124E7C4BE15EA60A03172AC405611198A814F`; manifiesto SHA `4EF9CB50D8C8DF50F1D5AAB2969F313098E1619739858486995939BB7F9862FF`.
+
+- **A=PASS:** Chrome Windows 155, pantalla 390×844, formulario `action=/settings/mercadolibre` y hidden `action=clear` obtenidos con `getAttribute` en runtime; CSRF presente sin extraer valor; required checkbox value `1`, `checkValidity() false→true→false`; Enter/Espacio/Tab y `:focus-visible` con halo CSS; CTA bottom=721.16 y nav top=757, gap=35.84px, overlap=0; ninguna presentación del secreto ni POST destructivo. Capturas foco y fin de scroll. **Nota UX no bloqueante:** checkbox visualmente grande y separado del texto por regla genérica `.settings-form input {width:100%}`; actualmente utilizable con foco visible y sin solape, no abrir parche visual no solicitado.
+- **B=PASS:** modo `server-managed` en PHP `APP_ENV=test`, valores MELI sintéticos de proceso; 390×844 y 1440×900, cuatro capturas de V4 en total; en cada tamaño se verifican cero forms/inputs/controles de guardar-limpiar, sin secret en UI y aviso de sólo lectura. Capturas corroboran el estado; no hubo POST de settings.
+- **C=PASS:** comparación de manifiesto de 4 tablas `users`, `companies`, `company_users`, `system_settings` y archivos `runtime.json`, `installed.lock`, `install.guard`: SHA/filas/tamaños y estado de existencia iguales antes/después; mismo staging y reloj monotónico. **Límite explícito:** ChatGPT contrastó hashes/manifest, no se conectó a la BD ni recibió datos crudos.
+- **Aislamiento:** MariaDB 11.4.13 `mariadb:11.4`, tmpfs 768 MiB sin mount, puerto loopback temporal y contenedor retirado; Chrome 155.0.8059.85, PHP 8.5.8, `REAL_MELI_HTTP=0`, sin API MELI real ni escrituras remotas. V3 había validado 7 viewports y 200/403; no se repitieron. CI automatizada del commit funcional: 842 tests/7.371 aserciones por matriz PHP 8.3/8.4/8.5, PHPStan PASS. V4 no reejecutó suite completa (correcto).
+- **Observaciones que no impiden H8-A:** favicon loopback 404 incidental; consulta npm metadata de tooling inicial (no de ERP); `APPROVED_MOCKUP_FIDELITY=NOT_VERIFIABLE` sin mockup aprobado; algunas carpetas temporales de staging/Playwright quedaron por bloqueo de eliminación segura, **no ejecutar limpieza recursiva** sin verificar identidad y contenido. Prohibido afirmar QA de producción, simulación de POST destructivo en navegador o acreditación de un diseño aprobado.
+- **Recuperación D: es independiente y permanece PARTIAL:** `D:\codex\ERP-MELI2` con HEAD local histórico `931e91b3…`, divergencia respecto a remoto. El cierre Chrome se ejecutó en staging nuevo desde GitHub y NO certifica ni corrige la rama ni DB privada de D:. No borrar C: todavía.
+
+**Guardrails:** cuatro leyes KISS/antirruido/antiparches/Human-First; no merge, deploy, MELI live ni modificación financiera/FIFO/Work. **No pedir más H8-A V4 ni reabrir H7C por defecto.** H8-B sólo procede en microbloque autónomo con TDD y prueba con DB exclusiva, no ejecutar sobre `storage/private` real o checkout compartido.
+
+
 ## RECTIFICACIÓN DE ALCANCE — respaldo local solo ERP MELI 2.0 (2026-10-22 UTC)
 
 **El usuario solicitó respaldo local únicamente de `sierraglobalcompany-rgb/ErpMeli2.0`.** Se interpretó erróneamente como los 16 repositorios de la cuenta. **CANCELADOS** los prompts para ocho repositorios privados y cualquier `NEXT=LOCAL_AUTH_FOR_CORRECT_OWNER_AND_BACKUP_8_PRIVATE`. No pedir a Codex autenticación, clonación ni QA de otros repositorios por causa de este proyecto.

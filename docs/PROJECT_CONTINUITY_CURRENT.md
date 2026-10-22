@@ -1,5 +1,8 @@
 # PROJECT CONTINUITY CURRENT — ERP MELI 2.0
 
+> **AUTORIDAD VIGENTE H8-A (2026-10-22):** `H8A_AUTOMATED_GREEN=YES`, `H8A_BROWSER_CERTIFIED=YES`, `H8A_INDEPENDENT_AUDIT=PASS`, `H8A_FULLY_CLOSED=YES`, `H8B_STARTED=NO`; próximo bloque `H8B_INPUT_VALIDATION_READ_ONLY_PREFLIGHT`. Chrome V4 focal (A/B/C PASS), ZIP SHA `B5D492FD3940AF7520D97D4D371B45EC3916B29C735E0FED6A2F9B80D25B5334`, 6/6 hashes, 4/4 capturas examinadas, CI source `39723060231` GREEN, PR #19 Draft. Limitaciones, separación de recuperación D: y auditoría detallada: **`docs/CURRENT_CHECKPOINT.md`**. Los textos V3 BLOCKED y V4 pendiente más abajo son históricos y quedan **SUPERADOS**. No reabrir H8-A ni repetir el QA de siete viewports.
+
+
 > **Rectificación de alcance de respaldo (2026-10-22 UTC):** `BACKUP_SCOPE=ERP_MELI_2_0_ONLY`. Según `BACKUP_REPORT.md`/`BACKUP_MANIFEST.json`, ERP MELI 2.0 ya está respaldado en D: con espejo/bundle/LFS y restauración Git offline **reportados PASS**. Los 8 privados de la cuenta están **FUERA DE ALCANCE**; **cancelar** el prompt de clonación de privados. Detalles, limitaciones y SHA en `docs/CURRENT_CHECKPOINT.md`. No volver a pedir a Codex otro backup. `NEXT=H8A_CHROME_FOCAL_V4 -> CHATGPT_INDEPENDENT_AUDIT`.
 
 
