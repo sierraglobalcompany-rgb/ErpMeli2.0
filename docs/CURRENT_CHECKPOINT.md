@@ -1,5 +1,49 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
+## ESTADO VIVO H8-B — CIERRE LOCAL RED→GREEN (2026-10-22, Bogotá)
+
+**H8-B FULLY CLOSED en cobertura local automatizada:** corregida la sustitución silenciosa de valores inválidos de `debug_retention_days` y `debug_max_mb` en `SystemSettingsController::update()`. El cambio reutiliza `SystemSettingsRepository::updateOperationalToggles()` y está limitado a **2 archivos** (controlador y prueba HTTP de integración), sin esquema, rutas, UI, permisos, Work, Billing/Financial, Mercado Libre HTTP ni nueva arquitectura. Este bloque es **la autoridad vigente** frente a estados históricos H8-B pendiente más abajo.
+
+```text
+PROJECT=ERP MELI 2.0 ONLY
+REPO=sierraglobalcompany-rgb/ErpMeli2.0
+BRANCH=ui/design-master-v1-20261015
+PR_19=OPEN/DRAFT/NOT_MERGED
+H7C_FULLY_CLOSED=YES
+H8A_FULLY_CLOSED=YES
+H8B_RED=583ab2c946c64b272ef1bfd89596fc76f027b693
+H8B_RED_CI=39854251327 FAILURE_EXPECTED_ONE
+H8B_GREEN=6fc9f70a57808012c6badaa6127f6b02d9e6efcf
+H8B_GREEN_CI=39854998573 SUCCESS
+H8B_PHP_8_3_8_4_8_5=859_TESTS_7490_ASSERTIONS_EACH_ZERO_FAILURES
+H8B_PHPSTAN=PASS
+H8B_INDEPENDENT_AUDIT=PASS
+H8B_FULLY_CLOSED=YES
+H9_STARTED=NO
+NEXT=H9_READ_ONLY_PREFLIGHT
+```
+
+**RED demostrado:** nueva prueba `SystemSettingsInvalidInputHttpRouteTest::testInvalidOperationalSettingsReturn422WithoutMutation@nonnumeric retention`; HTTP observado 303 vs esperado 422, **una sola falla** en QA PHP 8.3/8.4/8.5 (RUN 39854251327). **GREEN comprobado:** RUN 39854998573 SUCCESS, matriz PHP 8.3/8.4/8.5 con 859 tests, 7.490 assertions y PHPStan sin errores. ChatGPT auditó logs reales de cada job y diff del mismo SHA. La batería corrió con MariaDB 11.4 descartable de CI, `REAL_MELI_HTTP=0`; no se ejecutó contra un checkout del usuario ni base real.
+
+**Contrato corregido:** si el campo no viene en el POST se usa el default explícito previo (7 días, 100 MB); si está presente se exige tipo string, un entero validable y dominio/rango existentes en repositorio, y toda entrada inválida responde **422 antes de cualquier UPDATE**. La prueba focal cubre `abc`, `0`, vacío, decimal, notación científica, `null`, array y boolean para ambos campos, además de valores fuera del dominio y un caso positivo de campo ausente. Persistencia y `meli_writes_enabled` sin modificaciones en 422; CSRF 419, rol admin 403 y redirección válida 303 conservados. No hubo cambio de UI; no exigir Chrome adicional.
+
+### Restricción permanente sobre la copia local en D: — orden expresa del usuario
+
+```text
+BACKUP_D_SCOPE=ERP_MELI_2_0_ONLY
+BACKUP_D_POLICY=CODE_AND_NON_SENSITIVE_DOCS_ONLY
+BACKUP_D_NO_REAL_KEYS_TOKENS_PASSWORDS=MANDATORY
+BACKUP_D_NO_PASSWORD_HASHES_OR_ENCRYPTED_CONTENT=MANDATORY
+BACKUP_D_NO_ENCRYPTED_ARCHIVES_OR_ENCRYPTION_WORKFLOW=MANDATORY
+BACKUP_D_EXISTING_BYTES_SECURITY_AUDIT=NOT_RUN
+D_RECOVERY_STATUS=PARTIAL
+```
+
+**No copiar a D:** `.env` reales, `storage/private`, `auth.json`, tokens, cookies, sesiones, claves privadas/certificados con material secreto, credenciales de BD o Mercado Libre, hashes reales de contraseñas, dumps privados que los contengan, archivos cifrados ni ZIP protegidos con contraseña. Tampoco generar un respaldo cifrado: el usuario no quiere claves, contraseñas ni cifrados en la copia de D:. Copiar sólo fuente y documentación no sensible; configuraciones sensibles se **recrean y reautentican** tras una reinstalación, no se restauran desde D:. **No prometer que respaldos Git históricos, reflogs, bundles o `.rescate-local` ya existentes están limpios de secretos sin inspección local de su contenido.** Codex reportó `storage/private` excluido del traslado, pero la auditoría integral de D: no se ejecutó aquí. No borrar C: ni sus orígenes antes de verificar recuperación suficiente y obtener autorización separada.
+
+**STOP:** No reabrir H7C/H8-A/H8-B sin regresión nueva. No merge/deploy, no API MELI real, no mover/restaurar credenciales a D:, no limpieza de C:, no comenzar H9 sin lectura dirigida del alcance.
+
+
 ## ESTADO VIVO H8-A — CIERRE INDEPENDIENTE FINAL (2026-10-22)
 
 **H8-A queda FULLY CLOSED para el alcance definido (formulario destructivo de limpieza de credenciales MELI Developer, controles de accesibilidad, roles/solo lectura y ausencia de efectos colaterales) en staging sintético, sin ejecución en producción.** Esta sección prevalece sobre las líneas `H8A_FULLY_CLOSED=NO` o `NEXT=H8A_CHROME_FOCAL_V4` históricas de más abajo, incluidas las notas sobre el bloqueo V3/preflight V4.

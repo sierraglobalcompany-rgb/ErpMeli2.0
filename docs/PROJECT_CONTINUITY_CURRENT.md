@@ -1,5 +1,8 @@
 # PROJECT CONTINUITY CURRENT — ERP MELI 2.0
 
+> **ESTADO VIGENTE 2026-10-22:** H8-A `FULLY_CLOSED`; **H8-B `FULLY_CLOSED`** en QA local GitHub (RED `583ab2c9` una falla esperada, GREEN `6fc9f70a`, CI `39854998573` SUCCESS, 859 tests/7.490 assertions por PHP 8.3/8.4/8.5, PHPStan PASS). `H9_STARTED=NO`; `NEXT=H9_READ_ONLY_PREFLIGHT`. **D: respaldo de código y documentos no sensibles únicamente; PROHIBIDO incluir claves/contraseñas/tokens, hashes reales o cifrados, incluso en archivos protegidos. Respaldo histórico en D: aún NO auditado íntegramente y recuperación PARTIAL; no borrar C:.** Autoridad detallada en `docs/CURRENT_CHECKPOINT.md`. Los campos H8-B pendiente y NEXT H8-A más abajo son históricos y quedan superados.
+
+
 > **AUTORIDAD VIGENTE H8-A (2026-10-22):** `H8A_AUTOMATED_GREEN=YES`, `H8A_BROWSER_CERTIFIED=YES`, `H8A_INDEPENDENT_AUDIT=PASS`, `H8A_FULLY_CLOSED=YES`, `H8B_STARTED=NO`; próximo bloque `H8B_INPUT_VALIDATION_READ_ONLY_PREFLIGHT`. Chrome V4 focal (A/B/C PASS), ZIP SHA `B5D492FD3940AF7520D97D4D371B45EC3916B29C735E0FED6A2F9B80D25B5334`, 6/6 hashes, 4/4 capturas examinadas, CI source `39723060231` GREEN, PR #19 Draft. Limitaciones, separación de recuperación D: y auditoría detallada: **`docs/CURRENT_CHECKPOINT.md`**. Los textos V3 BLOCKED y V4 pendiente más abajo son históricos y quedan **SUPERADOS**. No reabrir H8-A ni repetir el QA de siete viewports.
 
 
