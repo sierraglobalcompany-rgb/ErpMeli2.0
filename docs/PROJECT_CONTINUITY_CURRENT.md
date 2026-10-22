@@ -1,5 +1,51 @@
 # PROJECT CONTINUITY CURRENT — ERP MELI 2.0
 
+## CHECKPOINT VIVO — RECUPERACIÓN H8-A (2026-10-21, Bogotá)
+
+**VERDAD ACTUAL: H7C COMPLETO; H8-A GREEN AUTOMATIZADO PERO NO CERRADO; H8-B/H9 NO INICIADOS.** Este bloque prevalece sobre campos históricos de fases anteriores presentes más abajo; siempre verificar HEAD/PR/CI directamente en GitHub.
+
+```text
+PROJECT=ERP MELI 2.0 ONLY (NEVER ERP-BDM)
+REPO=sierraglobalcompany-rgb/ErpMeli2.0
+BRANCH=ui/design-master-v1-20261015
+PR=19 OPEN/DRAFT/NOT_MERGED
+FUNCTIONAL_HEAD=5ce08784a55779886703ac6f2125224c764bcd1d
+FUNCTIONAL_CI=39701894315 SUCCESS
+QA=842 tests / 7371 assertions / PHP 8.3, 8.4, 8.5 / PHPStan PASS
+DOCS_HEAD_BEFORE_THIS_CHECKPOINT=6b86c01927534dac94ef259ed67bbab3a15299f1
+DOCS_HEAD_BEFORE_CI=39702560800 SUCCESS
+H7C_PHASE_FULLY_CLOSED=YES (TEST; caveats documented)
+H8A_AUTOMATED_GREEN=YES
+H8A_BROWSER_CERTIFIED=NO
+H8A_FULLY_CLOSED=NO
+H8B_STARTED=NO
+H9_STARTED=NO
+NEXT=H8-A REAL CHROME QA BY CODEX LUNA -> INDEPENDENT CHATGPT AUDIT
+NO_MERGE=YES
+NO_DEPLOY=YES
+REAL_MELI_HTTP=0
+REMOTE_WRITES=OFF
+```
+
+### H8-A implementación ya hecha por ChatGPT, NO delegar programación
+
+- Riesgo corregido en `MeliAppSettingsController::mutate()`: `POST /settings/mercadolibre` con `action=clear` antes borraba credenciales locales sin segundo consentimiento.
+- RED sólo test: `994744c819aa781b9c287e995bdac50617f5253a` / CI `39700960434` (un fallo esperado por versión, 303→422). Primer GREEN `042e52de4169a84ad96ee1a917123c12186c6b59` / CI `39701598048` SUCCESS. GREEN final `5ce08784a55779886703ac6f2125224c764bcd1d` / CI `39701894315` SUCCESS.
+- Sólo 3 owners funcionales/test: `app/Modules/Settings/MeliAppSettingsController.php`, `app/Modules/Settings/views/mercadolibre.php`, `tests/Integration/MeliAppSettingsTest.php`. Exacto `confirm_clear_meli_credentials==='1'` antes de abrir `install.guard`; faltante/inválido 422 sin alterar runtime/installed/guard. HTML nativo `<details>` cerrado + checkbox requerido sin marcar, copy veraz, mismos CSRF/status/rutas. Sin PHP/CSS/JS extra, tablas, migraciones u OAuth.
+- CI funcional y CI documental base exitosos. El commit de este checkpoint cambia **sólo los 2 Markdown** `docs/CURRENT_CHECKPOINT.md` y `docs/PROJECT_CONTINUITY_CURRENT.md`. No se ha hecho QA de navegador H8-A.
+
+### UX/UI y mockups — comprobación de autoridad (10 pasadas)
+
+- Fuentes efectivas versionadas: `docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md` y `design-system/erp-meli-2-0/MASTER.md`; vigente sistema claro, ejecutivo, consistente, WCAG 2.2 AA, nav móvil de 5 slots.
+- Git tree en `6b86c01927534dac94ef259ed67bbab3a15299f1`: **349 rutas, sin imágenes de mockup/Figma ni `design-system/erp-meli-2-0/pages/*.md`**. El ZIP histórico de H7A contiene capturas de otras pantallas, **no es mockup aprobado de `/settings/mercadolibre`**. No inventar fidelidad. Si aparece referencia aprobada verificable en recursos del certificador, cotejar por pantalla, viewport, estado, DPR, SHA y procedencia; si no, `APPROVED_MOCKUP_FIDELITY=NOT_VERIFIABLE` y medir contra Design System.
+- Navegador de Codex Luna sólo en staging TEST; 7 viewports oficiales: 390×844, 430×932, 768×1024, 1024×768, 1366×768, 1440×900, 1920×1080. Medir diseño, focus/Tab/Escape, checkbox/validity, 403 operador, 200 system-admin, modo servidor sólo lectura; no POST clear/save, no llamada MELI.
+- Prompt único para el certificador: `ERP_MELI_2_0_PROMPT_CODEX_LUNA_H8A_BROWSER_V2_10_PASADAS_MOCKUPS_2026-10-21.md` (adjunto de conversación; no está versionado en el repo). Al recibir reporte + ZIP + SHA256, ChatGPT audita antes de cerrar H8-A.
+
+### Reglas no negociables / stop-safe
+
+KISS sin arquitectura nueva; antirruido (eliminar/merge/optimizar sólo con prueba); antiparches (corregir el dueño raíz, no tapar síntomas); UX/UI Pro + Human-First (verdad, seguridad y accesibilidad primero). `UNKNOWN!=0`, prohibidas métricas o pantallas ficticias. No tocar Billing/Financial/Work/FIFO/429 de ERP1 sin evidencia; causa universal 429 no probada. PR #19 no merge sin aprobación. Ni Hostinger/cron, ni mutaciones MELI, ni borrado de `runtime.json`, `installed.lock`, `install.guard`, exportaciones o temporales del usuario por conveniencia. El test de MeliAppSettings **escribe en el storage del checkout local**; sólo ejecutarlo en copia desechable: nunca sobre C:\\codex o recursos compartidos.
+
+
 **Status:** LIVE RECOVERY ANCHOR  
 **Audit date:** 2026-10-21
 **Rule:** verify GitHub live before acting; this file is a recovery anchor, not a substitute for repository truth.
@@ -10,15 +56,15 @@
 REPO=sierraglobalcompany-rgb/ErpMeli2.0
 REMOTE=https://github.com/sierraglobalcompany-rgb/ErpMeli2.0.git
 BRANCH=ui/design-master-v1-20261015
-FUNCTIONAL_HEAD=44e50342a5dcb606e90c07b4ad199102a434344d
-FUNCTIONAL_HEAD_CI=39666739964 SUCCESS
+FUNCTIONAL_HEAD=5ce08784a55779886703ac6f2125224c764bcd1d
+FUNCTIONAL_HEAD_CI=39701894315 SUCCESS
 PR=19 OPEN / DRAFT / NOT MERGED
 BASE=ui/operator-shell-v1-20261014
 BASE_SHA=c6f8af7f446cb327a905ae2f9bd9ee424c2d421f
-LOCAL_WORKTREE=CODEX_MANAGED_WORKTREE codex/h7c-d1
+LOCAL_WORKTREE=UNVERIFIED_ON_THIS_PC; DO_NOT_ASSUME_PATH_OR_TREE
 ```
 
-The branch may have a documentation-only descendant after this anchor is written. Always query live HEAD and inspect any delta before continuing. H7C-A GREEN `22384c2c...` remains an ancestor; current H7C-D1 functional GREEN is listed above.
+The branch may have a documentation-only descendant after this anchor is written. Always query live HEAD and inspect any delta before continuing. H7C-A GREEN `22384c2c...` remains an ancestor; current H8-A functional GREEN is listed in the checkpoint above.
 
 ## Project laws
 
