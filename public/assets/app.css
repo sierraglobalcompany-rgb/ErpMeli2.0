@@ -281,6 +281,22 @@ main > section, .panel {
 .settings-form { display: grid; gap: 14px; margin: 0; }
 .settings-form label { display: grid; gap: 6px; }
 .settings-form input { width: 100%; }
+/* Keep System Settings toggles compact; the 44px label remains the touch target. */
+.administration-system-workspace .settings-form label:has(> input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+}
+.administration-system-workspace .settings-form input[type="checkbox"] {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    margin: 0;
+    padding: 0;
+    border-radius: 4px;
+}
 
 form { margin: 14px 0; }
 label { color: #30415b; font-weight: 650; }
