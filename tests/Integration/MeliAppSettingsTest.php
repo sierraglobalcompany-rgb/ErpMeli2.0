@@ -181,6 +181,9 @@ final class MeliAppSettingsTest extends TestCase
     {
         $csrf = (new Csrf())->token();
         $before = (string) file_get_contents($this->runtimePath);
+        $lockBefore = file_get_contents($this->lockPath);
+        $guardPath = dirname(__DIR__, 2) . '/storage/private/install.guard';
+        $guardBefore = is_file($guardPath) ? file_get_contents($guardPath) : false;
 
         foreach ([
             [],
@@ -195,6 +198,8 @@ final class MeliAppSettingsTest extends TestCase
             self::assertSame(422, $response->getStatusCode());
             self::assertSame('', $response->getHeaderLine('Location'));
             self::assertSame($before, file_get_contents($this->runtimePath));
+            self::assertSame($lockBefore, file_get_contents($this->lockPath));
+            self::assertSame($guardBefore, is_file($guardPath) ? file_get_contents($guardPath) : false);
         }
     }
 
