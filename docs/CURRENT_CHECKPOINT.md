@@ -1,5 +1,28 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
+## RECTIFICACIÓN DE ALCANCE — respaldo local solo ERP MELI 2.0 (2026-10-22 UTC)
+
+**El usuario solicitó respaldo local únicamente de `sierraglobalcompany-rgb/ErpMeli2.0`.** Se interpretó erróneamente como los 16 repositorios de la cuenta. **CANCELADOS** los prompts para ocho repositorios privados y cualquier `NEXT=LOCAL_AUTH_FOR_CORRECT_OWNER_AND_BACKUP_8_PRIVATE`. No pedir a Codex autenticación, clonación ni QA de otros repositorios por causa de este proyecto.
+
+```text
+BACKUP_SCOPE=ERP_MELI_2_0_ONLY
+BACKUP_OTHER_REPOS=OUT_OF_SCOPE
+BACKUP_MORE_CODEX=NO_NECESARIO
+BACKUP_LOCAL_ROOT=D:\GitHub_OFFLINE_BACKUPS\sierraglobalcompany-rgb\20261022T040320Z
+ERP2_GIT_BACKUP=REPORTED_PASS_IN_CODEX_EVIDENCE
+ERP2_BUNDLE_SHA256=74478DE600E40EDB2470A3ED390487C7C4C363771D821F04B47E5657CDF2BE70
+BACKUP_MANIFEST_SHA256=E1EB3D770C13BC9D035783962A44446D36D4B61683DA37031AF7609CD97E41A1
+H8A_BROWSER_CERTIFIED=NO
+H8A_FULLY_CLOSED=NO
+H8B_STARTED=NO
+NEXT=H8A_CHROME_FOCAL_V4 -> CHATGPT_INDEPENDENT_AUDIT
+```
+
+- Informe de Codex: mirror `ErpMeli2.0` con 46 refs, 5.565 objetos, `git fsck`, bundle, LFS y restauración Git offline `PASS`; se verificó presencia del commit `de383a6b9f1e45849a05f3999975d17932a3c5d4` y del funcional `5ce08784a55779886703ac6f2125224c764bcd1d`. Metadata pública issues/PR exportada según reporte. **ChatGPT auditó reporte/manifiesto, pero no recibió los bytes del bundle ni inspeccionó el disco D:** PASS es una prueba **reportada por Codex**, no una reejecución local de ChatGPT.
+- Esta copia respalda historia Git; **no implica** backups de base de datos, secretos, archivos locales no versionados, dependencias instaladas ni certificación E2E de la aplicación. No es necesario ampliar ahora el respaldo a otros repositorios. Conservar snapshot anterior inmutable.
+- Esta rectificación prevalece sobre instrucciones históricas de respaldo de toda la cuenta. No reabrir H7C, no merge/deploy; H8-A mantiene Chrome V4 como única siguiente puerta de calidad.
+
+
 ## CHECKPOINT VIVO — RECUPERACIÓN H8-A (2026-10-21, Bogotá)
 
 **VERDAD ACTUAL: H7C COMPLETO; H8-A GREEN AUTOMATIZADO PERO NO CERRADO; H8-B/H9 NO INICIADOS.** Este bloque prevalece sobre campos históricos de fases anteriores presentes más abajo; siempre verificar HEAD/PR/CI directamente en GitHub.
