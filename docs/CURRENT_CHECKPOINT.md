@@ -1,6 +1,6 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
-**CURRENT=H7C-A/B1/B2/C/D1 FULLY CLOSED / H7C-D2 AUTOMATED GREEN + BROWSER OBSERVED PASS / INDEPENDENT AUDIT PENDING / PR OPEN DRAFT UNMERGED / STOP-SAFE**
+**CURRENT=H7C-A/B1/B2/C/D1/D2 FULLY CLOSED IN ISOLATED TEST / H7C PHASE COMPLETE / H8 READ-ONLY PREFLIGHT NEXT / PR OPEN DRAFT UNMERGED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
 
@@ -548,7 +548,7 @@ REAL_MELI_HTTP=0
 
 ## Exact resume point
 
-NEXT=H7C-D2 INDEPENDENT BROWSER EVIDENCE AUDIT
+NEXT=H8 MELI/SETTINGS HUMAN-FIRST READ-ONLY PREFLIGHT
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -565,8 +565,10 @@ H7C_D1_FULLY_CLOSED=YES
 H7C_D2_STARTED=YES
 H7C_D2_AUTOMATED_GREEN=YES
 H7C_D2_BROWSER_OBSERVED=PASS
-H7C_D2_BROWSER_INDEPENDENTLY_CERTIFIED=NO
-H7C_D2_FULLY_CLOSED=NO
+H7C_D2_BROWSER_INDEPENDENTLY_CERTIFIED=YES_WITH_COMPOSITE_EVIDENCE_AND_LIMITATIONS
+H7C_D2_FULLY_CLOSED=YES
+H7C_PHASE_FULLY_CLOSED=YES
+H8_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 MERGE_AUTHORIZED=NO
 STOP_SAFE=YES
@@ -596,7 +598,15 @@ CODE_OWNER_FILES_CHANGED=UserManagementController.php, views/users.php, UserMana
 D1_UNCHANGED=YES
 EVIDENCE=H7C_D2_BROWSER_REPORT_2026-10-21.md + H7C_D2_BROWSER_EVIDENCE_2026-10-21.zip + .zip.sha256
 
-The browser confirms the presentation and authorization boundary; the destructive POST itself was tested only in PHPUnit against the disposable database. PR #19 remains OPEN/DRAFT/NOT MERGED. H7C-D2 is not independently certified or fully closed; ChatGPT must audit the report and package before closure. Do not reopen H7C-A/B1/B2/C/D1.
+### H7C-D2 independent composite closure — 2026-10-21
+
+- ChatGPT independently verified D2 browser ZIP `95e0076e410eb3c9256f59f9fb2ef017c9600a3f8eca487a3e2989614dbf84aa`: CRC, 41/41 members, 40/40 hashes, report identical, original real Chrome admin 200/non-admin 403, keyboard and responsive evidence. GitHub: RED `39674454144` expected single failure; GREEN `39678811548` and browser HEAD `39681959280` SUCCESS, PHP 8.3/8.4/8.5 840 tests / 7318 assertions.
+- Supplemental FS microcert ZIP `a3d227b52aabc2287eaf6eb3287858432409b708e5d4c47ad20e16d72e7d2ffd`: CRC, 7/7 members, 6/6 SHA, same source HEAD `ec6afa00a8327a6b7e1aa1383dfa5869ee55ce0f`; monotonic BEFORE finished before first GET, browser closed before AFTER; 12 synthetic files unchanged byte-for-byte, 7 storage directories, 527 content bytes. No prohibited POST/MELI call.
+- Limitations kept visible: original 929-file browser interval **not** proven chronologically; microcert tool marked `BLOCKED` because a manual redirect login `POST /login` yielded `opaqueredirect`/aborted without observable 303 and no SHA of snapshot JSON was persisted at instant of capture. Nonetheless the same microcert run returned HTTP 200 at `/system/users`; existing `CompanyContext::assertSystemAdmin` verifies active System Admin directly in DB for that route. Independent adjudication accepts separate full original browser authorization evidence plus equivalent new filesystem interval; it does **not** change `MICROCERT_RESULT=BLOCKED` or claim contemporaneous cryptographic attestation.
+- PHPUnit tested destructive POST on disposable MariaDB, not real Chrome. No product files changed for closure, no merge/deploy. Pre-existing `runtime.json`, `installed.lock`, user exports/temporary files must not be deleted without provenance checks.
+- Independent report (conversation artifact): `ERP_MELI_2_0_H7C_D2_AUDITORIA_INDEPENDIENTE_FINAL_COMPUESTA_2026-10-21.md`. Next H8 preflight only; H8 implementation NOT started.
+
+
 ## ERP1 / 429 frozen truth
 
 ERP1 had Billing/Financial/Work instability including 429/FIFO/timing symptoms and architecture drift. Universal root cause remains:
