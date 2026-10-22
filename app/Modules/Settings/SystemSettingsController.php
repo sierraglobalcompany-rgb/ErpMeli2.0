@@ -66,12 +66,28 @@ final class SystemSettingsController
             return $response->withStatus(403);
         }
 
+        $retentionInput = array_key_exists('debug_retention_days', $body)
+            ? $body['debug_retention_days']
+            : '7';
+        $maxMbInput = array_key_exists('debug_max_mb', $body)
+            ? $body['debug_max_mb']
+            : '100';
+        if (!is_string($retentionInput) || !is_string($maxMbInput)) {
+            return $response->withStatus(422);
+        }
+
+        $retentionDays = filter_var($retentionInput, FILTER_VALIDATE_INT);
+        $debugMaxMb = filter_var($maxMbInput, FILTER_VALIDATE_INT);
+        if ($retentionDays === false || $debugMaxMb === false) {
+            return $response->withStatus(422);
+        }
+
         try {
             $this->settings->updateOperationalToggles(
                 ($body['automation_enabled'] ?? null) === '1',
                 ($body['debug_enabled'] ?? null) === '1',
-                filter_var($body['debug_retention_days'] ?? 7, FILTER_VALIDATE_INT) ?: 7,
-                filter_var($body['debug_max_mb'] ?? 100, FILTER_VALIDATE_INT) ?: 100,
+                $retentionDays,
+                $debugMaxMb,
                 $userId,
             );
         } catch (InvalidArgumentException) {
