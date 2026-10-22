@@ -129,6 +129,9 @@ final class MeliAppSettingsController
             }
 
             if ($action === 'clear') {
+                if (($body['confirm_clear_meli_credentials'] ?? null) !== '1') {
+                    throw new InvalidArgumentException('Confirma que deseas limpiar las credenciales locales de Mercado Libre.');
+                }
                 $runtime['MELI_CLIENT_ID'] = '';
                 $runtime['MELI_CLIENT_SECRET'] = '';
             } else {

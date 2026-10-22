@@ -98,12 +98,16 @@ $navigationIsSystemAdmin = true;
                         <h2>Limpiar configuración</h2>
                     </div>
                 </div>
-                <p>Esto sólo elimina las credenciales de la aplicación Developer. No elimina empresas, cuentas vendedoras ni datos históricos.</p>
-                <form method="post" action="/settings/mercadolibre">
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
-                    <input type="hidden" name="action" value="clear">
-                    <button class="danger" type="submit">Limpiar Client ID y Client Secret</button>
-                </form>
+                <details data-meli-app-destructive-action="clear-credentials">
+                    <summary>Limpiar Client ID y Client Secret</summary>
+                    <p class="muted">Se borrarán el Client ID y el Client Secret locales de la aplicación Developer hasta que vuelvas a configurarlos. No se eliminan empresas, cuentas vendedoras ni datos históricos.</p>
+                    <form class="settings-form" method="post" action="/settings/mercadolibre">
+                        <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                        <input type="hidden" name="action" value="clear">
+                        <label><input type="checkbox" name="confirm_clear_meli_credentials" value="1" required> Confirmo que deseo borrar las credenciales locales de Mercado Libre.</label>
+                        <button class="danger" type="submit">Confirmar limpieza de credenciales</button>
+                    </form>
+                </details>
             </section>
         <?php endif; ?>
     </div>
