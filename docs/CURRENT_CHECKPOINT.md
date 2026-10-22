@@ -46,6 +46,16 @@ REMOTE_WRITES=OFF
 KISS sin arquitectura nueva; antirruido (eliminar/merge/optimizar sólo con prueba); antiparches (corregir el dueño raíz, no tapar síntomas); UX/UI Pro + Human-First (verdad, seguridad y accesibilidad primero). `UNKNOWN!=0`, prohibidas métricas o pantallas ficticias. No tocar Billing/Financial/Work/FIFO/429 de ERP1 sin evidencia; causa universal 429 no probada. PR #19 no merge sin aprobación. Ni Hostinger/cron, ni mutaciones MELI, ni borrado de `runtime.json`, `installed.lock`, `install.guard`, exportaciones o temporales del usuario por conveniencia. El test de MeliAppSettings **escribe en el storage del checkout local**; sólo ejecutarlo en copia desechable: nunca sobre C:\\codex o recursos compartidos.
 
 
+### H8-B: hallazgo focal preparado, implementación AÚN NO iniciada (preauditoría 2026-10-21)
+
+- **Evidencia directa, sin BD:** En PHP 8.4, `filter_var('abc', FILTER_VALIDATE_INT)` devuelve `false` y `filter_var('0', FILTER_VALIDATE_INT)` devuelve `0`; el `?: 7`/`?: 100` de `SystemSettingsController::update()` los sustituye silenciosamente por valores predeterminados. `'3.5'`, `''` y `'1e3'` también producen fallback. **Aún no se probó HTTP mediante RED**, por lo que 303 es consecuencia esperada del código, no observación E2E certificada.
+- Falso positivo cerrado: `SystemSettingsInvalidInputHttpRouteTest` ya cubre 422 para enteros `5` días y `9` MB; `CompanySelectorHomeContractTest` ya certifica selector único → `/dashboard`. **No rehacer DM8-A1 ni el antiguo 500 de DM8-A3**.
+- Próximo microbloque después del cierre completo H8-A: RED de entrada **presente** inválida (`abc`, `0`, `3.5`, campo vacío/no numérico) con System Admin+CSRF válido y estado inicial 14 días/200 MB, esperando 422, **sin mutación** (incluye toggles y `updated_by`). Probar también 403/419; los **campos ausentes** conservan fallback histórico 7/100, y `meli_writes_enabled` continúa falso.
+- GREEN previsto y aislado: distinguir campo ausente frente a campo presente inválido; rechazar `FILTER_VALIDATE_INT === false` y dejar que el repositorio rechace `0`; cambiar sólo `SystemSettingsController.php` y la prueba focal. NO nuevos componentes, clases, rutas, SQL ni copy visual por esta incidencia.
+- Importante: `TestDatabase::reset()` destruye la DB configurada. PHPUnit sólo en entorno efímero/CI o test DB comprobada. H8-B aún **NO** tiene RED, GREEN ni cambios de producto; `H8B_STARTED=NO`.
+- H8-A sigue `AUTOMATED_GREEN=YES`, `BROWSER_CERTIFIED=NO`, `FULLY_CLOSED=NO`. Prompt Codex Luna browser V2 (adjunto) permanece próximo paso. No capturas ni mockup H8-A nuevo disponible en este turno; `APPROVED_MOCKUP_FIDELITY=NOT_VERIFIABLE` hasta evidencia aprobada.
+- Checkpoint anterior: `5af2ff8291a55f20da78efd99493da2b0b250702`, CI `39704436927` **SUCCESS**; PR #19 `OPEN/DRAFT/NOT MERGED`. Continuar con leyes KISS, antirruido verificable, antiparches y UX/UI Pro/Human-First.
+
 **CURRENT=H7C FULLY CLOSED / H8-A MELI CREDENTIAL CLEAR AUTOMATED GREEN / BROWSER CERT PENDING / H8-B NOT STARTED / PR #19 DRAFT UNMERGED / STOP-SAFE**
 
 Esta es la autoridad operativa corta.
