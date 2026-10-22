@@ -176,6 +176,27 @@ final class MeliAppSettingsTest extends TestCase
         self::assertSame('', $this->runtime()['MELI_CLIENT_SECRET']);
     }
 
+    public function testClearRequiresExplicitHumanConfirmationAndPreservesPrivateRuntime(): void
+    {
+        $csrf = (new Csrf())->token();
+        $before = (string) file_get_contents($this->runtimePath);
+
+        foreach ([
+            [],
+            ['confirm_clear_meli_credentials' => '0'],
+            ['confirm_clear_meli_credentials' => 'true'],
+            ['confirm_clear_meli_credentials' => ' 1 '],
+        ] as $confirmation) {
+            $response = $this->request('POST', [
+                'action' => 'clear',
+                'csrf_token' => $csrf,
+            ] + $confirmation);
+            self::assertSame(422, $response->getStatusCode());
+            self::assertSame('', $response->getHeaderLine('Location'));
+            self::assertSame($before, file_get_contents($this->runtimePath));
+        }
+    }
+
     public function testInvalidCsrfDoesNotMutatePrivateRuntime(): void
     {
         $before = file_get_contents($this->runtimePath);
