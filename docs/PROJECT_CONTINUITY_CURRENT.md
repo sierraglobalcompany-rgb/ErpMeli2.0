@@ -308,9 +308,9 @@ Human-First UI: native `<details data-system-destructive-action="clear-debug">` 
 - V2 structure checker 108 PASS + 2 documentation-format false negatives (English `clean` string and full GREEN SHA absent from abbreviated report but present in two other signed manifest evidence files); resolved with manual evidence/GitHub corroboration. One RED expected/observed order typo in `03`: actual 303, expected 422 according to GitHub failure log. Do not rerun Codex for those.
 - At the V5 evidence capture, H7C-C was CLOSED and H7C-D had only a read-only preflight. The current D1 result is recorded below. Do not restart A/B1/B2/C.
 
-### Current exact NEXT — H7C-D2 independent browser evidence audit
+### Current exact NEXT — H8 Human-First read-only preflight
 
-NEXT=H7C-D2 INDEPENDENT BROWSER EVIDENCE AUDIT
+NEXT=H8 MELI/SETTINGS HUMAN-FIRST READ-ONLY PREFLIGHT
 H7C_A_FULLY_CLOSED=YES
 H7C_B1_FULLY_CLOSED=YES
 H7C_B2_FULLY_CLOSED=YES
@@ -327,8 +327,10 @@ H7C_D1_FULLY_CLOSED=YES
 H7C_D2_STARTED=YES
 H7C_D2_AUTOMATED_GREEN=YES
 H7C_D2_BROWSER_OBSERVED=PASS
-H7C_D2_BROWSER_INDEPENDENTLY_CERTIFIED=NO
-H7C_D2_FULLY_CLOSED=NO
+H7C_D2_BROWSER_INDEPENDENTLY_CERTIFIED=YES_WITH_COMPOSITE_EVIDENCE_AND_LIMITATIONS
+H7C_D2_FULLY_CLOSED=YES
+H7C_PHASE_FULLY_CLOSED=YES
+H8_STARTED=NO
 PR_19=OPEN / DRAFT / NOT MERGED
 STOP_SAFE=YES
 
@@ -359,7 +361,16 @@ D1_UNCHANGED=YES
 EVIDENCE=H7C_D2_BROWSER_REPORT_2026-10-21.md + H7C_D2_BROWSER_EVIDENCE_2026-10-21.zip + .zip.sha256
 ```
 
-The browser confirms presentation and authorization; destructive revocation was tested only through PHPUnit against the disposable database. The checkout and remote branch used equivalent RED/GREEN trees with different commit SHAs; the remote PR head is authoritative. H7C-D2 remains pending independent evidence audit and is not fully closed.
+The original browser and GitHub evidence independently pass; destructive revocation was tested in PHPUnit against disposable MariaDB (never submitted from Chrome). The later microcert confirms nonmutating filesystem under equivalent browser navigation on the same HEAD, not the chronology of the original 929-file interval. The remote PR head is authoritative. ChatGPT independently adjudicated the combined evidence and CLOSED D2 with the limitations documented below.
+
+### H7C-D2 independent composite closure (2026-10-21)
+
+- GitHub RED `56f99973ce9706657dde859aded519f685b2efec`, CI `39674454144`: exactly expected single 303-vs-422 failure. GREEN `715f4a9ae93452df75fc5d32eaa0514accf12ea7`, CI `39678811548` SUCCESS. Browser/docs HEAD `ec6afa00a8327a6b7e1aa1383dfa5869ee55ce0f`, CI `39681959280` SUCCESS; Linux PHP 8.3/8.4/8.5 840 tests/7318 assertions, PHPStan PASS. GREEN→HEAD docs-only.
+- Full browser artifact `H7C_D2_BROWSER_EVIDENCE_2026-10-21.zip`, SHA256 `95e0076e410eb3c9256f59f9fb2ef017c9600a3f8eca487a3e2989614dbf84aa`, independently verified CRC, 41 members, 40/40 SHA, identical report and 5 screenshots. Two synthetic login POSTs; 200 System Admin/403 operator, native consent, keyboard and mobile PASS. DB before/after same; original 929-file filesystem hashes match, but original interval timing not proven.
+- Supplemental `H7C_D2_FS_MICROCERT_V2_EVIDENCE_2026-10-21.zip`, SHA256 `a3d227b52aabc2287eaf6eb3287858432409b708e5d4c47ad20e16d72e7d2ffd`: CRC, 7 members, 6/6 SHA, same product HEAD; one-process monotonic timeline confirms BEFORE completed before first GET and AFTER after browser closed/network completed; all 12 isolated synthetic filesystem entries and hashes byte-identical, same storage root.
+- **Keep microcert instrument result `BLOCKED`, not rewritten:** `POST /login` under manual redirect was marked `aborted`/opaqueredirect, no HTTP303 recorded; snapshot JSON SHA was calculated at packaging, not captured contemporaneously. Same run's protected GET `/system/users`=200 implies active DB-backed System Admin via unchanged `CompanyContext::assertSystemAdmin()`. Complementary original run already proved real 303 login/authorization. Overall composite closure does not claim the original 929-file interval was recovered or all microcert script gates passed.
+- Independent signed-off reasoning report: `ERP_MELI_2_0_H7C_D2_AUDITORIA_INDEPENDIENTE_FINAL_COMPUESTA_2026-10-21.md` (conversation artifact). No product code changes at closure, no destructive Chrome POST or provider calls; no arbitrary deletion of retained staging, storage/private/runtime.json, installed.lock, 919 original exports or user files.
+- H7C-D2 and entire H7C now CLOSED in isolated TEST. Next plan phase **H8** is read-only audit only until scope/owner verified; H8 implementation NOT started. PR #19 remains OPEN/DRAFT/NOT MERGED; no production deploy or writes.
 
 ### Independent evidence audit and closure (2026-10-21)
 
