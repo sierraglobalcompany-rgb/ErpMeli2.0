@@ -45,6 +45,14 @@ final class DebugSettingsControllerTest extends TestCase
         self::assertStringContainsString('2026-10-09', $html);
         self::assertStringContainsString('2026-10-08', $html);
         self::assertStringContainsString('/settings/system/debug/clear', $html);
+        self::assertStringContainsString('data-system-destructive-action="clear-debug"', $html);
+        self::assertMatchesRegularExpression(
+            '#<details[^>]*data-system-destructive-action="clear-debug"[^>]*>\\s*<summary>Limpiar debug</summary>.*?action="/settings/system/debug/clear".*?name="confirm_clear_debug" value="1" required.*?</details>#si',
+            $html,
+            'Limpiar debug debe requerir disclosure nativo y confirmación explícita.'
+        );
+        self::assertSame(1, preg_match_all('#action="/settings/system/debug/clear"#', $html));
+        self::assertStringContainsString('No se eliminan exportaciones ZIP', $html);
         self::assertStringContainsString($csrf->token(), $html);
         self::assertStringNotContainsString('name="meli_writes_enabled"', $html);
         self::assertStringNotContainsString('Escrituras Mercado Libre', $html);
@@ -124,7 +132,10 @@ final class DebugSettingsControllerTest extends TestCase
 
         $request = (new ServerRequestFactory())
             ->createServerRequest('POST', '/settings/system/debug/clear')
-            ->withParsedBody(['csrf_token' => $csrf->token()]);
+            ->withParsedBody([
+                'csrf_token' => $csrf->token(),
+                'confirm_clear_debug' => '1',
+            ]);
         $response = $controller->clearDebug($request, (new ResponseFactory())->createResponse());
 
         self::assertSame(303, $response->getStatusCode());
@@ -136,6 +147,43 @@ final class DebugSettingsControllerTest extends TestCase
         self::assertFileExists($export);
 
         $this->removeTree($root);
+    }
+
+    public function testClearDebugRejectsMissingOrInvalidHumanConfirmationWithoutDeletingFiles(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->seedAdmin($pdo);
+        [$root, $debugDir, $exportDir] = $this->roots('clear-ack');
+        $debugRaw = $debugDir . '/debug-2026-10-09.jsonl';
+        $unrelated = $debugDir . '/notes.txt';
+        file_put_contents($debugRaw, 'preserve-debug');
+        file_put_contents($unrelated, 'preserve-notes');
+
+        $_SESSION['user_id'] = 1;
+        $_SESSION['company_id'] = 1;
+
+        $csrf = new Csrf();
+        $controller = new SystemSettingsController(
+            $pdo,
+            new SystemSettingsRepository($pdo),
+            $csrf,
+            new DebugMaintenance($debugDir, $exportDir),
+        );
+
+        try {
+            foreach ([[], ['confirm_clear_debug' => '0']] as $confirmation) {
+                $request = (new ServerRequestFactory())
+                    ->createServerRequest('POST', '/settings/system/debug/clear')
+                    ->withParsedBody(['csrf_token' => $csrf->token()] + $confirmation);
+                $response = $controller->clearDebug($request, (new ResponseFactory())->createResponse());
+
+                self::assertSame(422, $response->getStatusCode(), 'Limpiar debug requiere confirmación humana explícita.');
+                self::assertFileExists($debugRaw, 'Un POST sin confirmación no debe borrar debug.');
+                self::assertFileExists($unrelated, 'Los archivos ajenos al debug se preservan.');
+            }
+        } finally {
+            $this->removeTree($root);
+        }
     }
 
     public function testNonAdminCannotViewOrClearDebugStorage(): void

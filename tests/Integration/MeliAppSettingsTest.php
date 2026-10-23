@@ -97,8 +97,10 @@ final class MeliAppSettingsTest extends TestCase
         $html = (string) $this->request('GET')->getBody();
 
         self::assertStringContainsString('href="/assets/app.css"', $html);
-        self::assertStringContainsString('class="simple-page"', $html);
-        self::assertStringContainsString('class="simple-nav"', $html);
+        self::assertStringContainsString('class="app-shell-chrome"', $html);
+        self::assertStringContainsString('id="main-content"', $html);
+        self::assertStringContainsString('class="meli-app-settings-workspace"', $html);
+        self::assertStringNotContainsString('class="simple-nav"', $html);
         self::assertStringContainsString('class="page-header"', $html);
         self::assertStringContainsString('class="settings-grid"', $html);
         self::assertStringContainsString('class="panel', $html);
@@ -168,10 +170,83 @@ final class MeliAppSettingsTest extends TestCase
         $cleared = $this->request('POST', [
             'action' => 'clear',
             'csrf_token' => $csrf,
+            'confirm_clear_meli_credentials' => '1',
         ]);
         self::assertSame(303, $cleared->getStatusCode());
         self::assertSame('', $this->runtime()['MELI_CLIENT_ID']);
         self::assertSame('', $this->runtime()['MELI_CLIENT_SECRET']);
+    }
+
+    public function testClearRequiresExplicitHumanConfirmationAndPreservesPrivateRuntime(): void
+    {
+        $csrf = (new Csrf())->token();
+        $before = (string) file_get_contents($this->runtimePath);
+        $lockBefore = file_get_contents($this->lockPath);
+        $guardPath = dirname(__DIR__, 2) . '/storage/private/install.guard';
+        $guardBefore = is_file($guardPath) ? file_get_contents($guardPath) : false;
+
+        foreach ([
+            [],
+            ['confirm_clear_meli_credentials' => '0'],
+            ['confirm_clear_meli_credentials' => 'true'],
+            ['confirm_clear_meli_credentials' => ' 1 '],
+        ] as $confirmation) {
+            $response = $this->request('POST', [
+                'action' => 'clear',
+                'csrf_token' => $csrf,
+            ] + $confirmation);
+            self::assertSame(422, $response->getStatusCode());
+            self::assertSame('', $response->getHeaderLine('Location'));
+            self::assertSame($before, file_get_contents($this->runtimePath));
+            self::assertSame($lockBefore, file_get_contents($this->lockPath));
+            self::assertSame($guardBefore, is_file($guardPath) ? file_get_contents($guardPath) : false);
+        }
+    }
+
+    public function testClearUiUsesClosedNativeDisclosureAndRequiredUncheckedAcknowledgement(): void
+    {
+        $response = $this->request('GET');
+        self::assertSame(200, $response->getStatusCode());
+        $html = (string) $response->getBody();
+        $document = new \DOMDocument();
+        $oldErrors = libxml_use_internal_errors(true);
+        $loaded = $document->loadHTML($html, LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($oldErrors);
+        self::assertTrue($loaded);
+        $xpath = new \DOMXPath($document);
+
+        $disclosures = $xpath->query('//details[@data-meli-app-destructive-action="clear-credentials"]');
+        self::assertNotFalse($disclosures);
+        self::assertCount(1, $disclosures);
+        $disclosure = $disclosures->item(0);
+        self::assertInstanceOf(\DOMElement::class, $disclosure);
+        self::assertFalse($disclosure->hasAttribute('open'));
+        $summary = $xpath->query('./summary', $disclosure)->item(0);
+        self::assertNotNull($summary);
+        self::assertSame('Limpiar Client ID y Client Secret', trim($summary->textContent));
+        $copy = $xpath->query('./p', $disclosure)->item(0);
+        self::assertNotNull($copy);
+        self::assertStringContainsString('No se eliminan empresas, cuentas vendedoras ni datos históricos.', $copy->textContent);
+
+        $form = $xpath->query('./form[@action="/settings/mercadolibre"]', $disclosure)->item(0);
+        self::assertInstanceOf(\DOMElement::class, $form);
+        self::assertSame(0, $xpath->query('//form[ancestor::form]')->length);
+        $csrfInput = $xpath->query('./input[@name="csrf_token"]', $form)->item(0);
+        self::assertInstanceOf(\DOMElement::class, $csrfInput);
+        self::assertNotSame('', $csrfInput->getAttribute('value'));
+        $action = $xpath->query('./input[@name="action"]', $form)->item(0);
+        self::assertInstanceOf(\DOMElement::class, $action);
+        self::assertSame('clear', $action->getAttribute('value'));
+        $checkbox = $xpath->query('./label/input[@name="confirm_clear_meli_credentials"]', $form)->item(0);
+        self::assertInstanceOf(\DOMElement::class, $checkbox);
+        self::assertSame('1', $checkbox->getAttribute('value'));
+        self::assertTrue($checkbox->hasAttribute('required'));
+        self::assertFalse($checkbox->hasAttribute('checked'));
+        $button = $xpath->query('./button[@type="submit"]', $form)->item(0);
+        self::assertNotNull($button);
+        self::assertSame('Confirmar limpieza de credenciales', trim($button->textContent));
+        self::assertStringNotContainsString('secret-old-value', $html);
     }
 
     public function testInvalidCsrfDoesNotMutatePrivateRuntime(): void

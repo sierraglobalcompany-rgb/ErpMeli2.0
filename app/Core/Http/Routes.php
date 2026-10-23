@@ -24,6 +24,7 @@ use App\Integrations\MercadoLibre\Transport\RemoteHostPolicy;
 use App\Modules\Api\ErpApiController;
 use App\Modules\Billing\BillingController;
 use App\Modules\Catalog\CatalogController;
+use App\Modules\Dashboard\DashboardController;
 use App\Modules\Invoicing\InvoicingBridgeController;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Sales\ViewSales\SalesListController;
@@ -55,7 +56,7 @@ final class Routes
             try {
                 $context = new CompanyContext(Connection::fromConfig($config));
                 $context->assertActiveUser();
-                try { $context->companyId(); return $response->withHeader('Location','/sales')->withStatus(303); }
+                try { $context->companyId(); return $response->withHeader('Location','/dashboard')->withStatus(303); }
                 catch (\DomainException $exception) { if (isset($_SESSION['company_id'])) { throw $exception; } }
                 if ($context->memberships() !== []) { return $response->withHeader('Location','/company/select')->withStatus(303); }
                 $context->assertSystemAdmin();
@@ -63,6 +64,13 @@ final class Routes
             } catch (\DomainException) {
                 return $response->withStatus(403);
             }
+        });
+
+        $app->get('/dashboard', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response
+        ) use ($config): ResponseInterface {
+            return (new DashboardController(Connection::fromConfig($config)))->show($request, $response);
         });
 
         $app->get('/health', static function (
@@ -399,8 +407,9 @@ final class Routes
                 return $response->withStatus(502);
             }
             unset($_SESSION['meli_oauth_reauthorize_account_id']);
+            $_SESSION['company_id'] = $boundCompanyId;
 
-            return $response->withHeader('Location', '/sales')->withStatus(303);
+            return $response->withHeader('Location', '/mercadolibre/accounts')->withStatus(303);
         });
 
         $app->get('/catalog', static function (
@@ -534,7 +543,7 @@ final class Routes
                 return $context->isSystemAdmin() ? $response->withHeader('Location','/system/companies')->withStatus(303) : $response->withStatus(403);
             }
             if ($company !== null && count($companies) < 2) {
-                return $response->withHeader('Location', '/sales')->withStatus(303);
+                return $response->withHeader('Location', '/dashboard')->withStatus(303);
             }
             $csrfToken = (new Csrf())->token();
             ob_start();

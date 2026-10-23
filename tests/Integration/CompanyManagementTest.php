@@ -33,6 +33,9 @@ final class CompanyManagementTest extends TestCase
     /** @param array<string,mixed> $body */
     private function request(string $method, string $path, array $body = []): ResponseInterface
     {
+        if ($method === 'POST' && str_ends_with($path, '/delete')) {
+            $body += ['confirm_permanent_delete'=>'1'];
+        }
         $body += ['csrf_token'=>(new Csrf())->token()];
         return Bootstrap::create()->handle((new ServerRequestFactory())->createServerRequest($method, $path)->withParsedBody($body));
     }

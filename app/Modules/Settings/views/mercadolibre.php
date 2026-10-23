@@ -10,6 +10,18 @@ declare(strict_types=1);
 /** @var string $csrfToken */
 /** @var bool $serverManaged */
 $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$navigationCompany = null;
+$navigationCompanies = [];
+$activeCompanyId = $_SESSION['company_id'] ?? null;
+if (is_int($activeCompanyId) && $activeCompanyId > 0) {
+    $navigationCompany = [
+        'id' => $activeCompanyId,
+        'name' => 'Empresa activa',
+        'role' => (string) ($_SESSION['role'] ?? ''),
+    ];
+    $navigationCompanies = [$navigationCompany];
+}
+$navigationIsSystemAdmin = true;
 ?>
 <!doctype html>
 <html lang="es">
@@ -17,26 +29,24 @@ $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Mercado Libre — ERP Meli 2.0</title>
-    <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
-<main class="simple-page">
-    <nav class="simple-nav" aria-label="Administración global">
-        <a href="/">Inicio</a>
-        <a href="/system/companies">Empresas</a>
-        <a href="/system/users">Usuarios</a>
-        <a href="/settings/system">Configuración del sistema</a>
-        <a href="/settings/mercadolibre">Mercado Libre</a>
-    </nav>
-
+<?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
+<main id="main-content" tabindex="-1" class="meli-app-settings-workspace" data-design-master-page="meli-app-settings">
     <header class="page-header">
+        <span class="eyebrow">Administración global</span>
         <h1>Aplicación Mercado Libre</h1>
         <p>Configura aquí la aplicación Developer usada por esta instalación. Las cuentas vendedoras de cada empresa se vinculan en un paso posterior.</p>
     </header>
 
     <div class="settings-grid">
-        <section class="panel panel-full">
-            <h2>Estado</h2>
+        <section class="panel panel-full meli-app-status-panel">
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">Estado efectivo</span>
+                    <h2>Aplicación Developer</h2>
+                </div>
+            </div>
             <dl class="settings-list">
                 <dt>Configuración</dt><dd><?= $e($status) ?></dd>
                 <dt>Client ID</dt><dd><?= $clientId === '' ? 'No configurado' : $e($clientId) ?></dd>
@@ -48,13 +58,23 @@ $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         </section>
 
         <?php if ($serverManaged): ?>
-            <section class="panel panel-full">
-                <h2>Administrada por servidor</h2>
+            <section class="panel panel-full meli-app-credentials-panel">
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">Sólo lectura</span>
+                        <h2>Administrada por servidor</h2>
+                    </div>
+                </div>
                 <p>Las credenciales efectivas vienen del entorno del servidor. Para evitar una configuración dividida, este panel queda en modo de sólo lectura.</p>
             </section>
         <?php else: ?>
-            <section class="panel">
-                <h2>Guardar credenciales</h2>
+            <section class="panel meli-app-credentials-panel">
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">Credenciales</span>
+                        <h2>Guardar credenciales</h2>
+                    </div>
+                </div>
                 <form class="settings-form" method="post" action="/settings/mercadolibre">
                     <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
                     <input type="hidden" name="action" value="save">
@@ -71,14 +91,23 @@ $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                 </form>
             </section>
 
-            <section class="panel">
-                <h2>Limpiar configuración</h2>
-                <p>Esto sólo elimina las credenciales de la aplicación Developer. No elimina empresas, cuentas vendedoras ni datos históricos.</p>
-                <form method="post" action="/settings/mercadolibre">
-                    <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
-                    <input type="hidden" name="action" value="clear">
-                    <button class="danger" type="submit">Limpiar Client ID y Client Secret</button>
-                </form>
+            <section class="panel meli-app-clear-panel">
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">Zona de riesgo</span>
+                        <h2>Limpiar configuración</h2>
+                    </div>
+                </div>
+                <details data-meli-app-destructive-action="clear-credentials">
+                    <summary>Limpiar Client ID y Client Secret</summary>
+                    <p class="muted">Se borrarán el Client ID y el Client Secret locales de la aplicación Developer hasta que vuelvas a configurarlos. No se eliminan empresas, cuentas vendedoras ni datos históricos.</p>
+                    <form class="settings-form" method="post" action="/settings/mercadolibre">
+                        <input type="hidden" name="csrf_token" value="<?= $e($csrfToken) ?>">
+                        <input type="hidden" name="action" value="clear">
+                        <label><input type="checkbox" name="confirm_clear_meli_credentials" value="1" required> Confirmo que deseo borrar las credenciales locales de Mercado Libre.</label>
+                        <button class="danger" type="submit">Confirmar limpieza de credenciales</button>
+                    </form>
+                </details>
             </section>
         <?php endif; ?>
     </div>

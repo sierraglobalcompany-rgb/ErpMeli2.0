@@ -33,7 +33,7 @@ final class BillingController
         $accountsStatement->execute([$company['id']]);
         $accounts = $accountsStatement->fetchAll(PDO::FETCH_ASSOC);
         $periodsStatement = $this->pdo->prepare(
-            'SELECT bp.account_id,bp.period_key,bp.document_type,bp.cursor_last_id,bp.sync_state,bp.last_synced_at,a.external_user_id '
+            'SELECT bp.account_id,bp.period_key,bp.document_type,bp.cursor_last_id,bp.sync_state,bp.last_synced_at,a.external_user_id,a.nickname '
             . 'FROM billing_periods bp JOIN meli_accounts a ON a.company_id=bp.company_id AND a.id=bp.account_id '
             . 'WHERE bp.company_id=? ORDER BY bp.period_key DESC,bp.account_id,bp.document_type LIMIT 100',
         );

@@ -76,6 +76,40 @@ final class MeliAccountLifecycleUiTest extends TestCase
         self::assertStringContainsString('value="' . str_repeat('c', 64) . '"', $html);
     }
 
+    public function testDisconnectIsBehindNativeHumanDisclosureWithFactualImpact(): void
+    {
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/mercadolibre/accounts')
+        );
+        self::assertSame(200, $response->getStatusCode());
+        $html = (string) $response->getBody();
+
+        self::assertSame(
+            1,
+            preg_match(
+                '#<details[^>]*data-meli-destructive-action="disconnect"[^>]*>\\s*<summary>Desconectar cuenta</summary>.*?</details>#si',
+                $html,
+                $matches,
+            ),
+            'Desconectar no debe ser un POST directo: requiere un disclosure nativo antes de confirmar.'
+        );
+
+        $disclosure = $matches[0];
+        self::assertStringContainsString('credenciales', $disclosure);
+        self::assertStringContainsString('historial', $disclosure);
+        self::assertStringContainsString('volver a autorizar', $disclosure);
+        self::assertMatchesRegularExpression(
+            '#<form[^>]*method="post"[^>]*action="/mercadolibre/accounts/101/disconnect"[^>]*>.*?name="csrf_token".*?<button[^>]*>Confirmar desconexión</button>.*?</form>#si',
+            $disclosure,
+            'El POST real y CSRF deben permanecer dentro de la confirmación.'
+        );
+        self::assertSame(
+            1,
+            preg_match_all('#action="/mercadolibre/accounts/101/disconnect"#', $html),
+            'No debe quedar un segundo formulario de desconexión directa.'
+        );
+    }
+
     private function restoreEnv(string $key, string|false $getenvValue, mixed $envValue): void
     {
         putenv($getenvValue === false ? $key : $key . '=' . $getenvValue);

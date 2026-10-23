@@ -81,6 +81,18 @@ final class Bootstrap
             return $response->withHeader('Content-Type', 'text/css; charset=utf-8');
         });
 
+        $app->get('/assets/app.js', static function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+        ): ResponseInterface {
+            $javascript = file_get_contents(dirname(__DIR__) . '/public/assets/app.js');
+            if ($javascript === false) {
+                return $response->withStatus(404);
+            }
+            $response->getBody()->write($javascript);
+            return $response->withHeader('Content-Type', 'application/javascript; charset=utf-8');
+        });
+
         Routes::register($app, $config);
         return $app;
     }

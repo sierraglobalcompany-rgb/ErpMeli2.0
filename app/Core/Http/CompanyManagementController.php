@@ -46,7 +46,11 @@ final class CompanyManagementController
         } catch (Throwable $exception) {
             $this->pdo->rollBack();
             if ($exception instanceof InvalidArgumentException) {
-                $response->getBody()->write('Revisa nombre e identificador: nombre de hasta 160 caracteres e identificador de hasta 120 con letras minúsculas, números y guiones.');
+                $response->getBody()->write(
+                    $action === 'delete'
+                        ? 'Confirma que quieres eliminar esta empresa de forma permanente.'
+                        : 'Revisa nombre e identificador: nombre de hasta 160 caracteres e identificador de hasta 120 con letras minúsculas, números y guiones.'
+                );
                 return $response->withStatus(422);
             }
             if ($exception instanceof OutOfBoundsException) { return $response->withStatus(404); }
@@ -93,6 +97,7 @@ final class CompanyManagementController
             $statement->execute([$id]);
         } elseif ($action === 'delete') {
             if ($company['archived_at']===null || !$this->isPristine($id)) { throw new DomainException(); }
+            if (($body['confirm_permanent_delete'] ?? null) !== '1') { throw new InvalidArgumentException(); }
             $statement = $this->pdo->prepare('DELETE FROM company_users WHERE company_id=? AND user_id=?');
             $statement->execute([$id,$_SESSION['user_id']]);
             $statement = $this->pdo->prepare('DELETE FROM companies WHERE id=?');

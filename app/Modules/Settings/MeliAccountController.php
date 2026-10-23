@@ -194,6 +194,10 @@ final class MeliAccountController
                 $this->pdo->rollBack();
                 return $response->withStatus(409);
             }
+            if (($body['confirm_permanent_delete'] ?? null) !== '1') {
+                $this->pdo->rollBack();
+                return $response->withStatus(422);
+            }
 
             $delete = $this->pdo->prepare('DELETE FROM meli_accounts WHERE id=? AND company_id=?');
             $delete->execute([$accountId, $company['id']]);

@@ -67,3 +67,129 @@ Ante dos soluciones igualmente correctas, elegir la que tenga menos código, men
 Pregunta final obligatoria:
 
 > ¿Podemos resolverlo correctamente dejando el sistema con menos cosas que entender y mantener?
+
+---
+
+# HUMAN-FIRST UI/UX LAW — OBLIGATORIA
+
+Para cualquier tarea que cambie una interfaz, experiencia visible o forma de interacción, antes de modificar código el agente DEBE leer:
+
+```text
+docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md
+design-system/erp-meli-2-0/MASTER.md          # cuando exista
+design-system/erp-meli-2-0/pages/<page>.md   # si existe override
+docs/CURRENT_CHECKPOINT.md
+```
+
+Esta obligación se activa para cambios en:
+
+```text
+views/templates/components/pages
+CSS/design tokens/theme
+navigation/sidebar/topbar/bottom nav
+forms/tables/lists/cards/charts
+modals/drawers/dialogs
+status/copy/empty/loading/error states
+keyboard/focus/accessibility
+responsive/mobile/tablet
+information hierarchy/data density
+cualquier workflow user-facing
+```
+
+Antes de implementar, el agente debe poder demostrar:
+
+```text
+HUMAN_FIRST_LAW_LOADED=YES
+PROJECT_DESIGN_MASTER_LOADED=YES|NO
+PAGE_OVERRIDE_LOADED=YES|NO|NOT_PRESENT
+CURRENT_CHECKPOINT_LOADED=YES
+TRUTH_OWNER_VERIFIED=YES
+AUTHORIZATION_MODEL_VERIFIED=YES
+TARGET_VIEWPORTS_DEFINED=YES
+UI_TASK_SCOPE=<one microblock>
+```
+
+Si falta una autoridad necesaria, no empezar la implementación visual.
+
+## Prioridad Human-First
+
+```text
+TRUTH
+→ AUTHORIZATION
+→ HUMAN COMPREHENSION
+→ ACCESSIBILITY
+→ INTERACTION
+→ RESPONSIVE
+→ VISUAL CONSISTENCY
+→ POLISH
+```
+
+Nunca inventar rutas, datos, métricas, capabilities, permisos, stock, dinero o estados para satisfacer un mockup.
+
+Reglas no negociables:
+
+```text
+UNKNOWN != 0
+CONFLICT != 0
+MISSING STOCK != 0
+NO DATA != OK
+NO INFINITE EXCEL
+RAW MACHINE LANGUAGE IS SECONDARY
+TECHNICAL DETAIL VIA PROGRESSIVE DISCLOSURE
+MOBILE IS NOT SHRUNK DESKTOP
+```
+
+## Método UI obligatorio
+
+```text
+READ AUTHORITY
+→ DEFINE HUMAN JOB
+→ VERIFY TRUTH/ROLES
+→ ONE MICROBLOCK
+→ RED
+→ MINIMAL GREEN
+→ AUTOMATED QA
+→ REAL BROWSER QA
+→ HUMAN-FIRST AUDIT
+→ CHECKPOINT
+```
+
+No abrir el siguiente bloque UI sin checkpoint.
+
+## Green gate UI
+
+Una interfaz no se declara GREEN sólo porque compila o porque los tests pasan. Según riesgo, debe demostrar:
+
+```text
+TRUTH=GREEN
+AUTHORIZATION=GREEN
+HUMAN_COMPREHENSION=GREEN
+ACCESSIBILITY=GREEN
+RESPONSIVE=GREEN
+AUTOMATED_QA=GREEN
+REAL_BROWSER_QA=GREEN
+NO_INFINITE_EXCEL=GREEN
+CHECKPOINT=PERSISTED
+```
+
+Si no pudo verificarse una categoría requerida:
+
+```text
+BLOCKED / NOT_CERTIFIED
+```
+
+## Anti-drift
+
+Si este chat/agente conserva contexto anterior y contradice el repositorio:
+
+```text
+REPOSITORY AUTHORITY WINS
+```
+
+Si un prompt contiene branch/SHA/checkpoint viejo:
+
+```text
+STOP → RECOVER AUTHORITY → CONTINUE
+```
+
+La ley Human-First no deja de aplicar porque cambió el chat o el agente.

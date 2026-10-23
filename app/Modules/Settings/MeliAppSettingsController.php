@@ -104,6 +104,9 @@ final class MeliAppSettingsController
         if (!is_string($action) || !in_array($action, ['save', 'clear'], true)) {
             throw new InvalidArgumentException('Selecciona una acción válida.');
         }
+        if ($action === 'clear' && ($body['confirm_clear_meli_credentials'] ?? null) !== '1') {
+            throw new InvalidArgumentException('Confirma que deseas limpiar las credenciales locales de Mercado Libre.');
+        }
 
         $guard = @fopen($installation->privatePath('install.guard'), 'c');
         if ($guard === false || !flock($guard, LOCK_EX | LOCK_NB)) {
