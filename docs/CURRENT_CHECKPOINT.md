@@ -1,5 +1,46 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
+## H9 — CIERRE INDEPENDIENTE VERIFICADO (2026-10-22 UTC / 2026-10-22 America/Bogota)
+
+**AUTORIDAD VIGENTE, supersede notas H9 parciales históricas: H9 FULLY CLOSED para el alcance final Human-First certificado, combinando 77 rutas/tamaños de Chrome de la primera pasada, Chrome focal real de geometría/rol/zoom/recuperación y prueba PHP HTTP de rol.** No se reproduce la batería visual de 77 para cerrar; H10 queda AÚN NO INICIADO y empieza sólo con preflight documental/lectura dirigida, sin deploy.
+
+```text
+PROJECT=ERP MELI 2.0 ONLY
+REPOSITORY=sierraglobalcompany-rgb/ErpMeli2.0
+BRANCH=ui/design-master-v1-20261015
+PR_19=OPEN/DRAFT/NOT_MERGED
+H7C_FULLY_CLOSED=YES
+H8A_FULLY_CLOSED=YES
+H8B_FULLY_CLOSED=YES
+H9_INDEPENDENT_AUDIT=PASS
+H9_FULLY_CLOSED=YES
+H9_APPROVED_MOCKUP_FIDELITY=NOT_VERIFIABLE
+H9_VISUAL_FIX=7e83c11e0a8e85e0c7ae44f858225a01db7b8334
+H9_VISUAL_FIX_CI=39875310237_SUCCESS
+H9_ROLE_TEST=738db21a8e573ba9c7facbd46e823bdc08aaad5f
+H9_ROLE_TEST_CI=39881745635_SUCCESS
+H9_ROLE_TEST_PHP_8_3_8_4_8_5=860_TESTS_7497_ASSERTIONS_EACH
+H9_ROLE_TEST_PHPSTAN=PASS
+H9_MOBILE_GEOMETRY=PASS_390x844_430x932
+H9_LIMITED_ROLE=PASS_BROWSER_HTTP_AND_SHELL_PLUS_SERVER_HTML_TEST
+H9_ZOOM_REAL_200=PASS
+H9_ERROR_RECOVERY_SAFE_GET_404_TO_200=PASS
+H9_ZERO_MUTATIONS=REPORTED_21_TABLES_3_PRIVATE_SYNTHETIC_FILES
+H9_SERVER_LINK_DEAD_END=FALSE_POSITIVE_CORRECTED
+H10_STARTED=NO
+NEXT=H10_READ_ONLY_PREFLIGHT_FOLLOW_ERP_COMPLETION_GATES
+```
+
+**Paquetes y SHA:**
+- H9 primera pasada: ZIP `29fcf3f4d92b037114b293a684e180d2f0f927507ae5cb3152b20e117b520e20`, report `3703a8ce40a05062da0d61e1e51a66bff300ebdcc55c42bcbb054c5f59fc7802`; 45/45 hashes internos y CRC PASS auditados, 77/77 recorridos System Admin, truth fixtures 5/5. Scorecard original 5 PASS/1 FAIL/4 NOT_COVERED es **histórico**, no resultado consolidado final.
+- H9 focal Codex: ZIP `9c273bc69d7de1f9ad0cae591e4fc8b612575981a6e28746743e249c92a6358e` (672.194 bytes), report `d6ad445e7f7575fac554d5609bb0d187ce9d54482027bc66ca02e903a88d2ff8` (8.353 bytes); auditoría independiente de ChatGPT: 17 miembros ZIP, CRC PASS, 16/16 hashes internos PASS, informe exterior idéntico al interno, 14 PNG inspeccionados y ZIP sin miembros cifrados. Abarca 390/430 CTA sin solape (0px), interacción checkbox, operador sintético GET 200/403 esperados, Apps móvil, sidebar desktop, zoom Chrome real 200% y recuperación GET 404→back GET 200. Hashes/conteos de 21 tablas/3 archivos privados sintéticos iguales **según informe y matriz**, ChatGPT no consultó DB real. Docker tmpfs, `REAL_MELI_HTTP=0`, sin provider requests observadas; network bridge sin política de egress formal.
+- **Rectificación forense importante:** informe Codex sospechó que un operador veía enlace `/mercadolibre/accounts` desde `/billing` pero NO capturó DOM Billing; lectura de `app/Modules/Billing/views/billing.php` confirma que panel y enlace están **dentro de `if ($company['role'] === 'admin')`**. El controller obtiene el rol efectivo de `CompanyContext::company()`; no es bypass ni enlace de operador demostrado. `tests/Integration/BillingDesignMasterUiTest.php::testLimitedOperatorBillingHidesUnreachableMeliManagementLink`, commit **test-only `738db21a…`**, verifica respuesta GET Billing 200, ausencia enlace restringido y formulario de sync, MELI móvil deshabilitado, mientras prueba admin preexistente valida enlace accesible. CI `39881745635` SUCCESS con **860 tests/7.497 assertions por PHP 8.3, 8.4, 8.5; PHPStan PASS**. **No se cambió código del producto para corregir un falso positivo.**
+- **Apps escritorio:** CSS `.mobile-bottom-nav {display:none}` fuera de media <=1023; botón Apps solo móvil. Sidebar autorizada comprobada a 1440, no abrir Apps desktop es `NOT_APPLICABLE`, NO un nuevo bloqueo. Certificación H9 compuesta de browser y HTML servidor; no afirmar DOM Billing capturado por Chrome ni UX de producción.
+- **Límites de artefactos:** seis capturas con identificadores sintéticos conservadas en directorio RAW D: fuera ZIP curado; perfil temporal de Chrome en C: no tuvo limpieza confirmada; solo evidencias sanitizadas compartibles. `APPROVED_MOCKUP_FIDELITY=NOT_VERIFIABLE` sigue sin referencia final aprobada. La integración de H9 no prueba producción, Hostinger o API MELI real.
+- **Regla permanente de respaldo D:** solo código y documentación no sensible, sin claves, tokens, passwords, hashes de contraseñas reales, sesiones, dumps privados ni archivos/respaldos cifrados. No restaurar/copiar `.env`, `storage/private` o material protegido. Estado histórico de `D:\codex\ERP-MELI2` `RECOVERY_PARTIAL`, HEAD local histórico divergente y contenidos no certificados libres de secretos; **NO borrar/formatear C:**. No confundir staging de QA con respaldo operativo.
+- PR #19 **Draft, sin merge ni deploy**, mantener guardrails KISS/anti-ruido/anti-parches/Human-First, MELI writes OFF hasta su fase autorizada; no reabrir H8 ni H9 sin nueva regresión demostrada.
+
+
 ## H9 — AUDITORÍA INDEPENDIENTE PARCIAL (2026-10-22)
 
 ```text

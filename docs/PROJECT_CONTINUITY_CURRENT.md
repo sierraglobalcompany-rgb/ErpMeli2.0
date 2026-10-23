@@ -1,5 +1,8 @@
 # PROJECT CONTINUITY CURRENT — ERP MELI 2.0
 
+> **AUTORIDAD VIGENTE — H9 INDEPENDIENTEMENTE CERRADO (2026-10-22):** `H7C/H8A/H8B/H9_FULLY_CLOSED=YES` en alcance certificado; `H10_STARTED=NO`; `NEXT=H10_READ_ONLY_PREFLIGHT_FOLLOW_ERP_COMPLETION_GATES`. H9 inicial 77 combinaciones Admin, focal 390/430+operador/403+Apps móvil+zoom Chrome 200%+recuperación 404→200, evidencia ZIP focal `9c273bc69d7de1f9ad0cae591e4fc8b612575981a6e28746743e249c92a6358e` CRC 16/16. El aparente enlace Billing de operador a 403 fue **falso positivo del informe**: enlace está dentro de guard `company['role']==='admin'`; prueba regresión HTML operator `738db21a` CI `39881745635` SUCCESS (860 tests/7.497 aserciones x PHP 8.3/8.4/8.5). Apps en desktop no aplicable porque botón está oculto fuera de móvil. No producción ni mockup aprobado. **D: no respaldar claves/contraseñas/tokens/material cifrado; contenidos históricos D sin auditoría integral, no borrar C:.** Ver `docs/CURRENT_CHECKPOINT.md` al inicio para límites y SHA; textos anteriores H9 BLOCKED son históricos.
+
+
 > **H9 — estado vigente (2026-10-22):** auditoría inicial Chrome 77/77 System Admin, ZIP H9 `29fcf3f4d92b037114b293a684e180d2f0f927507ae5cb3152b20e117b520e20` y 45/45 SHA PASS; scorecard **5 PASS / 1 FAIL transitorio / 4 NOT_COVERED**, H9 `NOT_CLOSED`. Remediación CSS de checkboxes específica a `/settings/system` commit `7e83c11e`, CI `39875310237` SUCCESS, **Chrome del fix pendiente**. Faltan sólo vista 390/430 + perfil limitado + zoom real + recuperación de error; H10 `NO`. Respaldo D: sólo código/docs no sensibles, sin claves/contraseñas/tokens/archivos cifrados. Detalle en `docs/CURRENT_CHECKPOINT.md`; los NEXT anteriores en el documento son históricos.
 
 
