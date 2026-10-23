@@ -1,5 +1,32 @@
 # CURRENT CHECKPOINT — ERP MELI 2.0
 
+## H9 — AUDITORÍA INDEPENDIENTE PARCIAL (2026-10-22)
+
+```text
+H7C_FULLY_CLOSED=YES
+H8A_FULLY_CLOSED=YES
+H8B_FULLY_CLOSED=YES
+H9_BROWSER_INITIAL=77_OF_77_ADMIN_HTTP200_AT_7_VIEWPORTS
+H9_SCORECARD=5_PASS_1_FAIL_4_NOT_COVERED
+H9_INDEPENDENT_EVIDENCE_AUDIT=PASS_INTEGRITY_NOT_COMPLETE_COVERAGE
+H9_V1_ZIP_SHA256=29fcf3f4d92b037114b293a684e180d2f0f927507ae5cb3152b20e117b520e20
+H9_V1_REPORT_SHA256=3703a8ce40a05062da0d61e1e51a66bff300ebdcc55c42bcbb054c5f59fc7802
+H9_CSS_FIX=7e83c11e0a8e85e0c7ae44f858225a01db7b8334
+H9_CSS_FIX_CI=39875310237_SUCCESS
+H9_CSS_CHROME_CERTIFIED=NO
+H9_LIMITED_ROLE=NOT_COVERED
+H9_REAL_ZOOM_200=NOT_COVERED
+H9_ERROR_RECOVERY=NOT_COVERED
+H9_FULLY_CLOSED=NO
+H10_STARTED=NO
+NEXT=H9_FOCAL_CHROME_390_430_LIMITED_ZOOM_RECOVERY_THEN_CHATGPT_AUDIT
+```
+
+**Auditoría H9:** ZIP CRC PASS, 45/45 hashes internos, informe externo idéntico, 77 pares en 11 rutas/7 tamaños con 0 overflow horizontal y 0 errores 5xx; 21 tablas/4 archivos sintéticos iguales antes/después según SHA del runner, no relectura de DB por ChatGPT. En `/settings/system` a 390×844, el CTA se cruzó con la nav fija unos 42px al iniciar la pantalla, pero **en scroll final no se superpuso**; observación es transitoria, no obstrucción permanente. Se identificaron checkboxes de 44px apilados que alargan el formulario. ChatGPT implementó una mejora raíz delimitada a la página en `public/assets/app.css` (`7e83c11e…`, CI GREEN) para volverlos horizontales y compactos; **el resultado en Chrome sigue NO_VERIFICADO**. Perfil limitado, zoom real y error/recuperación permanecen sin cobertura. **No declarar H9 cerrado ni H10 iniciado.** No repetir 77 recorridos ni H8-A/H8-B; Codex sólo navegador focal en staging desechable, y ChatGPT audita el paquete resultante.
+
+**Respaldo D: orden del usuario:** código y documentos no sensibles únicamente; nada de claves, contraseñas, tokens, hashes reales de passwords, archivos cifrados ni respaldos cifrados. Contenido histórico del respaldo D: `NOT_VERIFIED_SECRET_FREE`; recuperación de `D:\codex\ERP-MELI2` sigue PARCIAL. No borrar C: ni importar archivos privados.
+
+
 ## ESTADO VIVO H8-B — CIERRE LOCAL RED→GREEN (2026-10-22, Bogotá)
 
 **H8-B FULLY CLOSED en cobertura local automatizada:** corregida la sustitución silenciosa de valores inválidos de `debug_retention_days` y `debug_max_mb` en `SystemSettingsController::update()`. El cambio reutiliza `SystemSettingsRepository::updateOperationalToggles()` y está limitado a **2 archivos** (controlador y prueba HTTP de integración), sin esquema, rutas, UI, permisos, Work, Billing/Financial, Mercado Libre HTTP ni nueva arquitectura. Este bloque es **la autoridad vigente** frente a estados históricos H8-B pendiente más abajo.

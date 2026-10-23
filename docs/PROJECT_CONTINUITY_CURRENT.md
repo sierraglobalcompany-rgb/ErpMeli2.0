@@ -1,5 +1,8 @@
 # PROJECT CONTINUITY CURRENT — ERP MELI 2.0
 
+> **H9 — estado vigente (2026-10-22):** auditoría inicial Chrome 77/77 System Admin, ZIP H9 `29fcf3f4d92b037114b293a684e180d2f0f927507ae5cb3152b20e117b520e20` y 45/45 SHA PASS; scorecard **5 PASS / 1 FAIL transitorio / 4 NOT_COVERED**, H9 `NOT_CLOSED`. Remediación CSS de checkboxes específica a `/settings/system` commit `7e83c11e`, CI `39875310237` SUCCESS, **Chrome del fix pendiente**. Faltan sólo vista 390/430 + perfil limitado + zoom real + recuperación de error; H10 `NO`. Respaldo D: sólo código/docs no sensibles, sin claves/contraseñas/tokens/archivos cifrados. Detalle en `docs/CURRENT_CHECKPOINT.md`; los NEXT anteriores en el documento son históricos.
+
+
 > **ESTADO VIGENTE 2026-10-22:** H8-A `FULLY_CLOSED`; **H8-B `FULLY_CLOSED`** en QA local GitHub (RED `583ab2c9` una falla esperada, GREEN `6fc9f70a`, CI `39854998573` SUCCESS, 859 tests/7.490 assertions por PHP 8.3/8.4/8.5, PHPStan PASS). `H9_STARTED=NO`; `NEXT=H9_READ_ONLY_PREFLIGHT`. **D: respaldo de código y documentos no sensibles únicamente; PROHIBIDO incluir claves/contraseñas/tokens, hashes reales o cifrados, incluso en archivos protegidos. Respaldo histórico en D: aún NO auditado íntegramente y recuperación PARTIAL; no borrar C:.** Autoridad detallada en `docs/CURRENT_CHECKPOINT.md`. Los campos H8-B pendiente y NEXT H8-A más abajo son históricos y quedan superados.
 
 
