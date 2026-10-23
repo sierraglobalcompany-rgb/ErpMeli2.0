@@ -153,6 +153,29 @@ final class BillingDesignMasterUiTest extends TestCase
         self::assertStringContainsString('account_id=10', $html);
     }
 
+    public function testLimitedOperatorBillingHidesUnreachableMeliManagementLink(): void
+    {
+        $pdo = TestDatabase::reset();
+        $pdo->exec("INSERT INTO companies(id,name,slug) VALUES(1,'Billing Operator','billing-operator')");
+        $pdo->exec("INSERT INTO users(id,username,display_name,email,password_hash,status)
+            VALUES(1,'billing-operator@example.test','Billing Operator','billing-operator@example.test','unused','active')");
+        $pdo->exec("INSERT INTO company_users(company_id,user_id,role) VALUES(1,1,'operator')");
+        $_SESSION = ['user_id' => 1, 'company_id' => 1, 'role' => 'operator'];
+
+        $response = Bootstrap::create()->handle(
+            (new ServerRequestFactory())->createServerRequest('GET', '/billing')
+        );
+        $html = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('No hay períodos registrados para esta empresa.', $html);
+        self::assertStringNotContainsString('Administrar cuentas Mercado Libre', $html);
+        self::assertStringNotContainsString('href="/mercadolibre/accounts"', $html);
+        self::assertStringNotContainsString('action="/billing/syncs"', $html);
+        self::assertStringNotContainsString('Solicitar período', $html);
+        self::assertStringContainsString('data-mobile-nav-item="mercado-libre" class="is-disabled"', $html);
+    }
+
     public function testBillingUsesActionableEmptyStateInsteadOfImpossibleSyncFormWithoutConnectedAccounts(): void
     {
         $pdo = TestDatabase::reset();
