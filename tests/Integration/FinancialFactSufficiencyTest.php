@@ -507,6 +507,43 @@ final class FinancialFactSufficiencyTest extends TestCase
         yield 'zero parent differs from no association' => ['0', '101', '102', ['0', '101', '102']];
     }
 
+    public function testAssociationCycleTerminatesAndConflictingDuplicateChildDoesNotCreateEdge(): void
+    {
+        $this->insertSalesOrder('CYCLE-ORDER', 'COP', null, '0.0000');
+        $this->persistBillingDetail($this->billPeriodId, $this->billingDetail(
+            'CYCLE-A', 'CHARGE', 'CV', '1.0000', 'COP', '2026-09-01T00:00:00Z',
+            associatedDetailId: 'CYCLE-B',
+            salesInfo: [['order_id' => 'CYCLE-ORDER']],
+        ));
+        $this->persistBillingDetail($this->billPeriodId, $this->billingDetail(
+            'CYCLE-B', 'CHARGE', 'CV', '2.0000', 'COP', '2026-09-01T00:00:00Z',
+            associatedDetailId: 'CYCLE-C',
+        ));
+        $this->persistBillingDetail($this->billPeriodId, $this->billingDetail(
+            'CYCLE-C', 'CHARGE', 'CV', '3.0000', 'COP', '2026-09-01T00:00:00Z',
+            associatedDetailId: 'CYCLE-A',
+        ));
+
+        $this->persistBillingDetail($this->billPeriodId, $this->billingDetail(
+            'CONFLICT-PARENT', 'CHARGE', 'CV', '4.0000', 'COP', '2026-09-01T00:00:00Z',
+            salesInfo: [['order_id' => 'CYCLE-ORDER']],
+        ));
+        $conflictingChild = $this->billingDetail(
+            'CONFLICT-CHILD', 'CHARGE', 'CV', '5.0000', 'COP', '2026-09-01T00:00:00Z',
+            associatedDetailId: 'CONFLICT-PARENT',
+        );
+        $this->persistBillingDetail($this->billPeriodId, $conflictingChild);
+        $conflictingChild['charge_info']['detail_associated_id'] = 'UNRELATED-PARENT';
+        $this->persistBillingDetail($this->creditNotePeriodId, $conflictingChild);
+
+        $projection = $this->projection('CYCLE-ORDER');
+        self::assertSame(
+            ['CONFLICT-PARENT', 'CYCLE-A', 'CYCLE-B', 'CYCLE-C'],
+            array_column($projection['billing']['details'], 'external_detail_id'),
+        );
+        self::assertSame('KNOWN', $projection['coverage']['billing_identity']);
+    }
+
     public function testFinancialProjectionIsTenantScopedAndReadOnly(): void
     {
         $this->insertSalesOrder('F-ORDER', 'COP', 'F-PACK', '0.0000');
@@ -544,6 +581,16 @@ final class FinancialFactSufficiencyTest extends TestCase
         self::assertNotNull($constructor);
         self::assertCount(1, $constructor->getParameters());
         self::assertSame(PDO::class, $constructor->getParameters()[0]->getType()?->getName());
+    }
+
+    public function testFinancialReadFailsClosedUntilReferenceBackfillIsComplete(): void
+    {
+        $this->insertSalesOrder('INDEX-NOT-READY', 'COP', null, '0.0000');
+        $this->pdo->exec("DELETE FROM schema_migrations WHERE version='013_billing_detail_references_backfill'");
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Financial Billing reference index is not ready.');
+        $this->projection('INDEX-NOT-READY');
     }
 
     public function testCanonicalReplayLeavesFinancialProjectionUnchanged(): void
@@ -705,7 +752,8 @@ final class FinancialFactSufficiencyTest extends TestCase
      */
     private function persistBillingDetail(int $periodId, array $detail): array
     {
-        $normalized = (new BillingDetailNormalizer())->normalize($detail);
+        $normalizer = new BillingDetailNormalizer();
+        $normalized = $normalizer->normalize($detail);
         $statement = $this->pdo->prepare(
             'INSERT INTO billing_details '
             . '(billing_period_id, external_detail_id, associated_detail_id, detail_type, detail_sub_type, '
@@ -714,6 +762,18 @@ final class FinancialFactSufficiencyTest extends TestCase
             . ':detail_amount, :currency_id, :document_id, :marketplace, :context_json, :remote_created_at)',
         );
         $statement->execute(['billing_period_id' => $periodId] + $normalized);
+        $billingDetailId = (int) $this->pdo->lastInsertId();
+        $referenceInsert = $this->pdo->prepare(
+            'INSERT INTO billing_detail_references (billing_detail_id, reference_kind, reference_value) '
+            . 'VALUES (?, ?, ?)',
+        );
+        foreach ($normalizer->references($normalized) as $reference) {
+            $referenceInsert->execute([
+                $billingDetailId,
+                $reference['reference_kind'],
+                $reference['reference_value'],
+            ]);
+        }
 
         $stored = $this->pdo->prepare(
             'SELECT external_detail_id, associated_detail_id, detail_type, detail_sub_type, detail_amount, '

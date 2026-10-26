@@ -62,7 +62,17 @@ final class CatalogController
                 }
             }
         }
-        $products = $repository->listRecentForCompany($company['id']);
+        $searchInput = $query['q'] ?? '';
+        $search = is_string($searchInput) ? trim($searchInput) : '';
+        $searchInvalid = !is_string($searchInput) || mb_strlen($search, 'UTF-8') > 120;
+        if ($searchInvalid) {
+            $search = '';
+            $error = 'La búsqueda debe ser texto de máximo 120 caracteres.';
+            $response = $response->withStatus(422);
+        }
+        $products = $searchInvalid ? [] : ($search === ''
+            ? $repository->listRecentForCompany($company['id'])
+            : $repository->searchForCompany($company['id'], $search));
         $companies = $context->memberships();
         $csrfToken = (new Csrf())->token();
         ob_start();

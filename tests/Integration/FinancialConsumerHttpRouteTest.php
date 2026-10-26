@@ -6,6 +6,7 @@ namespace Tests\Integration;
 
 use App\Bootstrap;
 use App\Core\Config\AppConfig;
+use App\Modules\Billing\BillingDetailNormalizer;
 use App\Modules\Sales\ViewSales\SalesListController;
 use PDO;
 use PDOStatement;
@@ -77,28 +78,41 @@ final class FinancialConsumerHttpRouteTest extends TestCase
     {
         $this->order(101, 11, '1001');
         $this->order(201, 20, '1001');
-        $response = $this->detail('1001', ['account_id'=>'10','company_id'=>'2']);
+        $response = $this->detail('1001', ['account_id'=>'11','company_id'=>'2']);
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('exact-account', (string) $response->getBody());
         self::assertStringNotContainsString('foreign-account', (string) $response->getBody());
+        self::assertCount(1, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'AND external_order_id = :external_order_id')));
+        self::assertSame(404, $this->detail('1001', ['account_id'=>'10'])->getStatusCode());
+        self::assertCount(0, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'AND external_order_id = :external_order_id')));
+        self::assertSame(404, $this->detail('1001', ['account_id'=>'20','company_id'=>'2'])->getStatusCode());
+        self::assertCount(0, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'AND external_order_id = :external_order_id')));
         $this->order(202, 20, '2002');
         self::assertSame(404, $this->detail('2002')->getStatusCode());
+        self::assertCount(0, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'AND external_order_id = :external_order_id')));
         self::assertSame(404, $this->detail('9999')->getStatusCode());
+        self::assertCount(0, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'AND external_order_id = :external_order_id')));
     }
 
     public function testCrossAccountExternalIdAmbiguityFailsClosedWithoutChoosingClientAccount(): void
     {
         $this->order(101, 10, '1001');
         $this->order(102, 11, '1001');
-        $response = $this->detail('1001', ['account_id'=>'11']);
+        $response = $this->detail('1001');
         self::assertSame(404, $response->getStatusCode());
         self::assertSame('', (string) $response->getBody());
+        self::assertCount(0, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'AND external_order_id = :external_order_id')));
+        $response = $this->detail('1001', ['account_id'=>'11']);
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('exact-account', (string) $response->getBody());
+        self::assertStringNotContainsString('first-account', (string) $response->getBody());
+        self::assertCount(1, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'AND external_order_id = :external_order_id')));
     }
 
     public function testDetailReadsFinancialOnceFromExactAccountAndRendersOrderScope(): void
     {
         $this->order(101, 11, '1001', fee: '9.1250');
-        $response = $this->detail('1001', ['account_id'=>'10']);
+        $response = $this->detail('1001', ['account_id'=>'11']);
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
         self::assertStringContainsString('Reconciliación', $html);
@@ -171,7 +185,7 @@ final class FinancialConsumerHttpRouteTest extends TestCase
                 'shipping'=>['pack_id'=>'9007199254740993','receiver_shipping_cost'=>'0.0000'],
             ]);
         }
-        $response = $this->detail('1001', ['account_id'=>'10']);
+        $response = $this->detail('1001', ['account_id'=>'11']);
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
         self::assertStringContainsString('Reconciliación', $html);
@@ -219,7 +233,25 @@ final class FinancialConsumerHttpRouteTest extends TestCase
     {
         $this->pdo->exec("INSERT IGNORE INTO billing_periods(id,company_id,account_id,period_key,document_type) VALUES(1,1,11,'2026-09-01','BILL')");
         $statement = $this->pdo->prepare("INSERT INTO billing_details(billing_period_id,external_detail_id,detail_type,detail_amount,currency_id,context_json) VALUES(1,?,'CHARGE',?,?,?)");
-        $statement->execute([$id, $amount, $currency, json_encode($context, JSON_THROW_ON_ERROR)]);
+        $contextJson = json_encode($context, JSON_THROW_ON_ERROR);
+        $statement->execute([$id, $amount, $currency, $contextJson]);
+        $billingDetailId = (int) $this->pdo->lastInsertId();
+        $normalizer = new BillingDetailNormalizer();
+        $referenceInsert = $this->pdo->prepare(
+            'INSERT INTO billing_detail_references (billing_detail_id, reference_kind, reference_value) '
+            . 'VALUES (?, ?, ?)',
+        );
+        foreach ($normalizer->references([
+            'external_detail_id' => $id,
+            'associated_detail_id' => null,
+            'context_json' => $contextJson,
+        ]) as $reference) {
+            $referenceInsert->execute([
+                $billingDetailId,
+                $reference['reference_kind'],
+                $reference['reference_value'],
+            ]);
+        }
     }
 
     private function value(string $html, string $label): string

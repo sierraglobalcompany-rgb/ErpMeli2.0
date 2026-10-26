@@ -13,6 +13,18 @@ Autoridad: documentación oficial `developers.mercadolibre.com.co`.
 | orders.get | GET | `/orders/{order_id}` | READ | https://developers.mercadolibre.com.co/gestiona-ventas | 2026-10-09 |
 | orders.search | GET | `/orders/search` | READ | https://developers.mercadolibre.com.co/gestiona-ventas | 2026-10-09 |
 | billing.period.details | GET | `/billing/integration/periods/key/{period_key}/group/ML/details` | READ | https://developers.mercadolibre.com.co/provisiones | 2026-10-09 |
+| users.items.search | GET | `/users/{user_id}/items/search` | READ | https://developers.mercadolibre.com.co/es_ar/api-docs-es/items-y-busquedas | 2026-10-24 |
+| items.bulk | GET | `/items/bulk` | READ | https://developers.mercadolibre.com.co/es_ar/api-docs-es/items-y-busquedas | 2026-10-24 |
+
+## Items del vendedor — M02 (contrato offline; no certificación F14)
+
+- `users.items.search`: `GET /users/{user_id}/items/search`, `READ`; `user_id` decimal positivo de la cuenta `meli_accounts` perteneciente a la empresa autorizada. Parámetros permitidos: `offset` entero >=0 y `limit` entero 1–50; se limita la ventana común a 1000. No se implementa `scan` ni sincronización automática.
+- `items.bulk`: `GET /items/bulk?ids=...`, `READ`, máximo 20 IDs distintos y validados por solicitud. Usar contrato nuevo (`status_code`, `id` raíz, `body`) en vez de `/items?ids=`; preservar decimales sin float mediante `preserve_numbers`.
+- No equiparar HTTP 200 con éxito de cada entrada. `sellerBulkReadState()` sólo admite datos del `seller_id` esperado y deja los IDs ajenos, faltantes o fallidos como `UNVERIFIED` sin título/precio filtrado; respuesta `contentMissing` o entradas duplicadas también quedan sin verificar.
+- El vendedor esperado debe provenir de `meli_accounts.external_user_id` después de validar `company_id`, `account_id`, estado y permisos en el **consumidor que todavía no se ha implementado**. El cliente/registro no sustituyen esta autorización.
+- `available_quantity` pública puede ser un valor referencial por rango; `public_quantity_reference` no es inventario físico ERP2. Datos sin valor confirmado son `null`, nunca cero inferido.
+- Estas operaciones están registradas para integración simulada. Sin consumidor activo, ruta/UI, persistencia ni autorizaciones de API real. `REAL_MELI_HTTP=0`, F14 pendiente, escrituras F16 OFF.
+- Fuente de referencia (verificada 2026-10-24): https://developers.mercadolibre.com.co/es_ar/api-docs-es/items-y-busquedas. La deprecación de `/items?ids=` está anunciada para 2026-10-25. Revalidar el contrato al habilitar F14.
 
 ## OAuth
 
@@ -57,7 +69,7 @@ Autoridad: documentación oficial `developers.mercadolibre.com.co`.
 No están habilitados todavía:
 
 - Billing per-order repair;
-- Catalog `/items/bulk`;
+- Uso real de `/items/bulk` y lectura/renovación OAuth contra Mercado Libre (gate externo F14); el mero registro READ en M02 no lo autoriza.
 - Billing Info;
 - User Products;
 - writes remotos.

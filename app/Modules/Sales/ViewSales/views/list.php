@@ -82,8 +82,14 @@ $auditStatusLabels = [
                             $saleStatusLabel = $saleStatusLabels[$rawSaleStatus] ?? 'Estado no reconocido';
                             ?>
                             <tr data-mobile-card="sale-row">
-                                <td data-label="Venta"><a class="primary-record-link" href="/sales/<?= rawurlencode((string) $order['external_order_id']) ?>"><?= htmlspecialchars((string) $order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></a></td>
-                                <td data-label="Cuenta"><?= htmlspecialchars((string) $order['account_external_user_id'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td data-label="Venta"><a class="primary-record-link" href="/sales/<?= rawurlencode((string) $order['external_order_id']) ?>?account_id=<?= rawurlencode((string) $order['account_id']) ?>"><?= htmlspecialchars((string) $order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></a></td>
+                                <td data-label="Cuenta">
+                                    <?php $accountNickname = trim((string) ($order['account_nickname'] ?? '')); ?>
+                                    <?php if ($accountNickname !== ''): ?>
+                                        <strong><?= htmlspecialchars($accountNickname, ENT_QUOTES, 'UTF-8') ?></strong>
+                                    <?php endif; ?>
+                                    <div class="muted">ID vendedor: <?= htmlspecialchars((string) $order['account_external_user_id'], ENT_QUOTES, 'UTF-8') ?></div>
+                                </td>
                                 <td data-label="Estado"><span class="status-chip status-neutral" data-sale-status="<?= htmlspecialchars($rawSaleStatus, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($saleStatusLabel, ENT_QUOTES, 'UTF-8') ?></span></td>
                                 <td data-label="Total" class="numeric-value"><?= htmlspecialchars((string) $order['total_amount'], ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars((string) $order['currency_id'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td data-label="Fecha"><?= htmlspecialchars((string) ($order['date_created'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>

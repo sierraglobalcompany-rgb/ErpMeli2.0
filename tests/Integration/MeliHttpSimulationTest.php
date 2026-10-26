@@ -470,7 +470,7 @@ final class MeliHttpSimulationTest extends TestCase
         }
     }
 
-    public function testSimulatorScopeUsesOnlyCurrentRegisteredOperations(): void
+    public function testSimulatorScopeExcludesOnlyOfflineM02ListingOperations(): void
     {
         $scenarios = json_decode((string) file_get_contents(dirname(__DIR__) . '/Support/MeliSim/scenarios.json'), true, 512, JSON_THROW_ON_ERROR);
         $operations = [];
@@ -481,7 +481,9 @@ final class MeliHttpSimulationTest extends TestCase
         sort($operations);
         $registry = require dirname(__DIR__, 2) . '/config/meli_operations.php';
         $registered = array_keys($registry); sort($registered);
-        self::assertSame($registered, $operations);
+        // M02 listing reads have a real-client fake-transport test, but no product consumer or MLSIM route.
+        self::assertSame(['items.bulk', 'users.items.search'], array_values(array_diff($registered, $operations)));
+        self::assertSame([], array_values(array_diff($operations, $registered)));
     }
 
     /** @return array{SalesAuditRepository,int,array<string,mixed>} */

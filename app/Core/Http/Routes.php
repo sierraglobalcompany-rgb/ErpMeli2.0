@@ -29,6 +29,7 @@ use App\Modules\Invoicing\InvoicingBridgeController;
 use App\Modules\Sales\ReceiveOrderWebhook\OrderWebhookReceiver;
 use App\Modules\Sales\ViewSales\SalesListController;
 use App\Modules\Settings\MeliAccountController;
+use App\Modules\Settings\MeliListingPreviewController;
 use App\Modules\Settings\MeliAppSettingsController;
 use App\Modules\Settings\SystemSettingsController;
 use App\Modules\Settings\SystemSettingsRepository;
@@ -208,6 +209,16 @@ final class Routes
                 $config,
             ))->index($request, $response);
         });
+
+        if ($config->appEnv === 'test') {
+            $app->get(MeliListingPreviewController::PATH, static function (
+                ServerRequestInterface $request,
+                ResponseInterface $response
+            ) use ($config): ResponseInterface {
+                return (new MeliListingPreviewController(Connection::fromConfig($config)))
+                    ->index($request, $response);
+            });
+        }
 
         $app->post('/mercadolibre/accounts/{account_id:[0-9]+}/disconnect', static function (
             ServerRequestInterface $request,

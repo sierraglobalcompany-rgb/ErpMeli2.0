@@ -23,7 +23,7 @@ final class MeliClientBoundaryTest extends TestCase
         $operations = require dirname(__DIR__, 2) . '/config/meli_operations.php';
 
         self::assertSame(
-            ['oauth.token', 'users.me', 'orders.get', 'orders.search', 'packs.get', 'orders.billing_info', 'billing.period.details'],
+            ['oauth.token', 'users.me', 'users.items.search', 'items.bulk', 'orders.get', 'orders.search', 'packs.get', 'orders.billing_info', 'billing.period.details'],
             array_keys($operations),
         );
         self::assertSame('POST', $operations['oauth.token']['method']);

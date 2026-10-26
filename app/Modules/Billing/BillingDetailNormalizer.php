@@ -10,6 +10,10 @@ use RuntimeException;
 
 final class BillingDetailNormalizer
 {
+    public const REFERENCE_BACKFILL_VERSION = '013_billing_detail_references_backfill';
+    public const REFERENCE_BACKFILL_CHECKSUM = '329575e94beed4fc2e9955da11ac1a98de986af50a5c6f4a95d4b69812b6fd07';
+    private const MAX_REFERENCE_BYTES = 255;
+
     /**
      * @param array<string,mixed> $detail
      * @return array{
@@ -44,6 +48,68 @@ final class BillingDetailNormalizer
             'context_json' => $this->contextJson($detail, $chargeInfo),
             'remote_created_at' => $this->nullableUtcTimestamp($chargeInfo['creation_date_time'] ?? null),
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $detail
+     * @return list<array{reference_kind:string,reference_value:string}>
+     */
+    public function references(array $detail): array
+    {
+        $externalDetailId = $detail['external_detail_id'] ?? null;
+        if (!is_string($externalDetailId) || $externalDetailId === '') {
+            $this->invalidContract();
+        }
+
+        $references = [];
+        $this->addReference($references, 'detail', $externalDetailId);
+        $this->addReference($references, 'association', $detail['associated_detail_id'] ?? null);
+
+        $contextJson = $detail['context_json'] ?? null;
+        if ($contextJson !== null && !is_string($contextJson)) {
+            $this->invalidContract();
+        }
+        if (!is_string($contextJson) || $contextJson === '') {
+            return array_values($references);
+        }
+
+        $context = json_decode($contextJson, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($context)) {
+            return array_values($references);
+        }
+
+        foreach (['sales', 'items'] as $section) {
+            $entries = $context[$section] ?? null;
+            if (!is_array($entries)) {
+                continue;
+            }
+            foreach ($entries as $entry) {
+                if (is_array($entry)) {
+                    $this->addReference($references, 'order', $entry['order_id'] ?? null);
+                }
+            }
+        }
+
+        $shipping = $context['shipping'] ?? null;
+        if (is_array($shipping)) {
+            $this->addReference($references, 'pack', $shipping['pack_id'] ?? null);
+        }
+
+        return array_values($references);
+    }
+
+    /** @param array<string,array{reference_kind:string,reference_value:string}> $references */
+    private function addReference(array &$references, string $kind, mixed $value): void
+    {
+        if (!is_string($value) || $value === '') {
+            return;
+        }
+        if (strlen($value) > self::MAX_REFERENCE_BYTES) {
+            throw new RuntimeException('Mercado Libre billing identity exceeds the indexed reference size.');
+        }
+
+        $key = $kind . ':' . bin2hex($value);
+        $references[$key] = ['reference_kind' => $kind, 'reference_value' => $value];
     }
 
     private function requiredString(mixed $value, int $maxLength): string

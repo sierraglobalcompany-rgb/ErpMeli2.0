@@ -6,6 +6,7 @@ namespace Tests\Integration;
 
 use App\Bootstrap;
 use App\Core\Config\AppConfig;
+use App\Modules\Billing\BillingDetailNormalizer;
 use App\Modules\Sales\ViewSales\SalesListController;
 use PDO;
 use PDOStatement;
@@ -81,7 +82,7 @@ final class InvoicePostSaleConsumerHttpRouteTest extends TestCase
     {
         $this->order(101, 11, '1001');
         $this->order(201, 20, '1001', 'cancelled');
-        $response = $this->detail('1001', ['company_id'=>'2','account_id'=>'10']);
+        $response = $this->detail('1001', ['company_id'=>'2','account_id'=>'11']);
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
         self::assertStringContainsString('Factura / Postventa', $html);
@@ -101,12 +102,28 @@ final class InvoicePostSaleConsumerHttpRouteTest extends TestCase
     public function testForeignAndAmbiguousSalesFailBeforeInvoicing(): void
     {
         $this->order(201, 20, '2001');
-        self::assertSame(404, $this->detail('2001')->getStatusCode());
+        self::assertSame(404, $this->detail('2001', ['company_id'=>'2','account_id'=>'20'])->getStatusCode());
         self::assertCount(0, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'invoicing_artifacts')));
-        $this->order(101, 10, '1001');
-        $this->order(102, 11, '1001');
-        self::assertSame(404, $this->detail('1001', ['account_id'=>'11'])->getStatusCode());
+        $this->order(101, 11, '1001');
+        $this->order(102, 10, '1001');
+        $this->artifact('INVOICE');
+        $this->artifact('INVOICE', accountId: 10, sourceOrderId: 102);
+        self::assertSame(404, $this->detail('1001')->getStatusCode());
         self::assertCount(0, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'invoicing_artifacts')));
+        foreach (['11', '10'] as $accountId) {
+            $response = $this->detail('1001', ['account_id'=>$accountId]);
+            self::assertSame(200, $response->getStatusCode());
+            $html = (string) $response->getBody();
+            self::assertSame('Sí', $this->value($html, 'Factura registrada'));
+            foreach (['PRIVATE_REFERENCE','PRIVATE_NUMBER','PRIVATE_CUFE','PRIVATE_PROVIDER_DOC'] as $private) {
+                self::assertStringNotContainsString($private, $html);
+            }
+            $projectionQueries = array_values(array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'LEFT JOIN invoicing_artifacts ia')));
+            self::assertCount(1, $projectionQueries);
+            self::assertStringContainsString('o.account_id = :account_id', $projectionQueries[0]);
+            self::assertStringContainsString('o.external_order_id = :external_order_id', $projectionQueries[0]);
+            self::assertCount(0, array_filter($this->queries, static fn(string $sql): bool => str_contains($sql, 'invoicing_service_keys')));
+        }
     }
 
     public function testSalesListHasZeroInvoicingProjections(): void
@@ -154,6 +171,23 @@ final class InvoicePostSaleConsumerHttpRouteTest extends TestCase
         $context = json_encode(['sales'=>[['order_id'=>'1001']]], JSON_THROW_ON_ERROR);
         $statement = $this->pdo->prepare("INSERT INTO billing_details(billing_period_id,external_detail_id,detail_type,detail_amount,currency_id,context_json) VALUES(1,'BILLING-CN','CHARGE','2.0000','COP',?)");
         $statement->execute([$context]);
+        $billingDetailId = (int) $this->pdo->lastInsertId();
+        $normalizer = new BillingDetailNormalizer();
+        foreach ($normalizer->references([
+            'external_detail_id' => 'BILLING-CN',
+            'associated_detail_id' => null,
+            'context_json' => $context,
+        ]) as $reference) {
+            $referenceInsert = $this->pdo->prepare(
+                'INSERT INTO billing_detail_references (billing_detail_id, reference_kind, reference_value) '
+                . 'VALUES (?, ?, ?)',
+            );
+            $referenceInsert->execute([
+                $billingDetailId,
+                $reference['reference_kind'],
+                $reference['reference_value'],
+            ]);
+        }
         $html = (string) $this->detail('1001')->getBody();
         self::assertStringContainsString('CREDIT_NOTE', $html, 'The separate Billing fact remains visible in Financial.');
         self::assertSame('Sí', $this->value($html, 'Factura registrada'));
@@ -162,12 +196,12 @@ final class InvoicePostSaleConsumerHttpRouteTest extends TestCase
         self::assertStringNotContainsString('CREDIT_NOTE_RECORDED', $html);
     }
 
-    private function artifact(string $kind, ?int $original = null): int
+    private function artifact(string $kind, ?int $original = null, int $accountId = 11, int $sourceOrderId = 101): int
     {
         $statement = $this->pdo->prepare("INSERT INTO invoicing_artifacts(company_id,account_id,source_order_id,document_kind,original_invoice_artifact_id,
             document_number,issued_at,currency,exact_total,pdf_storage_ref,pdf_sha256,cufe,provider_document_id)
-            VALUES(1,11,101,?,?,'PRIVATE_NUMBER','2026-10-12 00:00:00','COP','10.0000','PRIVATE_REFERENCE',?,'PRIVATE_CUFE','PRIVATE_PROVIDER_DOC')");
-        $statement->execute([$kind, $original, hash('sha256','synthetic-artifact')]);
+            VALUES(1,?,?,?,?,'PRIVATE_NUMBER','2026-10-12 00:00:00','COP','10.0000','PRIVATE_REFERENCE',?,'PRIVATE_CUFE','PRIVATE_PROVIDER_DOC')");
+        $statement->execute([$accountId, $sourceOrderId, $kind, $original, hash('sha256','synthetic-artifact')]);
         return (int) $this->pdo->lastInsertId();
     }
 

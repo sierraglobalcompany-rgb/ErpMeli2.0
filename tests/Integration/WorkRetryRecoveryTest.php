@@ -172,6 +172,56 @@ final class WorkRetryRecoveryTest extends TestCase
         self::assertNotSame($firstClaim['claim_token'], $reclaimed['claim_token']);
     }
 
+    public function testRecoveredWorkJoinsBehindOlderEligibleWork(): void
+    {
+        $pdo = TestDatabase::reset();
+        $repository = new WorkRepository($pdo);
+        $olderId = $this->insertEligibleWork($pdo, 'older-pending');
+        $pdo->exec('UPDATE work_items SET available_at = UTC_TIMESTAMP(6) - INTERVAL 3 MINUTE WHERE id = ' . $olderId);
+        $recoveredId = $this->insertEligibleWork($pdo, 'interrupted');
+        $pdo->exec(
+            "UPDATE work_items SET status = 'running', attempts = 1, claim_token = REPEAT('a', 32), "
+            . 'claimed_at = UTC_TIMESTAMP(6), available_at = UTC_TIMESTAMP(6) - INTERVAL 2 MINUTE WHERE id = ' . $recoveredId,
+        );
+        $recentId = $this->insertEligibleWork($pdo, 'recent-pending');
+        $pdo->exec('UPDATE work_items SET available_at = UTC_TIMESTAMP(6) - INTERVAL 1 MINUTE WHERE id = ' . $recentId);
+
+        self::assertSame(1, $repository->recoverRunning());
+        $claimedIds = [];
+        for ($index = 0; $index < 3; $index++) {
+            $claim = $repository->claimNext();
+            self::assertIsArray($claim);
+            $claimedIds[] = $claim['id'];
+        }
+
+        self::assertSame([$olderId, $recentId, $recoveredId], $claimedIds);
+    }
+
+    public function testRecoveryDoesNotAdvanceRunningWorkWithFutureAvailability(): void
+    {
+        $pdo = TestDatabase::reset();
+        $repository = new WorkRepository($pdo);
+        $eligibleId = $this->insertEligibleWork($pdo, 'eligible-now');
+        $futureId = $this->insertEligibleWork($pdo, 'interrupted-future');
+        $pdo->exec(
+            "UPDATE work_items SET status = 'running', attempts = 1, claim_token = REPEAT('b', 32), "
+            . 'claimed_at = UTC_TIMESTAMP(6), available_at = UTC_TIMESTAMP(6) + INTERVAL 1 HOUR WHERE id = ' . $futureId,
+        );
+
+        self::assertSame(1, $repository->recoverRunning());
+        $statement = $pdo->prepare('SELECT status, available_at FROM work_items WHERE id = :id');
+        $statement->execute(['id' => $futureId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        self::assertIsArray($row);
+        self::assertSame('pending', $row['status']);
+        self::assertGreaterThan(time() + 55 * 60, strtotime((string) $row['available_at']));
+
+        $claim = $repository->claimNext();
+        self::assertIsArray($claim);
+        self::assertSame($eligibleId, $claim['id']);
+        self::assertNull($repository->claimNext(), 'Recovered work must stay ineligible until its persisted availability.');
+    }
+
     public function testRecoverRunningAtAutomaticAttemptCapFailsInsteadOfRequeueing(): void
     {
         $pdo = TestDatabase::reset();

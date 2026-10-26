@@ -97,7 +97,7 @@ $isActive = static fn (string $path): bool => $path === '/'
 
                 <div class="sidebar-group">
                     <span class="sidebar-label">Productos</span>
-                    <a class="<?= $isActive('/catalog') ? 'is-active' : '' ?>" href="/catalog"><?= $icons['products'] ?><span>Catálogo e inventario</span></a>
+                    <a class="<?= $isActive('/catalog') ? 'is-active' : '' ?>" href="/catalog"><?= $icons['products'] ?><span>Productos e inventario local</span></a>
                 </div>
 
                 <div class="sidebar-group">
@@ -182,7 +182,7 @@ $isActive = static fn (string $path): bool => $path === '/'
             <div class="apps-grid">
                 <?php if ($hasActiveCompany): ?>
                     <a href="/sales"><?= $icons['sales'] ?><span>Ventas</span><small>Operación</small></a>
-                    <a href="/catalog"><?= $icons['products'] ?><span>Productos</span><small>Catálogo e inventario</small></a>
+                    <a href="/catalog"><?= $icons['products'] ?><span>Productos</span><small>Inventario local</small></a>
                     <a href="/billing"><?= $icons['billing'] ?><span>Facturación</span><small>Finanzas</small></a>
                 <?php endif; ?>
                 <?php if ($isCompanyAdmin): ?>

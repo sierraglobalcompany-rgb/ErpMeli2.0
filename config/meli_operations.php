@@ -19,6 +19,23 @@ return [
         'official_doc_url' => 'https://developers.mercadolibre.com.co/es_co/gestion-de-identidades-y-accesos-oauth-y-tokens',
         'verified_at' => '2026-10-08',
     ],
+    'users.items.search' => [
+        'method' => 'GET',
+        'path' => '/users/{user_id}/items/search',
+        'family' => 'items',
+        'classification' => 'READ',
+        'official_doc_url' => 'https://developers.mercadolibre.com.co/es_ar/api-docs-es/items-y-busquedas',
+        'verified_at' => '2026-10-24',
+    ],
+    'items.bulk' => [
+        'method' => 'GET',
+        'path' => '/items/bulk',
+        'family' => 'items',
+        'classification' => 'READ',
+        'official_doc_url' => 'https://developers.mercadolibre.com.co/es_ar/api-docs-es/items-y-busquedas',
+        'verified_at' => '2026-10-24',
+        'preserve_numbers' => true,
+    ],
     'orders.get' => [
         'method' => 'GET',
         'path' => '/orders/{order_id}',

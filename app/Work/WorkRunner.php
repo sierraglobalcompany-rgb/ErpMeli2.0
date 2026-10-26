@@ -65,11 +65,12 @@ final class WorkRunner
 
         $startedAt = hrtime(true);
         $processed = 0;
+        $attempted = 0;
 
         try {
             $repository->recoverRunning();
 
-            while ($processed < $maxItems) {
+            while ($attempted < $maxItems) {
                 $elapsedSeconds = (hrtime(true) - $startedAt) / 1_000_000_000;
                 if ($elapsedSeconds >= $maxSeconds) {
                     break;
@@ -77,9 +78,14 @@ final class WorkRunner
 
                 $claim = $repository->claimNext();
                 if ($claim === null) {
+                    if ($repository->wasLastClaimInvalidPayloadDiscarded()) {
+                        $attempted++;
+                        continue;
+                    }
                     break;
                 }
 
+                $attempted++;
                 $processor($claim);
                 $processed++;
             }
