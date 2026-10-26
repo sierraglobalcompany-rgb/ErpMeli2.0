@@ -36,7 +36,13 @@ final class Migrator
 
             if (is_string($applied)) {
                 if (!hash_equals($applied, $checksum)) {
-                    throw new RuntimeException('Applied migration changed: ' . $version);
+                    // Accept only a legacy checksum from the same SQL with LF/CRLF line endings.
+                    $lfSql = str_replace("\r\n", "\n", $sql);
+                    $crlfSql = str_replace("\n", "\r\n", $lfSql);
+                    if (!hash_equals($applied, hash('sha256', $lfSql))
+                        && !hash_equals($applied, hash('sha256', $crlfSql))) {
+                        throw new RuntimeException('Applied migration changed: ' . $version);
+                    }
                 }
                 continue;
             }
