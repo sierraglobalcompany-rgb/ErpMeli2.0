@@ -81,6 +81,10 @@ design-system/erp-meli-2-0/pages/<page>.md   # si existe override
 docs/CURRENT_CHECKPOINT.md
 ```
 
+### Ley 4 V3 — Protocolo de auditoría y diseño para Codex
+
+En tareas UX/UI aplicar el **único canon** `docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md` + `design-system/erp-meli-2-0/MASTER.md` (sección «Ley 4 V3 — Modos y evidencia»). Seleccionar un solo modo: `AUDITAR_EXISTENTE`, `DISEÑAR_NUEVO`, `IMPLEMENTAR_APROBADO`, `REFINAR`, `INSTALAR_AGENTE`. El estilo claro aceptado no aprueba funciones ficticias. Antislop: un playbook pertinente; Pro Max: cero o una consulta focal cuando aporte. Ley 4 propone/audita; Ley 5 verifica entrega independientemente. No declarar fidelidad sin imagen/estado/viewport/SHA del mismo build. Informar `PASS/FAIL/BLOCKED/NOT_RUN` y Next único. Nunca abrir API real, publicar, hacer merge, ni activar escrituras MELI por una tarea visual.
+
 Esta obligación se activa para cambios en:
 
 ```text
@@ -193,3 +197,54 @@ STOP → RECOVER AUTHORITY → CONTINUE
 ```
 
 La ley Human-First no deja de aplicar porque cambió el chat o el agente.
+
+## Ley 6 — Coordinación resolutiva sin ping-pong
+
+- ChatGPT define el objetivo, examina fuentes, resuelve lo accesible y delega solo la ejecución local necesaria; no confundir redactar un prompt con implementar o probar.
+- Un encargo agrupa preflight, cambios relacionados, RED/GREEN si corresponde, regresión, QA y evidencias. No devolver una microtarea por cada comando o archivo.
+- Codex puede resolver obstáculos mecánicos y decidir tácticas locales dentro del contrato; no cambia alcance, reglas de negocio, permisos, diseño aprobado, arquitectura ni producción sin autorización.
+- Un bloqueo parcial no detiene pruebas independientes. Registrar `PASS`, `FAIL`, `BLOCKED` o `NOT_RUN` honestamente y conservar un único `NEXT` o `NINGUNO`.
+- Respetar checkpoints Human-First por pantalla/microbloque UI **dentro** del lote coherente. Agrupar handoffs no exime de ninguna puerta de verdad, accesibilidad o navegador.
+- No repetir una suite completa, diagnóstico o informe sin nueva hipótesis, cambio o criterio de aceptación. No reducir aserciones, omitir pruebas ni maquillar resultados.
+- Preservar WIP; sin `reset --hard`, `git clean`, sobrescritura destructiva, DB compartida, credenciales de producción, API MELI real ni push/merge/deploy implícitos.
+- Por tarea, entregar informe `.md` y ZIP **solo si existen evidencias pertinentes**, en una misma carpeta fuera del código y sin secretos; verificar archivos y hashes.
+- Quien implementa no se autoaprueba (Ley 5); ChatGPT contrasta diff/versión, QA y evidencias antes de decidir otro encargo.
+
+<!-- ERP2_L1_L6_CANONICAL_LINK_V1 -->
+## Canon transversal de las seis leyes (L1–L6)
+
+**Al inicio y al cierre de cada tarea técnica**, abrir y consultar
+`docs/engineering/LEYES_IMPLEMENTACION_1_A_6.md` y verificar versión e IDs
+L1 KISS, L2 antirruido, L3 antiparches, L4 Human-First, L5 verificación
+independiente y L6 antipíng-pong. Registrar `CANON_L1-L6=LEIDO|PARCIAL|NO_ACCESIBLE`.
+
+Este enlace **no sustituye ni duplica** las reglas anteriores de este
+`AGENTS.md`, los documentos Human-First y de diseño aprobados, overrides de
+página, SPEC ni `docs/CURRENT_CHECKPOINT.md`.
+
+Al cerrar, contrastar las seis leyes con diff y evidencias del mismo SHA,
+diferenciar `PASS|FAIL|BLOCKED|NOT_RUN`, entregar un solo `NEXT` o `NINGUNO`.
+Codex no se autoaprueba bajo L5. Mantener intactos WIP, permisos, secretos,
+producción y remotos salvo autorización explícita.
+<!-- /ERP2_L1_L6_CANONICAL_LINK_V1 -->
+
+## L1 KISS + Ponytail
+Antes de editar software, consulta `.agents/skills/kiss-ponytail/SKILL.md`: comprende el flujo/callers, elimina solo lo no requerido, reutiliza primero código existente, biblioteca estándar, capacidad nativa y dependencias actuales. Cambia lo mínimo completo preservando seguridad, datos, validaciones, UX, pruebas y L2–L6. `ponytail-audit` solo cuando se solicite/justifique. No confundir esta integración con el plugin global y sus hooks, que requieren instalación y confianza separadas.
+
+## PingPongLaw L1–L6 — referencia canónica fijada
+
+**Canon para consulta:** https://github.com/sierraglobalcompany-rgb/PingPongLaw/blob/84e961cadf482d234f4c0ee2ca60e8c7e9b388e8/docs/engineering/LEYES_IMPLEMENTACION_1_A_6.md
+**Router de skills (fuente, no instalación local):** https://github.com/sierraglobalcompany-rgb/PingPongLaw/blob/84e961cadf482d234f4c0ee2ca60e8c7e9b388e8/.agents/skills/pingponglaw/SKILL.md
+
+Al iniciar una tarea, comprobar la autoridad del repositorio y, si la fuente es accesible, leer realmente el canon fijado y seleccionar únicamente las skills pertinentes. Una URL no significa `SKILL_LOADED`, plugin instalado ni hooks habilitados; si la fuente no puede consultarse, declarar `CANON_READ=BLOCKED` y no fingir validación. La skill local `.agents/skills/kiss-ponytail/SKILL.md` se conserva como adaptador L1 para el trabajo offline, no como canon alternativo.
+
+- **L1 — KISS + Ponytail:** escoger la solución mínima completa, reutilizando owners, plataforma y dependencias sin recortar seguridad, datos ni QA.
+- **L2 — Antirruido:** comprobar equivalencia y consumidores antes de unir o retirar; conservar lo incierto.
+- **L3 — Antiparches:** identificar causa raíz, corregir al dueño y comprobar regresiones; no apilar remedios.
+- **L4 — Diseño humano:** prevalecen SPEC, mockup aprobado y reglas Human-First propias del ERP; las fuentes externas son consultivas.
+- **L5 — Verificación independiente:** pruebas atribuibles al SHA/build y aceptación proporcionada al riesgo; QA del autor no equivale a verificador externo.
+- **L6 — Antiping-pong:** ChatGPT investiga, decide e implementa lo accesible; Codex recibe solo un lote necesario por límite real, con pruebas y cierre.
+
+**Protección del proyecto:** esta referencia no reemplaza las normas específicas existentes en las ramas activas ni altera políticas de diez pasadas, permisos, multiempresa, cron/Work, QA, seguridad, ramas, F14/F16 o la prohibición de escrituras remotas sin autorización. Si al integrar ramas aparece conflicto, conservar ambas instrucciones y reconciliarlo antes de merge; no sobrescribir el `AGENTS.md` de producto. No instalar ni activar hooks, plugins, CI o skills globales por esta referencia.
+
+**Cierre por tarea:** registrar leyes aplicables, evidencias `PASS/FAIL/BLOCKED/NOT_RUN`, pendientes reales y `NEXT` único o `NINGUNO`. No lanzar auditorías forenses ni diez pasadas por rutina si no las exige la instrucción vigente o un riesgo demostrado.

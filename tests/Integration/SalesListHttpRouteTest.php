@@ -70,7 +70,7 @@ final class SalesListHttpRouteTest extends TestCase
         self::assertStringContainsString('data-mobile-card="sale-row"', $html);
         self::assertStringContainsString('data-label="Venta"', $html);
         self::assertStringContainsString('class="status-chip', $html);
-        self::assertSame(1, substr_count($html, 'href="/sales/200000000101"'), 'Responsive mobile presentation must reuse the same sale row instead of duplicating sale markup.');
+        self::assertSame(1, substr_count($html, 'href="/sales/200000000101?account_id=10"'), 'Responsive mobile presentation must reuse the same sale row instead of duplicating sale markup.');
     }
 
     public function testSalesListKeepsNormalSalesPrimaryAndAuditSecondaryWithHumanStatuses(): void

@@ -71,6 +71,10 @@ final class MeliClient
             throw new InvalidArgumentException('Invalid Mercado Libre operation classification: ' . $operationKey);
         }
 
+        if ($operationKey === 'users.items.search' || $operationKey === 'items.bulk') {
+            $this->assertListingReadQuery($operationKey, $queryParams);
+        }
+
         if ($classification === 'WRITE' && !$this->settings->get()->meliWritesEnabled) {
             throw new RuntimeException('Remote Mercado Libre writes are disabled.');
         }
@@ -148,7 +152,7 @@ final class MeliClient
                 if (!is_array($decoded)) {
                     throw new JsonException('Expected JSON object.');
                 }
-                /** @var array<string,mixed> $data */
+                /** @var array<array-key,mixed> $data */
                 $data = $decoded;
             }
         } catch (JsonException $exception) {
@@ -173,6 +177,16 @@ final class MeliClient
     /** @param array<string,string> $pathParams */
     private function resolvePath(string $path, array $pathParams): string
     {
+        if ($path === '/users/{user_id}/items/search') {
+            $userId = $pathParams['user_id'] ?? null;
+            if (!is_string($userId) || preg_match('/^[1-9][0-9]{0,31}$/D', $userId) !== 1
+                || count($pathParams) !== 1) {
+                throw new InvalidArgumentException('Invalid Mercado Libre seller user_id.');
+            }
+
+            return '/users/' . $userId . '/items/search';
+        }
+
         if ($path === '/orders/{order_id}' || $path === '/packs/{pack_id}') {
             $key = $path === '/orders/{order_id}' ? 'order_id' : 'pack_id';
             $id = $pathParams[$key] ?? null;
@@ -217,6 +231,40 @@ final class MeliClient
         }
 
         return $path;
+    }
+
+    /** @param array<string,string|int> $queryParams */
+    private function assertListingReadQuery(string $operationKey, array $queryParams): void
+    {
+        if ($operationKey === 'users.items.search') {
+            foreach ($queryParams as $key => $value) {
+                if (!in_array($key, ['offset', 'limit'], true) || !is_int($value)) {
+                    throw new InvalidArgumentException('Unsupported seller listing search filter.');
+                }
+            }
+
+            $offset = $queryParams['offset'] ?? 0;
+            $limit = $queryParams['limit'] ?? 50;
+            if ($offset < 0 || $limit < 1 || $limit > 50 || $offset + $limit > 1000) {
+                throw new InvalidArgumentException('Seller listing search page is out of bounds.');
+            }
+
+            return;
+        }
+
+        if (count($queryParams) !== 1 || !isset($queryParams['ids']) || !is_string($queryParams['ids'])) {
+            throw new InvalidArgumentException('Item bulk requires only an ids query.');
+        }
+
+        $ids = explode(',', $queryParams['ids']);
+        if (count($ids) > 20 || count(array_unique($ids)) !== count($ids)) {
+            throw new InvalidArgumentException('Item bulk requires 1–20 distinct item IDs.');
+        }
+        foreach ($ids as $id) {
+            if (preg_match('/^M[A-Z]{2}[1-9][0-9]{0,31}$/D', $id) !== 1) {
+                throw new InvalidArgumentException('Invalid Mercado Libre item ID.');
+            }
+        }
     }
 
     /** @param array<string,string|int> $queryParams */

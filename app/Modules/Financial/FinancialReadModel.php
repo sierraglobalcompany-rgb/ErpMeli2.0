@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Financial;
 
+use App\Modules\Billing\BillingDetailNormalizer;
 use InvalidArgumentException;
 use PDO;
+use RuntimeException;
 
 final class FinancialReadModel
 {
@@ -52,7 +54,7 @@ final class FinancialReadModel
         $currencies = [];
         $operationalCurrencies = [];
         foreach ($scopeOrders as $order) {
-            $scopeOrderIds[(string) $order['external_order_id']] = true;
+            $scopeOrderIds[$this->opaqueKey((string) $order['external_order_id'])] = true;
             $orderIds[] = (string) $order['external_order_id'];
             $this->addCurrency($currencies, $order['currency_id'] ?? null);
             $this->addCurrency($operationalCurrencies, $order['currency_id'] ?? null);
@@ -89,19 +91,16 @@ final class FinancialReadModel
             $this->addCurrency($operationalCurrencies, $itemCurrency);
         }
 
-        $billingStatement = $this->pdo->prepare(
-            'SELECT bd.external_detail_id, bd.associated_detail_id, bd.detail_type, bd.detail_sub_type, '
-            . 'bd.detail_amount, bd.currency_id, bd.context_json, bp.document_type '
-            . 'FROM billing_periods bp JOIN billing_details bd ON bd.billing_period_id = bp.id '
-            . 'WHERE bp.company_id = :company_id AND bp.account_id = :account_id '
-            . 'ORDER BY bd.external_detail_id, bp.period_key, bp.document_type, bd.id',
+        $this->assertBillingReferenceIndexReady();
+        $directIds = $this->directBillingIds(
+            $companyId,
+            $accountId,
+            array_values(array_unique($orderIds, SORT_STRING)),
+            $packId,
         );
-        $billingStatement->execute(['company_id' => $companyId, 'account_id' => $accountId]);
+        [$rowsById, $selectedIds] = $this->loadBillingGraph($companyId, $accountId, $directIds, $scopeOrderIds, $packId);
 
         /** @var array<string,list<array<string,mixed>>> $rowsById */
-        $rowsById = [];
-        /** @var array<string,string> $directIds */
-        $directIds = [];
         /** @var array<string,bool> $identityConflictById */
         $identityConflictById = [];
         /** @var array<string,string> $signatureById */
@@ -109,76 +108,30 @@ final class FinancialReadModel
         /** @var array<string,bool> $duplicateConflictById */
         $duplicateConflictById = [];
 
-        foreach ($billingStatement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $id = (string) $row['external_detail_id'];
-            $context = $this->decodeContext($row['context_json'] ?? null);
-            [$detailOrderIds, $detailPackIds] = $this->identities($context);
-            $isDirect = $this->matchesScope($detailOrderIds, $detailPackIds, $scopeOrderIds, $packId);
-            if ($isDirect) {
-                $directIds[$id] = $id;
-            }
-            if ($this->identityConflicts($detailOrderIds, $detailPackIds, $scopeOrderIds, $packId)) {
-                $identityConflictById[$id] = true;
-            }
+        foreach ($rowsById as $id => $rows) {
+            $key = (string) $id;
+            foreach ($rows as $row) {
+                $context = $this->decodeContext($row['context_json'] ?? null);
+                [$detailOrderIds, $detailPackIds] = $this->identities($context);
+                if ($this->identityConflicts($detailOrderIds, $detailPackIds, $scopeOrderIds, $packId)) {
+                    $identityConflictById[$key] = true;
+                }
 
-            $rowsById[$id][] = $row;
-            $signature = $this->billingSignature($row);
-            if (isset($signatureById[$id]) && $signatureById[$id] !== $signature) {
-                $duplicateConflictById[$id] = true;
+                $signature = $this->billingSignature($row);
+                if (isset($signatureById[$key]) && $signatureById[$key] !== $signature) {
+                    $duplicateConflictById[$key] = true;
+                }
+                $signatureById[$key] ??= $signature;
             }
-            $signatureById[$id] ??= $signature;
         }
 
         /** @var array<string,array<string,mixed>> $billingById */
         $billingById = [];
-        /** @var array<string,?string> $associationById */
-        $associationById = [];
-        /** @var array<string,list<string>> $childrenByParent */
-        $childrenByParent = [];
         foreach ($rowsById as $rows) {
             $id = (string) $rows[0]['external_detail_id'];
-            $associations = [];
-            foreach ($rows as $row) {
-                $associatedId = is_string($row['associated_detail_id'] ?? null) && $row['associated_detail_id'] !== ''
-                    ? $row['associated_detail_id']
-                    : null;
-                $associationKey = $associatedId === null ? 'null' : 'value:' . $associatedId;
-                $associations[$associationKey] = $associatedId;
-            }
-
-            if (count($associations) === 1) {
-                $associatedId = reset($associations);
-                $associationById[$id] = $associatedId;
-                if (is_string($associatedId)) {
-                    $childrenByParent[$associatedId][] = $id;
-                }
-            }
-            if (!isset($duplicateConflictById[$id])) {
-                $billingById[$id] = $rows[0];
-            }
-        }
-
-        $selectedIds = $directIds;
-        // Opaque identities are stored values; PHP may coerce their lookup keys to integers.
-        $queue = array_values($directIds);
-        $visited = [];
-        for ($position = 0; $position < count($queue); $position++) {
-            $id = $queue[$position];
-            if (isset($visited[$id])) {
-                continue;
-            }
-            $visited[$id] = true;
-
-            $associatedId = $associationById[$id] ?? null;
-            if (is_string($associatedId) && isset($rowsById[$associatedId]) && !isset($selectedIds[$associatedId])) {
-                $selectedIds[$associatedId] = $associatedId;
-                $queue[] = $associatedId;
-            }
-            foreach ($childrenByParent[$id] ?? [] as $childId) {
-                if (!isset($selectedIds[$childId])) {
-                    $selectedIds[$childId] = $childId;
-                    $queue[] = $childId;
-                }
+            $key = $this->opaqueKey($id);
+            if (!isset($duplicateConflictById[$key])) {
+                $billingById[$key] = $rows[0];
             }
         }
 
@@ -186,15 +139,15 @@ final class FinancialReadModel
         $receiverShipping = [];
         $billingIdentityConflict = false;
         $receiverShippingKnown = false;
-        foreach ($selectedIds as $id) {
-            if (isset($identityConflictById[$id]) || isset($duplicateConflictById[$id])) {
+        foreach ($selectedIds as $key => $id) {
+            if (isset($identityConflictById[$key]) || isset($duplicateConflictById[$key])) {
                 $billingIdentityConflict = true;
             }
-            foreach ($rowsById[$id] ?? [] as $row) {
+            foreach ($rowsById[$key] ?? [] as $row) {
                 $this->addCurrency($currencies, $row['currency_id'] ?? null);
             }
 
-            $row = $billingById[$id] ?? null;
+            $row = $billingById[$key] ?? null;
             if ($row === null) {
                 continue;
             }
@@ -292,7 +245,7 @@ final class FinancialReadModel
             }
             foreach ($entries as $entry) {
                 if (is_array($entry) && is_string($entry['order_id'] ?? null) && $entry['order_id'] !== '') {
-                    $orderIds[$entry['order_id']] = $entry['order_id'];
+                    $orderIds[$this->opaqueKey($entry['order_id'])] = $entry['order_id'];
                 }
             }
         }
@@ -300,7 +253,7 @@ final class FinancialReadModel
         $packIds = [];
         $shipping = $context['shipping'] ?? null;
         if (is_array($shipping) && is_string($shipping['pack_id'] ?? null) && $shipping['pack_id'] !== '') {
-            $packIds[$shipping['pack_id']] = $shipping['pack_id'];
+            $packIds[$this->opaqueKey($shipping['pack_id'])] = $shipping['pack_id'];
         }
 
         return [array_values($orderIds), array_values($packIds)];
@@ -317,7 +270,7 @@ final class FinancialReadModel
             return true;
         }
         foreach ($orderIds as $orderId) {
-            if (isset($scopeOrderIds[$orderId])) {
+            if (isset($scopeOrderIds[$this->opaqueKey($orderId)])) {
                 return true;
             }
         }
@@ -333,7 +286,7 @@ final class FinancialReadModel
     private function identityConflicts(array $orderIds, array $packIds, array $scopeOrderIds, ?string $packId): bool
     {
         foreach ($orderIds as $orderId) {
-            if (!isset($scopeOrderIds[$orderId])) {
+            if (!isset($scopeOrderIds[$this->opaqueKey($orderId)])) {
                 return true;
             }
         }
@@ -381,5 +334,283 @@ final class FinancialReadModel
         if (is_string($currency) && $currency !== '') {
             $currencies[$currency] = true;
         }
+    }
+
+    private function assertBillingReferenceIndexReady(): void
+    {
+        $statement = $this->pdo->prepare('SELECT checksum FROM schema_migrations WHERE version = ?');
+        $statement->execute([BillingDetailNormalizer::REFERENCE_BACKFILL_VERSION]);
+        $checksum = $statement->fetchColumn();
+        if (!is_string($checksum)
+            || !hash_equals(BillingDetailNormalizer::REFERENCE_BACKFILL_CHECKSUM, $checksum)) {
+            throw new RuntimeException('Financial Billing reference index is not ready.');
+        }
+    }
+
+    /**
+     * @param list<string> $orderIds
+     * @return array<string,string>
+     */
+    private function directBillingIds(int $companyId, int $accountId, array $orderIds, ?string $packId): array
+    {
+        $directIds = [];
+        $scopes = [];
+        if ($orderIds !== []) {
+            $scopes[] = ['order', $orderIds];
+        }
+        if ($packId !== null) {
+            $scopes[] = ['pack', [$packId]];
+        }
+
+        foreach ($scopes as [$kind, $values]) {
+            foreach (array_chunk($values, 400) as $batch) {
+                $placeholders = [];
+                $parameters = ['company_id' => $companyId, 'account_id' => $accountId, 'reference_kind' => $kind];
+                foreach ($batch as $index => $value) {
+                    $name = 'reference_' . $index;
+                    $placeholders[] = ':' . $name;
+                    $parameters[$name] = $value;
+                }
+
+                $statement = $this->pdo->prepare(
+                    'SELECT bd.external_detail_id FROM billing_detail_references r '
+                    . 'FORCE INDEX (idx_billing_detail_references_lookup) '
+                    . 'STRAIGHT_JOIN billing_details bd ON bd.id = r.billing_detail_id '
+                    . 'STRAIGHT_JOIN billing_periods bp ON bp.id = bd.billing_period_id '
+                    . 'WHERE bp.company_id = :company_id AND bp.account_id = :account_id '
+                    . 'AND r.reference_kind = :reference_kind AND r.reference_value IN ('
+                    . implode(', ', $placeholders) . ')',
+                );
+                $statement->execute($parameters);
+                foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $externalDetailId) {
+                    $id = (string) $externalDetailId;
+                    $directIds[$this->opaqueKey($id)] = $id;
+                }
+            }
+        }
+
+        return $directIds;
+    }
+
+    /**
+     * @param array<string,string> $directIds
+     * @param array<string,bool> $scopeOrderIds
+     * @return array{array<string,list<array<string,mixed>>>,array<string,string>}
+     */
+    private function loadBillingGraph(
+        int $companyId,
+        int $accountId,
+        array $directIds,
+        array $scopeOrderIds,
+        ?string $packId,
+    ): array {
+        $rowsById = [];
+        $selectedIds = $directIds;
+        $loaded = [];
+        $processed = [];
+        $directVerified = false;
+
+        while (true) {
+            $frontier = [];
+            foreach ($selectedIds as $id) {
+                $key = $this->opaqueKey($id);
+                if (!isset($processed[$key])) {
+                    $processed[$key] = true;
+                    $frontier[] = $id;
+                }
+            }
+            if ($frontier === []) {
+                break;
+            }
+
+            $unloadedFrontier = array_values(array_filter(
+                $frontier,
+                fn (string $id): bool => !isset($loaded[$this->opaqueKey($id)]),
+            ));
+            $this->mergeBillingRows(
+                $rowsById,
+                $loaded,
+                $this->billingRowsForExternalIds($companyId, $accountId, $unloadedFrontier),
+            );
+
+            if (!$directVerified) {
+                foreach ($directIds as $id) {
+                    $matches = false;
+                    foreach ($rowsById[$this->opaqueKey($id)] ?? [] as $row) {
+                        $context = $this->decodeContext($row['context_json'] ?? null);
+                        [$detailOrderIds, $detailPackIds] = $this->identities($context);
+                        if ($this->matchesScope($detailOrderIds, $detailPackIds, $scopeOrderIds, $packId)) {
+                            $matches = true;
+                            break;
+                        }
+                    }
+                    if (!$matches) {
+                        throw new RuntimeException('Financial Billing reference index disagrees with its source context.');
+                    }
+                }
+                $directVerified = true;
+            }
+
+            $parents = [];
+            foreach ($frontier as $id) {
+                $association = $this->consistentAssociation($rowsById[$this->opaqueKey($id)] ?? []);
+                if ($association['consistent'] && is_string($association['id'])) {
+                    $parents[$this->opaqueKey($association['id'])] = $association['id'];
+                }
+            }
+
+            $children = $this->billingChildrenForParents($companyId, $accountId, $frontier);
+            $unloadedCandidates = [];
+            foreach ($parents + $children as $candidateId) {
+                if (!isset($loaded[$this->opaqueKey($candidateId)])) {
+                    $unloadedCandidates[$this->opaqueKey($candidateId)] = $candidateId;
+                }
+            }
+            $this->mergeBillingRows(
+                $rowsById,
+                $loaded,
+                $this->billingRowsForExternalIds($companyId, $accountId, array_values($unloadedCandidates)),
+            );
+
+            foreach ($parents as $parentId) {
+                if (isset($rowsById[$this->opaqueKey($parentId)])) {
+                    $selectedIds[$this->opaqueKey($parentId)] = $parentId;
+                }
+            }
+            foreach ($children as $childId) {
+                $association = $this->consistentAssociation($rowsById[$this->opaqueKey($childId)] ?? []);
+                if ($association['consistent'] && is_string($association['id'])
+                    && in_array($association['id'], $frontier, true)) {
+                    $selectedIds[$this->opaqueKey($childId)] = $childId;
+                }
+            }
+        }
+
+        return [$rowsById, $selectedIds];
+    }
+
+    /**
+     * @param list<string> $externalIds
+     * @return list<array<string,mixed>>
+     */
+    private function billingRowsForExternalIds(int $companyId, int $accountId, array $externalIds): array
+    {
+        $unique = [];
+        foreach ($externalIds as $externalId) {
+            $unique[$this->opaqueKey($externalId)] = $externalId;
+        }
+
+        $rows = [];
+        foreach (array_chunk(array_values($unique), 400) as $batch) {
+            $placeholders = [];
+            $parameters = ['company_id' => $companyId, 'account_id' => $accountId];
+            foreach ($batch as $index => $externalId) {
+                $name = 'external_id_' . $index;
+                $placeholders[] = ':' . $name;
+                $parameters[$name] = $externalId;
+            }
+
+            $statement = $this->pdo->prepare(
+                'SELECT r.reference_value AS indexed_external_detail_id, bd.id AS billing_detail_id, '
+                . 'bd.external_detail_id, bd.associated_detail_id, bd.detail_type, bd.detail_sub_type, '
+                . 'bd.detail_amount, bd.currency_id, bd.context_json, bp.document_type, bp.period_key '
+                . 'FROM billing_detail_references r FORCE INDEX (idx_billing_detail_references_lookup) '
+                . 'STRAIGHT_JOIN billing_details bd ON bd.id = r.billing_detail_id '
+                . 'STRAIGHT_JOIN billing_periods bp ON bp.id = bd.billing_period_id '
+                . 'WHERE bp.company_id = :company_id AND bp.account_id = :account_id '
+                . "AND r.reference_kind = 'detail' AND r.reference_value IN (" . implode(', ', $placeholders) . ') '
+                . 'ORDER BY r.reference_value, bp.period_key, bp.document_type, bd.id',
+            );
+            $statement->execute($parameters);
+            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                if (!hash_equals((string) $row['indexed_external_detail_id'], (string) $row['external_detail_id'])) {
+                    throw new RuntimeException('Financial Billing detail reference index is inconsistent.');
+                }
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param list<string> $parentIds
+     * @return array<string,string>
+     */
+    private function billingChildrenForParents(int $companyId, int $accountId, array $parentIds): array
+    {
+        $children = [];
+        foreach (array_chunk(array_values(array_unique($parentIds, SORT_STRING)), 400) as $batch) {
+            $placeholders = [];
+            $parameters = ['company_id' => $companyId, 'account_id' => $accountId];
+            foreach ($batch as $index => $parentId) {
+                $name = 'parent_id_' . $index;
+                $placeholders[] = ':' . $name;
+                $parameters[$name] = $parentId;
+            }
+
+            $statement = $this->pdo->prepare(
+                'SELECT r.reference_value AS indexed_associated_detail_id, '
+                . 'bd.external_detail_id, bd.associated_detail_id '
+                . 'FROM billing_detail_references r FORCE INDEX (idx_billing_detail_references_lookup) '
+                . 'STRAIGHT_JOIN billing_details bd ON bd.id = r.billing_detail_id '
+                . 'STRAIGHT_JOIN billing_periods bp ON bp.id = bd.billing_period_id '
+                . 'WHERE bp.company_id = :company_id AND bp.account_id = :account_id '
+                . "AND r.reference_kind = 'association' AND r.reference_value IN ("
+                . implode(', ', $placeholders) . ')',
+            );
+            $statement->execute($parameters);
+            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                if (!is_string($row['associated_detail_id'] ?? null)
+                    || !hash_equals((string) $row['indexed_associated_detail_id'], $row['associated_detail_id'])) {
+                    throw new RuntimeException('Financial Billing association reference index is inconsistent.');
+                }
+                $childId = (string) $row['external_detail_id'];
+                $children[$this->opaqueKey($childId)] = $childId;
+            }
+        }
+
+        return $children;
+    }
+
+    /**
+     * @param array<string,list<array<string,mixed>>> $rowsById
+     * @param array<string,bool> $loaded
+     * @param list<array<string,mixed>> $rows
+     */
+    private function mergeBillingRows(array &$rowsById, array &$loaded, array $rows): void
+    {
+        foreach ($rows as $row) {
+            $id = (string) $row['external_detail_id'];
+            $rowsById[$this->opaqueKey($id)][] = $row;
+            $loaded[$this->opaqueKey($id)] = true;
+        }
+    }
+
+    /** @param list<array<string,mixed>> $rows
+     * @return array{consistent:bool,id:?string}
+     */
+    private function consistentAssociation(array $rows): array
+    {
+        $associations = [];
+        foreach ($rows as $row) {
+            $id = is_string($row['associated_detail_id'] ?? null) && $row['associated_detail_id'] !== ''
+                ? $row['associated_detail_id']
+                : null;
+            $key = $id === null ? 'null' : 'value:' . bin2hex($id);
+            $associations[$key] = $id;
+        }
+        if (count($associations) !== 1) {
+            return ['consistent' => false, 'id' => null];
+        }
+
+        $id = reset($associations);
+
+        return ['consistent' => true, 'id' => is_string($id) ? $id : null];
+    }
+
+    private function opaqueKey(string $value): string
+    {
+        return 'id:' . bin2hex($value);
     }
 }

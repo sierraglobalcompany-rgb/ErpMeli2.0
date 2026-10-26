@@ -25,6 +25,26 @@ final class ProductRepository
         ], $statement->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /**
+     * Search only this company's internal products. Read-only; no inventory or provider queries.
+     * Wildcards typed by the user are treated as literal SKU/name characters.
+     * @return list<array{id:int,internal_sku:string,name:string}>
+     */
+    public function searchForCompany(int $companyId, string $term): array
+    {
+        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $term);
+        $pattern = '%' . $escaped . '%';
+        $statement = $this->pdo->prepare(
+            "SELECT id,internal_sku,name FROM products WHERE company_id = :company_id "
+            . "AND (internal_sku LIKE :sku ESCAPE '!' OR name LIKE :name ESCAPE '!') "
+            . 'ORDER BY id DESC LIMIT 100'
+        );
+        $statement->execute(['company_id' => $companyId, 'sku' => $pattern, 'name' => $pattern]);
+        return array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'], 'internal_sku' => (string) $row['internal_sku'], 'name' => (string) $row['name'],
+        ], $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
     public function create(int $companyId, string $internalSku, string $name): int
     {
         if (trim($internalSku) === '') {

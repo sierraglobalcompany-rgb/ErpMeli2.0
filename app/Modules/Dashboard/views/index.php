@@ -7,7 +7,7 @@ declare(strict_types=1);
 /** @var string $csrfToken */
 /** @var string $fromValue */
 /** @var string $toValue */
-/** @var array{orders:int,products:int,sales_by_currency:list<array{currency:string,total:string,orders:int}>,account_statuses:array{connected:int,attention:int,reauth_required:int,disabled:int},recent_orders:list<array{external_order_id:string,status:string,date_created:string,total_amount:string,currency_id:string}>} $snapshot */
+/** @var array{orders:int,products:int,sales_by_currency:list<array{currency:string,total:string,orders:int}>,account_statuses:array{connected:int,attention:int,reauth_required:int,disabled:int},recent_orders:list<array{account_id:int,external_order_id:string,status:string,date_created:string,total_amount:string,currency_id:string}>} $snapshot */
 
 require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
 ?>
@@ -44,16 +44,17 @@ require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
 
         <section class="panel">
             <span class="eyebrow">Finanzas</span>
-            <h2>Ventas por moneda</h2>
+            <h2>Importe de órdenes pagadas por moneda</h2>
+            <p>Importes de órdenes locales con estado pagado. No equivalen a liquidación ni rentabilidad.</p>
             <?php if ($snapshot['sales_by_currency'] === []): ?>
-                <p>No hay ventas en este período.</p>
+                <p>No hay órdenes pagadas en este período.</p>
             <?php else: ?>
                 <dl class="settings-list">
                     <?php foreach ($snapshot['sales_by_currency'] as $currency): ?>
                         <dt data-dashboard-sales-currency="<?= htmlspecialchars($currency['currency'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($currency['currency'], ENT_QUOTES, 'UTF-8') ?></dt>
                         <dd data-dashboard-sales-amount="<?= htmlspecialchars($currency['total'], ENT_QUOTES, 'UTF-8') ?>">
                             <?= htmlspecialchars($currency['total'], ENT_QUOTES, 'UTF-8') ?>
-                            <small class="muted"> · <?= $currency['orders'] ?> órdenes</small>
+                            <small class="muted"> · <?= $currency['orders'] ?> <?= (int) $currency['orders'] === 1 ? 'orden' : 'órdenes' ?></small>
                         </dd>
                     <?php endforeach; ?>
                 </dl>
@@ -97,7 +98,7 @@ require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
             <p>No hay órdenes recientes para mostrar.</p>
         <?php else: ?>
             <div class="table-wrap">
-                <table>
+                <table data-responsive-table="dashboard-orders">
                     <thead><tr><th>Venta</th><th>Estado</th><th>Fecha</th><th>Valor</th></tr></thead>
                     <tbody>
                     <?php foreach ($snapshot['recent_orders'] as $order): ?>
@@ -106,11 +107,11 @@ require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php';
                             'cancelled' => 'Cancelada',
                             default => ucfirst(str_replace('_', ' ', $order['status'])),
                         }; ?>
-                        <tr>
-                            <td><a href="/sales/<?= rawurlencode($order['external_order_id']) ?>"><?= htmlspecialchars($order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></a></td>
-                            <td data-dashboard-order-status="<?= htmlspecialchars($order['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars($order['date_created'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars($order['currency_id'] . ' ' . $order['total_amount'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <tr data-mobile-card="dashboard-order-row">
+                            <td data-label="Venta"><a href="/sales/<?= rawurlencode($order['external_order_id']) ?>?account_id=<?= rawurlencode((string) $order['account_id']) ?>"><?= htmlspecialchars($order['external_order_id'], ENT_QUOTES, 'UTF-8') ?></a></td>
+                            <td data-label="Estado" data-dashboard-order-status="<?= htmlspecialchars($order['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="Fecha"><?= htmlspecialchars($order['date_created'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="Valor"><?= htmlspecialchars($order['currency_id'] . ' ' . $order['total_amount'], ENT_QUOTES, 'UTF-8') ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>

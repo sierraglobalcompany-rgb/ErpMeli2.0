@@ -658,6 +658,24 @@ tech jargon before business meaning
 
 ---
 
+# 25A. LEY 4 V3 — MODOS Y EVIDENCIA
+
+Esta sección complementa, **no sustituye**, `docs/ERP_HUMAN_FIRST_UI_UX_MASTER_SKILL.md`. Una sola autoridad para diseño y tokens. Orden: seguridad / hechos y permisos → SPEC aprobada → referencia visual exacta (solo apariencia/estados autorizados) → componentes/tokens actuales → referencia externa.
+
+**Modos (uno por tarea):** `AUDITAR_EXISTENTE` (inventariar/probar, no editar), `DISEÑAR_NUEVO` (contrato + propuesta sin backend), `IMPLEMENTAR_APROBADO` (diff mínimo contra referencia aprobada), `REFINAR` (causa raíz delimitada), `INSTALAR_AGENTE` (persistencia mínima y comprobación de carga real).
+
+**Proceso L4:** inventario ruta/rol/estados → verdad y origen del dato → acción principal → comparar el mismo estado/viewport con referencia → accesibilidad/responsive → problemas reproducibles agrupados por causa → microbloque con RED/GREEN si se autorizó modificar → verificación independiente Ley 5. Auditoría en diez enfoques distintos, no diez repeticiones.
+
+**Discrepancias:** `DEFECTO_DEL_MOCKUP / DEFECTO_DEL_CODIGO / REQUISITO_INEXISTENTE / EXCEPCION_APROBADA / RIESGO_LEGAL`. Un botón visual no crea una ruta/permiso. `UNKNOWN ≠ 0`, `CONFLICT ≠ 0`, `cantidad no definida ≠ stock cero`; nunca calcular dinero/profitabilidad sin hechos completos.
+
+**Referencia:** los PNG de estilo claro aprobados por el usuario orientan apariencia, **no** certifican la funcionalidad ilustrada. Productos internos/locales hoy ≠ publicaciones ML ≠ catálogos públicos. Selección de cuenta solo en contexto autorizado. Antes de implementar una interfaz nueva deben existir contrato por control y estados reales. Si no hay fuente exacta, `MOCKUP_FIDELITY=NOT_VERIFIED`, no PASS.
+
+**Evidencia mínima:** `ID | ruta/estado/rol | SHA/build | referencia exacta | viewport | esperado | observado | captura/DOM/HTTP | severidad | causa | cambio | prueba focal | estado`. Sin navegador/screenshot real `VISUAL=NOT_RUN`. Un agente constructor no se llama verificador independiente. `CI=PASS` no demuestra `VISUAL=PASS`. L5 debe aceptar con evidencias propias.
+
+**Consulta externa focal:** Anti UI Slop `reference/operate.md` o un solo playbook adecuado; Pro Max `quick-reference.md` o una búsqueda de UX/typo/icons/chart si resuelve duda concreta; no ejecutar scripts no auditados, instalar dependencias, forzar `--persist`/`--force` ni copiar assets/licencias externas.
+
+**Límite de ejecución:** no abrir F14/F15/F16, producción, OAuth real, sincronizaciones remotas, escrituras ML, ni crear frameworks, nuevo MASTER o motor de estado para satisfacer un mockup. Design review y QA mobile se hacen por microbloques, no un refactor global.
+
 # 26. PAGE OVERRIDES
 
 Use:

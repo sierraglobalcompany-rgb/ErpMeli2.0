@@ -391,5 +391,154 @@ final class BillingPeriodSyncHandler
                 'remote_created_at' => $detail['remote_created_at'],
             ]);
         }
+
+        $externalIds = [];
+        foreach ($details as $detail) {
+            $externalId = (string) $detail['external_detail_id'];
+            $externalIds[bin2hex($externalId)] = $externalId;
+        }
+
+        $storedRows = [];
+        foreach (array_chunk(array_values($externalIds), 900) as $externalIdBatch) {
+            $placeholders = implode(', ', array_fill(0, count($externalIdBatch), '?'));
+            $select = $pdo->prepare(
+                'SELECT id AS billing_detail_id, external_detail_id, associated_detail_id, context_json '
+                . 'FROM billing_details WHERE billing_period_id = ? AND external_detail_id IN (' . $placeholders . ')',
+            );
+            $select->execute(array_merge([$periodId], $externalIdBatch));
+            array_push($storedRows, ...$select->fetchAll(PDO::FETCH_ASSOC));
+        }
+
+        self::replaceReferences($pdo, $storedRows, $this->normalizer);
+    }
+
+    /**
+     * @return int number of source Billing details processed; zero if already complete
+     */
+    public static function backfillReferences(PDO $pdo, int $batchSize = 500): int
+    {
+        if ($batchSize < 1 || $batchSize > 1000 || $pdo->inTransaction()) {
+            throw new RuntimeException('Billing reference backfill requires a fresh connection and a bounded batch size.');
+        }
+
+        $readiness = $pdo->prepare('SELECT checksum FROM schema_migrations WHERE version = ?');
+        $readiness->execute([BillingDetailNormalizer::REFERENCE_BACKFILL_VERSION]);
+        $existingChecksum = $readiness->fetchColumn();
+        if (is_string($existingChecksum)) {
+            if (!hash_equals(BillingDetailNormalizer::REFERENCE_BACKFILL_CHECKSUM, $existingChecksum)) {
+                throw new RuntimeException('Billing reference backfill marker checksum is invalid.');
+            }
+
+            return 0;
+        }
+
+        $normalizer = new BillingDetailNormalizer();
+        $lastId = 0;
+        $processed = 0;
+        do {
+            $pdo->beginTransaction();
+            try {
+                $select = $pdo->prepare(
+                    'SELECT id AS billing_detail_id, external_detail_id, associated_detail_id, context_json '
+                    . 'FROM billing_details WHERE id > ? ORDER BY id LIMIT ' . $batchSize . ' FOR UPDATE',
+                );
+                $select->execute([$lastId]);
+                $rows = $select->fetchAll(PDO::FETCH_ASSOC);
+                if ($rows === []) {
+                    $pdo->commit();
+                    break;
+                }
+
+                self::replaceReferences($pdo, $rows, $normalizer);
+                $lastId = (int) $rows[array_key_last($rows)]['billing_detail_id'];
+                $processed += count($rows);
+                $pdo->commit();
+            } catch (Throwable $exception) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                throw $exception;
+            }
+        } while (true);
+
+        $counts = $pdo->query(
+            "SELECT (SELECT COUNT(*) FROM billing_details) AS source_count, "
+            . "(SELECT COUNT(*) FROM billing_detail_references WHERE reference_kind='detail') AS indexed_count",
+        )->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($counts) || (int) $counts['source_count'] !== (int) $counts['indexed_count']) {
+            throw new RuntimeException('Billing reference backfill did not cover every source detail.');
+        }
+
+        $pdo->beginTransaction();
+        try {
+            $insert = $pdo->prepare('INSERT IGNORE INTO schema_migrations(version, checksum) VALUES (?, ?)');
+            $insert->execute([
+                BillingDetailNormalizer::REFERENCE_BACKFILL_VERSION,
+                BillingDetailNormalizer::REFERENCE_BACKFILL_CHECKSUM,
+            ]);
+            $readiness->execute([BillingDetailNormalizer::REFERENCE_BACKFILL_VERSION]);
+            $actualChecksum = $readiness->fetchColumn();
+            if (!is_string($actualChecksum)
+                || !hash_equals(BillingDetailNormalizer::REFERENCE_BACKFILL_CHECKSUM, $actualChecksum)) {
+                throw new RuntimeException('Billing reference backfill marker could not be verified.');
+            }
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
+        }
+
+        return $processed;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $rows
+     */
+    private static function replaceReferences(PDO $pdo, array $rows, BillingDetailNormalizer $normalizer): void
+    {
+        if ($rows === []) {
+            return;
+        }
+
+        $detailIds = array_map(static fn (array $row): int => (int) $row['billing_detail_id'], $rows);
+        foreach (array_chunk($detailIds, 1000) as $detailIdBatch) {
+            $placeholders = implode(', ', array_fill(0, count($detailIdBatch), '?'));
+            $delete = $pdo->prepare(
+                'DELETE FROM billing_detail_references WHERE billing_detail_id IN (' . $placeholders . ')',
+            );
+            $delete->execute($detailIdBatch);
+        }
+
+        $batch = [];
+        foreach ($rows as $row) {
+            foreach ($normalizer->references($row) as $reference) {
+                $batch[] = [
+                    (int) $row['billing_detail_id'],
+                    $reference['reference_kind'],
+                    $reference['reference_value'],
+                ];
+                if (count($batch) === 900) {
+                    self::insertReferenceBatch($pdo, $batch);
+                    $batch = [];
+                }
+            }
+        }
+        self::insertReferenceBatch($pdo, $batch);
+    }
+
+    /** @param list<array{0:int,1:string,2:string}> $references */
+    private static function insertReferenceBatch(PDO $pdo, array $references): void
+    {
+        if ($references === []) {
+            return;
+        }
+
+        $values = implode(', ', array_fill(0, count($references), '(?, ?, ?)'));
+        $insert = $pdo->prepare(
+            'INSERT INTO billing_detail_references (billing_detail_id, reference_kind, reference_value) VALUES ' . $values,
+        );
+        $insert->execute(array_merge(...$references));
     }
 }

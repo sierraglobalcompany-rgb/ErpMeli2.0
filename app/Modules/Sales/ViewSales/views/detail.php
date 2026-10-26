@@ -73,7 +73,7 @@ $postSaleLabel = match ($postSaleRaw) {
             <div class="sale-hero-meta" aria-label="Resumen rápido de la venta">
                 <span class="status-chip <?= $orderStatusRaw === 'paid' ? 'status-connected' : 'status-neutral' ?>"><?= $escape($orderStatusLabel) ?></span>
                 <strong class="numeric-value"><?= $escape($order['total_amount']) ?> <?= $escape($order['currency_id']) ?></strong>
-                <span class="muted">Cuenta <?= $escape($order['account_external_user_id']) ?></span>
+                <span class="muted">Cuenta <?= trim((string) ($order['account_nickname'] ?? '')) !== '' ? $escape($order['account_nickname']) . ' · ' : '' ?>ID vendedor: <?= $escape($order['account_external_user_id']) ?></span>
             </div>
         </header>
 
@@ -96,7 +96,7 @@ $postSaleLabel = match ($postSaleRaw) {
                 <dl class="settings-list">
                     <dt>Estado</dt><dd><span class="status-chip <?= $orderStatusRaw === 'paid' ? 'status-connected' : 'status-neutral' ?>"><?= $escape($orderStatusLabel) ?></span></dd>
                     <dt>Total</dt><dd class="numeric-value"><?= $escape($order['total_amount']) ?> <?= $escape($order['currency_id']) ?></dd>
-                    <dt>Cuenta</dt><dd><?= $escape($order['account_external_user_id']) ?></dd>
+                    <dt>Cuenta</dt><dd><?= trim((string) ($order['account_nickname'] ?? '')) !== '' ? $escape($order['account_nickname']) . ' · ' : '' ?>ID vendedor: <?= $escape($order['account_external_user_id']) ?></dd>
                     <?php if (trim((string) ($order['date_created'] ?? '')) !== ''): ?>
                     <dt>Creada</dt><dd><?= $escape($order['date_created']) ?></dd>
                     <?php endif; ?>

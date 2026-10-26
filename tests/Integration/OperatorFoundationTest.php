@@ -191,7 +191,7 @@ final class OperatorFoundationTest extends TestCase
         self::assertStringNotContainsString('9007199254740993', (string) $this->request('GET', '/sales')->getBody());
         $found = $this->request('GET', '/sales', [], ['order_id'=>'9007199254740993']);
         self::assertSame(200, $found->getStatusCode());
-        self::assertStringContainsString('href="/sales/9007199254740993"', (string) $found->getBody());
+        self::assertStringContainsString('href="/sales/9007199254740993?account_id=1"', (string) $found->getBody());
         self::assertStringContainsString('name="order_id"', (string) $found->getBody());
         foreach (['9007199254740995','999999'] as $id) {
             $html = (string) $this->request('GET', '/sales', [], ['order_id'=>$id])->getBody();

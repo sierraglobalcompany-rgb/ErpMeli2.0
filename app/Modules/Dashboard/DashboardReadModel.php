@@ -19,7 +19,7 @@ final class DashboardReadModel
      *   products:int,
      *   sales_by_currency:list<array{currency:string,total:string,orders:int}>,
      *   account_statuses:array{connected:int,attention:int,reauth_required:int,disabled:int},
-     *   recent_orders:list<array{external_order_id:string,status:string,date_created:string,total_amount:string,currency_id:string}>
+     *   recent_orders:list<array{account_id:int,external_order_id:string,status:string,date_created:string,total_amount:string,currency_id:string}>
      * }
      */
     public function overview(int $companyId, DateTimeImmutable $from, DateTimeImmutable $toExclusive): array
@@ -40,6 +40,7 @@ final class DashboardReadModel
         $salesStatement = $this->pdo->prepare(
             'SELECT currency_id, CAST(SUM(total_amount) AS CHAR) AS total_amount, COUNT(*) AS orders_count '
             . 'FROM orders WHERE company_id=:company_id AND date_created>=:from_at AND date_created<:to_at '
+            . "AND status='paid' "
             . 'GROUP BY currency_id ORDER BY currency_id',
         );
         $salesStatement->execute(['company_id' => $companyId, 'from_at' => $fromAt, 'to_at' => $toAt]);
@@ -65,7 +66,7 @@ final class DashboardReadModel
         }
 
         $recentStatement = $this->pdo->prepare(
-            'SELECT external_order_id,status,date_created,total_amount,currency_id FROM orders '
+            'SELECT account_id,external_order_id,status,date_created,total_amount,currency_id FROM orders '
             . 'WHERE company_id=:company_id AND date_created>=:from_at AND date_created<:to_at '
             . 'ORDER BY date_created DESC,id DESC LIMIT 6',
         );
@@ -73,6 +74,7 @@ final class DashboardReadModel
         $recentOrders = [];
         while (($row = $recentStatement->fetch(PDO::FETCH_ASSOC)) !== false) {
             $recentOrders[] = [
+                'account_id' => (int) $row['account_id'],
                 'external_order_id' => (string) $row['external_order_id'],
                 'status' => (string) $row['status'],
                 'date_created' => (string) $row['date_created'],

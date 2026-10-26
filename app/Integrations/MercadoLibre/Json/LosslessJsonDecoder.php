@@ -8,7 +8,7 @@ use JsonException;
 
 final class LosslessJsonDecoder
 {
-    /** @return array<string,mixed> */
+    /** @return array<array-key,mixed> JSON object or list decoded with preserved numbers. */
     public static function decodeObject(string $json): array
     {
         if (!json_validate($json, 512)) {
@@ -18,10 +18,10 @@ final class LosslessJsonDecoder
         $preserved = self::quoteNumbersOutsideStrings($json);
         $decoded = json_decode($preserved, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($decoded)) {
-            throw new JsonException('Expected JSON object.');
+            throw new JsonException('Expected JSON object or list.');
         }
 
-        /** @var array<string,mixed> $decoded */
+        /** @var array<array-key,mixed> $decoded */
         return $decoded;
     }
 

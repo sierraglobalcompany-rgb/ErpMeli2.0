@@ -30,6 +30,12 @@ final class CatalogDesignMasterUiTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
 
+        self::assertStringContainsString('<title>Productos e inventario local</title>', $html);
+        self::assertStringContainsString('<span>Productos e inventario local</span>', $html);
+        self::assertStringContainsString('<small>Inventario local</small>', $html);
+        self::assertStringContainsString('<h1>Productos e inventario local</h1>', $html);
+        self::assertStringContainsString('<span>Productos</span>', $html);
+        self::assertStringNotContainsString('<h1>Catálogo e inventario</h1>', $html);
         self::assertStringContainsString('class="page-header catalog-page-header"', $html);
         self::assertStringContainsString('class="catalog-workspace"', $html);
         self::assertStringContainsString('data-responsive-table="catalog-products"', $html);

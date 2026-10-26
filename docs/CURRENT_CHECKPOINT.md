@@ -1,4 +1,247 @@
+## Checkpoint local — ERP2-M02-UX01-MOBILE-VIEWPORT-20261024
+
+Corrige únicamente el scroll móvil de la preview sintética M02. En <=1023px el `<main>` marcado ocupa el espacio entre topbar y navegación fija; la rueda, teclado y `scrollIntoView` desplazan ese mismo scrollport. Escritorio conserva el flujo normal.
+
+```text
+TASK=ERP2-M02-UX01-MOBILE-VIEWPORT-20261024
+BASE_SHA=3f1bd2973ad97f30945811b1e25a5c1e36c6375c
+BASE_PARENT=a20f4c593b1cdd85eb237370bde31810b0d15570
+FILES=app/Modules/Settings/views/meli-listings-preview.php; public/assets/app.css; tests/Integration/MeliListingPreviewHttpRouteTest.php; docs/CURRENT_CHECKPOINT.md
+RED=PASS_expected_missing_preview_marker
+GREEN=PASS_scoped_main_scrollport_and_test_contract
+BROWSER=PASS_390x844_430x932_768x900_1440x900
+SCROLL=PASS_single_main_scrollport_root_fixed_no_overlap_no_horizontal_overflow
+KEYBOARD=PASS_skip_link_visible_offscreen_pagination_focus_visible_no_trap
+DETAILS=PASS_native_keyboard_disclosure
+APPS=PASS_open_close_escape_focus_return
+NOTICE_PAGINATION=PASS_scrollIntoView_complete_visible_inside_main
+TOUCH=NOT_AVAILABLE_playwright_context_maxTouchPoints_0
+HTTP=loopback_only; CONSOLE_ERRORS=0; REAL_MELI_HTTP=0
+QA=PASS_22_TESTS_223_ASSERTIONS; PHPSTAN_PASS; PHP_LINT_CHANGED_PHP_PASS; DIFF_CHECK_PASS
+DATABASE=DISPOSABLE_MARIADB_11.4_LOOPBACK_TMPFS
+UX01_LOCAL_PASS=YES
+M02_UI_PRODUCTION_READY=NO; M02_FULLY_CLOSED=NO; PRODUCT_READY=NO
+COMMIT=LOCAL_ONLY (RESULT_SHA_IN_FINAL_REPORT)
+PUSH_MERGE_DEPLOY=NONE
+NEXT=CHATGPT_VERIFICA_EVIDENCIA_UX01
+```
+
+## Checkpoint local — ERP2-M02-UI-FIXTURE-TENANT-HTTP-BROWSER-20261024
+
+Integra únicamente una vista de publicaciones sintéticas para QA local. La ruta existe solo con `APP_ENV=test`, exige administrador activo y cuenta conectada de la empresa seleccionada, y no consulta al proveedor ni escribe en ERP.
+
+```text
+TASK=ERP2-M02-UI-FIXTURE-TENANT-HTTP-BROWSER-20261024
+BASE_SHA=a20f4c593b1cdd85eb237370bde31810b0d15570
+ROUTE=/__test/m02/listings-preview (APP_ENV=test only; no shell/mobile/apps link)
+OWNER=CompanyContext admin + MeliListingReadScope.connectedSeller
+FIXTURES=static per-account; no MeliClient.readPage/token/OAuth/network
+RED=PASS_expected_404_before_route
+QA=PASS_50_TESTS_725_ASSERTIONS; PHPSTAN_PASS; PHP_LINT_CHANGED_PHP_PASS; DIFF_CHECK_PASS
+BROWSER=PASS_LOCAL_CHROMIUM_1440x900_430x932_390x844; mobile_cards; zero_horizontal_overflow; primary_action_above_mobile_nav
+AUTH_FILTER_PAGING_XSS=PASS; account_switch_resets_offset_filter; keyboard_focus_visible
+MOBILE_NAV_OVERLAP=RED_REPRODUCED_THEN_GREEN_390x844_430x932
+HTTP_EXTERNAL_REQUESTS=0; console_errors=0; REAL_MELI_HTTP=0
+DB_GET_ONLY=PASS_hash_equal_for_meli_accounts,meli_tokens,work_items,api_usage_daily,products,product_inventory
+L1_KISS=PASS; L2_ANTI_NOISE=PASS; L3_CAUSE_ROOT=PASS; L4_HUMAN_FIRST=PASS; L5_CHATGPT_INDEPENDENT_AUDIT_PENDING; L6_SINGLE_BATCH=PASS
+M02_UI_PRODUCTION_READY=NO; M02_FULLY_CLOSED=NO; PRODUCT_READY=NO
+F14=CLOSED; F16=CLOSED; REMOTE_WRITES=OFF
+COMMIT=LOCAL_ONLY (SHA_IN_FINAL_REPORT)
+PUSH_MERGE_DEPLOY=NONE
+CHECKPOINT=PERSISTED
+NEXT=CHATGPT_AUDITA_UI_FIXTURE_INTEGRADA_M02
+```
+
+---
+## Checkpoint local — ERP2-M02-SECURE-LISTING-PAGE-20261024
+
+Integra un consumidor offline, de página única y limitado a 1000 resultados. Reutiliza CompanyContext, PDO, MeliClient y MeliClientResponse; sigue sin ruta, UI, token persistido ni llamada real a Mercado Libre.
+
+```text
+TASK=ERP2-M02-SECURE-LISTING-PAGE-20261024
+REPO=sierraglobalcompany-rgb/ErpMeli2.0
+BRANCH=codex/l4-m03-m04-qa-gate-repair
+BASE_SHA=da57f42222859c1c98aeb58deaadafb8a0e58e43
+PATCH_SHA256=7c292d3a01bc609162864c8b8d80d90bf11068b90cb59289cdcf62fee5af8950
+FILES=app/Modules/Settings/MeliListingReadScope.php; tests/Integration/MeliListingReadScopeTest.php; docs/CURRENT_CHECKPOINT.md
+RED=PASS_expected_missing_class_before_GREEN
+GREEN_AND_REGRESSION=PASS_34_TESTS_250_ASSERTIONS_ZERO_FAILURES
+PHP_LINT=PASS; PHPSTAN_FULL=PASS; DIFF_CHECK=PASS
+DB=DISPOSABLE_MARIADB_11.4_LOOPBACK_TMPFS_NO_HOST_MOUNTS_REMOVED
+REAL_MELI_HTTP=0; OAUTH=NONE; REMOTE_WRITES=OFF
+ROUTE_UI_TOKEN_PERSISTENCE_MIGRATION_WORK=NONE
+L1_KISS=PASS; L2_ANTI_NOISE=PASS; L3_ANTI_PATCH=PASS; L4_UI=NO_APLICA
+L5=INDEPENDENT_CHATGPT_AUDIT_PENDING; L6=PASS
+M02_COMPONENT=LOCAL_ONLY; M02_FULLY_CLOSED=NO; M02_UI_READY=NO; PRODUCT_READY=NO
+COMMIT=LOCAL_ONLY (SHA_IN_FINAL_REPORT)
+PUSH_MERGE_DEPLOY=NONE
+CHECKPOINT=PERSISTED
+NEXT=CHATGPT_AUDITA_M02_SECURE_LISTING
+```
+
+---
+## Checkpoint local — ERP2-M02-OFFLINE-READ-CONTRACT-INTEGRATION-20261024
+
+Integra únicamente el contrato offline de búsqueda de publicaciones y lectura bulk en el clon E. Reutiliza `MeliClient`, `MeliClientResponse`, el decoder y MariaDB; no activa consumidor, ruta, sincronización, persistencia ni tráfico externo. El audit independiente de M01 sigue pendiente y no se repitió.
+
+```text
+TASK=ERP2-M02-OFFLINE-READ-CONTRACT-INTEGRATION-20261024
+REPO=sierraglobalcompany-rgb/ErpMeli2.0
+BRANCH=codex/l4-m03-m04-qa-gate-repair
+BASE_SHA=70fa51d4a2424802aee9098345d9eb9edd06f843
+PATCH_SHA256=6151984fbc1f2d0e2c0b86f8805e56dc4a2278c63c92351499836ebf1913782c
+CONTRACT=users.items.search+items.bulk_READ_OFFLINE
+IMPLEMENTATION=existing_MeliClient+MeliClientResponse+LosslessJsonDecoder
+NEW_ROUTES_CONSUMERS_TABLES_MIGRATIONS_WORK=NONE
+RED=PASS_registry_contract_absent_before_GREEN
+GREEN_AND_REGRESSION=PASS_91_TESTS_971_ASSERTIONS_ZERO_FAILURES
+PHP_LINT=PASS; PHPSTAN_FULL=PASS; DIFF_CHECK=PASS
+REAL_MELI_HTTP=0; REAL_OAUTH=NONE; REMOTE_WRITES=OFF
+DATABASE=DISPOSABLE_MARIADB_LOOPBACK_TMPFS_NO_MOUNTS_REMOVED
+L1_KISS=PASS; L2_ANTI_NOISE=PASS; L3_ANTI_PATCH=PASS; L4_UI=NO_APLICA
+L5=CHATGPT_INDEPENDENT_AUDIT_PENDING; L6=PASS
+M01_AUDIT=CHATGPT_PENDING_NOT_REEXECUTED
+M02_FULLY_CLOSED=NO; M02_UI_READY=NO; PRODUCT_READY=NO
+COMMIT=LOCAL_ONLY (SHA_IN_FINAL_REPORT)
+PUSH_MERGE_DEPLOY=NONE
+CHECKPOINT=PERSISTED
+NEXT=CHATGPT_AUDITA_M02_OFFLINE_CONTRACT
+```
+
+---
+
+## Checkpoint local — ERP2-L6-M01-CONSOLIDADO-20261024
+
+Cierra este lote local de búsqueda interna en Catálogo y persistencia Ley 6 en el clon. No declara readiness general; queda pendiente auditoría independiente.
+
+```text
+TASK=ERP2-L6-M01-CONSOLIDADO-20261024
+REPO=sierraglobalcompany-rgb/ErpMeli2.0
+BRANCH=codex/l4-m03-m04-qa-gate-repair
+BASE_B=d3ff1d2988544aa7dc545ab90298094a9ec807a6
+COMMIT_C=3e969f4f27f331d989096ae642f15e9aaedea955
+COMMIT_D=THIS_CHECKPOINT_COMMIT
+L6=PASS; ROOT_AGENTS_ONLY; NEW_READ_ONLY_SESSIONS_ROOT_AND_CATALOG=PASS
+M01=PASS; COMPANY_SCOPED_READ_ONLY_SEARCH_SKU_NAME_MAX_100
+RED=PASS; 3_EXPECTED_FUNCTIONAL_FAILURES; GREEN_FOCAL=38_TESTS_398_ASSERTIONS
+FULL_QA=866_TESTS_7631_ASSERTIONS_1_SKIP_ZERO_FAILURES
+PHP_LINT=PASS; PHPSTAN=PASS; DIFF_CHECK=PASS
+BROWSER=PASS_LOCAL; 1440x900_430x932_390x844; ZERO_HORIZONTAL_OVERFLOW
+DATABASE=DISPOSABLE_MARIADB_LOOPBACK_TMPFS_NO_MOUNTS_REMOVED
+REAL_MELI_HTTP=0; REMOTE_WRITES=OFF
+PUSH_MERGE_DEPLOY=NONE
+PRODUCT_READY=NO
+CHECKPOINT=PERSISTED
+NEXT=CHATGPT_INDEPENDENT_AUDIT
+```
+
+---
+## Checkpoint local — ERP2-L4-M03-M04-INTEGRATION-GATE-20261023
+
+Este candidato local integra únicamente Ley 4 documental, Dashboard M03, NAV-FOCUS M03 y Ventas multicuenta M04. Conserva íntegro el checkpoint histórico del clon M03/M04 debajo de esta nota.
+
+```text
+TASK=ERP2-L4-M03-M04-INTEGRATION-GATE-20261023
+BASE_SHA=36ad68b3a2f4b0f62a27d6863afb47972cf00eda
+REMOTE_REF=ui/design-master-v1-20261015; REMOTE_HEAD=36ad68b3a2f4b0f62a27d6863afb47972cf00eda
+SOURCE_M03=codex/erp2-l4-m03-v2-dashboard; SOURCE_L4=codex/erp2-l4-v3-install-and-7-screen-audit
+FILES=13 exact allowlisted paths; .playwright-cli and ignored runtime/cache state excluded
+QA=results and exact candidate fingerprint in companion final report
+REAL_MELI_HTTP=0; REMOTE_WRITES=OFF
+COMMIT_PUSH_MERGE_DEPLOY=NONE
+PRODUCT_READY=NO; H10_CLOSED=NO; INDEPENDENT_L5=CHATGPT_PENDING
+NEXT_AFTER_LOCAL_GATES=CHATGPT_AUDITA_CANDIDATO_INTEGRADO
+```
+
+---
+## Checkpoint local — ERP2-M04-SALES-CANONICAL-20261023
+
+Este bloque cierra únicamente Ventas multicuenta en el clon aislado indicado. El historial M03 que sigue debajo se conserva íntegro; el CSS NAV-FOCUS no se modificó.
+
+```text
+TASK=ERP2-M04-SALES-CANONICAL-20261023
+BASE_HEAD=36ad68b3a2f4b0f62a27d6863afb47972cf00eda
+BRANCH=codex/erp2-l4-m03-v2-dashboard
+WIP_M03=PRESERVED; Dashboard paid filter/table cards and existing CSS NAV-FOCUS retained
+ORIGIN_NOTE=local clone path; expected GitHub remote ref not fetched or verified
+SOURCE_ZIP_SHA256=3b137385763f42f4d95b2ef40051fadec958b294d49cb946386dfc3b7cb5913b; embedded=3ac82846306744ffbc4b9a4188bfc357385d98b4f8a6ea145e34386492020334; used order and patch files match manifest
+PATCH=02_M04_SOBRE_M03_UX_AJUSTADO.diff
+PATCH_SHA256=e2e898fb635f05cc21254dda9cfcdec4d6b05df47e98d81d2f14fa665cba62a7
+ROOT_CAUSE=external order ID alone is ambiguous across seller accounts in one company
+IMPLEMENTATION=existing SalesListController + existing CompanyContext + account_id-scoped query
+NEW_ROUTES_CLASSES_SERVICES_TABLES_MIGRATIONS=NONE
+RED=2 focused new tests failed against pre-GREEN behavior
+GREEN=PASS 11 tests / 127 assertions on PHP 8.5.8
+M03_DASHBOARD_REGRESSION=PASS 4 tests / 47 assertions; raw orders 3, paid 1, cancelled 2
+PHP_LINT=PASS (8 changed PHP files)
+PHPSTAN=PASS
+DIFF_CHECK=PASS (line-ending warning remains on pre-existing DashboardHttpRouteTest.php)
+BROWSER=PASS local Chromium; Sales and Dashboard canonical links resolve both same-ID accounts
+VIEWPORTS=1440x900, 390x844, 430x932; no horizontal page overflow
+ACCOUNT_IDENTITY=PASS nickname + seller ID shown in details; cross-account/company facts isolated
+NETWORK=0 external requests; 0 non-login POSTs; 0 console errors
+NAV_FOCUS=PASS first Tab reaches skip-to-main; mobile scroll-padding-bottom=106px
+BROWSER_BACK_FOCUS=existing M03 BODY-focus limitation remains separate; no JS change
+DATABASE=unique disposable MariaDB, loopback-only, tmpfs, no bind/volume; removed after QA
+REAL_MELI_HTTP=0
+COMMIT_PUSH_MERGE_DEPLOY=NONE
+L1_KISS=PASS; L2_ANTI_NOISE=PASS; L3_ANTI_PATCH=PASS; L4_HUMAN_FIRST=PASS
+L5=CHATGPT_INDEPENDENT_AUDIT_PENDING; not self-certified
+PHASE_RESULT=IMPLEMENTADO_QA_LOCAL_PASS
+EVIDENCE=LOCAL_ONLY_UNPUBLISHED
+NEXT=CHATGPT_AUDITA_M04
+```
+
 # CURRENT CHECKPOINT — ERP MELI 2.0
+
+## Checkpoint local — ERP2-M03-NAV-FOCUS (2026-10-23)
+
+Aplica sólo al clon aislado `codex/erp2-l4-m03-v2-dashboard`, base `36ad68b3a2f4b0f62a27d6863afb47972cf00eda`. Se preserva el WIP M03 V2/UX que sigue debajo; el único cambio de producto de este bloque es una regla CSS en `public/assets/app.css`.
+
+```text
+TASK=ERP2-M03-NAV-FOCUS-20261023
+RED_390_844=14.75px_FOCUS_OCCLUDED_BY_FIXED_NAV
+RED_430_932=20.45px_FOCUS_OCCLUDED_BY_FIXED_NAV
+GREEN=0px_OVERLAP_AT_390_430_768_1023_HEADLESS_1024_1440
+1023_HEADED=INNERWIDTH_1023_MATCHMEDIA_MAX1023_FALSE; HEADLESS=TRUE
+CSS=html_scroll_padding_106px_plus_safe_bottom_at_existing_max_1023_media
+DASHBOARD_HTTP_TEST=PASS_4_TESTS_47_ASSERTIONS_DISPOSABLE_DB
+M03_CALCULO=PASS_RETEST; M03_TABLA=PASS_RETEST
+SALES_SMOKE=PASS_390_768; APPS_KEYBOARD=PASS_ESCAPE_RESTORES_OPENER
+DETAIL_ENTER=GET_200; BROWSER_BACK_FOCUS=BODY_NOT_RESTORED
+BLOCKER_C=HISTORY_BACK_FOCUS_REQUIRES_OUT_OF_SCOPE_BEHAVIOR; NO_JS_CHANGE
+LOCAL_RESULT=PARTIAL; LEY5=PENDIENTE_REVISION_INDEPENDIENTE
+REAL_MELI_HTTP=0; COMMITS_PUSH_MERGE_DEPLOY=NONE
+M04_M01=NOT_STARTED
+EVIDENCE=LOCAL_ONLY_UNPUBLISHED
+```
+
+## Checkpoint local — ERP2-M03-UX-MOBILE (2026-10-23)
+
+Este registro aplica **sólo** al clon aislado `codex/erp2-l4-m03-v2-dashboard` en `36ad68b3a2f4b0f62a27d6863afb47972cf00eda`; no reemplaza el estado global H9/H10 que sigue debajo. Se aplicó el parche UX sobre M03 V2 ya presente y se preservó su corrección financiera.
+
+```text
+TASK=ERP2-M03-UX-MOBILE
+HUMAN_FIRST_AND_DESIGN_AUTHORITIES=LOADED
+TRUTH_AND_COMPANY_AUTHORIZATION=PASS_SYNTHETIC_LOCAL_FIXTURE
+PRODUCT_FILES_CHANGED=2 (M03 V2 DashboardReadModel + Dashboard view)
+TEST_FILES_CHANGED=1 (existing DashboardHttpRouteTest)
+RESPONSIVE=PASS_390_430_768_1440
+NO_PAGE_HORIZONTAL_SCROLL=PASS
+PAID_COP=100000.0000; RAW_ORDER_COUNT=3; CANCELLED_ORDERS=2
+SINGULAR=PASS (1 orden)
+RED=EXPECTED_FAILURE_ON_MOBILE_TABLE_CONTRACT
+GREEN=PASS (focal 1 test / 25 assertions; Dashboard regression 4 / 47)
+REAL_BROWSER=PASS_FOR_RESPONSIVE_SURFACE; PARTIAL_FOR_FIXED_NAV_KEYBOARD_FOCUS
+NAV=FOCUS_OBSCURED_AT_390_AND_430; NOT_OBSERVED_AT_768_OR_1440
+NAV_CSS_SIMULATION=PASS_WITH_SCROLL_PADDING; SOURCE_CHANGE=NOT_APPLIED_PER_TASK_ORDER
+CHECKPOINT=PERSISTED
+M03_UX=PARTIAL (nav focus finding remains for independent audit)
+L5=PENDIENTE_AUDITORIA_CHATGPT
+NEXT=CHATGPT_AUDITA_M03_UX
+M04=NOT_STARTED; COMMIT_PUSH_MERGE_DEPLOY=NONE
+REAL_MELI_HTTP=0
+```
 
 ## H9 — CIERRE INDEPENDIENTE VERIFICADO (2026-10-22 UTC / 2026-10-22 America/Bogota)
 
@@ -884,3 +1127,11 @@ No Financial/Work/429 retry, pacing, queue, batching or transport redesign witho
 ## Frozen / prohibited
 
 No PR merge or merge commit without explicit approval, Hostinger, cron, real MELI mutation, broad navigation redesign, generic modal framework, UNKNOWN->0, patch-chain CSS, speculative ERP1 architecture, or reopening closed Human-First blocks without evidence.
+
+## Consolidación local Work/FIFO y Financial/Billing
+
+- Work/FIFO A+B y Financial/Billing están integrados únicamente en este candidato local; siguen sin publicar.
+- `billing_details` y `billing_periods` son la fuente de verdad; `013_billing_detail_references` es un índice auxiliar.
+- En bases con históricos, `013_billing_detail_references_backfill` debe quedar ausente hasta completar y verificar el backfill. Financial falla cerrado antes de ese gate. En una instalación nueva, la migración puede registrar el marcador si no existen detalles previos.
+- Antes de una futura actualización con datos existentes: pausar escritores Billing, validar backup/restauración, migrar en orden y verificar backfill, cobertura, marcador y equivalencia antes de reanudar.
+- `RELEASE_READY=NO`; esta consolidación no aplicó migraciones fuera de DB descartable.

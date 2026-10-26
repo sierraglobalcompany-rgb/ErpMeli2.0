@@ -63,6 +63,8 @@ final class ViewStylesheetDeduplicationTest extends TestCase
         $error = '';
         $internalSku = '';
         $name = '';
+        $search = '';
+        $searchInvalid = false;
         $csrfToken = 'test-token';
         $products = [];
         $canOperate = true;

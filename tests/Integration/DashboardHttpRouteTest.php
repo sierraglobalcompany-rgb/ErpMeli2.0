@@ -113,7 +113,8 @@ final class DashboardHttpRouteTest extends TestCase
         $this->pdo->exec(
             "INSERT INTO orders(company_id,account_id,external_order_id,status,date_created,total_amount,currency_id) VALUES "
             . "(1,10,'200000000101','paid','2026-10-05 10:00:00.000000',100000.0000,'COP'),"
-            . "(1,10,'200000000102','cancelled','2026-10-06 10:00:00.000000',25.0000,'USD')"
+            . "(1,10,'200000000102','cancelled','2026-10-06 10:00:00.000000',25.0000,'USD'),"
+            . "(1,10,'200000000103','cancelled','2026-10-07 10:00:00.000000',999999.0000,'COP')"
         );
 
         $response = Bootstrap::create()->handle(
@@ -133,7 +134,18 @@ final class DashboardHttpRouteTest extends TestCase
         self::assertStringContainsString('data-dashboard-order-status="cancelled">Cancelada</td>', $html);
         self::assertDoesNotMatchRegularExpression('/<td[^>]*>\s*(?:paid|cancelled)\s*<\/td>/', $html);
         self::assertMatchesRegularExpression('/data-dashboard-sales-currency="COP"[^>]*>COP<\/dt>\s*<dd data-dashboard-sales-amount="100000\.0000"/', $html);
-        self::assertMatchesRegularExpression('/data-dashboard-sales-currency="USD"[^>]*>USD<\/dt>\s*<dd data-dashboard-sales-amount="25\.0000"/', $html);
-        self::assertSame(2, substr_count($html, 'data-dashboard-sales-currency='));
+        self::assertStringNotContainsString('data-dashboard-sales-currency="USD"', $html, 'La moneda que solo contiene órdenes canceladas no es un ingreso pagado.');
+        self::assertSame(1, substr_count($html, 'data-dashboard-sales-currency='));
+        self::assertStringContainsString('Importe de órdenes pagadas por moneda', $html);
+        self::assertTrue(str_contains($html, 'Importes de órdenes locales con estado pagado. No equivalen a liquidación ni rentabilidad.'), 'El texto debe concordar con el estado pagado.');
+        self::assertStringContainsString('data-dashboard-kpi="orders">3<', $html, 'El conteo bruto mantiene la orden pagada y ambas canceladas.');
+        self::assertStringContainsString('200000000103', $html, 'La cancelación en la misma moneda continúa visible como orden, no como importe pagado.');
+        self::assertSame(1, substr_count($html, 'data-responsive-table="dashboard-orders"'), 'Debe existir una sola tabla responsiva de órdenes.');
+        self::assertSame(3, substr_count($html, 'data-mobile-card="dashboard-order-row"'), 'Debe existir una tarjeta por cada orden.');
+        foreach (['Venta', 'Estado', 'Fecha', 'Valor'] as $label) {
+            self::assertSame(3, substr_count($html, 'data-label="' . $label . '"'), 'Cada tarjeta debe rotular la columna ' . $label . '.');
+        }
+        self::assertTrue(str_contains($html, '· 1 orden</small>'), 'Una sola orden debe usar sustantivo singular.');
+        self::assertFalse(str_contains($html, '· 1 órdenes</small>'), 'El contador no debe mezclar singular con plural.');
     }
 }

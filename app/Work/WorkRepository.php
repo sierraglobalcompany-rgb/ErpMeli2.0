@@ -16,6 +16,8 @@ final class WorkRepository
 {
     private const MAX_AUTOMATIC_ATTEMPTS = 5;
 
+    private bool $lastClaimInvalidPayloadDiscarded = false;
+
     public function __construct(private readonly PDO $pdo)
     {
     }
@@ -122,6 +124,7 @@ final class WorkRepository
      */
     public function claimNext(): ?array
     {
+        $this->lastClaimInvalidPayloadDiscarded = false;
         $this->pdo->beginTransaction();
 
         try {
@@ -168,9 +171,31 @@ final class WorkRepository
             $payload = [];
             $payloadJson = $row['payload_json'] ?? null;
             if (is_string($payloadJson) && $payloadJson !== '') {
-                $decoded = json_decode($payloadJson, true, 512, JSON_THROW_ON_ERROR);
+                try {
+                    $decoded = json_decode($payloadJson, true, 512, JSON_THROW_ON_ERROR);
+                } catch (JsonException) {
+                    $decoded = null;
+                }
                 if (!is_array($decoded)) {
-                    throw new RuntimeException('Claimed work payload is invalid.');
+                    $discard = $this->pdo->prepare(
+                        "UPDATE work_items SET status = 'failed', claim_token = NULL, claimed_at = NULL, "
+                        . 'finished_at = UTC_TIMESTAMP(6), updated_at = UTC_TIMESTAMP(6), '
+                        . "last_error_code = 'invalid_payload_json', "
+                        . "last_error_safe = 'Work payload must be a JSON array or object.' "
+                        . "WHERE id = :id AND status = 'running' AND claim_token = :claim_token",
+                    );
+                    $discard->execute([
+                        'id' => $workId,
+                        'claim_token' => $claimToken,
+                    ]);
+                    if ($discard->rowCount() !== 1) {
+                        throw new RuntimeException('Invalid work payload could not be discarded.');
+                    }
+
+                    $this->pdo->commit();
+                    $this->lastClaimInvalidPayloadDiscarded = true;
+
+                    return null;
                 }
                 /** @var array<string,mixed> $decoded */
                 $payload = $decoded;
@@ -197,6 +222,11 @@ final class WorkRepository
 
             throw $exception;
         }
+    }
+
+    public function wasLastClaimInvalidPayloadDiscarded(): bool
+    {
+        return $this->lastClaimInvalidPayloadDiscarded;
     }
 
     /**
@@ -344,7 +374,7 @@ final class WorkRepository
         $statement = $this->pdo->prepare(
             "UPDATE work_items SET "
             . "status = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", 'failed', 'pending'), "
-            . "available_at = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", available_at, UTC_TIMESTAMP(6)), "
+            . "available_at = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", available_at, GREATEST(available_at, UTC_TIMESTAMP(6))), "
             . "claim_token = NULL, claimed_at = NULL, "
             . "finished_at = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", UTC_TIMESTAMP(6), NULL), "
             . "last_error_code = IF(attempts >= " . self::MAX_AUTOMATIC_ATTEMPTS . ", 'work_attempts_exhausted', last_error_code), "

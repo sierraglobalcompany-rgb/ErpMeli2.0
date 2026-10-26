@@ -141,6 +141,44 @@ final class BillingSchemaTest extends TestCase
         self::assertTrue($hasRemoteDetailKey, 'Billing details must dedupe by period/detail identity.');
     }
 
+    public function testFinancialReferencesAreByteExactIndexedLinksAndFreshSchemaIsReady(): void
+    {
+        $pdo = TestDatabase::reset();
+        $this->assertTableExists($pdo, 'billing_detail_references');
+
+        $columns = $pdo->query('SHOW COLUMNS FROM billing_detail_references')->fetchAll(PDO::FETCH_ASSOC);
+        $byName = [];
+        foreach ($columns as $column) {
+            $byName[(string) $column['Field']] = $column;
+        }
+        self::assertSame('bigint(20) unsigned', strtolower((string) $byName['billing_detail_id']['Type']));
+        self::assertSame('varbinary(255)', strtolower((string) $byName['reference_value']['Type']));
+        self::assertSame('NO', strtoupper((string) $byName['reference_value']['Null']));
+
+        $indexes = $pdo->query('SHOW INDEX FROM billing_detail_references')->fetchAll(PDO::FETCH_ASSOC);
+        $byIndex = [];
+        foreach ($indexes as $index) {
+            $byIndex[(string) $index['Key_name']][(int) $index['Seq_in_index']] = (string) $index['Column_name'];
+        }
+        foreach ($byIndex as &$indexColumns) {
+            ksort($indexColumns);
+            $indexColumns = array_values($indexColumns);
+        }
+        unset($indexColumns);
+        self::assertSame(
+            ['billing_detail_id', 'reference_kind', 'reference_value'],
+            $byIndex['PRIMARY'] ?? null,
+        );
+        self::assertSame(
+            ['reference_kind', 'reference_value', 'billing_detail_id'],
+            $byIndex['idx_billing_detail_references_lookup'] ?? null,
+        );
+
+        $marker = $pdo->prepare('SELECT checksum FROM schema_migrations WHERE version = ?');
+        $marker->execute(['013_billing_detail_references_backfill']);
+        self::assertSame(hash('sha256', 'billing-detail-references-backfill-v1'), $marker->fetchColumn());
+    }
+
     private function assertTableExists(PDO $pdo, string $table): void
     {
         self::assertSame(

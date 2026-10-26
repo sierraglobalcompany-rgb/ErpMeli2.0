@@ -49,8 +49,8 @@ final class SalesListController
             $parameters['order_id'] = $orderId;
         }
         $statement = $this->pdo->prepare(
-            'SELECT o.external_order_id, o.status, o.total_amount, o.currency_id, o.date_created, '
-            . 'a.external_user_id AS account_external_user_id '
+            'SELECT o.account_id, o.external_order_id, o.status, o.total_amount, o.currency_id, o.date_created, '
+            . 'a.external_user_id AS account_external_user_id, a.nickname AS account_nickname '
             . 'FROM orders o '
             . 'INNER JOIN meli_accounts a ON a.company_id = o.company_id AND a.id = o.account_id '
             . 'WHERE o.company_id = :company_id '
@@ -208,18 +208,41 @@ final class SalesListController
             return $response->withStatus(404);
         }
 
+        $query = $request->getQueryParams();
+        $scopeRequested = array_key_exists('account_id', $query);
+        $accountInput = $scopeRequested ? $query['account_id'] : null;
+        $accountId = null;
+        if ($scopeRequested) {
+            if ((!is_string($accountInput) && !is_int($accountInput))
+                || preg_match('/^[1-9][0-9]*$/D', (string) $accountInput) !== 1
+            ) {
+                return $response->withStatus(404);
+            }
+            $parsedAccountId = filter_var($accountInput, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if (!is_int($parsedAccountId)) {
+                return $response->withStatus(404);
+            }
+            $accountId = $parsedAccountId;
+        }
+
         $statement = $this->pdo->prepare(
             'SELECT o.id, o.account_id, o.external_order_id, o.status, o.status_detail, o.total_amount, o.currency_id, '
             . 'o.date_created, o.date_closed, o.last_updated, o.buyer_id, o.pack_id, '
-            . 'a.external_user_id AS account_external_user_id '
+            . 'a.external_user_id AS account_external_user_id, a.nickname AS account_nickname '
             . 'FROM orders o '
             . 'INNER JOIN meli_accounts a ON a.company_id = o.company_id AND a.id = o.account_id '
-            . 'WHERE o.company_id = :company_id AND o.external_order_id = :external_order_id LIMIT 2'
+            . 'WHERE o.company_id = :company_id AND o.external_order_id = :external_order_id '
+            . ($accountId === null ? '' : 'AND o.account_id = :account_id ')
+            . 'LIMIT 2'
         );
-        $statement->execute([
+        $parameters = [
             'company_id' => $companyId,
             'external_order_id' => $externalOrderId,
-        ]);
+        ];
+        if ($accountId !== null) {
+            $parameters['account_id'] = $accountId;
+        }
+        $statement->execute($parameters);
         $matchingOrders = $statement->fetchAll(PDO::FETCH_ASSOC);
         if (count($matchingOrders) !== 1) {
             return $response->withStatus(404);

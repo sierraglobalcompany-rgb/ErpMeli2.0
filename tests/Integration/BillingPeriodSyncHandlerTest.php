@@ -173,14 +173,19 @@ final class BillingPeriodSyncHandlerTest extends TestCase
             . '"sales_info":[{"order_id":"200000000101","sale_date_time":"2026-08-01T10:00:00-05:00"}],'
             . '"shipping_info":{"pack_id":"PACK-SHARED","receiver_shipping_cost":"15.2300"},'
             . '"items_info":[{"item_id":"MCO101","order_id":"200000000101","item_amount":"1"}]}';
-        $response = static fn (string $lastId): MeliTransportResponse => new MeliTransportResponse(
+        $response = static fn (string $lastId, ?string $pageDetail = null): MeliTransportResponse => new MeliTransportResponse(
             200,
             [],
-            '{"results":[' . $detail . '],"last_id":"' . $lastId . '"}',
+            '{"results":[' . ($pageDetail ?? $detail) . '],"last_id":"' . $lastId . '"}',
         );
         $work = new WorkRepository($this->pdo);
         $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
-        $transport = new BillingPeriodSyncFakeTransport([$response('101'), $response('102')]);
+        $changedDetail = str_replace(
+            ['200000000101', 'PACK-SHARED'],
+            ['200000000102', 'PACK-CHANGED'],
+            $detail,
+        );
+        $transport = new BillingPeriodSyncFakeTransport([$response('101'), $response('102', $changedDetail)]);
         $handler = $this->handler($work, $transport);
 
         self::assertTrue($handler->syncCurrentClaim(
@@ -214,15 +219,130 @@ final class BillingPeriodSyncHandlerTest extends TestCase
         self::assertSame('2026-09-12 20:12:02.123000', $stored['remote_created_at']);
         $context = json_decode((string) $stored['context_json'], true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('FACT-BONUS', $context['charge']['charge_bonified_id']);
-        self::assertSame('200000000101', $context['sales'][0]['order_id']);
-        self::assertSame('PACK-SHARED', $context['shipping']['pack_id']);
+        self::assertSame('200000000102', $context['sales'][0]['order_id']);
+        self::assertSame('PACK-CHANGED', $context['shipping']['pack_id']);
         self::assertSame('15.2300', $context['shipping']['receiver_shipping_cost']);
         self::assertSame('MCO101', $context['items'][0]['item_id']);
         self::assertArrayNotHasKey('seller_shipping_cost', $context['shipping']);
         self::assertSame(1, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_details')->fetchColumn());
+        $detailId = (int) $this->pdo->query('SELECT id FROM billing_details')->fetchColumn();
+        $references = $this->pdo->prepare(
+            'SELECT reference_kind, reference_value FROM billing_detail_references '
+            . 'WHERE billing_detail_id = ? ORDER BY reference_kind, reference_value',
+        );
+        $references->execute([$detailId]);
+        self::assertSame([
+            ['reference_kind' => 'association', 'reference_value' => 'FACT-BASE'],
+            ['reference_kind' => 'detail', 'reference_value' => 'FACT-101'],
+            ['reference_kind' => 'order', 'reference_value' => '200000000102'],
+            ['reference_kind' => 'pack', 'reference_value' => 'PACK-CHANGED'],
+        ], $references->fetchAll(PDO::FETCH_ASSOC));
         self::assertCount(2, $transport->requests);
         self::assertStringContainsString('from_id=0', $transport->requests[0]['url']);
         self::assertStringContainsString('from_id=101', $transport->requests[1]['url']);
+    }
+
+    public function testReferenceWriteFailureRollsBackBillingFactsCursorAndWorkClaim(): void
+    {
+        $work = new WorkRepository($this->pdo);
+        $claim = $this->enqueueAndClaim($work, '2026-09-01', 'BILL', '0');
+        $before = $this->workRow($claim['id']);
+        $this->pdo->exec(
+            "CREATE TRIGGER test_block_billing_reference BEFORE INSERT ON billing_detail_references "
+            . "FOR EACH ROW BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='test reference failure'; END",
+        );
+        $transport = new BillingPeriodSyncFakeTransport([$this->validPage('101')]);
+
+        try {
+            $this->handler($work, $transport)->syncCurrentClaim(
+                $claim['id'], $claim['claim_token'], $this->companyId, $this->accountId,
+                '2026-09-01', 'BILL', '0', $this->now,
+            );
+            self::fail('Reference index failure must roll back the complete Work transaction.');
+        } catch (\PDOException $exception) {
+            self::assertStringContainsString('test reference failure', $exception->getMessage());
+        } finally {
+            $this->pdo->exec('DROP TRIGGER IF EXISTS test_block_billing_reference');
+        }
+
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_periods')->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_details')->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_detail_references')->fetchColumn());
+        self::assertSame($before, $this->workRow($claim['id']));
+        self::assertFalse($this->pdo->inTransaction());
+    }
+
+    public function testReferenceBackfillResumesAfterInterruptedBatchAndIsIdempotent(): void
+    {
+        $period = $this->pdo->prepare(
+            'INSERT INTO billing_periods(company_id,account_id,period_key,document_type) VALUES(?,?,?,?)',
+        );
+        $period->execute([$this->companyId, $this->accountId, '2026-08-01', 'BILL']);
+        $firstPeriodId = (int) $this->pdo->lastInsertId();
+        $period->execute([$this->companyId, $this->accountId, '2026-09-01', 'CREDIT_NOTE']);
+        $secondPeriodId = (int) $this->pdo->lastInsertId();
+        $insert = $this->pdo->prepare(
+            'INSERT INTO billing_details '
+            . '(billing_period_id,external_detail_id,associated_detail_id,detail_type,detail_amount,context_json) '
+            . 'VALUES(?,?,?,\'CHARGE\',\'1.0000\',?)',
+        );
+        $insert->execute([$firstPeriodId, 'OLD-001', 'OLD-000', '{"sales":[{"order_id":"9007199254740993123"},{"order_id":"9007199254740993123"}],"shipping":{"pack_id":"PACK-1"}}']);
+        $insert->execute([$secondPeriodId, 'OLD-002', null, '{"items":[{"order_id":"ORDER-2"}]}']);
+        $secondDetailId = (int) $this->pdo->query("SELECT id FROM billing_details WHERE external_detail_id='OLD-002'")->fetchColumn();
+        $this->pdo->exec("DELETE FROM schema_migrations WHERE version='013_billing_detail_references_backfill'");
+        $this->pdo->exec(
+            'CREATE TRIGGER test_interrupt_billing_reference_backfill BEFORE INSERT ON billing_detail_references '
+            . "FOR EACH ROW BEGIN IF NEW.billing_detail_id = {$secondDetailId} THEN "
+            . "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='test backfill interruption'; END IF; END",
+        );
+
+        try {
+            BillingPeriodSyncHandler::backfillReferences($this->pdo, 1);
+            self::fail('The trigger must interrupt the second committed batch.');
+        } catch (\PDOException $exception) {
+            self::assertStringContainsString('test backfill interruption', $exception->getMessage());
+        } finally {
+            $this->pdo->exec('DROP TRIGGER IF EXISTS test_interrupt_billing_reference_backfill');
+        }
+
+        self::assertSame(4, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM billing_detail_references WHERE billing_detail_id < {$secondDetailId}",
+        )->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM billing_detail_references WHERE billing_detail_id = {$secondDetailId}",
+        )->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM schema_migrations WHERE version='013_billing_detail_references_backfill'",
+        )->fetchColumn());
+
+        self::assertSame(2, BillingPeriodSyncHandler::backfillReferences($this->pdo, 1));
+        $beforeReplay = $this->pdo->query(
+            'SELECT billing_detail_id, reference_kind, HEX(reference_value) AS reference_value '
+            . 'FROM billing_detail_references ORDER BY billing_detail_id, reference_kind, reference_value',
+        )->fetchAll(PDO::FETCH_ASSOC);
+        self::assertCount(6, $beforeReplay);
+        self::assertSame(0, BillingPeriodSyncHandler::backfillReferences($this->pdo, 1));
+        self::assertSame($beforeReplay, $this->pdo->query(
+            'SELECT billing_detail_id, reference_kind, HEX(reference_value) AS reference_value '
+            . 'FROM billing_detail_references ORDER BY billing_detail_id, reference_kind, reference_value',
+        )->fetchAll(PDO::FETCH_ASSOC));
+        self::assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_details')->fetchColumn());
+        self::assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM billing_periods')->fetchColumn());
+    }
+
+    public function testReferenceIndexRejectsOversizedIdentityWithoutTruncating(): void
+    {
+        $normalizer = new BillingDetailNormalizer();
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('exceeds the indexed reference size');
+        $normalizer->references([
+            'external_detail_id' => 'DETAIL-1',
+            'associated_detail_id' => null,
+            'context_json' => json_encode(
+                ['sales' => [['order_id' => str_repeat('x', 256)]]],
+                JSON_THROW_ON_ERROR,
+            ),
+        ]);
     }
 
     public function testEmptyPageMarksPeriodCaughtUpWithoutContinuation(): void

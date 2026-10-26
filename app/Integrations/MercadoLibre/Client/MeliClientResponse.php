@@ -8,7 +8,7 @@ use RuntimeException;
 
 final readonly class MeliClientResponse
 {
-    /** @param array<string,mixed> $data */
+    /** @param array<array-key,mixed> $data */
     public function __construct(
         public int $status,
         public array $data,
@@ -108,6 +108,78 @@ final readonly class MeliClientResponse
             }
         }
         return 'COMPLETE';
+    }
+
+    /**
+     * Returns only requested entries whose item and seller identities are confirmed.
+     * The expected seller must come from a company-authorized connected account.
+     * @param list<string> $requestedIds
+     * @return array<string,array{read_state:string,title:?string,status:?string,price:?string,currency_id:?string,public_quantity_reference:?string}>
+     */
+    public function sellerBulkReadState(string $expectedSellerId, array $requestedIds): array
+    {
+        if (self::resourceId($expectedSellerId) !== $expectedSellerId || $requestedIds === []
+            || count($requestedIds) > 20 || count(array_unique($requestedIds)) !== count($requestedIds)) {
+            throw new RuntimeException('Invalid seller bulk response context.');
+        }
+
+        $result = [];
+        foreach ($requestedIds as $id) {
+            if (preg_match('/^M[A-Z]{2}[1-9][0-9]{0,31}$/D', $id) !== 1) {
+                throw new RuntimeException('Invalid requested listing ID.');
+            }
+            $result[$id] = [
+                'read_state' => 'UNVERIFIED', 'title' => null, 'status' => null,
+                'price' => null, 'currency_id' => null, 'public_quantity_reference' => null,
+            ];
+        }
+
+        if ($this->status !== 200 || trim($this->contentMissing ?? '') !== '' || !array_is_list($this->data)) {
+            return $result;
+        }
+
+        $seen = [];
+        $duplicates = [];
+        foreach ($this->data as $entry) {
+            if (!is_array($entry) || !is_string($entry['id'] ?? null) || !array_key_exists($entry['id'], $result)) {
+                continue;
+            }
+            $id = $entry['id'];
+            if (isset($seen[$id])) {
+                $duplicates[$id] = true;
+                continue;
+            }
+            $seen[$id] = true;
+            $code = $entry['status_code'] ?? null;
+            if ($code !== 200 && $code !== '200') {
+                continue;
+            }
+            $body = $entry['body'] ?? null;
+            if (!is_array($body) || ($body['id'] ?? null) !== $id
+                || self::resourceId($body['seller_id'] ?? null) !== $expectedSellerId) {
+                continue;
+            }
+
+            $price = $body['price'] ?? null;
+            $quantity = $body['available_quantity'] ?? null;
+            $result[$id] = [
+                'read_state' => 'VERIFIED',
+                'title' => is_string($body['title'] ?? null) ? $body['title'] : null,
+                'status' => is_string($body['status'] ?? null) ? $body['status'] : null,
+                'price' => is_string($price) && preg_match('/^[0-9]+(?:\.[0-9]+)?$/D', $price) === 1 ? $price : null,
+                'currency_id' => is_string($body['currency_id'] ?? null) ? $body['currency_id'] : null,
+                'public_quantity_reference' => is_string($quantity) && ctype_digit($quantity) ? $quantity : null,
+            ];
+        }
+
+        foreach ($duplicates as $id => $_) {
+            $result[$id] = [
+                'read_state' => 'UNVERIFIED', 'title' => null, 'status' => null,
+                'price' => null, 'currency_id' => null, 'public_quantity_reference' => null,
+            ];
+        }
+
+        return $result;
     }
 
     private static function resourceId(mixed $value): ?string

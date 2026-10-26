@@ -9,18 +9,20 @@ declare(strict_types=1);
 /** @var string $internalSku */
 /** @var string $name */
 /** @var string $csrfToken */
+/** @var string $search */
+/** @var bool $searchInvalid */
 /** @var list<array{id:int,internal_sku:string,name:string}> $products */
 /** @var bool $canOperate */
 ?>
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Catálogo local</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Productos e inventario local</title></head>
 <body>
 <?php require dirname(__DIR__, 3) . '/Core/Http/views/navigation.php'; ?>
 <main id="main-content" tabindex="-1">
     <header class="page-header catalog-page-header">
         <span class="eyebrow">Productos</span>
-        <h1>Catálogo e inventario</h1>
+        <h1>Productos e inventario local</h1>
         <p>Administra productos e inventario local de la empresa seleccionada desde una sola superficie.</p>
     </header>
 
@@ -32,7 +34,7 @@ declare(strict_types=1);
             <section class="panel panel-full" aria-labelledby="create-product-title">
                 <div class="section-heading">
                     <div>
-                        <span class="eyebrow">Catálogo</span>
+                        <span class="eyebrow">Productos locales</span>
                         <h2 id="create-product-title">Crear producto</h2>
                     </div>
                     <p>Registra la identidad local del producto sin mezclarla con sincronizaciones remotas.</p>
@@ -49,13 +51,22 @@ declare(strict_types=1);
             <section class="panel panel-full" aria-labelledby="catalog-products-title">
                 <div class="section-heading">
                     <div>
-                        <span class="eyebrow">Catálogo</span>
-                        <h2 id="catalog-products-title">Productos recientes (máximo 100)</h2>
+                        <span class="eyebrow">Productos locales</span>
+                        <h2 id="catalog-products-title"><?= $search !== '' ? 'Resultados de búsqueda (máximo 100)' : 'Productos recientes (máximo 100)' ?></h2>
                     </div>
-                    <p>Selecciona un producto para consultar o ajustar su cantidad local.</p>
+                    <p>Busca en todos los productos internos por SKU o nombre; abre uno para consultar su inventario local.</p>
                 </div>
+                <form class="settings-form" method="get" action="/catalog" role="search">
+                    <label>Buscar producto interno por SKU o nombre
+                        <input name="q" type="search" maxlength="120" value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>" placeholder="SKU o nombre" autocomplete="off">
+                    </label>
+                    <div class="row-actions">
+                        <button type="submit">Buscar productos</button>
+                        <?php if ($search !== ''): ?><a class="button-secondary" href="/catalog">Limpiar búsqueda</a><?php endif; ?>
+                    </div>
+                </form>
                 <?php if ($products === []): ?>
-                    <p class="empty-state">No hay productos en esta empresa.</p>
+                    <p class="empty-state"><?= $searchInvalid ? 'Corrige la búsqueda para consultar productos.' : ($search !== '' ? 'No se encontraron productos internos con ese SKU o nombre.' : 'No hay productos en esta empresa.') ?></p>
                 <?php else: ?>
                     <div class="table-wrap">
                         <table data-responsive-table="catalog-products">
@@ -63,8 +74,8 @@ declare(strict_types=1);
                             <tbody>
                             <?php foreach ($products as $product): ?>
                                 <tr data-mobile-card="product-row">
-                                    <td data-label="ID"><a class="primary-record-link" href="/catalog?product_id=<?= $product['id'] ?>"><?= $product['id'] ?></a></td>
-                                    <td data-label="SKU interno"><?= htmlspecialchars($product['internal_sku'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td data-label="ID"><?= $product['id'] ?></td>
+                                    <td data-label="SKU interno"><a class="primary-record-link" href="/catalog?product_id=<?= $product['id'] ?>"><?= htmlspecialchars($product['internal_sku'], ENT_QUOTES, 'UTF-8') ?></a></td>
                                     <td data-label="Nombre"><?= htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8') ?></td>
                                 </tr>
                             <?php endforeach; ?>
