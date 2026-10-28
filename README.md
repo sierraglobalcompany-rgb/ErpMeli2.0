@@ -124,7 +124,7 @@ Estos documentos son evidencia o guías operativas específicas; no reemplazan c
 
 ## Forma de trabajo
 
-Cada cambio se ejecuta como microbloque:
+Cada cambio se ejecuta como **lote coherente de entrega**; las verificaciones focales y los checkpoints por pantalla son pasos internos, no nuevas rondas de delegación:
 
 R0 es una reconciliación docs-only: inspeccionar, comprobar contradicciones, editar, validar, commit y STOP. Los cambios de comportamiento sí requieren RED → GREEN mínimo → QA antes de cerrar su checkpoint.
 
