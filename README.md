@@ -1,5 +1,8 @@
 # ERP MELI 2.0
 
+> **Plan de cierre funcional vigente (propuesta bajo revisión):** [ERP2_PLAN_MAESTRO_CIERRE_PRODUCTO_20261028.md](docs/ERP2_PLAN_MAESTRO_CIERRE_PRODUCTO_20261028.md). El readiness local histórico y el roadmap F0–F16 de esta página no certifican el alcance ampliado; leer el plan antes de crear un nuevo prompt.
+
+
 ERP MELI 2.0 es el ERP greenfield de Sierra Global para operar y auditar Mercado Libre con una arquitectura deliberadamente pequeña, auditable y recuperable.
 
 **Stack soportado:** PHP 8.3 / 8.4 / 8.5 + Slim 4 + PDO/MariaDB + PHPUnit + PHPStan.  

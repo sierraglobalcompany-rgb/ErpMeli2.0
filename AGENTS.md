@@ -1,5 +1,8 @@
 # ERP MELI 2.0 — Ley de ingeniería
 
+> **Antes de un nuevo prompt Codex o ChatGPT:** consultar [Plan maestro de cierre ERP2](docs/ERP2_PLAN_MAESTRO_CIERRE_PRODUCTO_20261028.md), contrastar con HEAD real y CURRENT_CHECKPOINT, verificar las seis leyes y seleccionar solo un lote de avance del producto. Un prompt anterior no recibe autorización para ejecutarse por aparecer en el plan.
+
+
 Esta regla es obligatoria para cualquier persona, IA o agente que diseñe, programe, revise o modifique ERP MELI 2.0.
 
 ## Puerta KISS obligatoria
