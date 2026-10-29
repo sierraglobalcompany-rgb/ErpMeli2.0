@@ -95,6 +95,29 @@ Reutilizar WorkRunner, WorkExecution y bin/work.php --manual-one; NO nuevos work
 - **Siguiente acción de valor:** decisión humana informada sobre política de reconciliación `uncertain_review`; ChatGPT coordina y puede preparar G2/G3 independientemente. No mandar otro prompt a Codex ni repetir los 959 tests hasta que haya contrato aprobado y código realmente cambiado. No Hostinger/cron/real HTTP ni release.
 - **Control de alcance:** el código G1, payment facts y migraciones 014–017 permanecen SOLO en clone local; PR21 `OPEN/DRAFT/NOT_MERGED` según última consulta; actualización documental **no publica el código**. No confundir rama documental con implementación.
 
+## G1-F — Política de recuperación propuesta / 29-oct-2026 — APROBACIÓN HUMANA PENDIENTE
+
+**No interpretar esta sección como implementación o autorización:** al corte, `G1_P1_SAFETY_QA=PASS_LOCAL` (959 tests/8448 asserts, 1 skipped), `MANUAL_UNCERTAIN_REVIEW=BLOCKED_BUSINESS_DECISION`, `G1_LOCAL_COMPLETE=NO`, `RELEASE=HOLD`. El código G1-P1 existe solo en clon Windows y PR21 sigue `OPEN/DRAFT/UNMERGED` @ `83e5dda0a47d553bf79099ceec14290fcf564e8d`. No reenviar prompts anteriores.
+
+**Contrato propuesto y mínimo (requiere visto bueno del usuario antes de programarlo):**
+
+1. Un Work manual se identifica por `manual_work_request_id`, `manual_work_id`, estado canónico `work_items.status`, empresa/cuenta, clase Work, resultado persistido y hora/actor. Los hashes de claim se preservan como diagnóstico; **no inferir mismo claim** de un `claim_token` que ya se limpió al cerrar el Work. No exponer secretos.
+2. **Confirmado completado:** solo si el **mismo** Work tiene `done` y están comprobados los efectos canónicos relevantes (sin comparar como iguales `done` y "recibí HTTP 200"), puede conciliarse exclusivamente el estado del pedido manual de manera transaccional, con auditoría de administrador, UTC y evidencia. Sin reenvío ni nueva ejecución.
+3. **Confirmado sin despacho y sin efectos:** exigir prueba positiva de no envío y ausencia de efecto; *no* inferirlo por logs ausentes. Solo después de autorización explícita podrá plantearse recuperación/reanudación del Work original, conservando invariantes FIFO/idempotencia.
+4. **Resultado desconocido/conflictivo:** mantener `uncertain_review`, pausa y alerta visible; no acciones "marcar done", "borrar", "reintentar", "reset", ni liberación global por comodidad. Ni un error HTTP de transporte demuestra que no hubo procesamiento remoto.
+5. **Concurrencia y permisos:** System Admin, CSRF, CAS de `request_id+work_id+status`, lock Work vigente, reconciliación verificable en transacción, actor/UTC/motivo, una sola transición, negativos ante concurrente/datos modificados/tenant incorrecto/estado desconocido. No una segunda cola, ni adaptador autónomo, ni solicitudes reales.
+6. **Disponibilidad:** por ahora mantener HOLD global en `uncertain_review`; permitir otros Work/empresas requiere una prueba independiente de aislamiento y FIFO y una aprobación de producto separada. No abrir nuevo lote Codex hasta la decisión.
+
+**G1-F=PROPOSAL_NOT_APPROVED**. El siguiente actor es ChatGPT para obtener la decisión funcional del propietario; si se aprueba, un solo lote técnico con test negativo y QA del árbol modificado. No confundir con la condición independiente G6 (cron, Hostinger, proveedor real y autorización).
+
+### G2 — Avance independiente verificado en fuente remota (sin implementación nueva)
+
+Se inspeccionó PR21 (sin cambios G1) en `MeliListingReadScope.php`, `MeliListingPreviewController.php`, `CatalogController.php`, `InventoryRepository.php` y `config/meli_operations.php`.
+- `MeliListingReadScope::readPage` autoriza empresa/cuenta ANTES de solicitar token/transporte; usa operaciones HTTP `users.items.search` e `items.bulk`, página <=20, ventana <1000, y comprueba vendedor, IDs y paginación. Los datos/resultado se limitan a una página; no son un escaneo completo de inventario. Las llamadas múltiples de recursos `items.bulk` usan un único GET oficial, no 20 solicitudes paralelas.
+- `MeliListingPreviewController::PATH` es `/__test/m02/listings-preview`, **TEST ONLY** y por defecto muestra fixtures. No hay autorización para llamarlo interfaz productiva ni declarar lista de publicaciones conectada a ML.
+- `CatalogController` y `InventoryRepository` ya operan catálogo e inventario locales por empresa, con permisos/CSRF. No acoplar inventario físico local a quantity remota sin contrato comercial.
+- **Siguiente entregable G2 independientemente posible:** definir/validar sobre candidato local un flujo de publicaciones de solo lectura por cuenta autorizada, con estados completos/parciales, paginación, UX de empresa y cero escrituras ML; **requiere reconciliar primero los WIP M02 protegidos y habilitación real solo en G6**. No crear un cliente, worker, fanout, método gRPC ni autocalibración nuevos. Evitar prometer funcionalidades no comprobadas.
+
 ## G2 — Paridad de producto: empresas, cuentas, catálogo, publicaciones e inventario
 Inventariar requisitos y funciones actuales ERP1 únicamente como referencia; definir públicamente qué significa catálogo público y catálogo privado ANTES de implementar (ownership y visibilidad, NO asumir que son dos tablas). Reutilizar productos, cuentas, inventory y lector M02; no copiar ERP1 ni el lector Canary del WIP. Crear UI operativa por empresa/cuenta con búsqueda/paginación y estados honestos, pasando de M02 test-only a un flujo de producto cuando exista una fuente local certificable. Si proveedor real es requisito, conservar estado pendiente hasta F14: no fingir publicación real. Confirmar roles y aislamiento. GATE: matriz de paridad firmada, rutas funcionales, tests empresa ajena y mockups/versiones vinculados.
 
