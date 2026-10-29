@@ -60,7 +60,7 @@ Reutilizar WorkRunner, WorkExecution y bin/work.php --manual-one; NO nuevos work
 
 **Decisión:** `G1_IMPLEMENTED_LOCAL=YES`, `G1_RELEASE_CERTIFIED=NO`, `LOCAL_PRODUCT_COMPLETE=NO`, `MONTHLY_REPORT_FACTURABLE=NO`, `REAL_MELI_HTTP=0`, `REMOTE_WRITES=OFF`. No commit/push/merge/deploy a PR funcional. Próxima entrega: un solo lote coherente para resolver faltantes G1, con pruebas focales de sus cambios y un gate final una vez, después de auditoría de código; no emitir micro-prompts ni reabrir H9/H10/M02.
 
-## G1-C — Cierre operativo acordado, pendiente de ejecutar
+## G1-C — HISTÓRICO: cierre operativo acordado (EJECUTADO, SUPERADO POR G1-E)
 
 **Fecha:** 2026-10-28, America/Bogota. **Estado:** PLANIFICADO / NO EJECUTADO / NO AUTORIZA PUBLICACIÓN. PR21 HEAD `83e5dda0a47d553bf79099ceec14290fcf564e8d` (open/draft/no merge). G1 V2 local ya aplicado y QA 935/8255/1 skip reportada; no reaplicar transformador ni repetir esa suite antes de cambios reales.
 
@@ -83,6 +83,17 @@ Reutilizar WorkRunner, WorkExecution y bin/work.php --manual-one; NO nuevos work
 2. **G1-P1-02: fallo de telemetría enmascara HTTP y puede eludir cooldown 429**: `MeliClient::recordUsage` dejó propagar PDOException, incluso después de recibir 200/503; en rama 429 invoca `recordUsage` ANTES de `register429`, por lo que error `api_usage_daily` impide persistir cooldown. `MeliClientResponseMetricsTest` se cambió para esperar enmascaramiento, contrario a resiliencia requerida. Restaurar prioridad del resultado de Mercado Libre y cooldown sobre observabilidad best-effort. Probar 200/503/429 con métricas caídas sin reintentos extra.
 
 **Decisión:** `G1_QA_AUTOMATIZADA=PASS_EVIDENCIA`; `G1_LOCAL_COMPLETE=NO`; `G1_RELEASE_CERTIFIED=NO`; `NEXT=UNA_REMEDIACION_FOCAL_P1_01_P1_02_MAS_BROWSER_FINAL`. **No repetir 951 tests por ritual**; corregir, probar escenarios nuevos, una suite final del árbol materialmente cambiado, recapturar la UI final. No reiniciar G1 V2 ni el prompt previo que ya fue ejecutado. No Hostinger ni MELI real.
+
+## G1-E — Checkpoint independiente 10 pasadas / 29-oct-2026 (AUTORIDAD ACTUAL)
+
+**Fuente única del estado post G1-P1:** [ERP2_HANDOFF_10_PASADAS_POST_G1_P1_20261029.md](ERP2_HANDOFF_10_PASADAS_POST_G1_P1_20261029.md). **G1-B/G1-C/G1-D son historia y fueron SUPERADOS**, no órdenes por ejecutar; `docs/NEXT_CODEX_G1.md` es un prompt antiguo y **NO DEBE REENVIARSE**.
+
+- **Evidencia de Codex inspeccionada independientemente por ChatGPT:** `FINAL_REPORT(9).md` SHA256 `83b99b481974e6f3bb22dedf1b59ec2d8cc49e911a86df9671775d08f85703ac`; `evidence(10).zip` SHA256 `3cd9f5dc032b3fb7c2d7b351d66c7959d5513b70c16b268ab1262100843f4db4`; ZIP CRC PASS, manifest de 40/40 PASS, patch final binario y 9 untracked presentes.
+- **QA del árbol local final:** 959 tests / 8448 assertions / 1 skipped / 0 fail/error; PHPStan PASS; UI final móvil 390×844/escritorio 1440×900 inspeccionada; WIP históricos 8/8 SHA coincidentes según evidencia del ejecutor; todo atribuido al candidato Windows sobre PR21 `83e5dda...`, sin commit y sin Mercado Libre real.
+- **Contratos de riesgo corregidos y auditados en diff:** CLI/direct runner/claim/recover respeta `uncertain_review`; 429 registra cooldown antes de telemetría; telemetría best-effort no enmascara respuesta; lock release posterior al envío no oculta 429; calibración 250–60000 ms exclusivamente manual.
+- **Decisión de cierre:** `G1_SAFETY_QA=PASS_LOCAL`, pero `G1_LOCAL_COMPLETE=NO`, `G1_RELEASE_CERTIFIED=NO` porque la resolución/reconciliación de Work manual incierto sigue **SIN CONTRATO DE NEGOCIO AUTORIZADO**. La cola se detiene deliberadamente para evitar reenvío; no inventar control “marcar completo”, reset, retry, bypass ni reabrir cola sin evidencias/decisión humana.
+- **Siguiente acción de valor:** decisión humana informada sobre política de reconciliación `uncertain_review`; ChatGPT coordina y puede preparar G2/G3 independientemente. No mandar otro prompt a Codex ni repetir los 959 tests hasta que haya contrato aprobado y código realmente cambiado. No Hostinger/cron/real HTTP ni release.
+- **Control de alcance:** el código G1, payment facts y migraciones 014–017 permanecen SOLO en clone local; PR21 `OPEN/DRAFT/NOT_MERGED` según última consulta; actualización documental **no publica el código**. No confundir rama documental con implementación.
 
 ## G2 — Paridad de producto: empresas, cuentas, catálogo, publicaciones e inventario
 Inventariar requisitos y funciones actuales ERP1 únicamente como referencia; definir públicamente qué significa catálogo público y catálogo privado ANTES de implementar (ownership y visibilidad, NO asumir que son dos tablas). Reutilizar productos, cuentas, inventory y lector M02; no copiar ERP1 ni el lector Canary del WIP. Crear UI operativa por empresa/cuenta con búsqueda/paginación y estados honestos, pasando de M02 test-only a un flujo de producto cuando exista una fuente local certificable. Si proveedor real es requisito, conservar estado pendiente hasta F14: no fingir publicación real. Confirmar roles y aislamiento. GATE: matriz de paridad firmada, rutas funcionales, tests empresa ajena y mockups/versiones vinculados.
