@@ -74,6 +74,16 @@ Reutilizar WorkRunner, WorkExecution y bin/work.php --manual-one; NO nuevos work
 
 **Puertas G1 aún abiertas:** C0 shared-gate, manual web, dos procesos OS, contabilización fiel o limitación declarada, aviso genuino, diff final fuente, cron real; NO Hostinger ni real MELI. `G1_RELEASE_CERTIFIED=NO`. No mezclar «G1 local complete» con «release ready» o `MONTHLY_REPORT_FACTURABLE`.
 
+## G1-D — Auditoría independiente del árbol final 951 (corte 28-oct-2026)
+
+**Evidencia independiente inspeccionada en ChatGPT:** report SHA256 `7aaac4045bd3afda686397fb8d251ee2b453b9a10ee474c35ee4c328ca51b3fc`; ZIP SHA256 `c6ecc545b7f03be309497dd75b709180a50869d483a220fecc6b0ef16e7b01ec`, 48/48 miembros SHA PASS, CRC PASS. Logs PHPUnit 951 tests / 8388 assertions / 1 skip / 0 fail / 0 errors, PHPStan PASS. Incluye diff final y fuentes nuevas, **código aun solo local, sin commit**. Test real de dos procesos OS PASS. La recaptura móvil final 390×844 **NO EXISTE**; imágenes históricas no certifican UI.
+
+**Hallazgos nuevos P1 verificables por diff final:**
+1. **G1-P1-01: cola completa queda detenida en `manual_work_status=uncertain_review`**: `bin/work.php` invoca `runRequestedManual`, que devuelve cero, y `WorkExecution::runAutomatic` rehúsa ejecutar con `manualWorkBlocksAutomatic`; no hay acción admin segura para reconciliar/resolver y reanudar. No reejecutar Work ambiguo: resolver con revisión humana comprobable y pruebas negativas, sin segunda cola.
+2. **G1-P1-02: fallo de telemetría enmascara HTTP y puede eludir cooldown 429**: `MeliClient::recordUsage` dejó propagar PDOException, incluso después de recibir 200/503; en rama 429 invoca `recordUsage` ANTES de `register429`, por lo que error `api_usage_daily` impide persistir cooldown. `MeliClientResponseMetricsTest` se cambió para esperar enmascaramiento, contrario a resiliencia requerida. Restaurar prioridad del resultado de Mercado Libre y cooldown sobre observabilidad best-effort. Probar 200/503/429 con métricas caídas sin reintentos extra.
+
+**Decisión:** `G1_QA_AUTOMATIZADA=PASS_EVIDENCIA`; `G1_LOCAL_COMPLETE=NO`; `G1_RELEASE_CERTIFIED=NO`; `NEXT=UNA_REMEDIACION_FOCAL_P1_01_P1_02_MAS_BROWSER_FINAL`. **No repetir 951 tests por ritual**; corregir, probar escenarios nuevos, una suite final del árbol materialmente cambiado, recapturar la UI final. No reiniciar G1 V2 ni el prompt previo que ya fue ejecutado. No Hostinger ni MELI real.
+
 ## G2 — Paridad de producto: empresas, cuentas, catálogo, publicaciones e inventario
 Inventariar requisitos y funciones actuales ERP1 únicamente como referencia; definir públicamente qué significa catálogo público y catálogo privado ANTES de implementar (ownership y visibilidad, NO asumir que son dos tablas). Reutilizar productos, cuentas, inventory y lector M02; no copiar ERP1 ni el lector Canary del WIP. Crear UI operativa por empresa/cuenta con búsqueda/paginación y estados honestos, pasando de M02 test-only a un flujo de producto cuando exista una fuente local certificable. Si proveedor real es requisito, conservar estado pendiente hasta F14: no fingir publicación real. Confirmar roles y aislamiento. GATE: matriz de paridad firmada, rutas funcionales, tests empresa ajena y mockups/versiones vinculados.
 
