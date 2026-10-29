@@ -118,6 +118,29 @@ Se inspeccionó PR21 (sin cambios G1) en `MeliListingReadScope.php`, `MeliListin
 - `CatalogController` y `InventoryRepository` ya operan catálogo e inventario locales por empresa, con permisos/CSRF. No acoplar inventario físico local a quantity remota sin contrato comercial.
 - **Siguiente entregable G2 independientemente posible:** definir/validar sobre candidato local un flujo de publicaciones de solo lectura por cuenta autorizada, con estados completos/parciales, paginación, UX de empresa y cero escrituras ML; **requiere reconciliar primero los WIP M02 protegidos y habilitación real solo en G6**. No crear un cliente, worker, fanout, método gRPC ni autocalibración nuevos. Evitar prometer funcionalidades no comprobadas.
 
+### G2-A — Contrato de primera superficie solo lectura, no implementada (29-oct-2026)
+
+**Estado:** `DESIGN_READINESS_VERIFIED`, `CODE_IMPLEMENTATION=NOT_STARTED`, `LIVE_PROVIDER_HTTP=0`. Esta sección define una primera entrega independiente mientras `G1-F` sigue `PROPOSAL_NOT_APPROVED`; **no concede autorización** para alterar código, registrar datos de producción ni conectar Mercado Libre. Fuente: PR21 HEAD `83e5dda0a47d553bf79099ceec14290fcf564e8d`, y documentación oficial de ML consultada el 29-oct-2026: https://developers.mercadolibre.com.co/es_ar/api-docs-es/items-y-busquedas.
+
+**Reutilizar sin copiar/duplicar:**
+- `app/Modules/Settings/MeliListingReadScope.php`: `connectedSeller` exige `companyForRoles('admin')`, cuenta conectada de la empresa, seller numérico válido y site; `readPage` autentica ANTES de entregar token al cliente; `users.items.search` devuelve IDs con página `1..20` y límite total local `1000`; `items.bulk` comprueba identidad y vendedor, conserva estado `VERIFIED/UNVERIFIED`.
+- `MeliClient` existente + gate HTTP G1 para todo envío físico en candidato local; `config/meli_operations.php` ya contiene `/users/{user_id}/items/search` y `/items/bulk` READ, con `status_code` en respuesta multiget; `LosslessJsonDecoder` convierte números sin perder precisión cuando `preserve_numbers=true`.
+- `CatalogController/ProductRepository/InventoryRepository`: `products` por empresa, SKU/nombre e inventario local. No convertir `available_quantity` remoto en cantidad real ni escribirlo en `product_inventory`.
+- `MeliListingPreviewController::PATH=/__test/m02/listings-preview`: TEST ONLY con `fixturesFor`; **no** es el flujo de producto ni prueba de proveedor. No exponer esa ruta en producción por reutilización accidental.
+
+**Criterios de aceptación de un futuro lote G2 (al preparar candidato local autorizado, sin F14):**
+1. Una sola pantalla navegable bajo cuentas/catálogo existentes para System/Company Admin **solo si el rol se reconcilia con `CompanyContext`**; selecciona cuenta conectada de empresa actual. No duplicar login ni inventar permisos de operador.
+2. Consultar **una página** por acción, no hacer prefetch masivo ni scan oculto; cada `GET` físico pasa por calibración manual/cooldown/gate; máximo local 20 ítems por lote. Indicar offset, límite y `has_more` sin prometer total global exacto fuera del rango.
+3. Mostrar `VERIFIED` y `UNVERIFIED` por publicación, sin inferir título, precio o existencias ante respuesta parcial; 429, timeout y problemas OAuth son errores visibles sin reintento masivo.
+4. Mantener **público vs privado** como semántica de visibilidad de la API: la ruta pública `/sites/{site_id}/search` es distinta de las publicaciones autenticadas del vendedor `/users/{user_id}/items/search`. No crear tablas `catalog_public` / `catalog_private` sin decisión de producto.
+5. `/items/bulk` es el endpoint nuevo de multiget (reemplaza `/items?ids=`, con campos `status_code` e `id` externo). Ya está usado por el código; no migrar otra vez.
+6. Si una cuenta supera 1000 publicaciones, mostrar **limitación explícita**. `search_type=scan` requiere su propio contrato (scroll_id expirable, curso/resume y pruebas) antes de activarlo; no inventar que páginas offset cubren todo el vendedor.
+7. Aislamiento negativo: otra empresa, cuenta inexistente/desconectada, seller mismatch, ID inconsistente, duplicados, bulk parcial, CSRF cuando haya POST, números JSON, XSS en título, 429; confirmar cero remote writes y cero sincronización automática de stock.
+8. Evidencia: tests focales por contrato, una regresión integrada después de código nuevo, capturas reales desktop 1440×900/móvil 390×844 del árbol final; comparar mockup aprobado si existe, o `MOCKUP_NOT_VERIFIED`. No reciclar `951/959` tests como pruebas del futuro G2.
+9. **Nada de Hostinger ni tráfico proveedor real** hasta gate G6 y autorización posterior. Antes de editar el clon local, conciliar 8 WIP protegidos y G1 funcional no versionado: no checkout/reset/clean sobre trabajo ajeno.
+
+**Evidencia pública:** Documentación Mercado Libre `Ítems y Búsquedas` actualizada en 2026 indica transición a `/items/bulk`, consulta privada del seller y uso `search_type=scan` por encima de 1000. Estas observaciones no prueban que el backend colombiano esté autorizado sin F14; `PROVIDER_CONTRACT_LIVE=NOT_CERTIFIED`.
+
 ## G2 — Paridad de producto: empresas, cuentas, catálogo, publicaciones e inventario
 Inventariar requisitos y funciones actuales ERP1 únicamente como referencia; definir públicamente qué significa catálogo público y catálogo privado ANTES de implementar (ownership y visibilidad, NO asumir que son dos tablas). Reutilizar productos, cuentas, inventory y lector M02; no copiar ERP1 ni el lector Canary del WIP. Crear UI operativa por empresa/cuenta con búsqueda/paginación y estados honestos, pasando de M02 test-only a un flujo de producto cuando exista una fuente local certificable. Si proveedor real es requisito, conservar estado pendiente hasta F14: no fingir publicación real. Confirmar roles y aislamiento. GATE: matriz de paridad firmada, rutas funcionales, tests empresa ajena y mockups/versiones vinculados.
 
