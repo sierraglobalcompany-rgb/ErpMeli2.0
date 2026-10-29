@@ -1135,3 +1135,9 @@ No PR merge or merge commit without explicit approval, Hostinger, cron, real MEL
 - En bases con históricos, `013_billing_detail_references_backfill` debe quedar ausente hasta completar y verificar el backfill. Financial falla cerrado antes de ese gate. En una instalación nueva, la migración puede registrar el marcador si no existen detalles previos.
 - Antes de una futura actualización con datos existentes: pausar escritores Billing, validar backup/restauración, migrar en orden y verificar backfill, cobertura, marcador y equivalencia antes de reanudar.
 - `RELEASE_READY=NO`; esta consolidación no aplicó migraciones fuera de DB descartable.
+
+## CHECKPOINT EXTERNO ACTUAL — G1-P1 2026-10-29
+
+**Aviso de precedencia para iniciar chats nuevos:** este archivo contiene historia amplia y puede mostrar hitos locales más antiguos. El último checkpoint post G1-P1, con diez pasadas forenses y enlaces a hashes/capturas/WIP, es [ERP2_HANDOFF_10_PASADAS_POST_G1_P1_20261029.md](ERP2_HANDOFF_10_PASADAS_POST_G1_P1_20261029.md). El plan de ruta es [ERP2_PLAN_MAESTRO_CIERRE_PRODUCTO_20261028.md](ERP2_PLAN_MAESTRO_CIERRE_PRODUCTO_20261028.md), sección **G1-E**. No repetir `docs/NEXT_CODEX_G1.md` ni prompts G1/P1 antiguos.
+
+Estado actual: `G1_P1_LOCAL_QA=PASS` (959 tests, 8448 asserts, un skip; ZIP 40/40 SHA), `MANUAL_UNCERTAIN_REVIEW=BLOCKED_BUSINESS_DECISION`, `G1_LOCAL_COMPLETE=NO`, `G1_RELEASE_CERTIFIED=NO`, `PR21=OPEN_DRAFT_NO_MERGE`, `REAL_MELI_HTTP=0`, `REMOTE_WRITES=OFF`, `WIP_HISTORICAL_8_OF_8=HASH_IDENTICAL_REPORTED`. **G1 functional code sigue SIN COMMIT en Windows y NO vive en GitHub.** El presente cambio es solo documental.
