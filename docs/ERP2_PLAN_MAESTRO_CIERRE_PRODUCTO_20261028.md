@@ -60,6 +60,18 @@ Reutilizar WorkRunner, WorkExecution y bin/work.php --manual-one; NO nuevos work
 
 **Decisión:** `G1_IMPLEMENTED_LOCAL=YES`, `G1_RELEASE_CERTIFIED=NO`, `LOCAL_PRODUCT_COMPLETE=NO`, `MONTHLY_REPORT_FACTURABLE=NO`, `REAL_MELI_HTTP=0`, `REMOTE_WRITES=OFF`. No commit/push/merge/deploy a PR funcional. Próxima entrega: un solo lote coherente para resolver faltantes G1, con pruebas focales de sus cambios y un gate final una vez, después de auditoría de código; no emitir micro-prompts ni reabrir H9/H10/M02.
 
+## G1-C — Cierre operativo acordado, pendiente de ejecutar
+
+**Fecha:** 2026-10-28, America/Bogota. **Estado:** PLANIFICADO / NO EJECUTADO / NO AUTORIZA PUBLICACIÓN. PR21 HEAD `83e5dda0a47d553bf79099ceec14290fcf564e8d` (open/draft/no merge). G1 V2 local ya aplicado y QA 935/8255/1 skip reportada; no reaplicar transformador ni repetir esa suite antes de cambios reales.
+
+**Nuevo hallazgo forense:** la confirmación `?api_calibration_saved=1` del controlador G1 V2 puede mostrar un «guardado» sin POST previo. La aceptación exige aviso de un solo uso derivado de sesión y **solo** tras update persistido exitoso, visible arriba en móvil; GET con query fabricada no acredita un guardado. El backend de G1 final aún no ha sido auditado por bytes completos en ChatGPT: en evidencia de Codex faltó diff de cinco correcciones adicionales, sí se conservan hashes y QA.
+
+**Lote único definido:** `ERP2_PROMPT_CODEX_LUNA_G1_CIERRE_OPERATIVO_UNICO_20261028.md` generado por ChatGPT (SHA256 `f0458e6098a1815c3d9f0382ee494eaff4edbbe994936ae46e4c145500217a3c`). Incluye prechange source bundle saneado, revisión final en origen, composición `Billing/C0/BillingC0Runtime.php` bajo gate físico existente, una activación manual durable y honesta consumida por el worker CLI existente (sin shell ni motor nuevo), contador HTTP de fallos de transporte, carrera dos procesos OS, flash genuino, tests focales y una suite final. Codex solo puede trabajar en el clon aislado verificado, preservando ocho WIP. **PROMPT_PREPARADO_NO_ENVIADO**.
+
+**Nota KISS del botón manual:** nunca afirmar «Procesado» al hacer POST si el worker lo consumirá en su siguiente tick; mostrar «Solicitud pendiente». No bloquear un request web durante 45 s, lanzar shell desde web ni activar HTTP real. Si demostrar semántica y recuperación requiere otro motor de colas, conservar CLI, marcar `WEB_MANUAL_TRIGGER=BLOCKED` y justificar; no inventar una aprobación.
+
+**Puertas G1 aún abiertas:** C0 shared-gate, manual web, dos procesos OS, contabilización fiel o limitación declarada, aviso genuino, diff final fuente, cron real; NO Hostinger ni real MELI. `G1_RELEASE_CERTIFIED=NO`. No mezclar «G1 local complete» con «release ready» o `MONTHLY_REPORT_FACTURABLE`.
+
 ## G2 — Paridad de producto: empresas, cuentas, catálogo, publicaciones e inventario
 Inventariar requisitos y funciones actuales ERP1 únicamente como referencia; definir públicamente qué significa catálogo público y catálogo privado ANTES de implementar (ownership y visibilidad, NO asumir que son dos tablas). Reutilizar productos, cuentas, inventory y lector M02; no copiar ERP1 ni el lector Canary del WIP. Crear UI operativa por empresa/cuenta con búsqueda/paginación y estados honestos, pasando de M02 test-only a un flujo de producto cuando exista una fuente local certificable. Si proveedor real es requisito, conservar estado pendiente hasta F14: no fingir publicación real. Confirmar roles y aislamiento. GATE: matriz de paridad firmada, rutas funcionales, tests empresa ajena y mockups/versiones vinculados.
 
